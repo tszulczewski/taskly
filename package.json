@@ -1,0 +1,27 @@
+{
+  "name": "taskly",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @taskly/app",
+    "build": "npm run build -w @taskly/app",
+    "start": "npm run start -w @taskly/app",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "db:generate": "npm run generate -w @taskly/db",
+    "db:migrate": "npm run migrate -w @taskly/db",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}
