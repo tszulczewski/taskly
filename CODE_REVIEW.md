@@ -16,7 +16,7 @@ Applied automatically by `om-code-review` (and so `om-auto-review-pr`). Full rat
 - Dependency direction `app → core → db`; `ui` imports no `@taskly/*`; `core` never imports `next`/`react`. Client code imports only `@taskly/core`, never `@taskly/core/server` or `@taskly/db`. Server-only modules are marked `server-only`.
 - Route Handlers are wiring only: Zod parse → `requireUser` → call `core` → envelope, wrapped in `apiHandler` (no inline try/catch, no business logic). Envelope is `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }`.
 - Services are plain functions `(db, actorUserId, input)`: Zod-parse → `requireRole` → work → publish event. No classes, no DI container.
-- Server state in the client goes through TanStack Query (optimistic update + rollback) and the single fetch helper `packages/app/src/lib/api-client.ts`.
+- Server state in the client goes through TanStack Query (optimistic update + rollback) and the single fetch helper `packages/app/lib/api-client.ts`.
 - Next.js here differs from common knowledge: check usage against `node_modules/next/dist/docs/`.
 
 ### Security (blockers)

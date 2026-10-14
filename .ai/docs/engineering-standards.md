@@ -56,7 +56,7 @@ Create a concept folder when its first file is added. Do not scaffold empty ones
 
 A route file is wiring only: **parse → authenticate → call core → respond**.
 
-Add to `core/src/http/` (server-side, no `next` import) and `app/src/lib/api.ts` (the thin `NextResponse` glue):
+Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages/app/lib/api.ts` (the thin `NextResponse` glue):
 
 - `apiHandler(fn)` — wraps every handler. Maps `ZodError` → 400 with field errors, `UnauthorizedError` → 401, `ForbiddenError` → 403, `NotFoundError` → 404, `ConflictError` → 409, anything else → 500 with a generic message. Unexpected errors are logged with context. Stack traces never reach the client. **No route writes its own try/catch.**
 - `requireUser(req)` — resolves the Better Auth session or throws `UnauthorizedError`. Every non-public route calls it first.
@@ -68,7 +68,7 @@ Add to `core/src/http/` (server-side, no `next` import) and `app/src/lib/api.ts`
 ## 5. Client (React)
 
 - **Server state = TanStack Query only.** No `useEffect` + `fetch`, no state copies of server data. Mutations use optimistic updates with rollback in `onError` and `invalidateQueries` in `onSettled`.
-- **One fetch helper** (`app/src/lib/api-client.ts`): the only code that calls `fetch('/api/…')`. It sets a custom header (`x-requested-with: taskly`), parses the envelope defensively, returns typed results / throws `ApiError`. Components never call `fetch`.
+- **One fetch helper** (`packages/app/lib/api-client.ts`): the only code that calls `fetch('/api/…')`. It sets a custom header (`x-requested-with: taskly`), parses the envelope defensively, returns typed results / throws `ApiError`. Components never call `fetch`.
 - **Forms** reuse the same Zod schema as the server (`@taskly/core`). Show server `fieldErrors` next to the field.
 - **Drag and drop (dnd-kit):** the handler computes `{afterId, beforeId}` from the new neighbours and sends only that. It never sends or renumbers other rows. The cache is updated optimistically in the same order.
 - **SSE:** one `useListEvents(listId)` hook subscribes with `EventSource`, patches or invalidates the Query cache, and cleans up on unmount. Reconnect is handled by `EventSource`. No SSE logic inside components.
@@ -76,7 +76,7 @@ Add to `core/src/http/` (server-side, no `next` import) and `app/src/lib/api.ts`
 - **UI placement:**
   1. shadcn primitive → `ui/src/components/ui/`, added with `npx shadcn@latest add`, not hand-written.
   2. Generic, concept-agnostic pattern (form field, empty state, data list) → `ui/src/components/`.
-  3. Concept-specific component → `app/src/components/<concept>/`.
+  3. Concept-specific component → `packages/app/components/<concept>/`.
   4. Used by one page → colocate; promote on the second use.
 - Loading, error and empty states use shared components, not ad-hoc JSX.
 - Styling: Tailwind utilities only, via `cn()`; design tokens in CSS variables. No inline `style` for static values. Mobile-first (phone PWA is a primary target); touch targets ≥ 44px.
