@@ -1,5 +1,13 @@
+Closes #
+<!-- Use `Refs #` for a spec-only PR. Add `Source doc: .ai/specs/<file>` when based on a spec. -->
+
 ## Purpose
 <!-- One purpose per PR. Link the spec/run log if any. -->
+
+## QA and risk (see SDLC.md)
+- QA: <!-- `needs-qa` for user-facing changes, `skip-qa` for docs/CI/test-only; never both -->
+- Risk: <!-- low / medium / high. High (auth, data scoping, money, migrations, shared contracts) needs integration evidence and a second reviewer -->
+- Migration rollback plan: <!-- required when `packages/db/migrations/` changes; otherwise delete this line -->
 
 ## Checklist (see .ai/docs/engineering-standards.md §11)
 **Structure**
@@ -19,4 +27,4 @@
 - [ ] Money is integer grosze end-to-end; totals computed server-side
 - [ ] Reorder writes only the moved row
 - [ ] Tests: success, forbidden, not-found (+ concurrency); regression test for fixes
-- [ ] `npm run lint`, `typecheck`, `test`, `build` pass; `.ai/` run log/lessons updated
+- [ ] Gate passes: `format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`; `.ai/` run log/lessons updated
