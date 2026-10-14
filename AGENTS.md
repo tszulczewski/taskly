@@ -58,6 +58,18 @@ Rules:
 - **Local PostgreSQL** tuned for low RAM (small `shared_buffers`, `work_mem`, `max_connections`). Development also uses a locally installed PostgreSQL (not Docker).
 - Configuration via environment variables (`DATABASE_URL`, Better Auth secret/URL, Anthropic API key); never commit secrets; keep a `.env.example`.
 
+### Engineering standards (digest)
+
+Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before writing code. The essentials:
+
+- **Layering:** `app → core → db`; `ui` imports no `@taskly/*`. Client code imports only `@taskly/core` (isomorphic), never `@taskly/core/server` or `@taskly/db`. `core` never imports `next`/`react`. Enforced by ESLint `no-restricted-imports`.
+- **Services = plain functions** `(db, actorUserId, input)`; no DI container, no classes. Order: Zod-parse → `requireRole` → work → publish event. Non-member → `NotFoundError`, insufficient role → `ForbiddenError`; fail closed. Check-then-write runs in a transaction.
+- **Routes** are wiring only: parse → `requireUser` → call core → envelope, wrapped in `apiHandler` (no inline try/catch). Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }`.
+- **Client:** server state only via TanStack Query (optimistic updates, rollback); the single fetch helper `app/src/lib/api-client.ts` is the only `fetch('/api…')` call site; one SSE hook; reorder sends only `{afterId, beforeId}`.
+- **Money** is integer grosze end-to-end, totals computed server-side, formatted to PLN only at the UI edge. **Order** uses fractional `position` compared with `COLLATE "C"`.
+- **Security:** Better Auth owns passwords/sessions/cookies (min password length 10, rate limiting on); authorize the specific record; Zod-parsed input only (no mass assignment); AI output is untrusted (Zod-validate, never store invalid); no secrets in logs or client bundles.
+- **Quality:** TypeScript strict, no `any`, no `console.log`, no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency); bug fixes ship a regression test. Gate: `npm run format:check`, `lint`, `typecheck`, `test`, `build`, `audit` (+ `e2e` for UI). Use `npm run format` to fix formatting.
+
 ## The `.ai/` directory (mandatory)
 
 All AI-related project metadata lives in `.ai/`. Agents MUST use this structure.
@@ -68,6 +80,7 @@ All AI-related project metadata lives in `.ai/`. Agents MUST use this structure.
 │   ├── YYYY-MM-DD-slug.md  # Active specs (not yet implemented)
 │   ├── implemented/        # Specs whose implementation is complete
 │   └── archive/            # Obsolete, rejected or superseded specs
+├── docs/                   # Long-lived reference docs (engineering-standards.md)
 ├── runs/                   # Logs of autonomous AI runs
 │   └── YYYY-MM-DD-slug.md
 ├── lessons.md              # Index of lessons learned (long-term memory)

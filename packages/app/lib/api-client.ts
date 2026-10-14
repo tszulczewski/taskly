@@ -1,0 +1,47 @@
+import { type ApiFailure, type ApiResponse, CSRF_HEADER, CSRF_HEADER_VALUE } from "@taskly/core";
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly fieldErrors?: ApiFailure["error"]["fieldErrors"],
+  ) {
+    super(message);
+  }
+}
+
+async function readJsonSafe(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function isEnvelope(value: unknown): value is ApiResponse<unknown> {
+  return typeof value === "object" && value !== null && "ok" in value;
+}
+
+/** The only place allowed to call `fetch('/api/…')`. Returns `data` or throws ApiError. */
+export async function apiCall<T>(
+  path: string,
+  init: Omit<RequestInit, "body"> & { body?: unknown } = {},
+): Promise<T> {
+  const { body, headers, ...rest } = init;
+  const res = await fetch(path, {
+    ...rest,
+    headers: {
+      [CSRF_HEADER]: CSRF_HEADER_VALUE,
+      ...(body !== undefined && { "content-type": "application/json" }),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const json = await readJsonSafe(res);
+  if (isEnvelope(json) && json.ok) return json.data as T;
+  if (isEnvelope(json) && !json.ok) {
+    throw new ApiError(res.status, json.error.code, json.error.message, json.error.fieldErrors);
+  }
+  throw new ApiError(res.status, "bad_response", "Unexpected server response");
+}

@@ -3,11 +3,19 @@ import { getDb, schema } from "@taskly/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies, toNextJsHandler } from "better-auth/next-js";
+import { getEnv } from "./env";
 
 function createAuth() {
+  const env = getEnv();
   return betterAuth({
+    secret: env.BETTER_AUTH_SECRET,
+    baseURL: env.BETTER_AUTH_URL,
+    trustedOrigins: [env.BETTER_AUTH_URL],
+    // Built-in brute-force protection for sign-in/sign-up (in-memory; enough for a single process).
+    rateLimit: { enabled: true, window: 60, max: 30 },
+    advanced: { useSecureCookies: process.env.NODE_ENV === "production" },
     database: drizzleAdapter(getDb(), { provider: "pg", schema }),
-    emailAndPassword: { enabled: true, minPasswordLength: 8 },
+    emailAndPassword: { enabled: true, minPasswordLength: 10 },
     // Sessions are stored in PostgreSQL (session table). Google login comes after the MVP.
     plugins: [nextCookies()],
   });

@@ -29,8 +29,12 @@ export const lists = pgTable("lists", {
 export const listMembers = pgTable(
   "list_members",
   {
-    listId: uuid("list_id").notNull().references(() => lists.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     role: memberRole("role").notNull(),
     createdAt: createdAt(),
   },
@@ -39,7 +43,9 @@ export const listMembers = pgTable(
 
 export const invitations = pgTable("invitations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  listId: uuid("list_id").notNull().references(() => lists.id, { onDelete: "cascade" }),
+  listId: uuid("list_id")
+    .notNull()
+    .references(() => lists.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   role: memberRole("role").notNull(),
   token: text("token").notNull().unique(),
@@ -51,7 +57,9 @@ export const tasks = pgTable(
   "tasks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    listId: uuid("list_id").notNull().references(() => lists.id, { onDelete: "cascade" }),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
     // Subtasks point at their parent task; access is inherited from the list.
     parentId: uuid("parent_id"),
     title: text("title").notNull(),
@@ -71,7 +79,9 @@ export const shoppingItems = pgTable(
   "shopping_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    listId: uuid("list_id").notNull().references(() => lists.id, { onDelete: "cascade" }),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     checked: boolean("checked").notNull().default(false),
     position: text("position").notNull(),
@@ -104,14 +114,18 @@ export const session = pgTable("session", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
 });
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),

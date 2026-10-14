@@ -8,6 +8,11 @@ export async function getRole(_db: Db, _userId: string, _listId: string): Promis
   throw new NotImplementedError("getRole");
 }
 
-export async function requireRole(_db: Db, _userId: string, _listId: string, _action: Action): Promise<Role> {
+export async function requireRole(
+  _db: Db,
+  _userId: string,
+  _listId: string,
+  _action: Action,
+): Promise<Role> {
   throw new NotImplementedError("requireRole");
 }

@@ -14,3 +14,14 @@ export class NotImplementedError extends Error {
     super(`${what} is not implemented yet`);
   }
 }
+
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized");
+  }
+}
+export class ConflictError extends Error {
+  constructor(message = "Conflict") {
+    super(message);
+  }
+}

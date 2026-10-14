@@ -12,6 +12,11 @@ export const claudeEstimator: Estimator = async () => {
   throw new NotImplementedError("claudeEstimator");
 };
 
-export async function estimateTask(_db: Db, _userId: string, _taskId: string, _estimator: Estimator = claudeEstimator): Promise<unknown> {
+export async function estimateTask(
+  _db: Db,
+  _userId: string,
+  _taskId: string,
+  _estimator: Estimator = claudeEstimator,
+): Promise<unknown> {
   throw new NotImplementedError("estimateTask");
 }

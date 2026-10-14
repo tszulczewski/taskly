@@ -50,3 +50,24 @@ package.json, tsconfig.base.json, eslint.config.mjs, .gitignore, .env.example, A
 - rm node_modules + .next, `npm ci`: ok. lint: 0 warnings/errors. typecheck: ok. tests: 6 passed (4 unit, 2 real-PostgreSQL). build: ok. e2e: 1 passed. db:migrate: applied/up to date.
 - Startup: standalone and `npm start` → / 200. Standalone /api/auth/ok → 500 without env (standalone does not read .env), 200 with env loaded → deployment needs systemd EnvironmentFile (noted in README).
 - Not covered (stubs only): services, API routes, SSE, PWA, UI.
+
+## Coding standards + helpers (appended)
+- Owner approved: functional services without DI, helpers + lint boundaries first, min password 10, AGENTS.md digest + link to full doc (as in the DevMentor example).
+- Added `.ai/docs/coding-standards.md` (full rules; was a draft spec), digest in AGENTS.md, `.ai/docs/` in the tree.
+- Code: core `http.ts` (envelope types, `mapError`, CSRF header check) + `UnauthorizedError`/`ConflictError`; app `lib/api.ts` (`apiHandler`, `requireUser`), `lib/api-client.ts` (`apiCall`, the only fetch site); Better Auth `minPasswordLength` 10.
+- ESLint: layering `no-restricted-imports` (ui/core/db/client), `no-explicit-any`, `no-console`, `fetch` restriction. Verified each rule fires with throwaway probe files (removed).
+- Gate: lint clean, typecheck ok, 10 tests passed, build ok, e2e passed.
+- Not yet: routes using `apiHandler`; `apiHandler`/`requireUser` have unit coverage only for `mapError`/CSRF.
+
+- Note: `.ai/docs/coding-standards.md` was renamed to `.ai/docs/engineering-standards.md` (AGENTS.md and eslint.config.mjs updated).
+
+## Engineering standards implemented (appended)
+- Tooling/infrastructure from `.ai/docs/engineering-standards.md` (no feature logic):
+  - core: `env.ts` (Zod env schema, `getEnv`/`parseEnv`), `money.ts` (`formatPln`, `formatPlnRange`), tests.
+  - Better Auth hardened: secret/baseURL/trustedOrigins from validated env, rate limiting on, secure cookies in production, min password 10.
+  - app: TanStack Query provider in root layout, `lib/query-keys.ts`; `noUncheckedIndexedAccess` enabled.
+  - Prettier (`.prettierrc.json`, `.prettierignore`, `format`/`format:check`) applied repo-wide; `.github/pull_request_template.md` with the §11 checklist; `npm run audit` (prod deps, high).
+  - vitest 5 + @types/node 24 (clears critical/high advisories in vitest/tinypool).
+- Gate: format:check, lint, typecheck ok; 13 tests passed; build ok; e2e 1 passed; audit exit 0.
+- Remaining `npm audit` findings are dev-tool only: `braces` via eslint-config-next (pinned to next 16.4.0) and `esbuild` via drizzle-kit; `--force` would downgrade, so left. Revisit on next upgrades.
+- Not implemented (feature work, needs a request): SSE route + `useListEvents`, service logic/routes using `apiHandler`, dnd-kit, shadcn components, PWA/service worker, logger with redaction.
