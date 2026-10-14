@@ -1,5 +1,5 @@
 Closes #
-<!-- Use `Refs #` for a spec-only PR. Add `Source doc: .ai/specs/<file>` when based on a spec. -->
+<!-- Delete the line above if there is no issue. Use `Refs #` for a spec-only PR. Add `Source doc: .ai/specs/<file>` when based on a spec. -->
 
 ## Purpose
 <!-- One purpose per PR. Link the spec/run log if any. -->
