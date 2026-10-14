@@ -9,7 +9,7 @@ const globalForDb = globalThis as unknown as { pool?: Pool };
 export function getDb() {
   globalForDb.pool ??= new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+    max: Number(process.env.DATABASE_POOL_MAX) || 5,
   });
   return drizzle(globalForDb.pool, { schema });
 }

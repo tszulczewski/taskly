@@ -32,6 +32,13 @@ describe("estimate", () => {
 });
 
 describe("summarize", () => {
+  it("treats missing amounts as zero", () => {
+    const s = summarize([
+      { status: "todo", costGrosze: null, estimateMinGrosze: null, estimateMaxGrosze: null },
+    ]);
+    expect(s).toEqual({ spentGrosze: 0, upcomingMinGrosze: 0, upcomingMaxGrosze: 0 });
+  });
+
   it("splits spent and upcoming", () => {
     const s = summarize([
       { status: "done", costGrosze: 1000, estimateMinGrosze: 800, estimateMaxGrosze: 900 },

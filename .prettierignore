@@ -2,6 +2,5 @@ node_modules
 .next
 packages/db/migrations
 package-lock.json
-test-results
-playwright-report
 *.md
+coverage

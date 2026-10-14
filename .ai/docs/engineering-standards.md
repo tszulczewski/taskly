@@ -110,19 +110,21 @@ Add to `core/src/http/` (server-side, no `next` import) and `app/src/lib/api.ts`
 - TypeScript `strict`, plus `noUncheckedIndexedAccess` (already in `tsconfig.base.json`). **No `any`**, no `@ts-ignore` (use `@ts-expect-error` with a reason). Narrow `unknown` with Zod.
 - ESLint: `no-restricted-imports` boundaries (§1), `@typescript-eslint/no-explicit-any` as error, unused vars warn with `_` prefix, `no-console` (use the logger), `no-restricted-syntax` on direct `fetch(` outside the client helper.
 - Prettier with the committed `.prettierrc.json` (`npm run format` / `format:check`); formatting is never mixed into behaviour changes.
-- **Gate before "done":** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run audit` (production deps, fails on high); `npm run e2e` for UI changes.
+- **Gate before "done":** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test` (100% coverage), `npm run build`, `npm run audit` (production deps, fails on high), `npm run test:integration`.
 - Commits: imperative subject, one purpose each, no drive-by refactors. Branch per change; never commit `.env`, `node_modules`, `.next` (checked by `.gitignore`).
 - Comments only for non-obvious *why*. No commented-out code, no `console.log`, no dead code. No magic numbers: name the constant and say why (e.g. `INVITATION_TTL_MS = 7 days`).
 - Functions do one thing, use early returns, no nesting beyond ~3 levels. No boolean-flag parameters at call sites: use an options object.
 
 ## 9. Testing
 
-- **Unit (Vitest):** pure helpers in `core` (`can`, `positionBetween`, `summarize`, `parseEstimate`, schemas). Fast, no DB.
-- **Integration (Vitest + real PostgreSQL):** every service function. Cover: allowed, forbidden (each role), non-member (404), and the concurrent case for transactional flows. Tests create their own users and clean up (cascade delete). Never mock the DB.
+- **100% unit coverage is mandatory for all code** (statements, branches, functions, lines), enforced by Vitest thresholds in `vitest.config.mts` and by the CI `unit` job. Do not lower thresholds or add to the coverage `exclude` list to pass; only logic-free framework glue (`layout.tsx`, `page.tsx`) is excluded and must be covered by integration tests.
+- **Unit (Vitest):** no DB, no network. Mock external modules (`vi.mock`); use `vi.stubEnv`/`vi.stubGlobal` for env and `fetch`. Components use jsdom + Testing Library. Stubbed services are tested to throw `NotImplementedError` until implemented, and those tests are replaced when real logic lands.
+- **Integration (Vitest + Testcontainers PostgreSQL):** `*.integration.test.ts`, run with `npm run test:integration`. `test/global-setup.ts` starts an ephemeral `postgres:16-alpine`, applies the repo migrations and exports `DATABASE_URL`. Service functions are tested against the real DB (allowed, forbidden per role, non-member 404, concurrency). Never mock the DB. `TEST_DATABASE_URL` reuses an existing database when Docker is unavailable.
+- **Browser integration (agent-browser):** the production build is started against the ephemeral DB (`test/helpers.ts`) and driven with the agent-browser CLI. Cover home/landing pages and each new page or flow.
 - **AI:** unit-test `parseEstimate` with valid/fenced/invalid/out-of-order output; service tests inject a fake `Estimator`. Real API calls only in an opt-in, skipped-by-default test.
-- **Route handlers:** thin; covered by integration tests of the service plus a few request-level tests for envelope/status mapping.
-- **E2E (Playwright):** critical user journeys only (sign up → create list → add/reorder task → share → shopping quick-add). Run against the production build in CI; use the dev server locally. Mobile viewport project for the PWA.
+- **Route handlers:** thin; covered by unit tests with mocked core plus integration tests of the real endpoints.
 - A bug fix ships a regression test that fails without the fix; a security-relevant fix is never merged without one.
+- **CI:** `.github/workflows/ci.yml` runs lint/format/typecheck, unit (coverage), build, integration and audit on every pull request.
 
 ## 10. Performance and deployment constraints (1 GB VPS)
 

@@ -16,7 +16,7 @@ Web only; on phones it runs as a PWA.
 | Live updates | Server-Sent Events from a Route Handler |
 | AI | Claude API, server-side only, structured JSON validated with Zod |
 | PWA | Web app manifest + service worker (e.g. Serwist) |
-| Tests | Vitest (unit + integration on real PostgreSQL), Playwright (E2E) |
+| Tests | Vitest (unit, 100% coverage), integration on real PostgreSQL via Testcontainers, agent-browser (browser) |
 
 ## Repository layout
 
@@ -78,7 +78,7 @@ npm run lint
 npm run build
 npm test        # Vitest
 npm run typecheck
-npm run e2e     # Playwright (once added)
+npm run test:integration  # Testcontainers PostgreSQL + agent-browser (needs Docker, run `npm run build` first)
 ```
 
 Agents working on this repo: read `AGENTS.md` and follow the `.ai/` workflow.

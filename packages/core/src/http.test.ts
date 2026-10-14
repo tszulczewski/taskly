@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "./errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  NotImplementedError,
+  UnauthorizedError,
+} from "./errors";
 import { hasCsrfHeader, mapError } from "./http";
 
 describe("mapError", () => {
@@ -9,10 +15,13 @@ describe("mapError", () => {
     expect(mapError(new ForbiddenError()).status).toBe(403);
     expect(mapError(new NotFoundError("List")).status).toBe(404);
     expect(mapError(new ConflictError()).status).toBe(409);
+    expect(mapError(new NotImplementedError("x")).status).toBe(501);
   });
   it("maps Zod errors to 400 with field errors", () => {
     const r = z.object({ name: z.string().min(2) }).safeParse({ name: "a" });
     const m = mapError(r.error);
+    const root = mapError(z.string().safeParse(1).error);
+    expect(root.body.error.fieldErrors?._).toHaveLength(1);
     expect(m.status).toBe(400);
     expect(m.body.error.fieldErrors?.name).toHaveLength(1);
   });

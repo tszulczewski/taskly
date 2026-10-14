@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Taskly is a web app for planning and tracking home renovation work. Task lists (e.g. "Bathroom") contain tasks with subtasks (plastering, painting). Each task has an AI estimate (min–max range) and a real cost, all in **PLN**. There is a global, shareable shopping list with quick adding, and a summary of spent vs. upcoming expenses (upcoming = AI estimate). Lists are shared via invitations with `owner` / `editor` / `viewer` roles; tasks inherit access from their list.
 
-Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest); `npm run typecheck`, `npm run db:generate` / `db:migrate`; `npm run e2e` (Playwright) once added.
+Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest, 100% coverage), `npm run test:integration`, `npm run typecheck`, `npm run db:generate` / `db:migrate`.
 
 ## Project assumptions (binding)
 
@@ -29,7 +29,7 @@ These are decisions already made. Do not swap technologies or deviate without as
 - **Live updates:** shared lists use **Server-Sent Events** from a Route Handler (not WebSockets).
 - **AI:** the Claude API is called **only from server code**, never from the browser. Responses are structured JSON validated with Zod; invalid output is an error, never trusted. API keys live in server-only env vars.
 - **Money:** PLN only. Store amounts as integers in grosze (or `numeric`), never floats. Estimates are a min–max range.
-- **Tests:** **Vitest** for unit tests and for integration tests against a **real PostgreSQL** (no DB mocks), **Playwright** for E2E.
+- **Tests:** **Vitest** for unit tests and for integration tests against a **real PostgreSQL** via Testcontainers (no DB mocks), **agent-browser** for browser-level integration tests.
 
 ### Monorepo (npm workspaces)
 Sub-packages live in `packages/`. Minimum structure:
@@ -68,7 +68,14 @@ Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before
 - **Client:** server state only via TanStack Query (optimistic updates, rollback); the single fetch helper `app/src/lib/api-client.ts` is the only `fetch('/api…')` call site; one SSE hook; reorder sends only `{afterId, beforeId}`.
 - **Money** is integer grosze end-to-end, totals computed server-side, formatted to PLN only at the UI edge. **Order** uses fractional `position` compared with `COLLATE "C"`.
 - **Security:** Better Auth owns passwords/sessions/cookies (min password length 10, rate limiting on); authorize the specific record; Zod-parsed input only (no mass assignment); AI output is untrusted (Zod-validate, never store invalid); no secrets in logs or client bundles.
-- **Quality:** TypeScript strict, no `any`, no `console.log`, no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency); bug fixes ship a regression test. Gate: `npm run format:check`, `lint`, `typecheck`, `test`, `build`, `audit` (+ `e2e` for UI). Use `npm run format` to fix formatting.
+- **Quality:** TypeScript strict, no `any`, no `console.log`, no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency); bug fixes ship a regression test. Gate: `npm run format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`. Use `npm run format` to fix formatting.
+
+### Testing and CI (mandatory)
+
+- **Every new feature must be 100% covered by unit tests** (statements, branches, functions, lines). `npm test` runs Vitest with coverage and **fails below 100%** (thresholds in `vitest.config.mts`). A feature is not done, and a PR must not be opened, until `npm test` passes. Never lower the thresholds or widen the coverage `exclude` list to get green; only framework glue with no logic (`app/layout.tsx`, `app/page.tsx`) is excluded, and it is covered by the browser integration tests instead. Bug fixes ship a regression test.
+- Unit tests (`*.test.ts[x]`, next to the code) must not touch the network or a database; mock external modules. Components use `// @vitest-environment jsdom`.
+- **Integration tests** (`*.integration.test.ts`, run with `npm run test:integration`) use a real PostgreSQL started by Testcontainers (`test/global-setup.ts`; needs Docker) and drive the production build with the **agent-browser** CLI (`test/helpers.ts`). Set `TEST_DATABASE_URL` to use an existing database when Docker is unavailable. Run `npm run build` first. New user-facing pages/flows get an integration test.
+- **GitHub Actions** (`.github/workflows/ci.yml`) runs on every pull request (and pushes to `main`): lint/format/typecheck, unit tests with coverage, build, integration tests, and dependency audit. All jobs must pass before merging.
 
 ## The `.ai/` directory (mandatory)
 

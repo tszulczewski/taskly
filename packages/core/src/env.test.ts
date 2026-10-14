@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "./env";
+import { afterEach, vi } from "vitest";
+import { getEnv, parseEnv } from "./env";
 import { formatPln, formatPlnRange } from "./money";
 
 const valid = {
@@ -26,5 +27,16 @@ describe("money formatting", () => {
     expect(formatPln(123456).replace(/\s/g, " ")).toContain("1");
     expect(formatPln(50)).toContain("0,50");
     expect(formatPlnRange(100, 250)).toContain("–");
+  });
+});
+
+describe("getEnv", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("reads process.env once and caches the result", () => {
+    for (const [k, v] of Object.entries(valid)) vi.stubEnv(k, v);
+    const first = getEnv();
+    vi.stubEnv("DATABASE_URL", "postgres://changed");
+    expect(getEnv()).toBe(first);
   });
 });

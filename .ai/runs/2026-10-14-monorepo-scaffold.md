@@ -71,3 +71,18 @@ package.json, tsconfig.base.json, eslint.config.mjs, .gitignore, .env.example, A
 - Gate: format:check, lint, typecheck ok; 13 tests passed; build ok; e2e 1 passed; audit exit 0.
 - Remaining `npm audit` findings are dev-tool only: `braces` via eslint-config-next (pinned to next 16.4.0) and `esbuild` via drizzle-kit; `--force` would downgrade, so left. Revisit on next upgrades.
 - Not implemented (feature work, needs a request): SSE route + `useListEvents`, service logic/routes using `apiHandler`, dnd-kit, shadcn components, PWA/service worker, logger with redaction.
+
+## CI + 100% unit coverage + integration framework (appended)
+- `.github/workflows/ci.yml` (pull_request + push to main): lint/format/typecheck, unit (coverage), build, integration (Testcontainers + agent-browser), audit.
+- Vitest split: `vitest.config.mts` (unit, v8 coverage, 100% thresholds on statements/branches/functions/lines) and `vitest.integration.config.mts` (`test/global-setup.ts` starts `postgres:16-alpine` via Testcontainers, applies migrations; `TEST_DATABASE_URL` reuses an existing DB).
+- agent-browser (CLI, v0.39.1) is the browser driver (`test/helpers.ts`); app = production standalone build started against the ephemeral DB.
+- Unit tests added for all existing code: errors, stubs, auth (mocked Better Auth), env, http, barrels, db client/schema, app api/api-client/query-keys/query-provider (jsdom)/auth route. Coverage: 100/100/100/100 (158 statements, 61 branches, 73 functions). Excluded (logic-free glue, covered by browser tests): app/layout.tsx, app/page.tsx.
+- Integration tests: home page in a real browser (title, URL, snapshot); auth API (health, short password rejected, sign-up stores user + session in PostgreSQL). Existing db schema integration test now runs in the integration project.
+- Bug found by tests and fixed: `DATABASE_POOL_MAX=""` made the pool size 0 (`Number("")`); now falls back to 5.
+- AGENTS.md: new "Testing and CI (mandatory)" section — every new feature must be 100% unit-tested; thresholds must not be lowered; engineering-standards §8/§9 updated.
+- Verification (local): format ok, lint clean, typecheck ok (incl. test/), 65 unit tests @100%, build ok, 6 integration tests passed with TEST_DATABASE_URL (local PostgreSQL), audit ok, Playwright smoke passed.
+- NOT verified locally: the Testcontainers path (no Docker in this WSL distro) and the GitHub Actions workflow itself — both first run on the PR/push.
+- Not done: "admin panel" integration test — no admin panel exists in the app (only the home page and /api/auth); not created.
+- Open: Playwright (`npm run e2e`) is now redundant with agent-browser and is not in CI; remove or keep?
+
+- Playwright removed (redundant with agent-browser): dependency, config, e2e/, npm script, ignore entries and doc mentions; AGENTS.md/README/standards now name agent-browser. Earlier run-log entries about Playwright are history.
