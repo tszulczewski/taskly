@@ -3,7 +3,7 @@ import { AI_MODEL, claudeEstimator, estimateTask } from "./ai";
 import { NotImplementedError } from "./errors";
 import { publishListEvent, subscribeListEvents } from "./events";
 import { acceptInvitation, createInvitation, removeMember } from "./invitations";
-import { createList, deleteList, ensureShoppingList, listsForUser, renameList } from "./lists";
+import { ensureShoppingList } from "./lists";
 import {
   addShoppingItem,
   deleteShoppingItem,
@@ -21,11 +21,7 @@ const calls: Array<[string, () => Promise<unknown>]> = [
   ["acceptInvitation", () => acceptInvitation(db, { id: "u", email: "e" }, "token")],
   ["createInvitation", () => createInvitation(db, "u", "l", { email: "e", role: "viewer" })],
   ["removeMember", () => removeMember(db, "u", "l", "m")],
-  ["createList", () => createList(db, "u", { name: "n" })],
-  ["deleteList", () => deleteList(db, "u", "l")],
   ["ensureShoppingList", () => ensureShoppingList(db, "u")],
-  ["listsForUser", () => listsForUser(db, "u")],
-  ["renameList", () => renameList(db, "u", "l", { name: "n" })],
   ["addShoppingItem", () => addShoppingItem(db, "u", { title: "t" })],
   ["deleteShoppingItem", () => deleteShoppingItem(db, "u", "i")],
   ["listShoppingItems", () => listShoppingItems(db, "u", "l")],

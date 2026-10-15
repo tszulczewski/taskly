@@ -4,7 +4,7 @@ import { z } from "zod";
 import { type Action, can } from "./authorization";
 import { ForbiddenError, NotFoundError } from "./errors";
 import type { Role } from "./schemas";
-import type { Db } from "./types";
+import type { DbOrTx } from "./types";
 
 const uuid = z.uuid();
 
@@ -12,7 +12,7 @@ const uuid = z.uuid();
  * The user's role on a list, or null for a non-member (or a malformed list id).
  * The membership row is read `FOR SHARE`: inside a transaction a concurrent removal waits for it.
  */
-export async function getRole(db: Db, userId: string, listId: string): Promise<Role | null> {
+export async function getRole(db: DbOrTx, userId: string, listId: string): Promise<Role | null> {
   if (!uuid.safeParse(listId).success) return null;
   const [row] = await db
     .select({ role: schema.listMembers.role })
@@ -25,7 +25,7 @@ export async function getRole(db: Db, userId: string, listId: string): Promise<R
 
 /** Non-member -> NotFoundError (no existence leak); insufficient role -> ForbiddenError. */
 export async function requireRole(
-  db: Db,
+  db: DbOrTx,
   userId: string,
   listId: string,
   action: Action,
