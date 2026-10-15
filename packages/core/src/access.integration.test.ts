@@ -116,4 +116,31 @@ describe.skipIf(!url)("access control (real PostgreSQL)", () => {
     await expect(getRole(db, extra, listId)).resolves.toBeNull();
     await db.delete(schema.user).where(eq(schema.user.id, extra));
   });
+
+  it("lets only one manage check hold the membership row at a time", async () => {
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let checked!: () => void;
+    const firstChecked = new Promise<void>((resolve) => (checked = resolve));
+
+    const first = db.transaction(async (tx) => {
+      await requireRole(tx, ids.owner, listId, "manage");
+      checked();
+      await hold;
+    });
+    await firstChecked;
+
+    let secondDone = false;
+    const second = db
+      .transaction((tx) => requireRole(tx, ids.owner, listId, "manage"))
+      .then(() => (secondDone = true));
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(secondDone).toBe(false);
+
+    release();
+    await first;
+    await second;
+    expect(secondDone).toBe(true);
+  });
 });

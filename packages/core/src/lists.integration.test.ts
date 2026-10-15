@@ -3,7 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ForbiddenError, NotFoundError } from "./errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { createList, deleteList, listsForUser, renameList } from "./lists";
 
 const url = process.env.DATABASE_URL;
@@ -89,5 +89,36 @@ describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
     expect(
       await db.select().from(schema.listMembers).where(eq(schema.listMembers.listId, listId)),
     ).toEqual([]);
+  });
+
+  it("never renames or deletes the global shopping list", async () => {
+    const [list] = await db
+      .insert(schema.lists)
+      .values({ name: "Shopping", kind: "shopping" })
+      .returning({ id: schema.lists.id });
+    created.push(list!.id);
+    await db
+      .insert(schema.listMembers)
+      .values({ listId: list!.id, userId: ids.alice, role: "owner" });
+
+    await expect(renameList(db, ids.alice, list!.id, { name: "x" })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    await expect(deleteList(db, ids.alice, list!.id)).rejects.toBeInstanceOf(ConflictError);
+    const [row] = await db.select().from(schema.lists).where(eq(schema.lists.id, list!.id));
+    expect(row?.name).toBe("Shopping");
+  });
+
+  it("serializes two simultaneous deletes: one wins, the other is not found (no deadlock)", async () => {
+    const listId = await newList(ids.alice, "Shed");
+
+    const results = await Promise.allSettled([
+      deleteList(db, ids.alice, listId),
+      deleteList(db, ids.alice, listId),
+    ]);
+
+    expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(rejected.reason).toBeInstanceOf(NotFoundError);
   });
 });

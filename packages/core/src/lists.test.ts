@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireRole } from "./access";
-import { ForbiddenError, NotFoundError } from "./errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { createList, deleteList, listsForUser, renameList } from "./lists";
 import type { Db } from "./types";
 
@@ -12,11 +12,12 @@ const listId = "6f1c1d0e-8a39-4c52-9a4e-0d3f6b2a7e11";
 const mockedRequireRole = vi.mocked(requireRole);
 
 /** A Db whose transaction runs the callback against a recording `tx`. */
-function fakeDb() {
+function fakeDb(kind: "project" | "shopping" = "project") {
   const calls: string[] = [];
   const values = vi.fn();
   const set = vi.fn();
   const tx = {
+    select: vi.fn(() => ({ from: () => ({ where: async () => [{ kind }] }) })),
     insert: vi.fn(() => ({
       values: (v: unknown) => {
         values(v);
@@ -89,6 +90,14 @@ describe("renameList", () => {
     },
   );
 
+  it("refuses to rename the shopping list", async () => {
+    const { db, calls } = fakeDb("shopping");
+    await expect(renameList(db, userId, listId, { name: "x" })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    expect(calls).toEqual([]);
+  });
+
   it("rejects invalid input before authorizing", async () => {
     const { db } = fakeDb();
     await expect(renameList(db, userId, listId, { name: "" })).rejects.toThrow();
@@ -102,6 +111,12 @@ describe("deleteList", () => {
     await deleteList(db, userId, listId);
     expect(mockedRequireRole).toHaveBeenCalledWith(tx, userId, listId, "manage");
     expect(calls).toEqual(["delete"]);
+  });
+
+  it("refuses to delete the shopping list", async () => {
+    const { db, calls } = fakeDb("shopping");
+    await expect(deleteList(db, userId, listId)).rejects.toBeInstanceOf(ConflictError);
+    expect(calls).toEqual([]);
   });
 
   it.each([new ForbiddenError(), new NotFoundError("List")])(

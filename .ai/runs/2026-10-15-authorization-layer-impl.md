@@ -49,3 +49,8 @@ Run with `TEST_DATABASE_URL` on the local dev PostgreSQL (no Docker available):
 
 ## Lessons recorded
 .ai/lessons/2026-10-15-integration-tests-without-docker.md
+
+## Review follow-up (om-code-review of PR #10)
+- Minor fixed: `renameList`/`deleteList` now refuse the global `shopping` list with `ConflictError` (409).
+- Minor fixed: `requireRole(..., "manage")` locks the membership row `FOR UPDATE`; two `FOR SHARE` holders upgrading to the cascade delete could deadlock (40P01). Regression test: a second manage check blocks until the first transaction ends (fails with `FOR SHARE`, verified).
+- Gate re-run: all 7 commands pass; 88 unit tests at 100%, 25 integration tests.

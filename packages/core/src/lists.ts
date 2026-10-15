@@ -1,9 +1,9 @@
 import { schema } from "@taskly/db";
 import { asc, eq } from "drizzle-orm";
 import { requireRole } from "./access";
-import { NotImplementedError } from "./errors";
+import { ConflictError, NotImplementedError } from "./errors";
 import { createListInput, type Role } from "./schemas";
-import type { Db } from "./types";
+import type { Db, Tx } from "./types";
 
 export type ListSummaryRow = { id: string; name: string; kind: "project" | "shopping"; role: Role };
 
@@ -34,6 +34,17 @@ export async function createList(db: Db, userId: string, input: unknown): Promis
   });
 }
 
+/** The global shopping list is permanent: it is recreated on first use, so it is never renamed or deleted. */
+async function requireManagedProjectList(tx: Tx, userId: string, listId: string): Promise<void> {
+  await requireRole(tx, userId, listId, "manage");
+  // The membership row is locked and cascades from the list, so the list exists.
+  const [list] = await tx
+    .select({ kind: schema.lists.kind })
+    .from(schema.lists)
+    .where(eq(schema.lists.id, listId));
+  if (list!.kind === "shopping") throw new ConflictError("The shopping list cannot be changed");
+}
+
 export async function renameList(
   db: Db,
   userId: string,
@@ -42,7 +53,7 @@ export async function renameList(
 ): Promise<void> {
   const { name } = createListInput.parse(input);
   await db.transaction(async (tx) => {
-    await requireRole(tx, userId, listId, "manage");
+    await requireManagedProjectList(tx, userId, listId);
     await tx.update(schema.lists).set({ name }).where(eq(schema.lists.id, listId));
   });
 }
@@ -50,7 +61,7 @@ export async function renameList(
 /** Cascades to members, tasks, shopping items and invitations. */
 export async function deleteList(db: Db, userId: string, listId: string): Promise<void> {
   await db.transaction(async (tx) => {
-    await requireRole(tx, userId, listId, "manage");
+    await requireManagedProjectList(tx, userId, listId);
     await tx.delete(schema.lists).where(eq(schema.lists.id, listId));
   });
 }

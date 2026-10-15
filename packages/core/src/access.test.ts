@@ -21,6 +21,12 @@ describe("getRole", () => {
     expect(forShare).toHaveBeenCalledWith("share");
   });
 
+  it("can lock the membership row FOR UPDATE", async () => {
+    const { db, forShare } = dbWith([{ role: "owner" }]);
+    await getRole(db, "u1", listId, "update");
+    expect(forShare).toHaveBeenCalledWith("update");
+  });
+
   it("returns null for a non-member", async () => {
     const { db } = dbWith([]);
     await expect(getRole(db, "u1", listId)).resolves.toBeNull();
@@ -44,6 +50,15 @@ describe("requireRole", () => {
   ] as const)("allows %s to %s and returns the role", async (role, action) => {
     const { db } = dbWith([{ role }]);
     await expect(requireRole(db, "u1", listId, action)).resolves.toBe(role);
+  });
+
+  it("locks FOR UPDATE for manage and FOR SHARE otherwise", async () => {
+    const manage = dbWith([{ role: "owner" }]);
+    await requireRole(manage.db, "u1", listId, "manage");
+    expect(manage.forShare).toHaveBeenCalledWith("update");
+    const write = dbWith([{ role: "editor" }]);
+    await requireRole(write.db, "u1", listId, "write");
+    expect(write.forShare).toHaveBeenCalledWith("share");
   });
 
   it.each([
