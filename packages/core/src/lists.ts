@@ -1,31 +1,71 @@
-import { NotImplementedError } from "./errors";
-import type { Role } from "./schemas";
-import type { Db } from "./types";
+import { schema } from "@taskly/db";
+import { asc, eq } from "drizzle-orm";
+import { requireRole } from "./access";
+import { ConflictError, NotImplementedError } from "./errors";
+import { createListInput, type Role } from "./schemas";
+import type { Db, Tx } from "./types";
 
-// TODO: list CRUD with authorization (owner manages; members read via list_members).
 export type ListSummaryRow = { id: string; name: string; kind: "project" | "shopping"; role: Role };
 
-export async function listsForUser(_db: Db, _userId: string): Promise<ListSummaryRow[]> {
-  throw new NotImplementedError("listsForUser");
+/** Only the lists the user is a member of, oldest first. */
+export async function listsForUser(db: Db, userId: string): Promise<ListSummaryRow[]> {
+  return db
+    .select({
+      id: schema.lists.id,
+      name: schema.lists.name,
+      kind: schema.lists.kind,
+      role: schema.listMembers.role,
+    })
+    .from(schema.listMembers)
+    .innerJoin(schema.lists, eq(schema.lists.id, schema.listMembers.listId))
+    .where(eq(schema.listMembers.userId, userId))
+    .orderBy(asc(schema.lists.createdAt), asc(schema.lists.id));
 }
-export async function createList(
-  _db: Db,
-  _userId: string,
-  _input: { name: string },
-): Promise<{ id: string }> {
-  throw new NotImplementedError("createList");
+
+export async function createList(db: Db, userId: string, input: unknown): Promise<{ id: string }> {
+  const { name } = createListInput.parse(input);
+  return db.transaction(async (tx) => {
+    const [list] = await tx
+      .insert(schema.lists)
+      .values({ name })
+      .returning({ id: schema.lists.id });
+    await tx.insert(schema.listMembers).values({ listId: list!.id, userId, role: "owner" });
+    return { id: list!.id };
+  });
 }
+
+/** The global shopping list is permanent: it is recreated on first use, so it is never renamed or deleted. */
+async function requireManagedProjectList(tx: Tx, userId: string, listId: string): Promise<void> {
+  await requireRole(tx, userId, listId, "manage");
+  // The membership row is locked and cascades from the list, so the list exists.
+  const [list] = await tx
+    .select({ kind: schema.lists.kind })
+    .from(schema.lists)
+    .where(eq(schema.lists.id, listId));
+  if (list!.kind === "shopping") throw new ConflictError("The shopping list cannot be changed");
+}
+
 export async function renameList(
-  _db: Db,
-  _userId: string,
-  _listId: string,
-  _input: { name: string },
+  db: Db,
+  userId: string,
+  listId: string,
+  input: unknown,
 ): Promise<void> {
-  throw new NotImplementedError("renameList");
+  const { name } = createListInput.parse(input);
+  await db.transaction(async (tx) => {
+    await requireManagedProjectList(tx, userId, listId);
+    await tx.update(schema.lists).set({ name }).where(eq(schema.lists.id, listId));
+  });
 }
-export async function deleteList(_db: Db, _userId: string, _listId: string): Promise<void> {
-  throw new NotImplementedError("deleteList");
+
+/** Cascades to members, tasks, shopping items and invitations. */
+export async function deleteList(db: Db, userId: string, listId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await requireManagedProjectList(tx, userId, listId);
+    await tx.delete(schema.lists).where(eq(schema.lists.id, listId));
+  });
 }
+
 /** The user's global shopping list id; created on first use. */
 export async function ensureShoppingList(_db: Db, _userId: string): Promise<string> {
   throw new NotImplementedError("ensureShoppingList");

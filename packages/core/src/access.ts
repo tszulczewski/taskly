@@ -1,18 +1,47 @@
-import { type Action } from "./authorization";
-import { NotImplementedError } from "./errors";
+import { schema } from "@taskly/db";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+import { type Action, can } from "./authorization";
+import { ForbiddenError, NotFoundError } from "./errors";
 import type { Role } from "./schemas";
-import type { Db } from "./types";
+import type { DbOrTx } from "./types";
 
-// TODO: look up the user's list_members role; non-members -> NotFoundError, insufficient -> ForbiddenError.
-export async function getRole(_db: Db, _userId: string, _listId: string): Promise<Role | null> {
-  throw new NotImplementedError("getRole");
+const uuid = z.uuid();
+
+/**
+ * The user's role on a list, or null for a non-member (or a malformed list id).
+ * The membership row is locked (`FOR SHARE` by default): inside a transaction a concurrent
+ * removal waits for it.
+ */
+export async function getRole(
+  db: DbOrTx,
+  userId: string,
+  listId: string,
+  lock: "share" | "update" = "share",
+): Promise<Role | null> {
+  if (!uuid.safeParse(listId).success) return null;
+  const [row] = await db
+    .select({ role: schema.listMembers.role })
+    .from(schema.listMembers)
+    .where(and(eq(schema.listMembers.listId, listId), eq(schema.listMembers.userId, userId)))
+    .limit(1)
+    .for(lock);
+  return row?.role ?? null;
 }
 
+/**
+ * Non-member -> NotFoundError (no existence leak); insufficient role -> ForbiddenError.
+ * `manage` locks the row `FOR UPDATE`: managers that delete the list cascade-delete their own
+ * membership row, and two `FOR SHARE` holders upgrading to that delete would deadlock.
+ */
 export async function requireRole(
-  _db: Db,
-  _userId: string,
-  _listId: string,
-  _action: Action,
+  db: DbOrTx,
+  userId: string,
+  listId: string,
+  action: Action,
 ): Promise<Role> {
-  throw new NotImplementedError("requireRole");
+  const role = await getRole(db, userId, listId, action === "manage" ? "update" : "share");
+  if (role === null) throw new NotFoundError("List");
+  if (!can(role, action)) throw new ForbiddenError();
+  return role;
 }

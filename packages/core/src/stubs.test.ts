@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getRole, requireRole } from "./access";
 import { AI_MODEL, claudeEstimator, estimateTask } from "./ai";
 import { NotImplementedError } from "./errors";
 import { publishListEvent, subscribeListEvents } from "./events";
 import { acceptInvitation, createInvitation, removeMember } from "./invitations";
-import { createList, deleteList, ensureShoppingList, listsForUser, renameList } from "./lists";
+import { ensureShoppingList } from "./lists";
 import {
   addShoppingItem,
   deleteShoppingItem,
@@ -17,18 +16,12 @@ import type { Db } from "./types";
 
 const db = {} as Db;
 const calls: Array<[string, () => Promise<unknown>]> = [
-  ["getRole", () => getRole(db, "u", "l")],
-  ["requireRole", () => requireRole(db, "u", "l", "read")],
   ["claudeEstimator", () => claudeEstimator("prompt")],
   ["estimateTask", () => estimateTask(db, "u", "t")],
   ["acceptInvitation", () => acceptInvitation(db, { id: "u", email: "e" }, "token")],
   ["createInvitation", () => createInvitation(db, "u", "l", { email: "e", role: "viewer" })],
   ["removeMember", () => removeMember(db, "u", "l", "m")],
-  ["createList", () => createList(db, "u", { name: "n" })],
-  ["deleteList", () => deleteList(db, "u", "l")],
   ["ensureShoppingList", () => ensureShoppingList(db, "u")],
-  ["listsForUser", () => listsForUser(db, "u")],
-  ["renameList", () => renameList(db, "u", "l", { name: "n" })],
   ["addShoppingItem", () => addShoppingItem(db, "u", { title: "t" })],
   ["deleteShoppingItem", () => deleteShoppingItem(db, "u", "i")],
   ["listShoppingItems", () => listShoppingItems(db, "u", "l")],
