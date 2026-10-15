@@ -23,13 +23,13 @@ Non-goals: tasks, shopping, invitations, `ensureShoppingList`, events.
 
 ### Phase 1: Access primitives
 
-- [ ] 1.1 Implement getRole with unit tests
-- [ ] 1.2 Implement requireRole with unit tests
-- [ ] 1.3 Add access integration test against real PostgreSQL
+- [x] 1.1 Implement getRole with unit tests — 7f9ff93
+- [x] 1.2 Implement requireRole with unit tests — 7f9ff93
+- [x] 1.3 Add access integration test against real PostgreSQL — 7f9ff93
 
 ### Phase 2: Lists service
 
-- [ ] 2.1 Implement createList
-- [ ] 2.2 Implement listsForUser
-- [ ] 2.3 Implement renameList and deleteList
+- [x] 2.1 Implement createList — 7f9ff93
+- [x] 2.2 Implement listsForUser — 7f9ff93
+- [x] 2.3 Implement renameList and deleteList — 7f9ff93
 - [ ] 2.4 Remove replaced stub assertions and run the full gate
