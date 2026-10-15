@@ -1,7 +1,7 @@
 # Authorization layer (`requireRole`) and lists service
 
 - **Date:** 2026-10-14
-- **Status:** draft
+- **Status:** implemented
 - **Issue:** #6
 
 ## 📝 TLDR
