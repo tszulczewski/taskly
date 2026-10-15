@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { getRole, requireRole } from "./access";
 import { AI_MODEL, claudeEstimator, estimateTask } from "./ai";
 import { NotImplementedError } from "./errors";
 import { publishListEvent, subscribeListEvents } from "./events";
@@ -17,8 +16,6 @@ import type { Db } from "./types";
 
 const db = {} as Db;
 const calls: Array<[string, () => Promise<unknown>]> = [
-  ["getRole", () => getRole(db, "u", "l")],
-  ["requireRole", () => requireRole(db, "u", "l", "read")],
   ["claudeEstimator", () => claudeEstimator("prompt")],
   ["estimateTask", () => estimateTask(db, "u", "t")],
   ["acceptInvitation", () => acceptInvitation(db, { id: "u", email: "e" }, "token")],
