@@ -1,0 +1,4 @@
+## Product (what it is, what stands out, feasibility)
+- Product: web application for people finishing interior and exterior projects in their homes allowing estimation of task costs, materials, and budget management.
+- Standout features: AI cost estimation for specific tasks, automatic materials list generation, and real-time budget tracking with three layers (forecast, commitments, actual spending).
+- Feasibility: The product is feasible with current web technologies and AI capabilities. The main challenge lies in ensuring accurate AI cost estimates and seamless integration of materials and budget tracking.
