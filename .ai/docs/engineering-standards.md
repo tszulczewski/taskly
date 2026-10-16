@@ -84,7 +84,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 ## 6. Data and money
 
 - **Money:** integer grosze everywhere (DB, Zod, API, state). Convert to PLN only at the display edge via one `formatPln(grosze)` helper. Never use floats for arithmetic. The AI's PLN numbers are converted with `Math.round(pln * 100)` at the boundary and Zod-checked (`min ≤ max`).
-- **Totals are computed server-side.** The client never supplies spent/upcoming totals. Leaf tasks only (a task with subtasks is represented by them).
+- **Totals are computed server-side.** The client never supplies totals. Count **main tasks only** (tasks without a parent): a parent keeps its own estimate, and subtask estimates are informational and never summed (product brief R06, R08; owner decision 2026-10-16).
 - **Ordering:** `position` is a fractional-index string compared with `COLLATE "C"`. Never renumber siblings; one moved row = one `UPDATE`.
 - **Migrations:** generated with `drizzle-kit generate`, reviewed, committed. Never edit an applied migration. Destructive changes (drop/rename) get a note in the PR and the run log. Resetting a shared or production DB is never done silently.
 - **IDs:** UUID for domain rows; Better Auth tables keep its string ids.
@@ -129,7 +129,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 ## 10. Performance and deployment constraints (1 GB VPS)
 
 - Keep the DB pool small (`DATABASE_POOL_MAX` default 5); one pool per process (already global-cached).
-- Paginate lists. Never load whole tables into memory. Prefer one query over N+1. Aggregate in SQL when data grows (the leaf-task summary currently loads rows; revisit when lists get large).
+- Paginate lists. Never load whole tables into memory. Prefer one query over N+1. Aggregate in SQL when data grows (the main-task summary currently loads rows; revisit when lists get large).
 - No unbounded in-memory caches or listener maps. SSE sends heartbeats and unsubscribes on close.
 - Prefer small dependencies. Check the bundle impact of any client library. Dynamic-import heavy client code (e.g. drag-and-drop) only where used.
 - `next build` needs ~1 GB: build in CI or on a dev machine, ship the standalone output. Run production with `output: 'standalone'`, `HOSTNAME=127.0.0.1`, env via systemd `EnvironmentFile=`.

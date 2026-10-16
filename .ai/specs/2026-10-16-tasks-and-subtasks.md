@@ -3,7 +3,7 @@
 - **Date:** 2026-10-16
 - **Status:** draft
 - **Issue:** #11 (stories #15, #16; task #22)
-- **Depends on:** a separate spec for minimal sign-up / sign-in pages, built first (Q2; confirmed 2026-10-16): `.ai/specs/2026-10-16-sign-in-pages.md`. Only PR B (steps 7–8: routes and the screen) waits for it; PR A (steps 1–6) does not.
+- **Depends on:** a separate spec for minimal sign-up / sign-in pages, built first (Q2; confirmed 2026-10-16): `.ai/specs/2026-10-16-sign-in-pages.md`, specifically its Phase A ("Phase 0" below); its Phase B (password reset) gates nothing here. Only PR B (steps 7–8: routes and the screen) waits for it; PR A (steps 1–6) does not.
 
 ## 📝 TLDR
 
@@ -320,7 +320,7 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
 
 ## 📋 Phasing
 
-- **Phase 0 (prerequisite, separate spec):** minimal sign-up / sign-in pages and a session redirect.
+- **Phase 0 (prerequisite, separate spec):** minimal sign-up / sign-in pages and a session redirect (Phase A of the sign-in spec).
 - **Phase 1 — Tasks (#15, #22):** migration, money parsing, default list, task services, routes and the screen. Shippable alone: the owner can capture tasks with estimates.
 - **Phase 2 — Subtasks (#16):** one level of subtasks in the services and the UI. It builds on the Phase 1 schema, which already contains the parent FK.
 
