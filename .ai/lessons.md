@@ -14,6 +14,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-21 — Backlog stories have no per-story spec (issue bodies say so); check `.ai/specs/` before pointing decisions at "the spec for E0x-S0y". Decisions made before a spec exists go to `.ai/specs/research/decisions/` with a pointer in `backlog.md`.
 - 2026-10-16 — The local dev DB role has no `CREATEDB`, and migrations hard-code the `"public"` schema, so tests that need a fresh database (e.g. applying `0000`, adding data, then applying later migrations) can't run locally. Run them only under Testcontainers (CI) and skip when `TEST_DATABASE_URL` is set.
 - 2026-10-16 — Better Auth 1.7.7 `POST /sign-out` always returns 200 and clears the cookie: it only logs session-deletion DB errors and succeeds without a session. Don't promise "row deleted" or treat a no-session sign-out as an error.
 - 2026-10-16 — Membership-first locking does not serialize different actors: an editor's task append can deadlock with an owner's list cascade deletion. Test lock protocols with distinct users → [details](lessons/2026-10-16-cross-actor-list-locks.md)

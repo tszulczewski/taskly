@@ -20,3 +20,5 @@ Filed 2026-10-16 with `om-backlog` through `om-prepare-issue`. Each issue carrie
 | E04 | #14 | Later (parked) | low, low | none |
 
 Open points left in the issue bodies, not decided: how spaces relate to project lists and how they are created; subtask nesting depth; editing and deleting tasks; rejecting min above max.
+
+Decisions made after filing, to apply when writing the E02 and E03 specs: order of completed tasks, reopening, and no drag of completed tasks (server rejects the move) — `research/decisions/2026-10-21-completed-tasks-order.md` (affects E03-S01 #20, E02-S01 #17).
