@@ -1,0 +1,2619 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Roomlist Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout concept: a calm workshop. A sticky top bar, a tab bar for the three project sections,
+   one wide working column, and a task drawer that slides in from the right. */
+:root {
+  --bg: #F2F4F1;
+  --surface: #FFFFFF;
+  --surface-2: #E8ECE7;
+  --ink: #17211D;
+  --ink-2: #55635C;
+  --line: #D6DCD5;
+  --accent: #1E6B5A;
+  --on-accent: #FFFFFF;
+  --accent-soft: #DCEBE5;
+  --bar-est: #A9CDC2;
+  --good: #2E7D4F;
+  --bad: #B83A2B;
+  --bad-soft: #F7E3DF;
+  --warn-soft: #F6EBD3;
+  --shadow: 0 10px 30px rgba(23, 33, 29, .14);
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  --topbar: 56px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #181F1C; --surface-2: #232C28; --ink: #E8EEEA; --ink-2: #9CAAA3; --line: #2E3834;
+    --accent: #4CB59B; --on-accent: #0B1713; --accent-soft: #1D3A32; --bar-est: #2F5D51;
+    --good: #5DBB84; --bad: #F08A7B; --bad-soft: #3A1F1B; --warn-soft: #3A3020; --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #181F1C; --surface-2: #232C28; --ink: #E8EEEA; --ink-2: #9CAAA3; --line: #2E3834;
+  --accent: #4CB59B; --on-accent: #0B1713; --accent-soft: #1D3A32; --bar-est: #2F5D51;
+  --good: #5DBB84; --bad: #F08A7B; --bad-soft: #3A1F1B; --warn-soft: #3A3020; --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; min-height: 100%; }
+body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h1 { font-size: 28px; line-height: 1.15; }
+h2 { font-size: 20px; }
+h3 { font-size: 17px; display: flex; align-items: baseline; gap: 8px; }
+h3 em { font-style: normal; font-family: var(--body); font-size: 13px; color: var(--ink-2); font-weight: 500; }
+h4 { font-size: 14px; margin: 18px 0 8px; }
+p { margin: 0 0 10px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: .55; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.ic { flex: none; }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+.pad { padding: 0 16px 14px; }
+.top-gap { margin-top: 14px; }
+.lbl { display: block; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.neg { color: var(--bad); }
+.pos { color: var(--good); }
+.hide-s { display: inline; }
+b { font-variant-numeric: tabular-nums; }
+
+/* ---------- top bar ---------- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-in { min-height: var(--topbar); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px var(--gutter-r) 6px var(--gutter-l); }
+.top-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -.02em; }
+.brand-mark { display: grid; grid-template-columns: repeat(3, 8px); gap: 2px; height: 22px; }
+.brand-mark i:nth-child(1) { background: #4F86B8; } .brand-mark i:nth-child(2) { background: #C79A2B; } .brand-mark i:nth-child(3) { background: #4E9A6B; }
+.brand-mark i { border-radius: 2px; }
+.crumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.crumb-name { font-family: var(--display); font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-pill { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.role-pill.r-owner { background: var(--accent-soft); color: var(--accent); }
+.avatars { display: flex; }
+.avatars .avatar { margin-left: -6px; border: 2px solid var(--surface); }
+.avatars .avatar:first-child { margin-left: 0; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; background: var(--av, #7D8A94); flex: none; }
+.avatar.ghost { background: var(--surface-2); color: var(--ink-2); }
+.icon-btn { background: none; border: 0; padding: 6px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--ink-2); min-width: 32px; min-height: 32px; }
+.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; position: relative; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-2); }
+.btn.small { min-height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
+.btn.wide { width: 100%; margin-top: 10px; }
+.btn.danger { color: var(--bad); }
+.btn.danger.solid { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.on { background: var(--warn-soft); border-color: #C79A2B; }
+.btn.ai-btn { border-color: var(--accent); color: var(--accent); }
+.proto-btn .armed { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+.proto { position: absolute; top: 100%; right: var(--gutter-r); width: min(360px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 14px; margin-top: 6px; }
+.proto-h { display: flex; justify-content: space-between; align-items: center; }
+.proto-s { display: grid; gap: 6px; }
+.proto-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.proto-jump { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.proto-jump button { text-align: left; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; }
+.proto-jump button:hover { border-color: var(--accent); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; padding: 2px; background: var(--bg); flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 5px 11px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+
+/* ---------- stage and tabs ---------- */
+.stage { padding: 0 var(--gutter-r) 40px var(--gutter-l); }
+.page { max-width: 880px; margin: 0 auto; padding: 22px 0 24px; display: grid; gap: 16px; }
+.page.wide { max-width: 980px; }
+.page.narrow { max-width: 560px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.head-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tabs { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--topbar)); z-index: 30; display: flex; gap: 4px; background: var(--bg); padding: 8px var(--gutter-r) 0 var(--gutter-l); border-bottom: 1px solid var(--line); }
+.tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; background: none; border-bottom: 3px solid transparent; font-weight: 600; color: var(--ink-2); margin-bottom: -1px; }
+.tab em { font-style: normal; font-size: 12px; background: var(--surface-2); padding: 1px 7px; border-radius: 99px; }
+.tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--ink); }
+.tabs-wrap { padding: 0; }
+.stage.has-drawer { padding-right: calc(460px + var(--gutter-r)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--surface); min-height: 36px; color: var(--ink-2); }
+.search input { border: 0; background: none; outline: none; min-width: 0; width: 170px; color: var(--ink); }
+.search:focus-within { outline: 2px solid var(--accent); }
+
+/* ---------- forms ---------- */
+.field { display: grid; gap: 5px; margin-bottom: 12px; min-width: 0; }
+.field label { font-size: 13px; font-weight: 600; }
+.field small { color: var(--ink-2); font-size: 12.5px; }
+input, select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; min-height: 36px; width: 100%; min-width: 0; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+input[aria-invalid="true"] { border-color: var(--bad); }
+input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--accent); }
+textarea { resize: vertical; }
+.err { color: var(--bad); font-size: 13px; font-weight: 500; }
+.err:empty { display: none; }
+.field:has([data-validate]) .err:empty { display: block; min-height: 18px; }
+.err.full { grid-column: 1 / -1; padding: 0 0 6px 40px; }
+.inp-row { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.inp-row input { flex: 1 1 140px; width: auto; }
+.inp-row select { flex: 1 1 120px; width: auto; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; margin: 4px 0 14px; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); margin-bottom: 8px; }
+.banner > div { display: grid; flex: 1; gap: 2px; font-size: 14px; }
+.banner span { color: var(--ink-2); font-size: 13.5px; }
+.banner.bad { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); color: var(--ink); }
+.banner.bad .ic { color: var(--bad); }
+.banner.ok { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.link-row { background: none; border: 0; padding: 0; text-align: left; }
+
+/* ---------- sign in ---------- */
+.auth { min-height: calc(100dvh - var(--topbar)); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+.auth-art { padding: 48px max(24px, 5vw); background: var(--accent-soft); display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.auth-art h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.05; }
+.auth-art p { color: var(--ink-2); max-width: 36ch; font-size: 16px; }
+.swatches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; max-width: 420px; }
+.swatch { background: var(--surface); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 0 var(--line); }
+.swatch::before { content: ""; display: block; height: 64px; background: var(--c); }
+.swatch span { display: block; padding: 8px 10px 0; font-size: 11px; letter-spacing: .08em; color: var(--ink-2); }
+.swatch b { display: block; padding: 0 10px 10px; font-size: 14px; }
+.auth-card { padding: 40px max(20px, 5vw); display: flex; align-items: center; }
+.auth-card form { width: min(400px, 100%); margin: 0 auto; }
+.auth-card h1 { margin-bottom: 18px; }
+.or { display: grid; place-items: center; margin: 14px 0; position: relative; color: var(--ink-2); font-size: 12.5px; }
+.or::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--line); }
+.or span { position: relative; background: var(--bg); padding: 0 10px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.switch { text-align: center; margin-top: 16px; }
+.hint { color: var(--ink-2); font-size: 13px; text-align: center; }
+
+/* ---------- projects ---------- */
+.proj { display: grid; gap: 10px; align-content: start; }
+.proj-open { background: none; border: 0; padding: 0; text-align: left; }
+.proj-open h3 { font-size: 19px; }
+.proj-open:hover h3 { color: var(--accent); }
+.meter { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.proj-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.proj-nums b { font-family: var(--display); font-size: 18px; }
+.proj-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.proj-act { display: flex; gap: 2px; }
+
+/* ---------- tasks ---------- */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.strip > div { padding: 12px 16px; border-right: 1px solid var(--line); min-width: 0; }
+.strip > div:last-child { border-right: 0; }
+.strip b { font-family: var(--display); font-size: 20px; display: block; }
+.filters { display: grid; gap: 10px; }
+.chips-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filters-ctl select { width: auto; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, #7D8A94); flex: none; display: inline-block; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 2px 9px; min-height: 24px; border-radius: 99px; background: color-mix(in srgb, var(--c) 15%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 38%, var(--line)); color: var(--ink); white-space: nowrap; }
+.chip .x { background: none; border: 0; padding: 0 0 0 2px; font-size: 15px; line-height: 1; color: var(--ink-2); }
+.btn-chip { min-height: 32px; padding: 3px 12px; }
+.btn-chip.on { background: color-mix(in srgb, var(--c) 40%, var(--surface)); border-color: var(--c); }
+.quick { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.quick-row { display: flex; align-items: center; gap: 10px; color: var(--ink-2); flex-wrap: wrap; }
+.quick-row input { flex: 1 1 200px; width: auto; border: 0; min-height: 38px; padding: 0 4px; background: none; font-size: 16px; color: var(--ink); }
+.quick-row input:focus { outline: none; }
+.quick-row select { width: auto; flex: 0 1 150px; }
+.quick-hint { font-size: 13px; padding: 4px 4px 0 28px; color: var(--ink); }
+.quick-hint.muted { color: var(--ink-2); }
+.note { margin: 0; font-size: 13px; color: var(--ink-2); background: var(--warn-soft); padding: 8px 12px; border-radius: 10px; }
+.tree { padding: 4px 0; overflow: hidden; }
+.row { display: grid; grid-template-columns: 28px 22px 24px minmax(0, 1fr) auto 34px; align-items: center; gap: 6px; padding: 8px 8px 8px calc(6px + var(--d, 0) * 22px); border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); background: var(--surface); position: relative; }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); }
+.row.sel { background: var(--accent-soft); }
+.row.dim { opacity: .5; }
+.row.done .title { text-decoration: line-through; color: var(--ink-2); }
+.row.dragging { opacity: .35; }
+.row.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
+.row.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
+.row.drop-inside { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: -3px; }
+.row.drop-bad { outline: 2px solid var(--bad); outline-offset: -3px; }
+.row.ghost { position: fixed; z-index: 100; pointer-events: none; box-shadow: var(--shadow); border-radius: 12px; border: 1px solid var(--accent); opacity: .95; }
+.handle { background: none; border: 0; color: var(--ink-2); cursor: grab; touch-action: none; padding: 4px; border-radius: 6px; display: grid; place-items: center; min-height: 32px; opacity: .55; }
+.row:hover .handle, .handle:focus-visible { opacity: 1; }
+.handle:active { cursor: grabbing; }
+.chev { background: none; border: 0; padding: 2px; color: var(--ink-2); border-radius: 6px; display: grid; place-items: center; }
+.chev .ic { transition: transform .15s; }
+.chev.open .ic { transform: rotate(90deg); }
+.chev-sp { display: block; width: 22px; }
+.chk { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--ink-2); background: var(--surface); display: inline-grid; place-items: center; padding: 0; color: var(--on-accent); flex: none; }
+.chk.on { background: var(--accent); border-color: var(--accent); }
+.chk.big { width: 26px; height: 26px; }
+.row-main { min-width: 0; display: grid; gap: 4px; }
+.title { background: none; border: 0; padding: 0; text-align: left; font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.title:hover { color: var(--accent); }
+.title.strike { text-decoration: line-through; color: var(--ink-2); }
+.row-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.prog { font-size: 12px; color: var(--ink-2); }
+.row-cost { display: grid; justify-items: end; font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.c-est { color: var(--ink-2); }
+.c-sp { font-weight: 600; }
+.row-menu { position: relative; }
+.menu { position: absolute; right: 0; top: 100%; z-index: 25; min-width: 180px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 4px; display: grid; }
+.menu > button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.menu > button:hover:not(:disabled) { background: var(--surface-2); }
+.menu .danger { color: var(--bad); }
+.sub-add { grid-template-columns: 28px 22px 24px minmax(0, 1fr) auto auto; background: var(--accent-soft); }
+.sub-add .err { grid-column: 4 / -1; }
+
+/* ---------- drawer ---------- */
+.drawer { position: fixed; z-index: 50; top: calc(env(safe-area-inset-top, 0px) + var(--topbar)); bottom: 0; right: 0; width: 460px; max-width: 100%; background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; padding-right: env(safe-area-inset-right, 0px); }
+.drawer-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-body { overflow: auto; padding: 16px 18px max(28px, env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; align-content: start; }
+.d-title { display: flex; gap: 10px; align-items: center; }
+.title-input { font-family: var(--display); font-size: 21px; font-weight: 600; border-color: transparent; padding: 4px 8px; }
+.title-input:hover { border-color: var(--line); }
+.d-labels { display: grid; gap: 6px; }
+.d-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.menu-wrap { position: relative; }
+.wide-menu { left: 0; right: auto; min-width: 230px; }
+.menu-new { display: flex; gap: 6px; padding: 6px; border-top: 1px solid var(--line); margin-top: 4px; }
+.menu-new input { min-height: 32px; }
+.wide-menu .err { padding: 0 10px 6px; }
+.cost-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: var(--bg); }
+.cost-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cost-nums b { font-family: var(--display); font-size: 18px; display: block; }
+.field.inline { margin: 0; }
+.ai-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); display: grid; gap: 8px; }
+.ai-card.ok { border-color: var(--accent); }
+.ai-card.bad { border-color: var(--bad); background: var(--bad-soft); }
+.ai-h { display: flex; align-items: center; gap: 8px; }
+.ai-why { margin: 0; font-size: 14px; }
+.ai-as { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+.range { display: grid; gap: 8px; padding-top: 6px; }
+.range-bar { position: relative; height: 12px; background: var(--surface-2); border-radius: 6px; }
+.range-fill { position: absolute; top: 0; bottom: 0; background: var(--bar-est); border-radius: 6px; }
+.range-mark { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; background: var(--accent); border-radius: 2px; }
+.range-l { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-2); gap: 8px; }
+.range-l span { display: grid; }
+.range-l b { color: var(--ink); font-size: 14px; }
+.range-l .mid { text-align: center; }
+.costs { list-style: none; margin: 0; padding: 0; display: grid; }
+.costs li { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto 32px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.c-date { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.c-note { overflow-wrap: anywhere; }
+.cost-add { display: grid; grid-template-columns: 100px 140px minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.cost-add .field { margin: 0; }
+.subs { display: grid; gap: 8px; }
+.sub-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sub-list li { display: flex; align-items: center; gap: 10px; }
+.danger-zone { border-top: 1px solid var(--line); padding-top: 14px; }
+
+/* ---------- shopping ---------- */
+.add-item { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.add-item .field { margin: 0; flex: 1 1 130px; }
+.add-item .field.grow { flex: 2 1 220px; }
+.add-item .field.sm { flex: 0 1 90px; }
+.add-item .err { flex-basis: 100%; }
+.list-card { padding: 0; overflow: hidden; }
+.list-card h3 { padding: 14px 16px 8px; }
+.grp { margin: 0; padding: 10px 16px 4px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); font-family: var(--body); font-weight: 700; }
+.items { list-style: none; margin: 0; padding: 0; }
+.item { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+.item-main { display: grid; gap: 3px; min-width: 0; }
+.item-main > b { overflow-wrap: anywhere; }
+.item.bought .item-main > b { color: var(--ink-2); }
+.item-cost { display: grid; justify-items: end; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.item-act { display: flex; }
+.foot-total { position: sticky; bottom: 0; display: flex; gap: 24px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; box-shadow: var(--shadow); }
+.foot-total b { font-family: var(--display); font-size: 18px; }
+
+/* ---------- summary ---------- */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { display: grid; gap: 4px; align-content: start; }
+.kpi b { font-family: var(--display); font-size: 26px; letter-spacing: -.02em; }
+.kpi small { color: var(--ink-2); font-size: 12.5px; }
+.budget { display: grid; gap: 12px; }
+.budget-h { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.budget-h > span { font-family: var(--display); font-size: 22px; font-weight: 600; margin-left: auto; }
+.stack { position: relative; height: 16px; background: var(--surface-2); border-radius: 8px; overflow: hidden; }
+.stack i { position: absolute; left: 0; top: 0; bottom: 0; }
+.st-est { background: var(--bar-est); }
+.st-sp { background: var(--accent); }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); }
+.k { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.k.est { background: var(--bar-est); } .k.sp { background: var(--accent); }
+.progress-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 460px; }
+.tbl th, .tbl td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.tbl thead th { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl .bars { width: 36%; }
+.tbl .bars-h { width: 36%; }
+.bar { height: 8px; border-radius: 4px; min-width: 2px; margin: 2px 0; }
+.bar.est { background: var(--bar-est); } .bar.sp { background: var(--accent); }
+.plain { list-style: none; margin: 0 0 8px; padding: 0; }
+.plain li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+
+/* ---------- invite, dialogs ---------- */
+.preview-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.invite { display: grid; gap: 12px; padding: 24px; }
+.invite h1 { font-size: 26px; }
+.invite.bad .ic { color: var(--bad); }
+.inviter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(10, 16, 13, .5); display: grid; place-items: center; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.modal { width: min(480px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+.modal.wide { width: min(640px, 100%); }
+.modal-h { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 10px 20px; }
+.modal-b { overflow: auto; padding: 4px 20px 20px; }
+.modal-f { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.lab-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lab-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.lab-row .err { grid-column: 1 / -1; }
+.swatch-pick { display: flex; gap: 3px; flex-wrap: wrap; width: 92px; }
+.sw { width: 18px; height: 18px; border-radius: 5px; border: 2px solid transparent; background: var(--c); padding: 0; }
+.sw.on { border-color: var(--ink); }
+.mems { list-style: none; margin: 0; padding: 0; }
+.mem { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.mem > div { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.mem select { width: auto; min-height: 32px; }
+.share-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.share-form .field { margin: 0; flex: 1 1 160px; }
+.share-form .field.sm { flex: 0 1 110px; }
+.share-form .err { flex-basis: 100%; }
+.link-box { display: flex; gap: 8px; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 6px 12px; }
+.link-box code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 13px; }
+
+/* ---------- states ---------- */
+.empty { text-align: center; padding: 40px 16px; display: grid; gap: 8px; justify-items: center; background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; }
+.empty p { max-width: 44ch; color: var(--ink-2); margin: 0 0 6px; }
+.empty-art { display: flex; gap: 4px; margin-bottom: 6px; }
+.empty-art i { width: 22px; height: 30px; border-radius: 3px; background: var(--surface-2); }
+.empty-art i:nth-child(2) { background: var(--bar-est); transform: translateY(-4px); }
+.empty-art i:nth-child(3) { background: var(--accent-soft); }
+.sk { display: grid; gap: 10px; }
+.sk-l, .sk-b { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: sheen 1.2s linear infinite; }
+.sk-l.big { height: 26px; } .w40 { width: 40%; } .w60 { width: 60%; } .w70 { width: 70%; } .w80 { width: 80%; } .w90 { width: 90%; }
+.sk-b { width: 22px; height: 22px; border-radius: 7px; flex: none; }
+.sk-list { padding: 8px 16px; display: grid; }
+.sk-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+@keyframes sheen { to { background-position: -200% 0; } }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; display: inline-block; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toasts { position: fixed; z-index: 120; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--bg); border-radius: 12px; padding: 10px 10px 10px 16px; box-shadow: var(--shadow); font-size: 14px; }
+.toast span { flex: 1; }
+.toast.error { background: var(--bad); color: #fff; }
+.toast .link { color: inherit; }
+.toast .icon-btn { color: inherit; min-width: 28px; min-height: 28px; }
+.toast .icon-btn:hover { background: rgba(255, 255, 255, .18); color: inherit; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .stage.has-drawer { padding-right: var(--gutter-r); }
+}
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth-art { padding: 28px 20px; }
+  .swatches { display: none; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip > div:nth-child(2) { border-right: 0; }
+  .strip > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 720px) {
+  .hide-s { display: none; }
+  h1 { font-size: 24px; }
+  .tabs { position: fixed; top: auto; bottom: 0; left: 0; right: 0; justify-content: space-around; padding: 4px var(--gutter-r) env(safe-area-inset-bottom, 0px) var(--gutter-l); border-top: 1px solid var(--line); border-bottom: 0; background: var(--surface); z-index: 35; }
+  .tab { flex-direction: column; gap: 2px; font-size: 12px; padding: 6px 10px; border-bottom: 0; border-top: 3px solid transparent; margin: 0; flex: 1; position: relative; }
+  .tab.on { border-top-color: var(--accent); }
+  .tab em { position: absolute; top: 2px; right: 18%; font-size: 10.5px; }
+  .stage { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .drawer { top: 0; width: 100%; border-left: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 70; }
+  .toasts { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .row { grid-template-columns: 26px 20px 24px minmax(0, 1fr) 34px; padding-left: calc(4px + var(--d, 0) * 14px); gap: 4px; }
+  .row-cost { grid-column: 4; grid-row: 2; justify-items: start; display: flex; gap: 10px; }
+  .row-menu { grid-column: 5; grid-row: 1; }
+  .sub-add { grid-template-columns: 26px 20px 24px minmax(0, 1fr); }
+  .sub-add .btn { grid-column: auto; }
+  .item { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .item-cost { grid-column: 2; grid-row: 2; justify-items: start; display: flex; gap: 10px; }
+  .item-act { grid-column: 3; grid-row: 1 / span 2; }
+  .cost-add { grid-template-columns: 1fr 1fr; }
+  .cost-add .grow, .cost-add .btn { grid-column: 1 / -1; }
+  .costs li { grid-template-columns: 70px minmax(0, 1fr) auto 32px; }
+  .progress-line { grid-template-columns: 1fr; gap: 6px; }
+  .foot-total { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); gap: 14px; }
+  .search input { width: 120px; }
+  .proto-jump { grid-template-columns: 1fr; }
+  .lab-row { grid-template-columns: 1fr auto auto; }
+  .lab-row .swatch-pick { grid-column: 1 / -1; width: auto; }
+  .mem { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mem select, .mem .icon-btn, .mem .btn { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+</style>
+<div id="app"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script>
+"use strict";
+// Roomlist prototype, part 1: types, sample data, UI state.
+// All data is local sample data. Nothing is sent anywhere.
+const TODAY = '2026-10-14';
+const MAX_DEPTH = 5;
+const PALETTE = [
+    { name: 'Blue', color: '#4F86B8' }, { name: 'Ochre', color: '#C79A2B' },
+    { name: 'Clay', color: '#B8674A' }, { name: 'Green', color: '#4E9A6B' },
+    { name: 'Violet', color: '#8A6BB0' }, { name: 'Rose', color: '#C2586F' },
+    { name: 'Teal', color: '#3E9AA6' }, { name: 'Slate', color: '#7D8A94' },
+];
+const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CZK'];
+let seq = 200;
+const uid = (p) => p + (++seq);
+const sum = (a) => a.reduce((x, y) => x + y, 0);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function est(likely, source, spread = 0.3) {
+    return { low: Math.round(likely * (1 - spread)), likely, high: Math.round(likely * (1 + spread * 1.4)), source };
+}
+function task(id, parentId, title, labelIds, extra = {}) {
+    return { id, parentId, title, notes: '', done: false, labelIds, costs: [], collapsed: false, ...extra };
+}
+function seedStore() {
+    const labels = [
+        { id: 'l-bath', name: 'Bathroom', color: '#4F86B8' },
+        { id: 'l-living', name: 'Living room', color: '#C79A2B' },
+        { id: 'l-dining', name: 'Dining room', color: '#B8674A' },
+        { id: 'l-garden', name: 'Garden', color: '#4E9A6B' },
+        { id: 'l-kitchen', name: 'Kitchen', color: '#8A6BB0' },
+        { id: 'l-bed', name: 'Bedroom', color: '#C2586F' },
+    ];
+    const tasks = [
+        task('t1', null, 'Bathroom refit', ['l-bath'], { notes: 'Contractor starts 19 October. Keep the old radiator for the garage.' }),
+        task('t2', 't1', 'Remove old tiles', ['l-bath'], { done: true, estimate: est(1200, 'manual', 0.25), costs: [{ id: 'c1', amount: 1250, date: '2026-10-02', note: 'Skip hire and labour' }] }),
+        task('t3', 't1', 'Replace pipes', ['l-bath'], { estimate: { ...est(3400, 'ai', 0.24), rationale: 'Typical cost to replace supply and drain pipes in a small bathroom.' }, costs: [{ id: 'c2', amount: 3650, date: '2026-10-09', note: 'Plumber, invoice 118' }] }),
+        task('t4', 't1', 'Tile walls and floor', ['l-bath']),
+        task('t5', 't4', 'Hire a tiler', ['l-bath'], { estimate: est(4500, 'manual', 0.2) }),
+        task('t6', 't4', 'Choose grout colour', ['l-bath'], { done: true }),
+        task('t7', null, 'Repaint living room', ['l-living']),
+        task('t8', 't7', 'Pick wall colour', ['l-living'], { done: true }),
+        task('t9', 't7', 'Paint two coats', ['l-living'], { estimate: est(1800, 'ai', 0.22) }),
+        task('t10', 't7', 'Move furniture to the centre', ['l-living']),
+        task('t11', null, 'Hang pendant lamp over the dining table', ['l-dining'], { estimate: est(900, 'manual', 0.2) }),
+        task('t12', null, 'Build raised beds', ['l-garden']),
+        task('t13', 't12', 'Order soil and compost', ['l-garden']),
+        task('t14', 't12', 'Assemble frames', ['l-garden'], { estimate: est(700, 'manual', 0.2) }),
+        task('t15', null, 'Order new bedroom wardrobe', ['l-bed']),
+    ];
+    const items = [
+        { id: 'i1', name: 'Wall tiles 60x60', qty: 9, unit: 'm²', labelIds: ['l-bath'], taskId: 't4', estimate: est(3150, 'ai', 0.2) },
+        { id: 'i2', name: 'Tile adhesive', qty: 4, unit: 'bags', labelIds: ['l-bath'], taskId: 't4', estimate: est(280, 'manual', 0.15), price: 265, boughtAt: '2026-10-11' },
+        { id: 'i3', name: 'Grout, light grey', qty: 5, unit: 'kg', labelIds: ['l-bath'], taskId: 't4', estimate: est(80, 'manual', 0.15), price: 74, boughtAt: '2026-10-11' },
+        { id: 'i4', name: 'Interior paint, white', qty: 10, unit: 'L', labelIds: ['l-living'], taskId: 't9', estimate: est(420, 'ai', 0.2) },
+        { id: 'i5', name: 'Pendant lamp', qty: 1, unit: 'pcs', labelIds: ['l-dining'], taskId: 't11', estimate: est(450, 'manual', 0.2) },
+        { id: 'i6', name: 'Compost', qty: 300, unit: 'L', labelIds: ['l-garden'], taskId: 't13' },
+        { id: 'i7', name: 'Cedar planks 2.4 m', qty: 12, unit: 'pcs', labelIds: ['l-garden'], taskId: 't14', estimate: est(960, 'ai', 0.2) },
+    ];
+    const members = [
+        { id: 'm1', name: 'Tomasz', email: 'tomasz@example.com', role: 'owner', you: true },
+        { id: 'm2', name: 'Ania Kowalska', email: 'ania@example.com', role: 'editor' },
+        { id: 'm3', name: 'Marek Nowak', email: 'marek@example.com', role: 'viewer' },
+    ];
+    const flat = {
+        id: 'p1', name: 'Flat renovation', currency: 'PLN', budget: 24000, labels, tasks, items, members,
+        invites: [{ id: 'v1', email: 'kasia@example.com', role: 'editor' }],
+        link: null, archived: false,
+    };
+    const terrace = {
+        id: 'p2', name: 'Garden terrace', currency: 'PLN', budget: 9000,
+        labels: [{ id: 'l2-terrace', name: 'Terrace', color: '#4E9A6B' }, { id: 'l2-light', name: 'Lighting', color: '#C79A2B' }],
+        tasks: [
+            task('u1', null, 'Lay decking boards', ['l2-terrace'], { estimate: est(3200, 'ai', 0.25) }),
+            task('u2', null, 'Install solar path lights', ['l2-light'], { done: true, estimate: est(600, 'manual', 0.2), costs: [{ id: 'c9', amount: 540, date: '2026-09-28', note: 'Six lamps' }] }),
+        ],
+        items: [], members: [{ id: 'm1', name: 'Tomasz', email: 'tomasz@example.com', role: 'owner', you: true }],
+        invites: [], link: null, archived: false,
+    };
+    return { projects: [flat, terrace] };
+}
+const S = {
+    signedIn: false, mode: 'signin', screen: 'signin', projectId: 'p1', role: 'owner',
+    loading: false, error: null, overlay: null, protoOpen: false, fail: false, busy: null,
+    drafts: {}, errors: {},
+    filters: { labelIds: [], mode: 'any', status: 'all', q: '' }, sLabelIds: [], group: 'label', scope: 'all',
+    rowMenu: null, addSub: null, quickParent: null, lastAdded: null, labelMenu: false, ai: null,
+    editBudget: false, inviteState: 'valid', projQ: '', focus: null, shopProgress: null, magicSent: false,
+    newProjCurrency: 'PLN', newProjDefaults: true, invitePreviewJoined: false,
+};
+let store = seedStore();
+// Roomlist prototype, part 2: derived values, tree operations, mock AI estimator.
+const P = () => store.projects.find((p) => p.id === S.projectId) ?? store.projects[0];
+const can = () => S.role !== 'viewer';
+const isOwner = () => S.role === 'owner';
+function money(n, cur) {
+    const c = cur ?? (store.projects.length ? P().currency : 'PLN');
+    try {
+        return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: c, maximumFractionDigits: Number.isInteger(n) ? 0 : 2 }).format(n);
+    }
+    catch {
+        return n + ' ' + c;
+    }
+}
+const labelOf = (p, id) => p.labels.find((l) => l.id === id);
+const taskOf = (p, id) => (id ? p.tasks.find((t) => t.id === id) : undefined);
+// ---------- tree ----------
+const kids = (p, id) => p.tasks.filter((t) => t.parentId === id);
+function descendants(p, id) {
+    const out = [];
+    const walk = (pid) => { kids(p, pid).forEach((k) => { out.push(k); walk(k.id); }); };
+    walk(id);
+    return out;
+}
+function depthOf(p, t) {
+    let d = 1;
+    let cur = t;
+    while (cur.parentId) {
+        const par = taskOf(p, cur.parentId);
+        if (!par)
+            break;
+        d++;
+        cur = par;
+    }
+    return d;
+}
+function heightOf(p, id) {
+    const ks = kids(p, id);
+    return 1 + (ks.length ? Math.max(...ks.map((k) => heightOf(p, k.id))) : 0);
+}
+function ancestors(p, t) {
+    const out = [];
+    let cur = t;
+    while (cur.parentId) {
+        const par = taskOf(p, cur.parentId);
+        if (!par)
+            break;
+        out.push(par);
+        cur = par;
+    }
+    return out;
+}
+// ---------- costs ----------
+const itemsOf = (p, taskId) => p.items.filter((i) => i.taskId === taskId);
+const taskEst = (t) => t.estimate?.likely ?? 0;
+const taskSpent = (t) => sum(t.costs.map((c) => c.amount));
+const itemEst = (i) => i.estimate?.likely ?? 0;
+const itemSpent = (i) => i.price ?? 0;
+// Own cost of a task = its own entries plus the shopping items linked to it.
+const ownEst = (p, t) => taskEst(t) + sum(itemsOf(p, t.id).map(itemEst));
+const ownSpent = (p, t) => taskSpent(t) + sum(itemsOf(p, t.id).map(itemSpent));
+function roll(p, t) {
+    let e = ownEst(p, t);
+    let s = ownSpent(p, t);
+    kids(p, t.id).forEach((k) => { const r = roll(p, k); e += r.est; s += r.spent; });
+    return { est: e, spent: s };
+}
+function totals(p, scope, labelId) {
+    const hasLabel = (ids) => !labelId || ids.includes(labelId);
+    let e = 0;
+    let s = 0;
+    let vb = 0;
+    let vs = 0;
+    if (scope !== 'shopping') {
+        p.tasks.filter((t) => hasLabel(t.labelIds)).forEach((t) => {
+            const te = taskEst(t);
+            const ts = taskSpent(t);
+            e += te;
+            s += ts;
+            if (ts > 0 || (t.done && te > 0)) {
+                vb += te;
+                vs += ts;
+            }
+        });
+    }
+    if (scope !== 'tasks') {
+        p.items.filter((i) => hasLabel(i.labelIds)).forEach((i) => {
+            const ie = itemEst(i);
+            const is = itemSpent(i);
+            e += ie;
+            s += is;
+            if (i.boughtAt) {
+                vb += ie;
+                vs += is;
+            }
+        });
+    }
+    return { est: e, spent: s, varianceBase: vb, varianceSpent: vs };
+}
+function notEstimated(p) {
+    const out = [];
+    p.tasks.forEach((t) => {
+        if (!t.done && kids(p, t.id).length === 0 && ownEst(p, t) === 0)
+            out.push({ kind: 'task', id: t.id, name: t.title });
+    });
+    p.items.forEach((i) => { if (!i.boughtAt && !i.estimate)
+        out.push({ kind: 'item', id: i.id, name: i.name }); });
+    return out;
+}
+// ---------- filtering ----------
+const filtersActive = () => S.filters.labelIds.length > 0 || S.filters.status !== 'all' || S.filters.q.trim() !== '';
+function matches(t) {
+    const f = S.filters;
+    if (f.labelIds.length) {
+        const ok = f.mode === 'any' ? f.labelIds.some((l) => t.labelIds.includes(l)) : f.labelIds.every((l) => t.labelIds.includes(l));
+        if (!ok)
+            return false;
+    }
+    if (f.status === 'open' && t.done)
+        return false;
+    if (f.status === 'done' && !t.done)
+        return false;
+    if (f.q.trim() && !t.title.toLowerCase().includes(f.q.trim().toLowerCase()))
+        return false;
+    return true;
+}
+const visible = (p, t) => matches(t) || descendants(p, t.id).some(matches);
+function moveTask(p, id, targetId, zone) {
+    const t = taskOf(p, id);
+    const target = taskOf(p, targetId);
+    if (!t || !target)
+        return { ok: false, msg: 'That task no longer exists.' };
+    if (id === targetId)
+        return { ok: false, msg: 'A task cannot be moved onto itself.' };
+    if (descendants(p, id).some((d) => d.id === targetId))
+        return { ok: false, msg: 'A task cannot be moved inside its own subtask.' };
+    const newParent = zone === 'inside' ? target : taskOf(p, target.parentId);
+    const parentDepth = newParent ? depthOf(p, newParent) : 0;
+    if (parentDepth + heightOf(p, id) > MAX_DEPTH)
+        return { ok: false, msg: 'Tasks can be nested up to ' + MAX_DEPTH + ' levels.' };
+    p.tasks = p.tasks.filter((x) => x.id !== id);
+    t.parentId = newParent ? newParent.id : null;
+    if (zone === 'inside') {
+        target.collapsed = false;
+        p.tasks.push(t);
+    }
+    else {
+        const idx = p.tasks.findIndex((x) => x.id === targetId);
+        p.tasks.splice(zone === 'before' ? idx : idx + 1, 0, t);
+    }
+    return { ok: true };
+}
+function moveByStep(p, id, dir) {
+    const t = taskOf(p, id);
+    if (!t)
+        return false;
+    const sibs = kids(p, t.parentId);
+    const i = sibs.findIndex((s) => s.id === id);
+    const other = sibs[i + dir];
+    if (!other)
+        return false;
+    return moveTask(p, id, other.id, dir === -1 ? 'before' : 'after').ok;
+}
+function setDone(p, id, done, cascade) {
+    const t = taskOf(p, id);
+    if (!t)
+        return;
+    t.done = done;
+    if (cascade)
+        descendants(p, id).forEach((d) => { d.done = done; });
+}
+function removeTask(p, id) {
+    const gone = [id, ...descendants(p, id).map((d) => d.id)];
+    p.tasks = p.tasks.filter((t) => !gone.includes(t.id));
+    p.items.forEach((i) => { if (i.taskId && gone.includes(i.taskId))
+        i.taskId = null; });
+    return gone.length;
+}
+function addTask(p, title, parentId, labelIds) {
+    const parent = taskOf(p, parentId);
+    const t = task(uid('t'), parentId, title, labelIds.length ? labelIds : (parent ? parent.labelIds.slice() : []));
+    p.tasks.push(t);
+    if (parent)
+        parent.collapsed = false;
+    return t;
+}
+// ---------- mock AI estimator ----------
+const PRICE_BOOK = [
+    { re: /tile|tiling|tiler/i, base: 4200, what: 'tiling work and materials for a small room' },
+    { re: /plumb|pipe/i, base: 3400, what: 'a plumber for supply and drain pipes' },
+    { re: /paint|repaint|wall colour/i, base: 1500, what: 'paint, masking and two coats of labour' },
+    { re: /lamp|light|pendant/i, base: 650, what: 'the fitting and a mid-range fixture' },
+    { re: /soil|compost/i, base: 380, what: 'a bulk delivery of garden soil' },
+    { re: /bed|frame|plank|cedar|deck/i, base: 1300, what: 'timber and fixings' },
+    { re: /wardrobe|cabinet|shelf|shelves/i, base: 2600, what: 'a built-in or flat-pack unit with delivery' },
+    { re: /floor|parquet|laminate/i, base: 3800, what: 'flooring and underlay for one room' },
+    { re: /window|door/i, base: 2900, what: 'a standard unit with installation' },
+    { re: /hire|install|assemble|move/i, base: 900, what: 'a few hours of tradesperson time' },
+];
+function aiEstimate(p, text, labelIds, qty = 1) {
+    const hit = PRICE_BOOK.find((b) => b.re.test(text));
+    const base = hit ? hit.base : 600;
+    const likely = Math.max(10, Math.round((base * Math.min(Math.max(qty, 1), 3)) / 10) * 10);
+    const names = labelIds.map((id) => labelOf(p, id)?.name).filter(Boolean);
+    return {
+        low: Math.round(likely * 0.72 / 10) * 10, likely, high: Math.round(likely * 1.4 / 10) * 10, source: 'ai',
+        rationale: hit ? 'Based on ' + hit.what + '.' : 'No close match, so this is a general allowance for a small home job.',
+        assumptions: ['Prices in ' + p.currency + ', mid-range materials', names.length ? 'Room: ' + names.join(', ') : 'No room label set', 'VAT included'],
+    };
+}
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+function consumeFail() { if (S.fail) {
+    S.fail = false;
+    return true;
+} return false; }
+// Roomlist prototype, part 3: views. Each function returns an HTML string.
+const ICONS = {
+    grip: '<path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01" stroke-width="3.2"/>',
+    chevron: '<path d="m9 6 6 6-6 6"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5" stroke-width="2.4"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    dots: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/>',
+    share: '<path d="M12 15V4m0 0L8 8m4-4 4 4M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    tag: '<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1"/>',
+    spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/>',
+    cart: '<path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"/>',
+    chart: '<path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/>',
+    trash: '<path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    back: '<path d="m15 6-6 6 6 6"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+    search: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/>',
+    alert: '<path d="M12 4 3 20h18zM12 10v4M12 17h.01"/>',
+    download: '<path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/>',
+    sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+    up: '<path d="m6 15 6-6 6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+};
+const icon = (n, size = 18) => '<svg class="ic" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>';
+const dv = (id) => esc(S.drafts[id] ?? '');
+const errHtml = (f) => '<div class="err" data-err="' + f + '" role="alert">' + esc(S.errors[f] ?? '') + '</div>';
+const roleName = (r) => r[0].toUpperCase() + r.slice(1);
+const lockAttr = () => (can() ? '' : ' disabled title="Viewers can only read this project"');
+const initials = (n) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+function avatar(n, i = 0) {
+    return '<span class="avatar" style="--av:' + PALETTE[(n.length + i) % PALETTE.length].color + '" title="' + esc(n) + '">' + esc(initials(n)) + '</span>';
+}
+function chip(l, extra = '') {
+    return '<span class="chip" style="--c:' + l.color + '"><i class="dot"></i>' + esc(l.name) + extra + '</span>';
+}
+function labelChips(p, ids) {
+    return ids.map((id) => labelOf(p, id)).filter(Boolean).map((l) => chip(l)).join('');
+}
+function emptyState(title, body, action = '') {
+    return '<div class="empty"><div class="empty-art" aria-hidden="true"><i></i><i></i><i></i></div><h3>' + esc(title) + '</h3><p>' + esc(body) + '</p>' + action + '</div>';
+}
+function errorState(msg) {
+    return '<div class="banner bad" role="alert">' + icon('alert') + '<div><b>' + esc(msg) + '</b><span>Check your connection, then try again.</span></div><button class="btn" data-act="retry">Retry</button></div>';
+}
+function skeleton(kind) {
+    if (kind === 'cards')
+        return '<div class="grid">' + [1, 2, 3].map(() => '<div class="card sk"><i class="sk-l w60"></i><i class="sk-l w90"></i><i class="sk-l w40"></i></div>').join('') + '</div>';
+    if (kind === 'summary')
+        return '<div class="kpis">' + [1, 2, 3, 4].map(() => '<div class="card sk"><i class="sk-l w40"></i><i class="sk-l w70 big"></i></div>').join('') + '</div><div class="card sk"><i class="sk-l w90"></i><i class="sk-l w80"></i><i class="sk-l w60"></i></div>';
+    return '<div class="card sk-list" aria-busy="true" aria-label="Loading">' + [80, 55, 70, 60, 85, 50].map((w) => '<div class="sk-row"><i class="sk-b"></i><i class="sk-l" style="width:' + w + '%"></i></div>').join('') + '</div>';
+}
+// ---------- shell ----------
+function topbar() {
+    const inProject = S.screen === 'tasks' || S.screen === 'shopping' || S.screen === 'summary';
+    const p = P();
+    let left = '<div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Roomlist</span></div>';
+    let right = '';
+    if (inProject) {
+        left = '<button class="icon-btn" data-act="goto" data-screen="projects" aria-label="All projects">' + icon('back') + '</button><div class="crumb"><span class="crumb-name">' + esc(p.name) + '</span><span class="role-pill r-' + S.role + '">' + roleName(S.role) + '</span></div>';
+        right = '<div class="avatars" aria-label="Members">' + p.members.slice(0, 3).map((m, i) => avatar(m.name, i)).join('') + '</div>' +
+            '<button class="btn ghost" data-act="open-labels"' + (can() ? '' : ' disabled title="Viewers cannot manage labels"') + '>' + icon('tag') + '<span class="hide-s">Labels</span></button>' +
+            '<button class="btn" data-act="open-share">' + icon('share') + '<span class="hide-s">Share</span></button>';
+    }
+    const armed = S.fail ? '<i class="armed" title="Next request will fail"></i>' : '';
+    right += '<button class="btn ghost proto-btn" data-act="proto-toggle" aria-expanded="' + S.protoOpen + '">' + icon('sliders') + '<span class="hide-s">Prototype</span>' + armed + '</button>';
+    if (S.signedIn)
+        right += '<button class="icon-btn" data-act="signout" aria-label="Sign out" title="Sign out">' + avatar('Tomasz', 2) + '</button>';
+    return '<header class="top"><div class="top-in">' + left + '<div class="top-right">' + right + '</div></div>' + (S.protoOpen ? protoPanel() : '') + '</header>';
+}
+function protoPanel() {
+    const screens = [['signin', 'S1 Sign in'], ['projects', 'S2 Projects'], ['tasks', 'S3 Task list'], ['detail', 'S4 Task detail'], ['shopping', 'S5 Shopping list'], ['summary', 'S6 Summary'], ['share', 'S7 Share and members'], ['labels', 'S8 Labels manager'], ['invite', 'S9 Accept invite']];
+    return '<div class="proto" role="dialog" aria-label="Prototype controls">' +
+        '<div class="proto-h"><b>Prototype controls</b><button class="icon-btn" data-act="proto-toggle" aria-label="Close">' + icon('close', 16) + '</button></div>' +
+        '<div class="proto-s"><span class="lbl">Your role in this project</span><div class="seg">' + ['owner', 'editor', 'viewer'].map((r) => '<button class="' + (S.role === r ? 'on' : '') + '" data-act="proto-role" data-role="' + r + '">' + roleName(r) + '</button>').join('') + '</div></div>' +
+        '<div class="proto-s"><span class="lbl">Errors and loading</span><div class="proto-row"><button class="btn small ' + (S.fail ? 'on' : '') + '" data-act="proto-fail" aria-pressed="' + S.fail + '">' + (S.fail ? 'Next request fails: on' : 'Make next request fail') + '</button><button class="btn small" data-act="proto-reload">Replay loading</button></div></div>' +
+        '<div class="proto-s"><span class="lbl">Jump to a screen</span><div class="proto-jump">' + screens.map((s) => '<button data-act="proto-jump" data-to="' + s[0] + '">' + s[1] + '</button>').join('') + '</div></div>' +
+        '<div class="proto-s"><button class="btn small" data-act="proto-reset">Reset sample data</button></div></div>';
+}
+function tabs() {
+    const p = P();
+    const t = (id, ic, label, count) => '<button class="tab ' + (S.screen === id ? 'on' : '') + '" data-act="goto" data-screen="' + id + '" ' + (S.screen === id ? 'aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span><em>' + count + '</em></button>';
+    return '<nav class="tabs" aria-label="Project sections">' +
+        t('tasks', 'list', 'Tasks', String(p.tasks.filter((x) => !x.done).length)) +
+        t('shopping', 'cart', 'Shopping', String(p.items.filter((i) => !i.boughtAt).length)) +
+        t('summary', 'chart', 'Summary', '') + '</nav>';
+}
+// ---------- S1 sign in ----------
+function viewSignin() {
+    const up = S.mode === 'signup';
+    const chips = [['RL-01', 'Bathroom', '#4F86B8'], ['RL-02', 'Living room', '#C79A2B'], ['RL-03', 'Dining room', '#B8674A'], ['RL-04', 'Garden', '#4E9A6B']];
+    return '<main class="auth"><section class="auth-art" aria-hidden="true">' +
+        '<h2>Every room, one list.</h2><p>Plan nested tasks, track what you buy and see what it all costs.</p>' +
+        '<div class="swatches">' + chips.map((c) => '<div class="swatch" style="--c:' + c[2] + '"><span>' + c[0] + '</span><b>' + c[1] + '</b></div>').join('') + '</div></section>' +
+        '<section class="auth-card"><form data-submit="signin" novalidate><h1>' + (up ? 'Create your account' : 'Sign in') + '</h1>' +
+        (S.errors.form ? '<div class="banner bad" role="alert">' + icon('alert') + '<div><b>' + esc(S.errors.form) + '</b></div></div>' : '') +
+        (S.magicSent ? '<div class="banner ok" role="status"><div><b>Check your inbox</b><span>We sent a sign-in link to ' + esc(S.drafts['su-email'] || 'your email') + '. You can resend it in 30 seconds.</span></div></div>' : '') +
+        '<div class="field"><label for="su-email">Email</label><input id="su-email" type="email" autocomplete="email" value="' + dv('su-email') + '" data-validate="email" placeholder="you@example.com">' + errHtml('su-email') + '</div>' +
+        '<div class="field"><label for="su-pass">Password</label><input id="su-pass" type="password" autocomplete="' + (up ? 'new-password' : 'current-password') + '" value="' + dv('su-pass') + '" data-validate="password">' + (up ? '<small>At least 8 characters.</small>' : '') + errHtml('su-pass') + '</div>' +
+        '<button class="btn primary wide" type="submit" ' + (S.busy === 'signin' ? 'disabled' : '') + '>' + (S.busy === 'signin' ? '<i class="spin"></i>Signing in' : (up ? 'Create account' : 'Sign in')) + '</button>' +
+        '<button class="btn wide" type="button" data-act="magic">Email me a sign-in link</button>' +
+        '<div class="or"><span>or</span></div>' +
+        '<div class="two"><button class="btn" type="button" data-act="social">Google</button><button class="btn" type="button" data-act="social">Apple</button></div>' +
+        '<p class="switch">' + (up ? 'Already have an account?' : 'New here?') + ' <button class="link" type="button" data-act="toggle-mode">' + (up ? 'Sign in' : 'Create an account') + '</button></p>' +
+        '<p class="hint">Prototype tip: use wrong@example.com to see the error state. Got an invite link? <button class="link" type="button" data-act="open-invite">Open a sample invite</button></p></form></section></main>';
+}
+// ---------- S2 projects ----------
+function viewProjects() {
+    const q = S.projQ.trim().toLowerCase();
+    const all = store.projects.filter((p) => !p.archived);
+    const list = all.filter((p) => !q || p.name.toLowerCase().includes(q));
+    let body;
+    if (S.loading)
+        body = skeleton('cards');
+    else if (S.error)
+        body = errorState(S.error);
+    else if (!all.length)
+        body = emptyState('No projects yet', 'A project holds the tasks, shopping list and budget for one job, such as a flat or a garden.', '<button class="btn primary" data-act="new-project">' + icon('plus') + 'Create your first project</button>');
+    else if (!list.length)
+        body = emptyState('No project matches "' + S.projQ + '"', 'Try a different name, or clear the search.', '<button class="btn" data-act="clear-proj-q">Clear search</button>');
+    else
+        body = '<div class="grid">' + list.map((p) => {
+            const tt = totals(p, 'all');
+            const done = p.tasks.filter((t) => t.done).length;
+            const pct = p.tasks.length ? Math.round(done / p.tasks.length * 100) : 0;
+            return '<article class="card proj"><button class="proj-open" data-act="open-project" data-id="' + p.id + '"><h3>' + esc(p.name) + '</h3></button>' +
+                '<div class="meter" role="img" aria-label="' + pct + ' percent of tasks done"><i style="width:' + pct + '%"></i></div>' +
+                '<p class="muted">' + done + ' of ' + p.tasks.length + ' tasks done</p>' +
+                '<div class="proj-nums"><div><span class="lbl">Estimated</span><b>' + money(tt.est, p.currency) + '</b></div><div><span class="lbl">Spent</span><b>' + money(tt.spent, p.currency) + '</b></div></div>' +
+                '<div class="proj-foot"><div class="avatars">' + p.members.map((m, i) => avatar(m.name, i)).join('') + '</div>' +
+                '<div class="proj-act"><button class="btn small ghost" data-act="archive-project" data-id="' + p.id + '">Archive</button><button class="btn small ghost danger" data-act="ask-delete-project" data-id="' + p.id + '">Delete</button></div></div></article>';
+        }).join('') + '</div>';
+    return '<main class="page"><div class="page-head"><h1>Projects</h1><div class="head-tools"><label class="search">' + icon('search', 16) + '<input id="proj-q" data-search="projQ" placeholder="Search projects" value="' + esc(S.projQ) + '" aria-label="Search projects"></label>' +
+        '<button class="btn primary" data-act="new-project">' + icon('plus') + 'New project</button></div></div>' + body + '</main>';
+}
+// ---------- S3 task list ----------
+function summaryStrip(p) {
+    const t = totals(p, 'all');
+    const left = p.budget === null ? null : p.budget - t.spent;
+    const done = p.tasks.filter((x) => x.done).length;
+    return '<section class="strip" aria-label="Project totals">' +
+        '<div><span class="lbl">Estimated</span><b>' + money(t.est) + '</b></div>' +
+        '<div><span class="lbl">Spent</span><b>' + money(t.spent) + '</b></div>' +
+        '<div><span class="lbl">Budget left</span><b class="' + (left !== null && left < 0 ? 'neg' : '') + '">' + (left === null ? 'Not set' : money(left)) + '</b></div>' +
+        '<div><span class="lbl">Tasks done</span><b>' + done + ' of ' + p.tasks.length + '</b></div></section>';
+}
+function filterBar(p) {
+    const f = S.filters;
+    return '<section class="filters" aria-label="Filters"><div class="chips-row" role="group" aria-label="Filter by room">' +
+        p.labels.map((l) => {
+            const on = f.labelIds.includes(l.id);
+            return '<button class="chip btn-chip ' + (on ? 'on' : '') + '" style="--c:' + l.color + '" data-act="filter-label" data-id="' + l.id + '" aria-pressed="' + on + '"><i class="dot"></i>' + esc(l.name) + '</button>';
+        }).join('') + '</div>' +
+        '<div class="filters-ctl">' +
+        (f.labelIds.length > 1 ? '<div class="seg" role="group" aria-label="Match mode"><button class="' + (f.mode === 'any' ? 'on' : '') + '" data-act="filter-mode" data-mode="any">Any label</button><button class="' + (f.mode === 'all' ? 'on' : '') + '" data-act="filter-mode" data-mode="all">All labels</button></div>' : '') +
+        '<select id="f-status" data-change="filter-status" aria-label="Status"><option value="all"' + (f.status === 'all' ? ' selected' : '') + '>All tasks</option><option value="open"' + (f.status === 'open' ? ' selected' : '') + '>Open</option><option value="done"' + (f.status === 'done' ? ' selected' : '') + '>Done</option></select>' +
+        '<label class="search">' + icon('search', 16) + '<input id="f-q" data-search="filterQ" placeholder="Search tasks" value="' + esc(f.q) + '" aria-label="Search tasks"></label>' +
+        (filtersActive() ? '<button class="btn small ghost" data-act="clear-filters">Clear filters</button>' : '') + '</div></section>';
+}
+function quickAdd(p) {
+    const qp = taskOf(p, S.quickParent);
+    return '<form class="quick" data-submit="add-task" novalidate><div class="quick-row">' + icon('plus', 18) +
+        '<input id="q-add" value="' + dv('q-add') + '" placeholder="Add a task and press Enter" maxlength="260" autocomplete="off"' + lockAttr() + ' aria-label="New task title">' +
+        '<select id="q-label" aria-label="Room label"' + lockAttr() + '><option value="">No label</option>' + p.labels.map((l) => '<option value="' + l.id + '"' + (S.drafts['q-label'] === l.id ? ' selected' : '') + '>' + esc(l.name) + '</option>').join('') + '</select>' +
+        '<button class="btn primary" type="submit"' + lockAttr() + '>Add</button></div>' +
+        (qp ? '<div class="quick-hint">Adding under <b>' + esc(qp.title) + '</b>. <button class="link" type="button" data-act="clear-quick-parent">Add at top level</button></div>' : '<div class="quick-hint muted">Press Tab to nest the next task under the last one you added. Shift+Tab goes back.</div>') +
+        errHtml('q-add') + '</form>';
+}
+function rowHtml(p, t, depth) {
+    const ks = kids(p, t.id);
+    const r = roll(p, t);
+    const dim = filtersActive() && !matches(t);
+    const over = r.est > 0 && r.spent > r.est;
+    const dkids = ks.filter((k) => k.done).length;
+    const cost = (r.est > 0 || r.spent > 0)
+        ? '<span class="c-est">' + (r.est > 0 ? 'Est. ' + money(r.est) : 'No estimate') + '</span>' + (r.spent > 0 ? '<span class="c-sp ' + (over ? 'neg' : '') + '">' + money(r.spent) + ' spent</span>' : '')
+        : '<span class="c-est muted">No cost yet</span>';
+    const menu = S.rowMenu === t.id
+        ? '<div class="menu" role="menu"><button role="menuitem" data-act="open-task" data-id="' + t.id + '">Open details</button>' +
+            '<button role="menuitem" data-act="add-sub" data-id="' + t.id + '"' + (depthOf(p, t) >= MAX_DEPTH || !can() ? ' disabled' : '') + '>Add subtask</button>' +
+            '<button role="menuitem" data-act="move-step" data-dir="-1" data-id="' + t.id + '"' + lockAttr() + '>Move up</button>' +
+            '<button role="menuitem" data-act="move-step" data-dir="1" data-id="' + t.id + '"' + lockAttr() + '>Move down</button>' +
+            '<button role="menuitem" class="danger" data-act="ask-delete-task" data-id="' + t.id + '"' + lockAttr() + '>Delete</button></div>' : '';
+    return '<div class="row ' + (t.done ? 'done ' : '') + (dim ? 'dim ' : '') + (S.overlay?.kind === 'detail' && S.overlay.id === t.id ? 'sel' : '') + '" data-id="' + t.id + '" role="treeitem" aria-level="' + depth + '" style="--d:' + (depth - 1) + '">' +
+        '<button class="handle" data-drag aria-label="Drag to move ' + esc(t.title) + '"' + (can() ? '' : ' disabled title="Viewers cannot re-order"') + '>' + icon('grip', 16) + '</button>' +
+        (ks.length ? '<button class="chev ' + (t.collapsed ? '' : 'open') + '" data-act="toggle-collapse" data-id="' + t.id + '" aria-label="' + (t.collapsed ? 'Expand' : 'Collapse') + ' ' + esc(t.title) + '" aria-expanded="' + !t.collapsed + '">' + icon('chevron', 16) + '</button>' : '<span class="chev-sp"></span>') +
+        '<button class="chk ' + (t.done ? 'on' : '') + '" data-act="toggle-done" data-id="' + t.id + '" role="checkbox" aria-checked="' + t.done + '" aria-label="Mark ' + esc(t.title) + ' done"' + lockAttr() + '>' + (t.done ? icon('check', 14) : '') + '</button>' +
+        '<div class="row-main"><button class="title" data-act="open-task" data-id="' + t.id + '">' + esc(t.title) + '</button><div class="row-meta">' + labelChips(p, t.labelIds) + (ks.length ? '<span class="prog">' + dkids + '/' + ks.length + ' done</span>' : '') + '</div></div>' +
+        '<div class="row-cost">' + cost + '</div>' +
+        '<div class="row-menu"><button class="icon-btn" data-act="row-menu" data-id="' + t.id + '" aria-label="Actions for ' + esc(t.title) + '" aria-haspopup="menu">' + icon('dots') + '</button>' + menu + '</div></div>';
+}
+function subAddRow(depth) {
+    return '<form class="row sub-add" data-submit="save-sub" style="--d:' + (depth - 1) + '"><span class="chev-sp"></span><span class="chev-sp"></span><span class="chev-sp"></span>' +
+        '<input id="sub-title" placeholder="Subtask title" maxlength="260" autocomplete="off" aria-label="Subtask title"><button class="btn small primary" type="submit">Add</button><button class="btn small ghost" type="button" data-act="cancel-sub">Cancel</button>' + errHtml('sub-title') + '</form>';
+}
+function treeHtml(p, parentId, depth) {
+    let out = '';
+    kids(p, parentId).forEach((t) => {
+        if (filtersActive() && !visible(p, t))
+            return;
+        out += rowHtml(p, t, depth);
+        const hasKids = kids(p, t.id).length > 0;
+        if ((!t.collapsed || filtersActive()) && hasKids)
+            out += treeHtml(p, t.id, depth + 1);
+        if (S.addSub === t.id)
+            out += subAddRow(depth + 1);
+    });
+    return out;
+}
+function viewTasks() {
+    const p = P();
+    let body;
+    if (S.loading)
+        body = skeleton('rows');
+    else if (S.error)
+        body = errorState(S.error);
+    else if (!p.tasks.length)
+        body = emptyState('No tasks yet', 'Type your first task above, or start from a ready-made list.', can() ? '<button class="btn" data-act="template">Start from a template: Bathroom renovation</button>' : '');
+    else {
+        const tree = treeHtml(p, null, 1);
+        body = tree
+            ? '<div class="card tree" role="tree" aria-label="Tasks">' + tree + '</div>'
+            : emptyState('No tasks match these filters', 'Change the labels or status, or clear the filters.', '<button class="btn" data-act="clear-filters">Clear filters</button>');
+    }
+    return '<main class="page wide">' + summaryStrip(p) + filterBar(p) + quickAdd(p) +
+        (filtersActive() ? '<p class="note">Drag and drop is paused while a filter is on.</p>' : '') + body + '</main>';
+}
+// ---------- S4 task detail ----------
+function rangeBar(e) {
+    const lo = e.low * 0.85;
+    const hi = e.high * 1.08;
+    const pos = (v) => Math.round((v - lo) / (hi - lo) * 100);
+    return '<div class="range" role="img" aria-label="Range from ' + money(e.low) + ' to ' + money(e.high) + ', most likely ' + money(e.likely) + '"><div class="range-bar"><span class="range-fill" style="left:' + pos(e.low) + '%;width:' + (pos(e.high) - pos(e.low)) + '%"></span><span class="range-mark" style="left:' + pos(e.likely) + '%"></span></div>' +
+        '<div class="range-l"><span>Low<b>' + money(e.low) + '</b></span><span class="mid">Likely<b>' + money(e.likely) + '</b></span><span>High<b>' + money(e.high) + '</b></span></div></div>';
+}
+function aiBlock(p, t) {
+    const a = S.ai && S.ai.taskId === t.id ? S.ai : null;
+    if (!a)
+        return '';
+    if (a.status === 'loading')
+        return '<div class="ai-card" aria-live="polite"><div class="ai-h"><i class="spin"></i><b>Estimating the cost…</b></div><p class="muted">Comparing similar jobs in ' + esc(p.currency) + '. This takes a few seconds.</p><button class="btn small" data-act="ai-cancel">Cancel</button></div>';
+    if (a.status === 'error')
+        return '<div class="ai-card bad" role="alert"><div class="ai-h">' + icon('alert') + '<b>Couldn\'t estimate this task</b></div><p class="muted">The estimate service did not answer in time. Your task was not changed.</p><div class="row-btns"><button class="btn small primary" data-act="ai-run" data-id="' + t.id + '">Try again</button><button class="btn small" data-act="ai-manual">Enter manually</button></div></div>';
+    const r = a.result;
+    return '<div class="ai-card ok"><div class="ai-h">' + icon('spark') + '<b>AI estimate</b></div>' + rangeBar(r) +
+        '<p class="ai-why">' + esc(r.rationale) + '</p><ul class="ai-as">' + (r.assumptions ?? []).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
+        '<div class="row-btns"><button class="btn small primary" data-act="ai-use" data-id="' + t.id + '"' + lockAttr() + '>Use estimate</button><button class="btn small" data-act="ai-edit">Edit</button><button class="btn small ghost" data-act="ai-discard">Discard</button></div></div>';
+}
+function viewDetail() {
+    const p = P();
+    const t = taskOf(p, S.overlay?.id);
+    if (!t)
+        return '';
+    const ks = kids(p, t.id);
+    const mats = itemsOf(p, t.id);
+    const r = roll(p, t);
+    const own = ownEst(p, t);
+    const spent = ownSpent(p, t);
+    const crumbs = ancestors(p, t).reverse().map((a) => '<button class="link" data-act="open-task" data-id="' + a.id + '">' + esc(a.title) + '</button>').join(' / ');
+    const varAmt = spent - own;
+    const variance = spent > 0 && own > 0 ? '<span class="' + (varAmt > 0 ? 'neg' : 'pos') + '">' + (varAmt > 0 ? '+' : '') + money(varAmt) + '</span>' : '<span class="muted">None yet</span>';
+    const addable = S.labelMenu ? '<div class="menu wide-menu" role="menu">' + p.labels.map((l) => '<button role="menuitemcheckbox" aria-checked="' + t.labelIds.includes(l.id) + '" data-act="toggle-task-label" data-id="' + l.id + '"><i class="dot" style="--c:' + l.color + '"></i>' + esc(l.name) + (t.labelIds.includes(l.id) ? icon('check', 14) : '') + '</button>').join('') +
+        '<div class="menu-new"><input id="new-label-inline" placeholder="New label" maxlength="30" aria-label="New label name"><button class="btn small" data-act="create-label-inline">Create</button></div>' + errHtml('new-label-inline') + '</div>' : '';
+    const costs = t.costs.length
+        ? '<ul class="costs">' + t.costs.map((c) => '<li><span class="c-date">' + esc(c.date) + '</span><span class="c-note">' + esc(c.note || 'No note') + '</span><b>' + money(c.amount) + '</b><button class="icon-btn" data-act="del-cost" data-id="' + c.id + '" aria-label="Delete cost entry"' + lockAttr() + '>' + icon('trash', 15) + '</button></li>').join('') + '</ul>'
+        : '<p class="muted">No real costs recorded.</p>';
+    return '<aside class="drawer" role="dialog" aria-label="Task details"><div class="drawer-head"><div class="crumbs">' + (crumbs || '<span class="muted">Top level</span>') + '</div><button class="icon-btn" data-act="close-overlay" aria-label="Close details">' + icon('close') + '</button></div>' +
+        '<div class="drawer-body">' +
+        '<div class="d-title"><button class="chk big ' + (t.done ? 'on' : '') + '" data-act="toggle-done" data-id="' + t.id + '" role="checkbox" aria-checked="' + t.done + '" aria-label="Mark done"' + lockAttr() + '>' + (t.done ? icon('check', 16) : '') + '</button>' +
+        '<input id="d-title" class="title-input" value="' + esc(t.title) + '" data-change="save-title" maxlength="200" aria-label="Task title"' + lockAttr() + '></div>' + errHtml('d-title') +
+        '<div class="d-labels"><span class="lbl">Labels</span><div class="d-chips">' + t.labelIds.map((id) => labelOf(p, id)).filter(Boolean).map((l) => chip(l, can() ? '<button class="x" data-act="toggle-task-label" data-id="' + l.id + '" aria-label="Remove label">×</button>' : '')).join('') +
+        '<div class="menu-wrap"><button class="btn small ghost" data-act="label-menu"' + lockAttr() + '>' + icon('plus', 14) + 'Label</button>' + addable + '</div></div></div>' +
+        '<div class="field"><label for="d-notes">Notes</label><textarea id="d-notes" rows="3" maxlength="5000" data-change="save-notes"' + lockAttr() + '>' + esc(t.notes) + '</textarea></div>' +
+        '<section class="cost-card"><h3>Cost</h3>' +
+        '<div class="cost-nums"><div><span class="lbl">Estimate</span><b>' + (own ? money(own) : '—') + '</b></div><div><span class="lbl">Spent</span><b>' + money(spent) + '</b></div><div><span class="lbl">Variance</span><b>' + variance + '</b></div></div>' +
+        (ks.length ? '<p class="muted small">With all subtasks: estimated ' + money(r.est) + ', spent ' + money(r.spent) + '.</p>' : '') +
+        (mats.length ? '<p class="muted small">Includes ' + mats.length + ' shopping item' + (mats.length > 1 ? 's' : '') + ' linked to this task. <button class="link" data-act="goto" data-screen="shopping">Open shopping</button></p>' : '') +
+        '<div class="field inline"><label for="d-est">Own estimate (' + esc(p.currency) + ')</label><div class="inp-row"><input id="d-est" inputmode="decimal" value="' + (t.estimate ? t.estimate.likely : '') + '" placeholder="0" data-change="save-estimate"' + lockAttr() + '><button class="btn ai-btn" data-act="ai-run" data-id="' + t.id + '"' + (can() && S.ai?.status !== 'loading' ? '' : ' disabled') + '>' + icon('spark', 16) + 'Estimate with AI</button></div>' + errHtml('d-est') + '</div>' +
+        aiBlock(p, t) +
+        '<h4>Real costs</h4>' + costs +
+        '<div class="cost-add"><div class="field"><label for="c-amt">Amount</label><input id="c-amt" inputmode="decimal" value="' + dv('c-amt') + '" placeholder="0.00"' + lockAttr() + '></div>' +
+        '<div class="field"><label for="c-date">Date</label><input id="c-date" type="date" value="' + (S.drafts['c-date'] ?? TODAY) + '" max="' + TODAY + '"' + lockAttr() + '></div>' +
+        '<div class="field grow"><label for="c-note">Note</label><input id="c-note" value="' + dv('c-note') + '" maxlength="200" placeholder="Invoice, shop, who"' + lockAttr() + '></div>' +
+        '<button class="btn primary" data-act="add-cost"' + lockAttr() + '>Add cost</button></div>' + errHtml('c-amt') +
+        '</section>' +
+        '<section class="subs"><h3>Subtasks</h3>' + (ks.length ? '<ul class="sub-list">' + ks.map((k) => '<li><button class="chk ' + (k.done ? 'on' : '') + '" data-act="toggle-done" data-id="' + k.id + '" role="checkbox" aria-checked="' + k.done + '" aria-label="Mark ' + esc(k.title) + ' done"' + lockAttr() + '>' + (k.done ? icon('check', 14) : '') + '</button><button class="title ' + (k.done ? 'strike' : '') + '" data-act="open-task" data-id="' + k.id + '">' + esc(k.title) + '</button></li>').join('') + '</ul>' : '<p class="muted">No subtasks yet.</p>') +
+        '<form class="inp-row" data-submit="add-subtask-detail" novalidate><input id="d-sub" placeholder="Add a subtask" maxlength="200" aria-label="New subtask title"' + (depthOf(p, t) >= MAX_DEPTH ? ' disabled title="Maximum nesting reached"' : lockAttr()) + '><button class="btn" type="submit"' + (depthOf(p, t) >= MAX_DEPTH ? ' disabled' : lockAttr()) + '>Add</button></form>' + errHtml('d-sub') + '</section>' +
+        '<div class="danger-zone"><button class="btn danger" data-act="ask-delete-task" data-id="' + t.id + '"' + lockAttr() + '>' + icon('trash', 16) + 'Delete task</button></div>' +
+        '</div></aside>';
+}
+// ---------- S5 shopping ----------
+function itemRow(p, i) {
+    const bought = !!i.boughtAt;
+    const lt = taskOf(p, i.taskId);
+    const e = i.estimate;
+    return '<li class="item ' + (bought ? 'bought' : '') + '" data-id="' + i.id + '"><button class="chk ' + (bought ? 'on' : '') + '" data-act="' + (bought ? 'ask-unbuy' : 'ask-buy') + '" data-id="' + i.id + '" role="checkbox" aria-checked="' + bought + '" aria-label="' + (bought ? 'Mark ' + esc(i.name) + ' as not bought' : 'Mark ' + esc(i.name) + ' as bought') + '"' + lockAttr() + '>' + (bought ? icon('check', 14) : '') + '</button>' +
+        '<div class="item-main"><b>' + esc(i.name) + '</b><span class="muted">' + i.qty + ' ' + esc(i.unit) + (lt ? ' · for ' + esc(lt.title) : '') + '</span><div class="row-meta">' + labelChips(p, i.labelIds) + '</div></div>' +
+        '<div class="item-cost">' + (bought ? '<span class="c-sp">Paid ' + money(i.price ?? 0) + '</span><span class="muted small">Est. ' + (e ? money(e.likely) : '—') + '</span>' : (e ? '<span class="c-est">Est. ' + money(e.likely) + '</span><span class="muted small">' + money(e.low) + ' to ' + money(e.high) + '</span>' : (S.busy === 'est-' + i.id ? '<span class="muted"><i class="spin"></i>Estimating</span>' : '<span class="muted">No estimate</span>'))) + '</div>' +
+        '<div class="item-act">' + (!bought ? '<button class="icon-btn" data-act="est-item" data-id="' + i.id + '" aria-label="Estimate ' + esc(i.name) + ' with AI" title="Estimate with AI"' + lockAttr() + '>' + icon('spark') + '</button>' : '') + '<button class="icon-btn" data-act="del-item" data-id="' + i.id + '" aria-label="Delete ' + esc(i.name) + '"' + lockAttr() + '>' + icon('trash', 16) + '</button></div>' + (S.errors['item-' + i.id] ? '<div class="err full" role="alert">' + esc(S.errors['item-' + i.id]) + '</div>' : '') + '</li>';
+}
+function groupedItems(p, items) {
+    if (!items.length)
+        return '';
+    if (S.group === 'none')
+        return '<ul class="items">' + items.map((i) => itemRow(p, i)).join('') + '</ul>';
+    const groups = new Map();
+    items.forEach((i) => {
+        const key = S.group === 'label' ? (i.labelIds[0] ? labelOf(p, i.labelIds[0])?.name ?? 'No label' : 'No label') : (taskOf(p, i.taskId)?.title ?? 'Not linked to a task');
+        groups.set(key, [...(groups.get(key) ?? []), i]);
+    });
+    return Array.from(groups.entries()).map(([k, v]) => '<h4 class="grp">' + esc(k) + '</h4><ul class="items">' + v.map((i) => itemRow(p, i)).join('') + '</ul>').join('');
+}
+function viewShopping() {
+    const p = P();
+    const shown = p.items.filter((i) => !S.sLabelIds.length || i.labelIds.some((l) => S.sLabelIds.includes(l)));
+    const need = shown.filter((i) => !i.boughtAt);
+    const got = shown.filter((i) => i.boughtAt);
+    const needEst = sum(need.map(itemEst));
+    const paid = sum(got.map(itemSpent));
+    const missing = p.items.filter((i) => !i.boughtAt && !i.estimate).length;
+    let body;
+    if (S.loading)
+        body = skeleton('rows');
+    else if (S.error)
+        body = errorState(S.error);
+    else if (!p.items.length)
+        body = emptyState('Nothing to buy yet', 'Add the first item above. Link it to a task and its price is counted on that task.');
+    else if (!shown.length)
+        body = emptyState('No items with these labels', 'Pick other labels or clear the filter.', '<button class="btn" data-act="clear-s-filter">Clear filter</button>');
+    else
+        body = '<section class="card list-card"><h3>To buy <em>' + need.length + '</em></h3>' + (need.length ? groupedItems(p, need) : '<p class="muted pad">Everything on this list is bought.</p>') + '</section>' +
+            '<section class="card list-card"><h3>Bought <em>' + got.length + '</em></h3>' + (got.length ? groupedItems(p, got) : '<p class="muted pad">Nothing bought yet. Tick an item in the shop to record its price.</p>') + '</section>';
+    const prog = S.shopProgress ? '<div class="banner" role="status"><i class="spin"></i><div><b>Estimating ' + S.shopProgress.done + ' of ' + S.shopProgress.total + '</b></div></div>' : '';
+    return '<main class="page wide"><div class="page-head"><h1>Shopping list</h1><div class="head-tools"><div class="seg" role="group" aria-label="Group by">' +
+        ['label', 'task', 'none'].map((g) => '<button class="' + (S.group === g ? 'on' : '') + '" data-act="group" data-g="' + g + '">' + (g === 'label' ? 'By room' : g === 'task' ? 'By task' : 'Flat') + '</button>').join('') + '</div>' +
+        '<button class="btn" data-act="est-all"' + (missing && can() && !S.shopProgress ? '' : ' disabled') + '>' + icon('spark', 16) + 'Estimate all' + (missing ? ' (' + missing + ')' : '') + '</button></div></div>' +
+        '<form class="add-item card" data-submit="add-item" novalidate><div class="field grow"><label for="i-name">Item</label><input id="i-name" value="' + dv('i-name') + '" maxlength="120" placeholder="e.g. Silicone sealant"' + lockAttr() + '></div>' +
+        '<div class="field sm"><label for="i-qty">Qty</label><input id="i-qty" inputmode="decimal" value="' + (S.drafts['i-qty'] ?? '1') + '"' + lockAttr() + '></div>' +
+        '<div class="field sm"><label for="i-unit">Unit</label><select id="i-unit"' + lockAttr() + '>' + ['pcs', 'm²', 'm', 'L', 'kg', 'bags'].map((u) => '<option' + (S.drafts['i-unit'] === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div>' +
+        '<div class="field"><label for="i-label">Room</label><select id="i-label"' + lockAttr() + '><option value="">None</option>' + p.labels.map((l) => '<option value="' + l.id + '"' + (S.drafts['i-label'] === l.id ? ' selected' : '') + '>' + esc(l.name) + '</option>').join('') + '</select></div>' +
+        '<div class="field"><label for="i-task">Linked task</label><select id="i-task"' + lockAttr() + '><option value="">None</option>' + p.tasks.map((t) => '<option value="' + t.id + '"' + (S.drafts['i-task'] === t.id ? ' selected' : '') + '>' + esc(t.title) + '</option>').join('') + '</select></div>' +
+        '<button class="btn primary" type="submit"' + lockAttr() + '>' + icon('plus', 16) + 'Add</button>' + errHtml('i-name') + '</form>' +
+        '<div class="chips-row" role="group" aria-label="Filter by room">' + p.labels.map((l) => { const on = S.sLabelIds.includes(l.id); return '<button class="chip btn-chip ' + (on ? 'on' : '') + '" style="--c:' + l.color + '" data-act="s-filter" data-id="' + l.id + '" aria-pressed="' + on + '"><i class="dot"></i>' + esc(l.name) + '</button>'; }).join('') + '</div>' +
+        prog + body +
+        '<div class="foot-total" role="status"><div><span class="lbl">Still to buy (estimate)</span><b>' + money(needEst) + '</b></div><div><span class="lbl">Paid so far</span><b>' + money(paid) + '</b></div>' + (missing ? '<div><span class="lbl">Without estimate</span><b>' + missing + ' item' + (missing > 1 ? 's' : '') + '</b></div>' : '') + '</div></main>';
+}
+// ---------- S6 summary ----------
+function viewSummary() {
+    const p = P();
+    if (S.loading)
+        return '<main class="page wide">' + skeleton('summary') + '</main>';
+    if (S.error)
+        return '<main class="page wide">' + errorState(S.error) + '</main>';
+    const t = totals(p, S.scope);
+    const hasData = p.tasks.length + p.items.length > 0 && (t.est > 0 || t.spent > 0);
+    const scopeSeg = '<div class="seg" role="group" aria-label="Scope">' + [['all', 'Everything'], ['tasks', 'Tasks'], ['shopping', 'Shopping']].map((s) => '<button class="' + (S.scope === s[0] ? 'on' : '') + '" data-act="scope" data-s="' + s[0] + '">' + s[1] + '</button>').join('') + '</div>';
+    const head = '<div class="page-head"><h1>Summary</h1><div class="head-tools">' + scopeSeg + '<button class="btn" data-act="export">' + icon('download', 16) + 'Export CSV</button></div></div>';
+    if (!hasData)
+        return '<main class="page wide">' + head + emptyState('Nothing to add up yet', 'Add costs to tasks or shopping items to see your summary.', '<div class="row-btns"><button class="btn" data-act="goto" data-screen="tasks">Go to tasks</button><button class="btn" data-act="goto" data-screen="shopping">Go to shopping</button></div>') + '</main>';
+    const left = p.budget === null ? null : p.budget - t.spent;
+    const over = p.budget !== null && t.est > p.budget;
+    const vAmt = t.varianceSpent - t.varianceBase;
+    const vPct = t.varianceBase > 0 ? Math.round(vAmt / t.varianceBase * 100) : 0;
+    const bPct = p.budget ? Math.min(100, Math.round(t.spent / p.budget * 100)) : 0;
+    const ePct = p.budget ? Math.min(100, Math.round(t.est / p.budget * 100)) : 0;
+    const done = p.tasks.filter((x) => x.done).length;
+    const dPct = p.tasks.length ? Math.round(done / p.tasks.length * 100) : 0;
+    const maxV = Math.max(1, ...p.labels.map((l) => { const x = totals(p, S.scope, l.id); return Math.max(x.est, x.spent); }));
+    const rows = p.labels.map((l) => ({ l, x: totals(p, S.scope, l.id) })).filter((r) => r.x.est > 0 || r.x.spent > 0).sort((a, b) => b.x.est - a.x.est)
+        .map((r) => '<tr><th scope="row"><button class="link-row" data-act="jump-label" data-id="' + r.l.id + '">' + chip(r.l) + '</button></th><td class="bars"><div class="bar est" style="width:' + Math.round(r.x.est / maxV * 100) + '%"></div><div class="bar sp" style="width:' + Math.round(r.x.spent / maxV * 100) + '%"></div></td><td class="num">' + money(r.x.est) + '</td><td class="num ' + (r.x.spent > r.x.est ? 'neg' : '') + '">' + money(r.x.spent) + '</td></tr>').join('');
+    const ne = notEstimated(p);
+    return '<main class="page wide">' + head +
+        (over ? '<div class="banner bad" role="alert">' + icon('alert') + '<div><b>Over budget by ' + money(t.est - (p.budget ?? 0)) + '</b><span>The estimates add up to more than the budget.</span></div></div>' : '') +
+        '<div class="kpis"><div class="card kpi"><span class="lbl">Estimated</span><b>' + money(t.est) + '</b></div><div class="card kpi"><span class="lbl">Spent</span><b>' + money(t.spent) + '</b></div>' +
+        '<div class="card kpi"><span class="lbl">Budget left</span><b class="' + (left !== null && left < 0 ? 'neg' : '') + '">' + (left === null ? 'Not set' : money(left)) + '</b></div>' +
+        '<div class="card kpi"><span class="lbl">Variance on finished work</span><b class="' + (vAmt > 0 ? 'neg' : vAmt < 0 ? 'pos' : '') + '">' + (vAmt > 0 ? '+' : '') + money(vAmt) + '</b><small>' + (t.varianceBase > 0 ? (vPct > 0 ? '+' : '') + vPct + '% against its estimate' : 'Nothing finished yet') + '</small></div></div>' +
+        '<section class="card budget"><div class="budget-h"><h3>Budget</h3>' + (S.editBudget
+        ? '<form class="inp-row" data-submit="save-budget" novalidate><input id="budget-in" inputmode="decimal" value="' + dv('budget-in') + '" aria-label="Budget" placeholder="0"><button class="btn small primary" type="submit">Save</button><button class="btn small ghost" type="button" data-act="cancel-budget">Cancel</button></form>' + errHtml('budget-in')
+        : '<span>' + (p.budget === null ? 'Not set' : money(p.budget)) + '</span><button class="btn small ghost" data-act="edit-budget"' + (isOwner() ? '' : ' disabled title="Only the owner can change the budget"') + '>Edit</button>') + '</div>' +
+        (p.budget ? '<div class="stack" role="img" aria-label="Spent ' + bPct + ' percent, estimated ' + ePct + ' percent of budget"><i class="st-est" style="width:' + ePct + '%"></i><i class="st-sp" style="width:' + bPct + '%"></i></div><div class="legend"><span><i class="k sp"></i>Spent ' + bPct + '%</span><span><i class="k est"></i>Estimated ' + ePct + '%</span></div>' : '<p class="muted">Set a budget to see how much is left.</p>') +
+        '<div class="progress-line"><span class="lbl">Tasks done</span><div class="meter"><i style="width:' + dPct + '%"></i></div><b>' + done + ' of ' + p.tasks.length + '</b></div></section>' +
+        '<section class="card"><h3>By room</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Room</th><th class="bars-h"><span class="k est"></span>Estimated <span class="k sp"></span>Spent</th><th class="num">Estimated</th><th class="num">Spent</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<p class="muted small">A task with several labels is counted once in the totals and once in each of its rooms.</p></section>' +
+        '<section class="card"><h3>Not estimated <em>' + ne.length + '</em></h3>' + (ne.length ? '<ul class="plain">' + ne.map((n) => '<li><span>' + esc(n.name) + '</span><span class="muted">' + (n.kind === 'task' ? 'Task' : 'Shopping item') + '</span><button class="btn small" data-act="' + (n.kind === 'task' ? 'open-task' : 'goto') + '" data-id="' + n.id + '" data-screen="shopping">' + (n.kind === 'task' ? 'Add estimate' : 'Open list') + '</button></li>').join('') + '</ul><p class="muted small">These count as zero until they have an estimate.</p>' : '<p class="muted">Every open task and item has an estimate.</p>') + '</section></main>';
+}
+// ---------- S9 accept invite ----------
+function viewInvite() {
+    const st = S.inviteState;
+    const p = store.projects[0];
+    const seg = '<div class="seg" role="group" aria-label="Preview state">' + ['valid', 'expired', 'revoked', 'mismatch', 'member'].map((s) => '<button class="' + (st === s ? 'on' : '') + '" data-act="invite-state" data-s="' + s + '">' + s[0].toUpperCase() + s.slice(1) + '</button>').join('') + '</div>';
+    let card;
+    if (S.loading)
+        card = '<div class="card invite sk"><i class="sk-l w60"></i><i class="sk-l w90"></i><i class="sk-l w40"></i></div>';
+    else if (st === 'valid')
+        card = '<div class="card invite"><span class="lbl">You are invited to</span><h1>' + esc(p.name) + '</h1><div class="inviter">' + avatar('Tomasz', 0) + '<span>Tomasz invited you as</span><span class="role-pill r-editor">Editor</span></div><p class="muted">You will be able to add tasks, update costs and edit the shopping list.</p><div class="row-btns"><button class="btn primary" data-act="accept-invite">Accept invite</button><button class="btn" data-act="decline-invite">Decline</button></div></div>';
+    else if (st === 'member')
+        card = '<div class="card invite"><h1>You are already in ' + esc(p.name) + '</h1><p class="muted">This invite was for an account that already has access.</p><button class="btn primary" data-act="accept-invite">Open project</button></div>';
+    else {
+        const m = {
+            expired: ['This invite has expired', 'Invite links stop working after the date the owner chose. Ask Tomasz for a new link.', ''],
+            revoked: ['This invite was revoked', 'The owner turned this link off. Ask Tomasz to send a new invite.', ''],
+            mismatch: ['This invite was sent to another address', 'It is for ania@example.com, but you are signed in as tomasz@example.com.', '<button class="btn" data-act="signout">Switch account</button>'],
+        };
+        const x = m[st];
+        card = '<div class="card invite bad">' + icon('alert', 24) + '<h1>' + x[0] + '</h1><p class="muted">' + x[1] + '</p><div class="row-btns">' + x[2] + '<button class="btn" data-act="goto" data-screen="projects">Go to my projects</button></div></div>';
+    }
+    return '<main class="page narrow"><div class="preview-bar"><span class="lbl">Preview state</span>' + seg + '</div>' + card + '</main>';
+}
+// ---------- overlays (dialogs) ----------
+function modal(title, body, wide = false) {
+    return '<div class="backdrop" data-act="close-overlay-bg"><div class="modal ' + (wide ? 'wide' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="modal-h"><h2>' + esc(title) + '</h2><button class="icon-btn" data-act="close-overlay" aria-label="Close">' + icon('close') + '</button></div><div class="modal-b">' + body + '</div></div></div>';
+}
+function overlayHtml() {
+    const o = S.overlay;
+    if (!o)
+        return '';
+    const p = P();
+    if (o.kind === 'detail')
+        return viewDetail();
+    if (o.kind === 'newProject') {
+        return modal('New project', '<form data-submit="create-project" novalidate>' +
+            '<div class="field"><label for="np-name">Name</label><input id="np-name" value="' + dv('np-name') + '" maxlength="80" placeholder="e.g. Bedroom makeover" data-validate="projname">' + errHtml('np-name') + '</div>' +
+            '<div class="field"><label for="np-cur">Currency</label><select id="np-cur">' + CURRENCIES.map((c) => '<option' + (S.newProjCurrency === c ? ' selected' : '') + '>' + c + '</option>').join('') + '</select></div>' +
+            '<div class="field"><label for="np-budget">Total budget <span class="muted">(optional)</span></label><input id="np-budget" inputmode="decimal" value="' + dv('np-budget') + '" placeholder="0.00" data-validate="budget">' + errHtml('np-budget') + '</div>' +
+            '<label class="check-row"><input type="checkbox" id="np-defaults"' + (S.newProjDefaults ? ' checked' : '') + '> Add default room labels (Bathroom, Living room, Dining room, Garden, Kitchen, Bedroom)</label>' +
+            (S.errors['np-form'] ? '<div class="banner bad" role="alert"><div><b>' + esc(S.errors['np-form']) + '</b></div></div>' : '') +
+            '<div class="modal-f"><button class="btn" type="button" data-act="close-overlay">Cancel</button><button class="btn primary" type="submit"' + (S.busy === 'create' ? ' disabled' : '') + '>' + (S.busy === 'create' ? '<i class="spin"></i>Creating' : 'Create project') + '</button></div></form>');
+    }
+    if (o.kind === 'deleteProject') {
+        const dp = store.projects.find((x) => x.id === o.id);
+        if (!dp)
+            return '';
+        return modal('Delete project', '<form data-submit="delete-project" novalidate><p>This permanently deletes <b>' + esc(dp.name) + '</b> with its tasks, shopping list and costs. Type the project name to confirm.</p><div class="field"><label for="dp-name">Project name</label><input id="dp-name" value="' + dv('dp-name') + '" autocomplete="off">' + errHtml('dp-name') + '</div><div class="modal-f"><button class="btn" type="button" data-act="close-overlay">Cancel</button><button class="btn danger solid" type="submit">Delete project</button></div></form>');
+    }
+    if (o.kind === 'cascade') {
+        const t = taskOf(p, o.id);
+        if (!t)
+            return '';
+        const open = descendants(p, t.id).filter((d) => !d.done).length;
+        return modal('Complete subtasks too?', '<p><b>' + esc(t.title) + '</b> has ' + open + ' open subtask' + (open > 1 ? 's' : '') + '.</p><div class="modal-f"><button class="btn" data-act="close-overlay">Cancel</button><button class="btn" data-act="cascade-one" data-id="' + t.id + '">Only this task</button><button class="btn primary" data-act="cascade-all" data-id="' + t.id + '">Complete all</button></div>');
+    }
+    if (o.kind === 'deleteTask') {
+        const t = taskOf(p, o.id);
+        if (!t)
+            return '';
+        const n = descendants(p, t.id).length;
+        return modal('Delete task', '<p>Delete <b>' + esc(t.title) + '</b>' + (n ? ' and its ' + n + ' subtask' + (n > 1 ? 's' : '') : '') + '? Linked shopping items stay on the list.</p><div class="modal-f"><button class="btn" data-act="close-overlay">Cancel</button><button class="btn danger solid" data-act="delete-task" data-id="' + t.id + '">Delete</button></div>');
+    }
+    if (o.kind === 'deleteLabel') {
+        const l = labelOf(p, o.id ?? '');
+        if (!l)
+            return '';
+        const n = p.tasks.filter((t) => t.labelIds.includes(l.id)).length + p.items.filter((i) => i.labelIds.includes(l.id)).length;
+        return modal('Delete label', '<p>Delete <b>' + esc(l.name) + '</b>? It will be removed from ' + n + ' task' + (n === 1 ? '' : 's') + ' and item' + (n === 1 ? '' : 's') + '.</p><div class="modal-f"><button class="btn" data-act="open-labels">Cancel</button><button class="btn danger solid" data-act="delete-label" data-id="' + l.id + '">Delete label</button></div>');
+    }
+    if (o.kind === 'buy') {
+        const it = p.items.find((i) => i.id === o.id);
+        if (!it)
+            return '';
+        return modal('Mark as bought', '<form data-submit="confirm-buy" novalidate><p><b>' + esc(it.name) + '</b>, ' + it.qty + ' ' + esc(it.unit) + '</p>' +
+            '<div class="field"><label for="b-price">Price paid (' + esc(p.currency) + ')</label><input id="b-price" inputmode="decimal" value="' + (S.drafts['b-price'] ?? (it.estimate ? it.estimate.likely : '')) + '">' + errHtml('b-price') + '</div>' +
+            '<div class="field"><label for="b-date">Date</label><input id="b-date" type="date" max="' + TODAY + '" value="' + (S.drafts['b-date'] ?? TODAY) + '"></div>' +
+            (it.taskId ? '<p class="muted small">The price will count on the task “' + esc(taskOf(p, it.taskId)?.title ?? '') + '”.</p>' : '') +
+            '<div class="modal-f"><button class="btn" type="button" data-act="close-overlay">Cancel</button><button class="btn primary" type="submit">Save</button></div></form>');
+    }
+    if (o.kind === 'unbuy') {
+        const it = p.items.find((i) => i.id === o.id);
+        if (!it)
+            return '';
+        return modal('Move back to the list?', '<p>This removes the price of ' + money(it.price ?? 0) + ' from the spent total.</p><div class="modal-f"><button class="btn" data-act="close-overlay">Cancel</button><button class="btn danger solid" data-act="confirm-unbuy" data-id="' + it.id + '">Move back</button></div>');
+    }
+    if (o.kind === 'labels') {
+        const rows = p.labels.map((l) => {
+            const n = p.tasks.filter((t) => t.labelIds.includes(l.id)).length + p.items.filter((i) => i.labelIds.includes(l.id)).length;
+            return '<li class="lab-row"><div class="swatch-pick">' + PALETTE.map((c) => '<button class="sw ' + (c.color === l.color ? 'on' : '') + '" style="--c:' + c.color + '" data-act="set-color" data-id="' + l.id + '" data-color="' + c.color + '" aria-label="' + c.name + '"' + (can() ? '' : ' disabled') + '></button>').join('') + '</div>' +
+                '<input class="lab-name" id="ln-' + l.id + '" value="' + esc(l.name) + '" maxlength="30" data-change="rename-label" data-id="' + l.id + '" aria-label="Label name"' + lockAttr() + '><span class="muted small">' + n + ' in use</span><button class="icon-btn" data-act="ask-delete-label" data-id="' + l.id + '" aria-label="Delete ' + esc(l.name) + '"' + lockAttr() + '>' + icon('trash', 16) + '</button>' + errHtml('ln-' + l.id) + '</li>';
+        }).join('');
+        return modal('Labels', (p.labels.length ? '<ul class="lab-list">' + rows + '</ul>' : '<p class="muted">No labels yet. Add one such as Bathroom.</p>') +
+            '<form class="inp-row top-gap" data-submit="add-label" novalidate><input id="nl-name" placeholder="New label, e.g. Hallway" maxlength="30" value="' + dv('nl-name') + '" aria-label="New label name"' + lockAttr() + '><button class="btn primary" type="submit"' + lockAttr() + '>Add label</button></form>' + errHtml('nl-name') +
+            '<p class="muted small">' + p.labels.length + ' of 30 labels.</p>');
+    }
+    if (o.kind === 'share') {
+        const own = isOwner();
+        const members = p.members.map((m) => '<li class="mem">' + avatar(m.name) + '<div><b>' + esc(m.name) + (m.you ? ' (you)' : '') + '</b><span class="muted small">' + esc(m.email) + '</span></div>' +
+            (m.role === 'owner' ? '<span class="role-pill r-owner">Owner</span>' : '<select data-change="member-role" data-id="' + m.id + '" aria-label="Role of ' + esc(m.name) + '"' + (own ? '' : ' disabled') + '><option value="editor"' + (m.role === 'editor' ? ' selected' : '') + '>Editor</option><option value="viewer"' + (m.role === 'viewer' ? ' selected' : '') + '>Viewer</option></select><button class="icon-btn" data-act="remove-member" data-id="' + m.id + '" aria-label="Remove ' + esc(m.name) + '"' + (own ? '' : ' disabled') + '>' + icon('trash', 16) + '</button>') + '</li>').join('');
+        const pend = p.invites.map((v) => '<li class="mem"><span class="avatar ghost">?</span><div><b>' + esc(v.email) + '</b><span class="muted small">Pending · ' + roleName(v.role) + '</span></div><button class="btn small ghost" data-act="resend-invite" data-id="' + v.id + '"' + (own ? '' : ' disabled') + '>Resend</button><button class="btn small ghost" data-act="cancel-invite" data-id="' + v.id + '"' + (own ? '' : ' disabled') + '>Cancel</button></li>').join('');
+        const link = p.link && p.link.active
+            ? '<div class="link-box"><code id="link-url">https://roomlist.example/invite/' + esc(p.link.token) + '</code><button class="btn small" data-act="copy-link">' + icon('copy', 14) + 'Copy</button></div><p class="muted small">Anyone with the link joins as ' + roleName(p.link.role) + '. Expires ' + esc(p.link.expires) + '.</p><div class="row-btns"><button class="btn small ghost" data-act="open-invite">Preview as invitee</button><button class="btn small ghost danger" data-act="revoke-link"' + (own ? '' : ' disabled') + '>Turn off link</button></div>'
+            : '<div class="inp-row"><select id="lk-role" aria-label="Link role"><option value="editor">Editor</option><option value="viewer">Viewer</option></select><select id="lk-exp" aria-label="Expiry"><option value="7">Expires in 7 days</option><option value="30">Expires in 30 days</option><option value="0">Never expires</option></select><button class="btn" data-act="create-link"' + (own ? '' : ' disabled') + '>' + icon('link', 16) + 'Create link</button></div>';
+        return modal('Share ' + p.name, (own ? '' : '<div class="banner"><div><b>Only the owner can invite people or change roles.</b><span>You can see who has access.</span></div></div>') +
+            '<form class="share-form" data-submit="send-invite" novalidate><div class="field grow"><label for="inv-email">Invite by email</label><input id="inv-email" type="email" value="' + dv('inv-email') + '" placeholder="name@example.com" data-validate="invite"' + (own ? '' : ' disabled') + '>' + errHtml('inv-email') + '</div>' +
+            '<div class="field sm"><label for="inv-role">Role</label><select id="inv-role"' + (own ? '' : ' disabled') + '><option value="editor">Editor</option><option value="viewer">Viewer</option></select></div><button class="btn primary" type="submit"' + (own ? '' : ' disabled') + (S.busy === 'invite' ? ' disabled' : '') + '>' + (S.busy === 'invite' ? '<i class="spin"></i>Sending' : 'Send invite') + '</button></form>' +
+            '<h4>Invite link</h4>' + link + '<h4>People with access</h4><ul class="mems">' + members + pend + '</ul>' +
+            (!isOwner() ? '<button class="btn danger top-gap" data-act="leave-project">Leave project</button>' : (p.members.length === 1 && !p.invites.length ? '<p class="muted">Only you have access.</p>' : '')), true);
+    }
+    return '';
+}
+function layout() {
+    let page = '';
+    switch (S.screen) {
+        case 'signin':
+            page = viewSignin();
+            break;
+        case 'projects':
+            page = viewProjects();
+            break;
+        case 'tasks':
+            page = viewTasks();
+            break;
+        case 'shopping':
+            page = viewShopping();
+            break;
+        case 'summary':
+            page = viewSummary();
+            break;
+        case 'invite':
+            page = viewInvite();
+            break;
+    }
+    const inProj = S.screen === 'tasks' || S.screen === 'shopping' || S.screen === 'summary';
+    return topbar() + (inProj ? tabs() : '') + '<div class="stage ' + (S.overlay?.kind === 'detail' ? 'has-drawer' : '') + '">' + page + '</div>' + overlayHtml();
+}
+// Roomlist prototype, part 4: rendering, events, actions, drag and drop.
+const appEl = document.getElementById('app');
+const toastEl = document.getElementById('toasts');
+// ---------- toasts ----------
+let toasts = [];
+let toastSeq = 0;
+function toast(msg, kind = 'ok', undo) {
+    const id = ++toastSeq;
+    toasts.push({ id, msg, kind, undo });
+    renderToasts();
+    setTimeout(() => { toasts = toasts.filter((t) => t.id !== id); renderToasts(); }, undo ? 7000 : 4500);
+}
+function renderToasts() {
+    toastEl.innerHTML = toasts.map((t) => '<div class="toast ' + t.kind + '" role="' + (t.kind === 'error' ? 'alert' : 'status') + '"><span>' + esc(t.msg) + '</span>' +
+        (t.undo ? '<button class="link" data-toast-undo="' + t.id + '">Undo</button>' : '') + '<button class="icon-btn" data-toast-close="' + t.id + '" aria-label="Dismiss">' + icon('close', 14) + '</button></div>').join('');
+}
+// ---------- render ----------
+function render() {
+    const drawer = appEl.querySelector('.drawer-body');
+    const ds = drawer ? drawer.scrollTop : 0;
+    const modalB = appEl.querySelector('.modal-b');
+    const ms = modalB ? modalB.scrollTop : 0;
+    appEl.innerHTML = layout();
+    const d2 = appEl.querySelector('.drawer-body');
+    if (d2)
+        d2.scrollTop = ds;
+    const m2 = appEl.querySelector('.modal-b');
+    if (m2)
+        m2.scrollTop = ms;
+    if (S.focus) {
+        const el = document.querySelector(S.focus);
+        if (el) {
+            el.focus();
+            if (typeof el.value === 'string' && el.type !== 'date' && el.setSelectionRange) {
+                try {
+                    el.setSelectionRange(el.value.length, el.value.length);
+                }
+                catch { /* ignore */ }
+            }
+        }
+        S.focus = null;
+    }
+}
+let navToken = 0;
+const LOAD_ERR = { projects: 'Couldn\'t load projects', tasks: 'Couldn\'t load tasks', shopping: 'Couldn\'t load the shopping list', summary: 'Couldn\'t load the summary', invite: 'Couldn\'t check this invite' };
+function go(screen, opts = {}) {
+    const tok = ++navToken;
+    if (opts.project && opts.project !== S.projectId) {
+        S.projectId = opts.project;
+        S.filters = { labelIds: [], mode: 'any', status: 'all', q: '' };
+        S.sLabelIds = [];
+    }
+    S.screen = screen;
+    S.overlay = null;
+    S.rowMenu = null;
+    S.addSub = null;
+    S.protoOpen = false;
+    S.error = null;
+    S.ai = null;
+    S.labelMenu = false;
+    S.editBudget = false;
+    S.loading = screen !== 'signin';
+    render();
+    window.scrollTo(0, 0);
+    if (screen === 'signin')
+        return;
+    setTimeout(() => {
+        if (tok !== navToken)
+            return;
+        if (consumeFail())
+            S.error = LOAD_ERR[screen] ?? 'Couldn\'t load this page';
+        S.loading = false;
+        if (opts.after && !S.error)
+            S.overlay = opts.after;
+        render();
+    }, 450);
+}
+// ---------- validation helpers ----------
+const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const getVal = (id) => (document.getElementById(id)?.value ?? '').trim();
+function setErr(field, msg) {
+    if (msg)
+        S.errors[field] = msg;
+    else
+        delete S.errors[field];
+    const el = document.querySelector('[data-err="' + field + '"]');
+    if (el)
+        el.textContent = msg;
+    const inp = document.getElementById(field);
+    if (inp) {
+        if (msg)
+            inp.setAttribute('aria-invalid', 'true');
+        else
+            inp.removeAttribute('aria-invalid');
+    }
+}
+function parseMoney(s) {
+    const t = s.replace(/\s/g, '').replace(',', '.');
+    if (!/^\d+(\.\d{1,2})?$/.test(t))
+        return NaN;
+    const n = Number(t);
+    return n > 99999999.99 ? NaN : n;
+}
+function validateField(id, kind) {
+    const v = getVal(id);
+    if (kind === 'email')
+        return !v ? 'Enter your email address.' : !emailRe.test(v) ? 'Enter a valid email, like name@example.com.' : '';
+    if (kind === 'password')
+        return !v ? 'Enter your password.' : (S.mode === 'signup' && v.length < 8) ? 'Use at least 8 characters.' : '';
+    if (kind === 'projname')
+        return !v ? 'Give the project a name.' : v.length > 80 ? 'Use 80 characters or fewer.' : '';
+    if (kind === 'budget')
+        return !v ? '' : isNaN(parseMoney(v)) ? 'Enter an amount like 12000 or 12000.50.' : '';
+    if (kind === 'invite') {
+        const p = P();
+        if (!v)
+            return 'Enter an email address.';
+        if (!emailRe.test(v))
+            return 'Enter a valid email, like name@example.com.';
+        if (p.members.some((m) => m.email.toLowerCase() === v.toLowerCase()))
+            return v.toLowerCase() === 'tomasz@example.com' ? 'That is your own address.' : 'Already a member of this project.';
+        if (p.invites.some((i) => i.email.toLowerCase() === v.toLowerCase()))
+            return 'This address already has a pending invite.';
+        if (p.invites.length >= 10)
+            return 'A project can have at most 10 pending invites.';
+        if (p.members.length >= 20)
+            return 'A project can have at most 20 members.';
+    }
+    return '';
+}
+const mut = () => { if (!can()) {
+    toast('Viewers can only read this project.', 'error');
+    return false;
+} return true; };
+function snapshot() {
+    const pid = S.projectId;
+    const json = JSON.stringify(P());
+    return () => { const i = store.projects.findIndex((x) => x.id === pid); if (i >= 0) {
+        store.projects[i] = JSON.parse(json);
+        render();
+    } };
+}
+// ---------- submits ----------
+async function onSubmit(name) {
+    const p = P();
+    if (name === 'signin') {
+        const e1 = validateField('su-email', 'email');
+        const e2 = validateField('su-pass', 'password');
+        setErr('su-email', e1);
+        setErr('su-pass', e2);
+        delete S.errors.form;
+        if (e1 || e2) {
+            document.getElementById(e1 ? 'su-email' : 'su-pass').focus();
+            return;
+        }
+        S.busy = 'signin';
+        S.magicSent = false;
+        render();
+        await delay(800);
+        S.busy = null;
+        if (consumeFail()) {
+            S.errors.form = 'We couldn\'t reach the server. Check your connection and try again.';
+            render();
+            return;
+        }
+        if (getVal('su-email').toLowerCase() === 'wrong@example.com') {
+            S.errors.form = 'Email or password is incorrect.';
+            render();
+            return;
+        }
+        S.signedIn = true;
+        S.drafts = {};
+        S.errors = {};
+        go('projects');
+    }
+    else if (name === 'create-project') {
+        const e1 = validateField('np-name', 'projname');
+        const e2 = validateField('np-budget', 'budget');
+        setErr('np-name', e1);
+        setErr('np-budget', e2);
+        delete S.errors['np-form'];
+        if (e1 || e2)
+            return;
+        S.newProjCurrency = document.getElementById('np-cur').value;
+        S.newProjDefaults = document.getElementById('np-defaults').checked;
+        S.busy = 'create';
+        render();
+        await delay(700);
+        S.busy = null;
+        if (consumeFail()) {
+            S.errors['np-form'] = 'The project couldn\'t be created. Try again.';
+            render();
+            return;
+        }
+        const bv = getVal('np-budget');
+        const np = { id: uid('p'), name: getVal('np-name'), currency: S.newProjCurrency, budget: bv ? parseMoney(bv) : null, labels: [], tasks: [], items: [], members: [{ id: uid('m'), name: 'Tomasz', email: 'tomasz@example.com', role: 'owner', you: true }], invites: [], link: null, archived: false };
+        if (S.newProjDefaults)
+            np.labels = ['Bathroom', 'Living room', 'Dining room', 'Garden', 'Kitchen', 'Bedroom'].map((n, i) => ({ id: uid('l'), name: n, color: PALETTE[i].color }));
+        store.projects.push(np);
+        S.drafts = {};
+        S.errors = {};
+        S.role = 'owner';
+        go('tasks', { project: np.id });
+        toast('Project created');
+    }
+    else if (name === 'delete-project') {
+        const dp = store.projects.find((x) => x.id === S.overlay?.id);
+        if (!dp)
+            return;
+        if (getVal('dp-name') !== dp.name) {
+            setErr('dp-name', 'The name doesn\'t match. Type "' + dp.name + '" to confirm.');
+            return;
+        }
+        store.projects = store.projects.filter((x) => x.id !== dp.id);
+        S.overlay = null;
+        S.drafts = {};
+        S.errors = {};
+        render();
+        toast('Project deleted');
+    }
+    else if (name === 'add-task') {
+        if (!mut())
+            return;
+        const title = getVal('q-add');
+        if (!title) {
+            setErr('q-add', 'Type a task title first.');
+            return;
+        }
+        if (title.length > 200) {
+            setErr('q-add', 'Use 200 characters or fewer.');
+            return;
+        }
+        const parent = taskOf(p, S.quickParent);
+        if (parent && depthOf(p, parent) >= MAX_DEPTH) {
+            setErr('q-add', 'Tasks can be nested up to ' + MAX_DEPTH + ' levels.');
+            return;
+        }
+        const lab = document.getElementById('q-label').value;
+        const t = addTask(p, title, parent ? parent.id : null, lab ? [lab] : []);
+        S.lastAdded = t.id;
+        delete S.drafts['q-add'];
+        delete S.errors['q-add'];
+        S.focus = '#q-add';
+        render();
+        toast('Task added');
+    }
+    else if (name === 'save-sub') {
+        if (!mut() || !S.addSub)
+            return;
+        const title = getVal('sub-title');
+        if (!title) {
+            setErr('sub-title', 'Type a subtask title first.');
+            return;
+        }
+        if (title.length > 200) {
+            setErr('sub-title', 'Use 200 characters or fewer.');
+            return;
+        }
+        addTask(p, title, S.addSub, []);
+        S.addSub = null;
+        render();
+        toast('Subtask added');
+    }
+    else if (name === 'add-subtask-detail') {
+        if (!mut())
+            return;
+        const t = taskOf(p, S.overlay?.id);
+        if (!t)
+            return;
+        const title = getVal('d-sub');
+        if (!title) {
+            setErr('d-sub', 'Type a subtask title first.');
+            return;
+        }
+        if (depthOf(p, t) >= MAX_DEPTH) {
+            setErr('d-sub', 'Tasks can be nested up to ' + MAX_DEPTH + ' levels.');
+            return;
+        }
+        addTask(p, title, t.id, []);
+        S.focus = '#d-sub';
+        render();
+        toast('Subtask added');
+    }
+    else if (name === 'add-item') {
+        if (!mut())
+            return;
+        const nm = getVal('i-name');
+        const qty = Number(getVal('i-qty').replace(',', '.'));
+        if (!nm) {
+            setErr('i-name', 'Name the item first.');
+            return;
+        }
+        if (nm.length > 120) {
+            setErr('i-name', 'Use 120 characters or fewer.');
+            return;
+        }
+        if (!(qty > 0) || qty > 9999) {
+            setErr('i-name', 'Quantity must be more than 0 and at most 9,999.');
+            return;
+        }
+        const lab = document.getElementById('i-label').value;
+        const tk = document.getElementById('i-task').value;
+        const linked = taskOf(p, tk);
+        p.items.push({ id: uid('i'), name: nm, qty, unit: document.getElementById('i-unit').value, labelIds: lab ? [lab] : (linked ? linked.labelIds.slice() : []), taskId: tk || null });
+        S.drafts['i-name'] = '';
+        S.drafts['i-qty'] = '1';
+        delete S.errors['i-name'];
+        S.focus = '#i-name';
+        render();
+        toast('Item added');
+    }
+    else if (name === 'confirm-buy') {
+        const it = p.items.find((i) => i.id === S.overlay?.id);
+        if (!it)
+            return;
+        const price = parseMoney(getVal('b-price'));
+        const date = getVal('b-date');
+        S.drafts['b-price'] = getVal('b-price');
+        S.drafts['b-date'] = date;
+        if (isNaN(price)) {
+            setErr('b-price', 'Enter the price paid, like 249 or 249.90.');
+            return;
+        }
+        if (!date || date > TODAY) {
+            setErr('b-price', 'The purchase date can\'t be in the future.');
+            return;
+        }
+        if (consumeFail()) {
+            setErr('b-price', 'Couldn\'t save the purchase. Try again.');
+            return;
+        }
+        const undo = snapshot();
+        it.price = price;
+        it.boughtAt = date;
+        S.overlay = null;
+        delete S.drafts['b-price'];
+        delete S.drafts['b-date'];
+        render();
+        toast('Bought' + (it.taskId ? ': ' + money(price) + ' added to ' + (taskOf(p, it.taskId)?.title ?? 'the task') : ''), 'ok', undo);
+    }
+    else if (name === 'send-invite') {
+        if (!isOwner())
+            return;
+        const msg = validateField('inv-email', 'invite');
+        setErr('inv-email', msg);
+        if (msg)
+            return;
+        const email = getVal('inv-email');
+        const role = document.getElementById('inv-role').value;
+        S.busy = 'invite';
+        render();
+        await delay(700);
+        S.busy = null;
+        if (consumeFail()) {
+            S.errors['inv-email'] = 'The invite couldn\'t be sent. Try again.';
+            render();
+            return;
+        }
+        p.invites.push({ id: uid('v'), email, role });
+        delete S.drafts['inv-email'];
+        delete S.errors['inv-email'];
+        render();
+        toast('Invite sent to ' + email);
+    }
+    else if (name === 'add-label') {
+        if (!mut())
+            return;
+        const n = getVal('nl-name');
+        const msg = labelNameError(p, n, null);
+        setErr('nl-name', msg);
+        if (msg)
+            return;
+        p.labels.push({ id: uid('l'), name: n, color: PALETTE[p.labels.length % PALETTE.length].color });
+        delete S.drafts['nl-name'];
+        S.focus = '#nl-name';
+        render();
+        toast('Label created');
+    }
+    else if (name === 'save-budget') {
+        if (!isOwner())
+            return;
+        const v = getVal('budget-in');
+        const n = v ? parseMoney(v) : null;
+        if (v && (n === null || isNaN(n))) {
+            setErr('budget-in', 'Enter an amount like 24000 or 24000.50.');
+            return;
+        }
+        p.budget = n;
+        S.editBudget = false;
+        delete S.drafts['budget-in'];
+        render();
+        toast('Budget updated');
+    }
+}
+function labelNameError(p, n, selfId) {
+    if (!n)
+        return 'Give the label a name.';
+    if (n.length > 30)
+        return 'Use 30 characters or fewer.';
+    if (p.labels.some((l) => l.id !== selfId && l.name.toLowerCase() === n.toLowerCase()))
+        return 'A label with this name already exists.';
+    if (!selfId && p.labels.length >= 30)
+        return 'A project can have at most 30 labels.';
+    return '';
+}
+// ---------- async actions ----------
+async function runAi(id) {
+    const p = P();
+    const t = taskOf(p, id);
+    if (!t || !mut())
+        return;
+    const mine = { taskId: id, status: 'loading' };
+    S.ai = mine;
+    render();
+    await delay(1600);
+    if (S.ai !== mine || mine.cancelled)
+        return;
+    if (consumeFail()) {
+        mine.status = 'error';
+        render();
+        return;
+    }
+    mine.status = 'result';
+    mine.result = aiEstimate(p, t.title + ' ' + t.notes, t.labelIds);
+    render();
+}
+async function estimateItem(id, quiet = false) {
+    const p = P();
+    const it = p.items.find((i) => i.id === id);
+    if (!it)
+        return false;
+    delete S.errors['item-' + id];
+    if (!quiet) {
+        S.busy = 'est-' + id;
+        render();
+    }
+    await delay(quiet ? 600 : 1100);
+    if (consumeFail()) {
+        S.errors['item-' + id] = 'Couldn\'t estimate this item. Try again.';
+        S.busy = null;
+        render();
+        return false;
+    }
+    it.estimate = aiEstimate(p, it.name, it.labelIds, it.qty);
+    S.busy = null;
+    render();
+    return true;
+}
+async function estimateAll() {
+    if (!mut())
+        return;
+    const todo = P().items.filter((i) => !i.boughtAt && !i.estimate).map((i) => i.id);
+    let ok = 0;
+    for (let n = 0; n < todo.length; n++) {
+        S.shopProgress = { done: n, total: todo.length };
+        render();
+        if (await estimateItem(todo[n], true))
+            ok++;
+    }
+    S.shopProgress = null;
+    render();
+    toast(ok === todo.length ? 'Estimated ' + ok + ' item' + (ok > 1 ? 's' : '') : ok + ' estimated, ' + (todo.length - ok) + ' failed. Retry the failed ones.', ok === todo.length ? 'ok' : 'error');
+}
+// ---------- click actions ----------
+function act(a, el, ev) {
+    const p = P();
+    const id = el.dataset.id ?? '';
+    switch (a) {
+        case 'goto':
+            go(el.dataset.screen);
+            break;
+        case 'retry':
+            S.error = null;
+            S.loading = true;
+            render();
+            setTimeout(() => { S.loading = false; render(); }, 450);
+            break;
+        case 'open-project':
+            go('tasks', { project: id });
+            break;
+        case 'proto-toggle':
+            S.protoOpen = !S.protoOpen;
+            render();
+            break;
+        case 'proto-role':
+            S.role = el.dataset.role;
+            render();
+            break;
+        case 'proto-fail':
+            S.fail = !S.fail;
+            render();
+            break;
+        case 'proto-reload':
+            if (S.screen !== 'signin')
+                go(S.screen);
+            else {
+                S.protoOpen = false;
+                render();
+            }
+            break;
+        case 'proto-reset':
+            store = seedStore();
+            S.filters = { labelIds: [], mode: 'any', status: 'all', q: '' };
+            S.sLabelIds = [];
+            S.role = 'owner';
+            S.fail = false;
+            S.drafts = {};
+            S.errors = {};
+            S.projectId = 'p1';
+            S.protoOpen = false;
+            toast('Sample data reset');
+            if (S.signedIn)
+                go('projects');
+            else
+                render();
+            break;
+        case 'proto-jump': {
+            const to = el.dataset.to ?? '';
+            if (to === 'signin') {
+                S.signedIn = false;
+                S.protoOpen = false;
+                go('signin');
+                break;
+            }
+            S.signedIn = true;
+            S.errors = {};
+            S.projectId = 'p1';
+            if (to === 'detail')
+                go('tasks', { project: 'p1', after: { kind: 'detail', id: 't3' } });
+            else if (to === 'share')
+                go('tasks', { project: 'p1', after: { kind: 'share' } });
+            else if (to === 'labels')
+                go('tasks', { project: 'p1', after: { kind: 'labels' } });
+            else
+                go(to, { project: 'p1' });
+            break;
+        }
+        case 'signout':
+            S.signedIn = false;
+            S.overlay = null;
+            S.protoOpen = false;
+            go('signin');
+            break;
+        case 'toggle-mode':
+            S.mode = S.mode === 'signin' ? 'signup' : 'signin';
+            S.errors = {};
+            S.magicSent = false;
+            render();
+            break;
+        case 'magic': {
+            const m = validateField('su-email', 'email');
+            S.drafts['su-email'] = getVal('su-email');
+            if (m) {
+                setErr('su-email', m);
+                break;
+            }
+            S.magicSent = true;
+            render();
+            break;
+        }
+        case 'social':
+            S.signedIn = true;
+            S.errors = {};
+            go('projects');
+            break;
+        case 'open-invite':
+            S.inviteState = 'valid';
+            S.overlay = null;
+            go('invite');
+            break;
+        case 'new-project':
+            S.drafts['np-name'] = '';
+            S.drafts['np-budget'] = '';
+            S.errors = {};
+            S.overlay = { kind: 'newProject' };
+            S.focus = '#np-name';
+            render();
+            break;
+        case 'archive-project': {
+            const pr = store.projects.find((x) => x.id === id);
+            if (!pr)
+                break;
+            pr.archived = true;
+            render();
+            toast('Archived ' + pr.name, 'ok', () => { pr.archived = false; render(); });
+            break;
+        }
+        case 'ask-delete-project':
+            S.drafts['dp-name'] = '';
+            S.errors = {};
+            S.overlay = { kind: 'deleteProject', id };
+            S.focus = '#dp-name';
+            render();
+            break;
+        case 'clear-proj-q':
+            S.projQ = '';
+            render();
+            break;
+        case 'close-overlay':
+            S.overlay = null;
+            S.ai = null;
+            S.labelMenu = false;
+            S.errors = {};
+            render();
+            break;
+        case 'close-overlay-bg':
+            if (ev.target === el && S.overlay?.kind !== 'detail') {
+                S.overlay = null;
+                S.errors = {};
+                render();
+            }
+            break;
+        // tasks
+        case 'toggle-collapse': {
+            const t = taskOf(p, id);
+            if (t) {
+                t.collapsed = !t.collapsed;
+                render();
+            }
+            break;
+        }
+        case 'toggle-done': {
+            if (!mut())
+                break;
+            const t = taskOf(p, id);
+            if (!t)
+                break;
+            if (!t.done && descendants(p, id).some((d) => !d.done)) {
+                S.overlay = { kind: 'cascade', id };
+                render();
+                break;
+            }
+            setDone(p, id, !t.done, t.done && false);
+            render();
+            if (t.done)
+                toast('Task completed');
+            break;
+        }
+        case 'cascade-all':
+            setDone(p, id, true, true);
+            S.overlay = null;
+            render();
+            toast('Task and subtasks completed');
+            break;
+        case 'cascade-one':
+            setDone(p, id, true, false);
+            S.overlay = null;
+            render();
+            toast('Task completed');
+            break;
+        case 'open-task':
+            S.overlay = { kind: 'detail', id };
+            S.rowMenu = null;
+            S.labelMenu = false;
+            if (S.ai && S.ai.taskId !== id)
+                S.ai = null;
+            S.errors = {};
+            if (S.screen !== 'tasks') {
+                S.screen = 'tasks';
+            }
+            render();
+            break;
+        case 'row-menu':
+            S.rowMenu = S.rowMenu === id ? null : id;
+            render();
+            break;
+        case 'add-sub':
+            if (!mut())
+                break;
+            S.addSub = id;
+            S.rowMenu = null;
+            S.focus = '#sub-title';
+            render();
+            break;
+        case 'cancel-sub':
+            S.addSub = null;
+            render();
+            break;
+        case 'move-step': {
+            if (!mut())
+                break;
+            const undo = snapshot();
+            const ok = moveByStep(p, id, Number(el.dataset.dir));
+            S.rowMenu = null;
+            render();
+            if (ok)
+                toast('Moved', 'ok', undo);
+            else
+                toast('Already at the edge of its level.', 'error');
+            break;
+        }
+        case 'ask-delete-task':
+            S.overlay = { kind: 'deleteTask', id };
+            S.rowMenu = null;
+            render();
+            break;
+        case 'delete-task': {
+            if (!mut())
+                break;
+            const undo = snapshot();
+            const t = taskOf(p, id);
+            const n = removeTask(p, id);
+            S.overlay = null;
+            render();
+            toast('Deleted ' + (t ? '“' + t.title + '”' : 'task') + (n > 1 ? ' and ' + (n - 1) + ' subtask' + (n > 2 ? 's' : '') : ''), 'ok', undo);
+            break;
+        }
+        case 'filter-label':
+            S.filters.labelIds = S.filters.labelIds.includes(id) ? S.filters.labelIds.filter((x) => x !== id) : [...S.filters.labelIds, id];
+            render();
+            break;
+        case 'filter-mode':
+            S.filters.mode = el.dataset.mode;
+            render();
+            break;
+        case 'clear-filters':
+            S.filters = { labelIds: [], mode: 'any', status: 'all', q: '' };
+            render();
+            break;
+        case 'clear-quick-parent':
+            S.quickParent = null;
+            S.focus = '#q-add';
+            render();
+            break;
+        case 'template': {
+            if (!mut())
+                break;
+            let lab = p.labels.find((l) => l.name === 'Bathroom');
+            if (!lab) {
+                lab = { id: uid('l'), name: 'Bathroom', color: PALETTE[0].color };
+                p.labels.push(lab);
+            }
+            const root = addTask(p, 'Bathroom renovation', null, [lab.id]);
+            ['Measure the room', 'Choose tiles and fixtures', 'Order materials', 'Book plumber and tiler', 'Final clean and snag list'].forEach((n) => addTask(p, n, root.id, [lab.id]));
+            render();
+            toast('Template added');
+            break;
+        }
+        // detail
+        case 'toggle-task-label': {
+            if (!mut())
+                break;
+            const t = taskOf(p, S.overlay?.id);
+            if (!t)
+                break;
+            t.labelIds = t.labelIds.includes(id) ? t.labelIds.filter((x) => x !== id) : [...t.labelIds, id];
+            render();
+            break;
+        }
+        case 'label-menu':
+            S.labelMenu = !S.labelMenu;
+            render();
+            break;
+        case 'create-label-inline': {
+            if (!mut())
+                break;
+            const t = taskOf(p, S.overlay?.id);
+            if (!t)
+                break;
+            const n = getVal('new-label-inline');
+            const m = labelNameError(p, n, null);
+            setErr('new-label-inline', m);
+            if (m)
+                break;
+            const l = { id: uid('l'), name: n, color: PALETTE[p.labels.length % PALETTE.length].color };
+            p.labels.push(l);
+            t.labelIds.push(l.id);
+            S.labelMenu = false;
+            render();
+            toast('Label “' + n + '” created and added');
+            break;
+        }
+        case 'ai-run':
+            void runAi(id);
+            break;
+        case 'ai-cancel':
+            if (S.ai)
+                S.ai.cancelled = true;
+            S.ai = null;
+            render();
+            break;
+        case 'ai-use': {
+            const t = taskOf(p, id);
+            if (!t || !S.ai?.result || !mut())
+                break;
+            t.estimate = { ...S.ai.result };
+            S.ai = null;
+            render();
+            toast('Estimate saved');
+            break;
+        }
+        case 'ai-edit': {
+            const t = taskOf(p, S.overlay?.id);
+            if (t && S.ai?.result) {
+                t.estimate = { ...S.ai.result, source: 'manual' };
+            }
+            S.ai = null;
+            S.focus = '#d-est';
+            render();
+            break;
+        }
+        case 'ai-discard':
+            S.ai = null;
+            render();
+            break;
+        case 'ai-manual':
+            S.ai = null;
+            S.focus = '#d-est';
+            render();
+            break;
+        case 'add-cost': {
+            if (!mut())
+                break;
+            const t = taskOf(p, S.overlay?.id);
+            if (!t)
+                break;
+            const amt = parseMoney(getVal('c-amt'));
+            const date = getVal('c-date');
+            const note = getVal('c-note');
+            S.drafts['c-amt'] = getVal('c-amt');
+            S.drafts['c-note'] = note;
+            S.drafts['c-date'] = date;
+            if (isNaN(amt) || amt <= 0) {
+                setErr('c-amt', 'Enter an amount greater than 0, like 249 or 249.90.');
+                break;
+            }
+            if (!date || date > TODAY) {
+                setErr('c-amt', 'The date can\'t be in the future.');
+                break;
+            }
+            if (note.length > 200) {
+                setErr('c-amt', 'Use 200 characters or fewer in the note.');
+                break;
+            }
+            t.costs.push({ id: uid('c'), amount: amt, date, note });
+            delete S.drafts['c-amt'];
+            delete S.drafts['c-note'];
+            delete S.drafts['c-date'];
+            delete S.errors['c-amt'];
+            render();
+            toast('Cost added');
+            break;
+        }
+        case 'del-cost': {
+            if (!mut())
+                break;
+            const t = taskOf(p, S.overlay?.id);
+            if (!t)
+                break;
+            const undo = snapshot();
+            t.costs = t.costs.filter((c) => c.id !== id);
+            render();
+            toast('Cost removed', 'ok', undo);
+            break;
+        }
+        // shopping
+        case 'group':
+            S.group = el.dataset.g;
+            render();
+            break;
+        case 's-filter':
+            S.sLabelIds = S.sLabelIds.includes(id) ? S.sLabelIds.filter((x) => x !== id) : [...S.sLabelIds, id];
+            render();
+            break;
+        case 'clear-s-filter':
+            S.sLabelIds = [];
+            render();
+            break;
+        case 'ask-buy': {
+            if (!mut())
+                break;
+            delete S.drafts['b-price'];
+            delete S.drafts['b-date'];
+            S.errors = {};
+            S.overlay = { kind: 'buy', id };
+            S.focus = '#b-price';
+            render();
+            break;
+        }
+        case 'ask-unbuy':
+            if (!mut())
+                break;
+            S.overlay = { kind: 'unbuy', id };
+            render();
+            break;
+        case 'confirm-unbuy': {
+            const it = p.items.find((i) => i.id === id);
+            if (!it)
+                break;
+            const undo = snapshot();
+            delete it.price;
+            delete it.boughtAt;
+            S.overlay = null;
+            render();
+            toast('Moved back to the list', 'ok', undo);
+            break;
+        }
+        case 'est-item':
+            if (mut())
+                void estimateItem(id);
+            break;
+        case 'est-all':
+            void estimateAll();
+            break;
+        case 'del-item': {
+            if (!mut())
+                break;
+            const undo = snapshot();
+            p.items = p.items.filter((i) => i.id !== id);
+            render();
+            toast('Item deleted', 'ok', undo);
+            break;
+        }
+        // summary
+        case 'scope':
+            S.scope = el.dataset.s;
+            render();
+            break;
+        case 'edit-budget':
+            if (!isOwner())
+                break;
+            S.editBudget = true;
+            S.drafts['budget-in'] = p.budget === null ? '' : String(p.budget);
+            S.focus = '#budget-in';
+            render();
+            break;
+        case 'cancel-budget':
+            S.editBudget = false;
+            delete S.errors['budget-in'];
+            render();
+            break;
+        case 'jump-label':
+            S.filters = { labelIds: [id], mode: 'any', status: 'all', q: '' };
+            go('tasks');
+            break;
+        case 'export':
+            toast('CSV ready. Downloads are simulated in this prototype.');
+            break;
+        // share
+        case 'open-share':
+            S.overlay = { kind: 'share' };
+            S.errors = {};
+            render();
+            break;
+        case 'create-link': {
+            if (!isOwner())
+                break;
+            const days = Number(document.getElementById('lk-exp').value);
+            const role = document.getElementById('lk-role').value;
+            const d = new Date(TODAY + 'T00:00:00Z');
+            d.setUTCDate(d.getUTCDate() + days);
+            p.link = { role, expires: days ? d.toISOString().slice(0, 10) : 'never', active: true, token: 'k' + Math.random().toString(36).slice(2, 9) };
+            render();
+            toast('Link created');
+            break;
+        }
+        case 'copy-link': {
+            const url = document.getElementById('link-url')?.textContent ?? '';
+            const done = () => toast('Link copied');
+            const fallback = () => { const n = document.getElementById('link-url'); if (n) {
+                const r = document.createRange();
+                r.selectNodeContents(n);
+                const s = window.getSelection();
+                s?.removeAllRanges();
+                s?.addRange(r);
+            } toast('Link selected. Press Ctrl+C to copy.'); };
+            try {
+                if (navigator.clipboard)
+                    navigator.clipboard.writeText(url).then(done, fallback);
+                else
+                    fallback();
+            }
+            catch {
+                fallback();
+            }
+            break;
+        }
+        case 'revoke-link':
+            if (!isOwner())
+                break;
+            if (p.link)
+                p.link.active = false;
+            render();
+            toast('Link turned off');
+            break;
+        case 'resend-invite': {
+            const v = p.invites.find((x) => x.id === id);
+            if (v)
+                toast('Invite sent again to ' + v.email);
+            break;
+        }
+        case 'cancel-invite': {
+            if (!isOwner())
+                break;
+            const undo = snapshot();
+            p.invites = p.invites.filter((x) => x.id !== id);
+            render();
+            toast('Invite cancelled', 'ok', undo);
+            break;
+        }
+        case 'remove-member': {
+            if (!isOwner())
+                break;
+            const m = p.members.find((x) => x.id === id);
+            const undo = snapshot();
+            p.members = p.members.filter((x) => x.id !== id);
+            render();
+            toast((m ? m.name : 'Member') + ' removed', 'ok', undo);
+            break;
+        }
+        case 'leave-project':
+            store.projects = store.projects.filter((x) => x.id !== p.id);
+            S.overlay = null;
+            S.role = 'owner';
+            toast('You left the project');
+            go('projects');
+            break;
+        // labels
+        case 'open-labels':
+            S.overlay = { kind: 'labels' };
+            S.errors = {};
+            render();
+            break;
+        case 'set-color': {
+            if (!mut())
+                break;
+            const l = labelOf(p, id);
+            if (l) {
+                l.color = el.dataset.color ?? l.color;
+                render();
+            }
+            break;
+        }
+        case 'ask-delete-label':
+            S.overlay = { kind: 'deleteLabel', id };
+            render();
+            break;
+        case 'delete-label': {
+            if (!mut())
+                break;
+            const undo = snapshot();
+            const l = labelOf(p, id);
+            const n = p.tasks.filter((t) => t.labelIds.includes(id)).length + p.items.filter((i) => i.labelIds.includes(id)).length;
+            p.labels = p.labels.filter((x) => x.id !== id);
+            p.tasks.forEach((t) => { t.labelIds = t.labelIds.filter((x) => x !== id); });
+            p.items.forEach((i) => { i.labelIds = i.labelIds.filter((x) => x !== id); });
+            S.filters.labelIds = S.filters.labelIds.filter((x) => x !== id);
+            S.sLabelIds = S.sLabelIds.filter((x) => x !== id);
+            S.overlay = { kind: 'labels' };
+            render();
+            toast('Label ' + (l ? '“' + l.name + '” ' : '') + 'deleted, removed from ' + n, 'ok', undo);
+            break;
+        }
+        // invite
+        case 'invite-state':
+            S.inviteState = el.dataset.s;
+            render();
+            break;
+        case 'accept-invite':
+            S.role = 'editor';
+            S.signedIn = true;
+            go('tasks', { project: 'p1' });
+            toast('You joined Flat renovation as Editor');
+            break;
+        case 'decline-invite':
+            S.signedIn = true;
+            go('projects');
+            toast('Invite declined');
+            break;
+    }
+}
+// ---------- DOM events ----------
+document.addEventListener('click', (e) => {
+    const target = e.target;
+    const u = target.closest('[data-toast-undo]');
+    if (u) {
+        const t = toasts.find((x) => x.id === Number(u.dataset.toastUndo));
+        toasts = toasts.filter((x) => x !== t);
+        renderToasts();
+        t?.undo?.();
+        return;
+    }
+    const c = target.closest('[data-toast-close]');
+    if (c) {
+        toasts = toasts.filter((x) => x.id !== Number(c.dataset.toastClose));
+        renderToasts();
+        return;
+    }
+    if (!appEl.contains(target))
+        return;
+    const el = target.closest('[data-act]');
+    if (!el) {
+        let changed = false;
+        if (S.rowMenu && !target.closest('.row-menu')) {
+            S.rowMenu = null;
+            changed = true;
+        }
+        if (S.labelMenu && !target.closest('.menu-wrap')) {
+            S.labelMenu = false;
+            changed = true;
+        }
+        if (S.protoOpen && !target.closest('.proto')) {
+            S.protoOpen = false;
+            changed = true;
+        }
+        if (changed)
+            render();
+        return;
+    }
+    if (el.closest('[disabled]') && el.hasAttribute('disabled'))
+        return;
+    act(el.dataset.act ?? '', el, e);
+});
+document.addEventListener('submit', (e) => {
+    const f = e.target.closest('[data-submit]');
+    if (!f)
+        return;
+    e.preventDefault();
+    void onSubmit(f.dataset.submit ?? '');
+});
+document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.id) {
+        S.drafts[t.id] = t.value;
+        if (S.errors[t.id])
+            setErr(t.id, '');
+    }
+    const s = t.dataset?.search;
+    if (s === 'projQ') {
+        S.projQ = t.value;
+        S.focus = '#proj-q';
+        render();
+    }
+    if (s === 'filterQ') {
+        S.filters.q = t.value;
+        S.focus = '#f-q';
+        render();
+    }
+});
+document.addEventListener('change', (e) => {
+    const t = e.target;
+    const p = P();
+    if (t.id)
+        S.drafts[t.id] = t.type === 'checkbox' ? String(t.checked) : t.value;
+    if (t.id === 'np-defaults')
+        S.newProjDefaults = t.checked;
+    if (t.id === 'np-cur')
+        S.newProjCurrency = t.value;
+    const ch = t.dataset?.change;
+    if (!ch)
+        return;
+    const task = taskOf(p, S.overlay?.id);
+    if (ch === 'filter-status') {
+        S.filters.status = t.value;
+        render();
+    }
+    else if (ch === 'save-title' && task) {
+        const v = t.value.trim();
+        if (!v) {
+            setErr('d-title', 'A task needs a title.');
+            return;
+        }
+        if (v.length > 200) {
+            setErr('d-title', 'Use 200 characters or fewer.');
+            return;
+        }
+        task.title = v;
+        setErr('d-title', '');
+        render();
+        toast('Saved');
+    }
+    else if (ch === 'save-notes' && task) {
+        task.notes = t.value;
+        toast('Notes saved');
+    }
+    else if (ch === 'save-estimate' && task) {
+        const v = t.value.trim();
+        if (!v) {
+            delete task.estimate;
+            setErr('d-est', '');
+            render();
+            return;
+        }
+        const n = parseMoney(v);
+        if (isNaN(n)) {
+            setErr('d-est', 'Enter an amount like 1200 or 1200.50.');
+            return;
+        }
+        task.estimate = { ...est(n, 'manual', 0.2) };
+        setErr('d-est', '');
+        render();
+        toast('Estimate saved');
+    }
+    else if (ch === 'rename-label') {
+        const l = labelOf(p, t.dataset.id ?? '');
+        if (!l)
+            return;
+        const v = t.value.trim();
+        const m = labelNameError(p, v, l.id);
+        setErr('ln-' + l.id, m);
+        if (!m) {
+            l.name = v;
+            toast('Label renamed');
+        }
+    }
+    else if (ch === 'member-role') {
+        const m = p.members.find((x) => x.id === t.dataset.id);
+        if (m) {
+            m.role = t.value;
+            toast('Role updated');
+        }
+    }
+});
+document.addEventListener('focusout', (e) => {
+    const t = e.target;
+    const v = t.dataset?.validate;
+    if (!v || !t.id)
+        return;
+    setErr(t.id, validateField(t.id, v));
+});
+document.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (e.key === 'Escape') {
+        if (drag) {
+            endDrag(false);
+            return;
+        }
+        if (S.protoOpen || S.rowMenu || S.labelMenu || S.overlay || S.addSub) {
+            S.protoOpen = false;
+            S.rowMenu = null;
+            S.labelMenu = false;
+            S.overlay = null;
+            S.addSub = null;
+            S.ai = null;
+            render();
+        }
+        return;
+    }
+    if (e.key === 'Tab' && t.id === 'q-add') {
+        const p = P();
+        if (!e.shiftKey && S.lastAdded && taskOf(p, S.lastAdded)) {
+            const d = depthOf(p, taskOf(p, S.lastAdded));
+            if (d < MAX_DEPTH) {
+                e.preventDefault();
+                S.quickParent = S.lastAdded;
+                S.focus = '#q-add';
+                render();
+            }
+            else {
+                e.preventDefault();
+                setErr('q-add', 'Tasks can be nested up to ' + MAX_DEPTH + ' levels.');
+            }
+        }
+        else if (e.shiftKey && S.quickParent) {
+            e.preventDefault();
+            S.quickParent = taskOf(p, S.quickParent)?.parentId ?? null;
+            S.focus = '#q-add';
+            render();
+        }
+    }
+});
+let drag = null;
+function clearDropMarks() { appEl.querySelectorAll('.drop-before,.drop-after,.drop-inside,.drop-bad').forEach((n) => n.classList.remove('drop-before', 'drop-after', 'drop-inside', 'drop-bad')); }
+document.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('[data-drag]');
+    if (!h || h.hasAttribute('disabled'))
+        return;
+    if (filtersActive()) {
+        toast('Clear the filters to re-order tasks.', 'error');
+        return;
+    }
+    if (!can())
+        return;
+    e.preventDefault();
+    const row = h.closest('.row');
+    const r = row.getBoundingClientRect();
+    const ghost = row.cloneNode(true);
+    ghost.classList.add('ghost');
+    ghost.style.width = r.width + 'px';
+    ghost.style.left = r.left + 'px';
+    ghost.style.top = r.top + 'px';
+    document.body.appendChild(ghost);
+    row.classList.add('dragging');
+    document.body.classList.add('is-dragging');
+    drag = { id: row.dataset.id ?? '', ghost, row, over: null, pid: e.pointerId };
+});
+document.addEventListener('pointermove', (e) => {
+    if (!drag)
+        return;
+    drag.ghost.style.top = (e.clientY - 20) + 'px';
+    if (e.clientY < 90)
+        window.scrollBy(0, -12);
+    else if (e.clientY > window.innerHeight - 90)
+        window.scrollBy(0, 12);
+    clearDropMarks();
+    drag.over = null;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const row = under ? under.closest('.tree .row[data-id]') : null;
+    if (!row || row === drag.row)
+        return;
+    const rect = row.getBoundingClientRect();
+    const y = (e.clientY - rect.top) / rect.height;
+    const zone = y < 0.3 ? 'before' : y > 0.7 ? 'after' : 'inside';
+    const tid = row.dataset.id ?? '';
+    const p = P();
+    const bad = descendants(p, drag.id).some((d) => d.id === tid);
+    row.classList.add(bad ? 'drop-bad' : 'drop-' + zone);
+    if (!bad)
+        drag.over = { id: tid, zone };
+});
+function endDrag(drop) {
+    if (!drag)
+        return;
+    const d = drag;
+    drag = null;
+    d.ghost.remove();
+    d.row.classList.remove('dragging');
+    document.body.classList.remove('is-dragging');
+    clearDropMarks();
+    if (!drop || !d.over)
+        return;
+    const p = P();
+    if (consumeFail()) {
+        render();
+        toast('Couldn\'t move the task. Someone may have changed the list. Your view was restored.', 'error');
+        return;
+    }
+    const undo = snapshot();
+    const res = moveTask(p, d.id, d.over.id, d.over.zone);
+    render();
+    if (res.ok)
+        toast('Moved', 'ok', undo);
+    else
+        toast(res.msg ?? 'That move isn\'t allowed.', 'error');
+}
+document.addEventListener('pointerup', () => endDrag(true));
+document.addEventListener('pointercancel', () => endDrag(false));
+// test and review hook: lets a reviewer inspect state from the console
+window.roomlist = { S, get store() { return store; }, moveTask, totals, roll, go, render, act, onSubmit, runAi, estimateAll, estimateItem };
+render();
+
+</script>
+
+</body></html>
