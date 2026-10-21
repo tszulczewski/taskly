@@ -4,3 +4,4 @@ packages/db/migrations
 package-lock.json
 *.md
 coverage
+.ai/design/reference
