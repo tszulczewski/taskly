@@ -1,0 +1,35 @@
+/* Document defaults. Everything reads tokens; nothing here is product-specific. */
+@layer base {
+  html {
+    font-family: var(--font-family-base);
+    font-size: 100%;
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-body);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface-page);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+  }
+}
+
+/* Motion durations come from tokens only (Luki 8); the utilities pick them up. */
+@utility duration-quick {
+  transition-duration: var(--motion-duration-quick);
+}
+
+@utility duration-base {
+  transition-duration: var(--motion-duration-base);
+}
+
+/* Amounts line up in a column (P06, tokens rule 5). */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lucide icons draw with the token stroke (Luki 7). */
+@utility stroke-icon {
+  stroke-width: var(--icon-stroke-width);
+}

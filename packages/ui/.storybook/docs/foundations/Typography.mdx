@@ -1,0 +1,45 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Typography from "./Typography.stories";
+
+<Meta of={Typography} />
+
+# Typography
+
+One typeface, **Instrument Sans**, self-hosted from `@fontsource/instrument-sans` (no CDN). Three sizes and two weights; hierarchy comes from the colour of the text, not from more sizes (Q4, Luki 1, R01.3).
+
+| Rule                                                                                                    | Source                                            |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| One typeface for the whole interface; no display face for headings.                                     | Q4, Luki 1 (Bricolage Grotesque from R02 dropped) |
+| Sizes: 13px (meta, helper text), 15px (titles, amounts, body), 22px (list name, future-expenses total). | Luki 1                                            |
+| Weights: 400 for text, 600 for task titles and amounts.                                                 | Luki 1                                            |
+| Hierarchy by text colour (`color-text-primary` / `color-text-muted`), not by extra sizes.               | R01.3, tokens rule 4                              |
+| No uppercase labels and no letter-spaced captions.                                                      | P12, A02                                          |
+| Amounts use tabular figures (`numeric` utility) so ranges line up.                                      | P06, tokens rule 5                                |
+| Form fields use 16px on phones, or iOS zooms the page while typing.                                     | Luki 1 (`input-font-size-mobile`)                 |
+| Running text stays near 65 characters per line (`max-w-measure`).                                       | Proposal (stage 1), WCAG 1.4.8                    |
+
+## Roles
+
+Rows marked “Proposal” are not in the approved materials and wait for the owner's decision. There is no code role: the product shows no code, and this documentation uses Storybook's own code style.
+
+<Unstyled>
+  <Story of={Typography.Roles} />
+</Unstyled>
+
+## Polish copy
+
+<Unstyled>
+  <Story of={Typography.Polish} />
+</Unstyled>
+
+## Line length
+
+<Unstyled>
+  <Story of={Typography.LineLength} />
+</Unstyled>
+
+## Tokens
+
+<Unstyled>
+  <Story of={Typography.Tokens} />
+</Unstyled>

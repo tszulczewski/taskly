@@ -1,0 +1,43 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Shape from "./ShapeAndDepth.stories";
+
+<Meta of={Shape} />
+
+# Shape and depth
+
+## Radius
+
+Three radii and a circle. Nothing else is rounded; in particular not every element is a pill (A02).
+
+<Unstyled>
+  <Story of={Shape.Radius} />
+</Unstyled>
+
+## Borders
+
+| Line                        | When                                                                                                                                     | Source           |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `color-border-divider`, 1px | Between list rows, under the top bar. Decorative: it may be the only line between two rows because rows are told apart by their content. | R01.1, R02.1, T1 |
+| `color-border-control`, 1px | Edges of fields and of an unchecked checkbox: they must reach 3:1.                                                                       | T1, WCAG 1.4.11  |
+| No border                   | Around the list surface on the page: tone does the separating.                                                                           | R01.1            |
+
+## Depth
+
+Depth is tone, never shadow: page → list surface → raised row. There are no shadow utilities in the theme at all (tokens rule 1, R01.1). A dragged row is raised by `color-surface-raised`, not lifted with a shadow.
+
+<Unstyled>
+  <Story of={Shape.DepthDark} />
+  <Story of={Shape.DepthLight} />
+</Unstyled>
+
+| Rule                                                                                                            | Source                    |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| No shadows, gradients, textures, glass or blur.                                                                 | tokens rule 1, R01.1, A02 |
+| No card inside a card and no panel inside a panel.                                                              | R02.6, A02                |
+| Details expand inside the row; nothing floats over the list except menus, popovers and the delete confirmation. | Q2, A01.3                 |
+
+## Tokens
+
+<Unstyled>
+  <Story of={Shape.Tokens} />
+</Unstyled>

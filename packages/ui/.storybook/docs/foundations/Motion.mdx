@@ -1,0 +1,30 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Motion from "./Motion.stories";
+
+<Meta of={Motion} />
+
+# Motion
+
+Motion only confirms what the user just did. Nothing moves on its own (P13, R02.12).
+
+| Duration                        | Utility          | Used for                                                        | Source |
+| ------------------------------- | ---------------- | --------------------------------------------------------------- | ------ |
+| `motion-duration-quick` (150ms) | `duration-quick` | Dragging a row, ticking a task                                  | Luki 8 |
+| `motion-duration-base` (200ms)  | `duration-base`  | Expanding a row; moving a completed task to the end of the list | Luki 8 |
+| `motion-easing` (ease-out)      | `ease-standard`  | Every transition                                                | Luki 8 |
+
+| Rule                                                                                                                                                             | Source                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| With `prefers-reduced-motion: reduce` the duration tokens become 0ms, so everything happens at once. Components read only the tokens, never their own durations. | Luki 8, tokens rule 12, WCAG 2.3.3 |
+| Loading is a set of static bars in `color-surface-raised`; no shimmer.                                                                                           | Luki 8                             |
+| No decorative animation, no animated entrance of pages or lists.                                                                                                 | P13                                |
+
+<Unstyled>
+  <Story of={Motion.Demo} />
+</Unstyled>
+
+## Tokens
+
+<Unstyled>
+  <Story of={Motion.Tokens} />
+</Unstyled>

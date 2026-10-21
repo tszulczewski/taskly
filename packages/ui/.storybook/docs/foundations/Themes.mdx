@@ -1,0 +1,24 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Themes from "./Themes.stories";
+
+<Meta of={Themes} />
+
+# Themes
+
+**Dark is the default.** Light is switched on by a two-position switch in the app, Dark / Light, with no “same as system” option (Q1, Luki 2, tokens rule 14).
+
+<Unstyled>
+  <Story of={Themes.SideBySide} />
+</Unstyled>
+
+## How it works
+
+| Rule                                                                                                                                                                                    | Source             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| The theme is an attribute on the root element: no attribute or `data-theme="dark"` is dark, `data-theme="light"` is light. Dialogs, menus and popovers rendered in a portal inherit it. | Task rule 9        |
+| Only colour tokens change between themes; sizes, spacing, radius and motion are the same.                                                                                               | tokeny.md          |
+| Components never branch on the theme in code; they use semantic tokens and the theme does the rest.                                                                                     | tokeny.md (layers) |
+| The page does not follow `prefers-color-scheme`.                                                                                                                                        | Luki 2             |
+| Both themes pass the contrast table on the Color page and every story's accessibility test.                                                                                             | WCAG 1.4.3, 1.4.11 |
+
+In Storybook, the **Theme** menu in the toolbar sets the same attribute. Every story is tested in both themes (`npm run test:storybook`).

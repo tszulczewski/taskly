@@ -1,0 +1,190 @@
+/*
+ * Taskly design tokens: the only file allowed to hold literal colours and raw values.
+ *
+ * Layers (.ai/design/tokeny.md):
+ *   1. raw (--raw-*): values, used only inside this file;
+ *   2. semantic: named by purpose, used in components (through Tailwind utilities, see theme.css);
+ *   3. component: only where one component needs its own value.
+ *
+ * Every semantic and component token carries its source after the value. Source ids refer to
+ * .ai/design/reference.md (R01.x, R02.x, A0x, Q1–Q5, P01–P15, "Luki" items) and to the T1–T10
+ * decisions in .ai/design/tokeny.md. Dark is the default theme (Q1); light is set with
+ * data-theme="light" on the root element (Luki 2).
+ *
+ * After changing any colour value, re-measure contrast (Foundations/Color in Storybook).
+ */
+
+/* 1. Raw values ---------------------------------------------------------------------------- */
+:root {
+  --raw-neutral-0: #ffffff;
+  --raw-neutral-50: #f2f4f1;
+  --raw-neutral-100: #e8eeea;
+  --raw-neutral-150: #e8ece7;
+  --raw-neutral-200: #d6dcd5;
+  --raw-neutral-400: #9caaa3;
+  --raw-neutral-600: #55635c;
+  --raw-neutral-800: #2e3834;
+  --raw-neutral-850: #232c28;
+  --raw-neutral-900: #17211d;
+  --raw-neutral-910: #181f1c;
+  --raw-neutral-950: #101513;
+  --raw-neutral-990: #0b1713;
+  --raw-green-400: #4cb59b;
+  --raw-green-700: #1e6b5a;
+  --raw-red-300: #f08a7b;
+  --raw-red-700: #b83a2b;
+  --raw-place-blue: #4f86b8;
+  --raw-place-ochre: #c79a2b;
+  --raw-place-ochre-deep: #a58024;
+  --raw-place-terracotta: #b8674a;
+  --raw-place-green: #4e9a6b;
+  --raw-place-green-deep: #4b9567;
+  --raw-place-violet: #8a6bb0;
+  --raw-place-pink: #c2586f;
+  --raw-place-olive: #8e9b3f;
+  --raw-place-olive-deep: #818c39;
+  --raw-place-plum: #9c5b8e;
+  --raw-place-plum-bright: #9f5d91;
+  --raw-place-teal: #2f9aa8;
+  --raw-place-teal-deep: #2d93a0;
+  --raw-place-slate: #6f8798;
+
+  --raw-font-instrument-sans: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --raw-size-13: 0.8125rem;
+  --raw-size-15: 0.9375rem;
+  --raw-size-16: 1rem;
+  --raw-size-22: 1.375rem;
+  --raw-weight-400: 400;
+  --raw-weight-600: 600;
+  --raw-leading-145: 1.45;
+  --raw-leading-125: 1.25;
+
+  --raw-space-4: 0.25rem;
+  --raw-space-8: 0.5rem;
+  --raw-space-12: 0.75rem;
+  --raw-space-16: 1rem;
+  --raw-space-24: 1.5rem;
+  --raw-space-32: 2rem;
+  --raw-space-48: 3rem;
+
+  --raw-radius-6: 6px;
+  --raw-radius-8: 8px;
+  --raw-radius-12: 12px;
+
+  --raw-duration-150: 150ms;
+  --raw-duration-200: 200ms;
+  --raw-ease-out: ease-out;
+}
+
+/* 2. Semantic tokens: theme-independent ---------------------------------------------------- */
+:root {
+  --font-family-base: var(--raw-font-instrument-sans); /* Q4, Luki 1 */
+  --font-size-meta: var(--raw-size-13); /* Luki 1 */
+  --font-size-body: var(--raw-size-15); /* Luki 1 */
+  --font-size-heading: var(--raw-size-22); /* Luki 1 */
+  --font-weight-regular: var(--raw-weight-400); /* Luki 1 */
+  --font-weight-strong: var(--raw-weight-600); /* Luki 1 */
+  --line-height-body: var(--raw-leading-145); /* Luki 1 (R02 code) */
+  --line-height-heading: var(--raw-leading-125); /* T9 */
+
+  --space-inline: var(--raw-space-4); /* R02 code (6px); T7 */
+  --space-group: var(--raw-space-8); /* T7 */
+  --space-between-groups: var(--raw-space-16); /* T7 */
+  --space-inset: var(--raw-space-16); /* T7 */
+  --space-section: var(--raw-space-32); /* T7 */
+  --space-page-gutter: var(--raw-space-16); /* R02 code (16px); T7: 16px up to 640px */
+  --space-page-top: var(--raw-space-48); /* T7 */
+
+  --radius-control: var(--raw-radius-8); /* R02 code; T8 */
+  --radius-surface: var(--raw-radius-12); /* R01.1; T8 */
+  --border-width: 1px; /* R01.1, R02.1 */
+
+  --layout-content-max-width: 980px; /* R02 code (list width); P01, R01.5 */
+  --layout-text-measure: 65ch; /* F1 (accepted 2026-10-21) */
+
+  --motion-duration-quick: var(--raw-duration-150); /* Luki 8 */
+  --motion-duration-base: var(--raw-duration-200); /* Luki 8 */
+  --motion-easing: var(--raw-ease-out); /* Luki 8 */
+}
+
+/* T7: the page gutter grows to 24px above 640px. */
+@media (min-width: 640px) {
+  :root {
+    --space-page-gutter: var(--raw-space-24); /* T7 */
+  }
+}
+
+/* Luki 8, tokens rule 12: with reduced motion everything happens at once. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-quick: 0ms; /* Luki 8 */
+    --motion-duration-base: 0ms; /* Luki 8 */
+  }
+}
+
+/* 2. Semantic tokens: colour, dark theme (default) ----------------------------------------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-surface-page: var(--raw-neutral-950); /* R01.1, Q1, Luki 2 */
+  --color-surface-list: var(--raw-neutral-910); /* R02.1 */
+  --color-surface-raised: var(--raw-neutral-850); /* R01.1 (tone instead of shadow) */
+  --color-border-divider: var(--raw-neutral-800); /* R01.1, R02.1; decorative only (T1) */
+  --color-border-control: var(--raw-neutral-400); /* T1 */
+  --color-text-primary: var(--raw-neutral-100); /* R01.3 */
+  --color-text-muted: var(--raw-neutral-400); /* R01.3, R01.4, R02.2, Luki 4 */
+  --color-action-primary: var(--raw-green-400); /* R02.3 */
+  --color-text-on-action: var(--raw-neutral-990); /* R02 code */
+  --color-focus-ring: var(--raw-green-400); /* R02 code (:focus-visible); T6 */
+  --color-text-danger: var(--raw-red-300); /* R02 code; T5 */
+  --color-place-1: var(--raw-place-blue); /* Q3, Luki 3 */
+  --color-place-2: var(--raw-place-ochre); /* Q3, Luki 3, T3 */
+  --color-place-3: var(--raw-place-terracotta); /* Q3, Luki 3 */
+  --color-place-4: var(--raw-place-green); /* Q3, Luki 3, T3 */
+  --color-place-5: var(--raw-place-violet); /* Q3, Luki 3 */
+  --color-place-6: var(--raw-place-pink); /* Q3, Luki 3 */
+  --color-place-7: var(--raw-place-olive); /* Luki 3, T3 */
+  --color-place-8: var(--raw-place-plum-bright); /* Luki 3, T2 */
+  --color-place-9: var(--raw-place-teal); /* Luki 3, T4 */
+  --color-place-10: var(--raw-place-slate); /* Luki 3 */
+}
+
+/* 2. Semantic tokens: colour, light theme (Luki 2) ----------------------------------------- */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-surface-page: var(--raw-neutral-50); /* R01.1, Q1, Luki 2 */
+  --color-surface-list: var(--raw-neutral-0); /* R02.1 */
+  --color-surface-raised: var(--raw-neutral-150); /* R01.1 (tone instead of shadow) */
+  --color-border-divider: var(--raw-neutral-200); /* R01.1, R02.1; decorative only (T1) */
+  --color-border-control: var(--raw-neutral-600); /* T1 */
+  --color-text-primary: var(--raw-neutral-900); /* R01.3 */
+  --color-text-muted: var(--raw-neutral-600); /* R01.3, R01.4, R02.2, Luki 4 */
+  --color-action-primary: var(--raw-green-700); /* R02.3 */
+  --color-text-on-action: var(--raw-neutral-0); /* R02 code */
+  --color-focus-ring: var(--raw-green-700); /* R02 code (:focus-visible); T6 */
+  --color-text-danger: var(--raw-red-700); /* R02 code; T5 */
+  --color-place-1: var(--raw-place-blue); /* Q3, Luki 3 */
+  --color-place-2: var(--raw-place-ochre-deep); /* Q3, Luki 3, T3 */
+  --color-place-3: var(--raw-place-terracotta); /* Q3, Luki 3 */
+  --color-place-4: var(--raw-place-green-deep); /* Q3, Luki 3, T3 */
+  --color-place-5: var(--raw-place-violet); /* Q3, Luki 3 */
+  --color-place-6: var(--raw-place-pink); /* Q3, Luki 3 */
+  --color-place-7: var(--raw-place-olive-deep); /* Luki 3, T3 */
+  --color-place-8: var(--raw-place-plum); /* Luki 3, T2 */
+  --color-place-9: var(--raw-place-teal-deep); /* Luki 3, T4 */
+  --color-place-10: var(--raw-place-slate); /* Luki 3 */
+}
+
+/* 3. Component tokens ---------------------------------------------------------------------- */
+:root {
+  --task-row-min-height: 4rem; /* Luki 6 (64px) */
+  --task-row-padding-y: var(--raw-space-12); /* T10 (12 + 22 + 18 + 12 = 64) */
+  --task-row-indent: var(--raw-space-24); /* R02.1 (about 22px); T10 */
+  --place-dot-size: 0.5rem; /* R02 code (9px); T10 */
+  --checkbox-size: 1.25rem; /* R02.1; T10 */
+  --checkbox-radius: var(--raw-radius-6); /* R02.1; T8 */
+  --touch-target-min: 2.75rem; /* Apple HIG, WCAG 2.5.5; T10 */
+  --input-font-size-mobile: var(--raw-size-16); /* Luki 1 */
+  --icon-stroke-width: 2; /* Luki 7 (Lucide, 2px stroke) */
+  --icon-size: 1.25rem; /* F2 (accepted 2026-10-21) */
+}

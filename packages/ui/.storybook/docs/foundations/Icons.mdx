@@ -1,0 +1,28 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Icons from "./Icons.stories";
+
+<Meta of={Icons} />
+
+# Icons
+
+Outline icons from **Lucide** (`lucide-react`), 2px stroke (Luki 7). Icons appear only where they replace a gesture people already know; everything else is a word (Luki 7, tokens rule 11, A05).
+
+<Unstyled>
+  <Story of={Icons.Set} />
+</Unstyled>
+
+| Rule                                                                                              | Source                                                            |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Only the seven icons above. A new icon needs the owner's approval.                                | Luki 7                                                            |
+| An icon-only button always has an accessible name (`aria-label`) that names the task it acts on.  | WCAG 4.1.2, 2.4.6                                                 |
+| The plus icon never stands alone: it is followed by a word (“Add subtask”).                       | Luki 7, P05                                                       |
+| Icons are decorative to assistive technology (`aria-hidden="true"`); the button carries the name. | WAI-ARIA APG (button)                                             |
+| An icon button is at least 44 × 44px on phones even though the icon is 20px.                      | T10, WCAG 2.5.8                                                   |
+| No emoji in place of icons, and no sparkles for AI.                                               | A02                                                               |
+| Icon size: 20px (`size-icon`).                                                                    | Proposal (stage 1): Luki 7 fixes the set and stroke, not the size |
+
+## Tokens
+
+<Unstyled>
+  <Story of={Icons.Tokens} />
+</Unstyled>

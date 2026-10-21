@@ -69,6 +69,21 @@ jobs:
       # Docker is preinstalled on ubuntu-latest; Testcontainers starts postgres:16-alpine.
       - run: npm run test:integration
 
+  design-system:
+    name: Design system (tokens, Storybook tests in both themes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run check:tokens
+      - run: npx -w @taskly/ui playwright install --with-deps chromium
+      - run: npm run test:storybook
+      - run: npm run build-storybook
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

@@ -1,0 +1,12 @@
+/* Storybook preview: the package stylesheet plus documentation-only helpers. */
+@import "../src/styles/index.css";
+
+@source "./";
+
+/* Docs only: space between previews wrapped in <Unstyled> and the surrounding prose. */
+.sb-unstyled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+  margin-block: var(--space-between-groups);
+}
