@@ -14,6 +14,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-22 — After changing what `packages/app/app/globals.css` imports, `next build` can reuse a stale Turbopack CSS cache (old classes and variables, new ones missing) and still report success. Delete `packages/app/.next` and rebuild, then grep the CSS in `.next/static/chunks/*.css` for the new utilities.
 - 2026-10-21 — Tailwind 4 token bridge: skip `tailwindcss/theme.css` and map tokens in `@theme inline reference { --*: initial; … }`. Plain `@theme inline` re-emits a variable with the same name as the token (`--radius-control: var(--radius-control)`, circular); `reference` emits nothing. Without the default theme, palette classes, `p-4`, `text-sm`, `rounded-lg`, `shadow-*` silently compile to nothing, so `npm run check:tokens` flags them.
 - 2026-10-21 — Storybook 10: turn off the onboarding checklist with `features.sidebarOnboardingChecklist/menuOnboardingChecklist: false` and update notices with `core.disableWhatsNewNotifications`; test both themes with one Vitest project per theme via `storybookTest({ initialGlobals: { theme } })`. A11y gate is `parameters.a11y.test = 'error'` (verified: a low-contrast story fails in both themes).
 - 2026-10-21 — `pkill -f <pattern>` inside a Bash tool call also matches the tool's own shell (its command line contains the pattern) and kills it (exit 144). Stop background servers by PID instead.

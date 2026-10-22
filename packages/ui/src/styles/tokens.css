@@ -29,8 +29,10 @@
   --raw-neutral-910: #181f1c;
   --raw-neutral-950: #101513;
   --raw-neutral-990: #0b1713;
+  --raw-green-300: #6cc6ae;
   --raw-green-400: #4cb59b;
   --raw-green-700: #1e6b5a;
+  --raw-green-800: #175548;
   --raw-red-300: #f08a7b;
   --raw-red-700: #b83a2b;
   --raw-place-blue: #4f86b8;
@@ -134,6 +136,7 @@
   --color-text-primary: var(--raw-neutral-100); /* R01.3 */
   --color-text-muted: var(--raw-neutral-400); /* R01.3, R01.4, R02.2, Luki 4 */
   --color-action-primary: var(--raw-green-400); /* R02.3 */
+  --color-action-primary-hover: var(--raw-green-300); /* hover state, accepted 2026-10-22 */
   --color-text-on-action: var(--raw-neutral-990); /* R02 code */
   --color-focus-ring: var(--raw-green-400); /* R02 code (:focus-visible); T6 */
   --color-text-danger: var(--raw-red-300); /* R02 code; T5 */
@@ -160,6 +163,7 @@
   --color-text-primary: var(--raw-neutral-900); /* R01.3 */
   --color-text-muted: var(--raw-neutral-600); /* R01.3, R01.4, R02.2, Luki 4 */
   --color-action-primary: var(--raw-green-700); /* R02.3 */
+  --color-action-primary-hover: var(--raw-green-800); /* hover state, accepted 2026-10-22 */
   --color-text-on-action: var(--raw-neutral-0); /* R02 code */
   --color-focus-ring: var(--raw-green-700); /* R02 code (:focus-visible); T6 */
   --color-text-danger: var(--raw-red-700); /* R02 code; T5 */

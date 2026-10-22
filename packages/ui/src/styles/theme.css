@@ -17,6 +17,7 @@
   --background-color-list: var(--color-surface-list);
   --background-color-raised: var(--color-surface-raised);
   --background-color-action: var(--color-action-primary);
+  --background-color-action-hover: var(--color-action-primary-hover);
   --background-color-place-1: var(--color-place-1);
   --background-color-place-2: var(--color-place-2);
   --background-color-place-3: var(--color-place-3);
