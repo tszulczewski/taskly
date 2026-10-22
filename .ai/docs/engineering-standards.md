@@ -76,7 +76,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 - **UI placement:**
   1. shadcn primitive → `ui/src/components/ui/`, added with `npx shadcn@latest add`, not hand-written.
   2. Generic, concept-agnostic pattern (form field, empty state, data list) → `ui/src/components/`.
-  3. Concept-specific component → `packages/app/components/<concept>/`.
+  3. Concept-specific component → `packages/app/components/<concept>/`. Exception (design system decision P1, 2026-10-21): its presentational part (props in, callbacks out; no `fetch`, no domain rules, no `@taskly/core` import; amounts arrive formatted) lives in `ui/src/product/<epic>/` and is documented in Storybook. The app wraps it there with TanStack Query hooks and the shared Zod schema.
   4. Used by one page → colocate; promote on the second use.
 - Loading, error and empty states use shared components, not ad-hoc JSX.
 - Styling: Tailwind utilities only, via `cn()`; design tokens in CSS variables. No inline `style` for static values. Mobile-first (phone PWA is a primary target); touch targets ≥ 44px.

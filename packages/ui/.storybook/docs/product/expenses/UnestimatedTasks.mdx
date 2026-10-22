@@ -1,0 +1,110 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./UnestimatedTasks.stories";
+
+<Meta of={Stories} />
+
+# Unestimated tasks
+
+`import { UnestimatedTasks } from "@taskly/ui";`
+
+## 1. What it is for
+
+Says which open tasks future expenses leaves out because they have no estimate (R10), and lets the owner add the amounts right there, so the total can be trusted (Luki 9, R02.10).
+
+<Unstyled>
+  <Story of={Stories.Opened} />
+</Unstyled>
+
+## 2. When to use
+
+- Under the future expenses total; `FutureExpenses` renders it when at least one open main task has no estimate.
+
+## 3. When not to use
+
+| Situation                        | Use instead                         | Source      |
+| -------------------------------- | ----------------------------------- | ----------- |
+| Changing an estimate that exists | Edit in the task's "…" (`TaskForm`) | spec E01    |
+| Subtasks without an estimate     | nothing: they never count           | R06         |
+| A separate summary page          | this collapsed line                 | P04, Luki 9 |
+
+## 4. Anatomy
+
+| Part          | Required | Notes                                                                                        |
+| ------------- | -------- | -------------------------------------------------------------------------------------------- |
+| Trigger       | yes      | `TextAction` with the chevron: "3 tasks without an estimate", collapsed by default (Luki 9)  |
+| Rule          | yes      | One muted sentence: they are not counted until they have an estimate (Luki 5)                |
+| Task line     | yes      | The title (wraps) and "Add estimate" at the end; lines divided by 1px `color-border-divider` |
+| Estimate form | optional | In place of the line: Min and Max with "zł", Save (primary) and Cancel (decision I4)         |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+| State        | What the user sees                                                   | Story           | Source        |
+| ------------ | -------------------------------------------------------------------- | --------------- | ------------- |
+| Collapsed    | The count with a chevron.                                            | Collapsed       | Luki 9        |
+| Open         | The rule and one line per task.                                      | Opened          | Luki 9        |
+| Adding       | The form in place; focus in Min.                                     | Adding Estimate | decision I4   |
+| Field errors | Under each field, as in `TaskForm`; both amounts are required here.  | Field Errors    | spec E01, R10 |
+| Saving       | "Saving…"; the form stays busy until the task leaves the list.       | Saving          | Form pattern  |
+| Saved        | The task is gone; the count drops; focus on the next "Add estimate". | Saved           | decision I4   |
+| Save failed  | An `Alert` above the fields; the amounts stay.                       | Save Failed     | spec E01      |
+| One task     | "1 task without an estimate".                                        | One Task        | —             |
+| Long title   | The title wraps; "Add estimate" goes under it when needed.           | Long Title      | —             |
+
+<Unstyled>
+  <Story of={Stories.Saved} />
+</Unstyled>
+
+## 7. Behaviour and accessibility
+
+- The trigger is a disclosure button (`aria-expanded`); the list is named by the same count.
+- "Add estimate" is named with the task: "Add estimate for “Seal the bath”".
+- The form is a group named `Estimate for “{title}”`; Enter saves, Escape or Cancel closes it and returns focus to that task's "Add estimate". Escape does nothing while saving.
+- After a save focus moves to the next task's "Add estimate"; after the last one, to the total (`FutureExpenses`).
+
+## 8. Content
+
+- "N tasks without an estimate", "Add estimate", "They are not counted in future expenses until they have an estimate." (decision J9; not "count as zero", R10).
+- Polish: "2 zadania bez szacunku", "Dodaj szacunek", "Maks" (decision J9).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                               | Source      |
+| ------ | ----------------------------------------------------------------------- | ----------- |
+| 320px  | Min and Max stay side by side (short amounts); titles and buttons wrap. | WCAG 1.4.10 |
+| 768px  | Same, the fields share the row width.                                   | —           |
+| 1440px | Same as 768px.                                                          | —           |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+`FutureExpenses` renders it; on its own it is only for tests and stories.
+
+```tsx
+<UnestimatedTasks tasks={unestimated} validate={validateEstimate} onAddEstimate={addEstimate} />
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** `Collapsible`, `TextAction`, `FormField`, `Input`, `Button`. **Used in:** `FutureExpenses`.
+- **Patterns:** Form, Inline edit, Complete and reopen.

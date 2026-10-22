@@ -1,0 +1,99 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Tooltip.stories";
+
+<Meta of={Stories} />
+
+# Tooltip
+
+`import { Tooltip } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows the name of an icon button to mouse and keyboard users, so an icon is never a riddle.
+
+<Story of={Stories.IconButtons} />
+
+## 2. When to use
+
+- On every icon-only button: the drag handle, the “…” menu, the plus for adding (Luki 7: icons only where they replace a known gesture).
+
+## 3. When not to use
+
+| Situation                                | Use instead                   | Source       |
+| ---------------------------------------- | ----------------------------- | ------------ |
+| A button with visible text               | nothing; the text is the name | WCAG 2.5.3   |
+| Explaining why something is disabled     | a visible sentence next to it | P4           |
+| A hint for a field                       | `FormField` hint              | R02.13       |
+| Anything with a link or a control inside | `Popover`                     | WAI-ARIA APG |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                                                                                                                                 |
+| ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trigger | yes      | The icon `Button` with `aria-label`; the tooltip text is read from that label                                                                         |
+| Bubble  | yes      | Raised tone, 1px `color-border-control` edge, `radius-control`, `text-meta`, `space-group` × `space-inline` (K2); `space-inline` from the button (D4) |
+
+## 5. Variants
+
+None. `side` (default `top`) places the bubble.
+
+## 6. States
+
+<Story of={Stories.States} />
+
+| State                   | Looks like                                                           | Source       |
+| ----------------------- | -------------------------------------------------------------------- | ------------ |
+| Hidden                  | Nothing.                                                             | —            |
+| Shown                   | After 700 ms of hover (Radix default), or at once on keyboard focus. | WAI-ARIA APG |
+| Pressed, loading, error | Do not apply; the button has its own states.                         | —            |
+
+## 7. Behaviour and accessibility
+
+- **Shows** on hover and on keyboard focus; **hides** on Escape, blur, pointer leave or press (WCAG 1.4.13: dismissible, hoverable, persistent). Covered by the Playground test.
+- **Name once:** the bubble is `aria-hidden` and the button keeps no `aria-describedby`, so a screen reader hears "More actions, button" once, not twice (proposal D2).
+- **Touch:** tooltips do not appear on touch; the icon's meaning must be clear from the gesture it stands for (Luki 7).
+- **Motion:** none (K2).
+
+## 8. Content
+
+- The text is the button's `aria-label`: a verb phrase in sentence case, "Drag to reorder", "Add subtask", "More actions" / "Przeciągnij, aby zmienić kolejność", "Więcej działań".
+- Never add information that is not in the label.
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                          | Source          |
+| ------ | ---------------------------------------------------------------------------------- | --------------- |
+| 320px  | Flips or shifts to keep the page gutter free at the screen edges; long text wraps. | D3, WCAG 1.4.10 |
+| 768px  | Same.                                                                              | —               |
+| 1440px | Same.                                                                              | —               |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<Tooltip>
+  <Button variant="ghost" size="icon" aria-label="More actions">
+    <Ellipsis aria-hidden="true" />
+  </Button>
+</Tooltip>
+```
+
+In Taskly the menu trigger is both: `<Tooltip><MenuTrigger asChild><Button …/></MenuTrigger></Tooltip>`.
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Popover` (interactive content), `FormField` hint (always visible).
+- **Patterns:** List (drag handle, row menu), Quick capture (plus).

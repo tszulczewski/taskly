@@ -1,0 +1,137 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./RadioGroup.stories";
+
+<Meta of={Stories} />
+
+# Radio group
+
+`import { Label, RadioGroup, RadioGroupItem, RadioGroupSegment } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the user pick exactly one of a few options while seeing all of them.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- The theme switch in the header: Dark / Light, two positions (P4, Q1, Luki 2), `variant="segmented"`.
+- Choosing a place's colour from the free colours (Luki 3, backlog E02) — the swatch picker in stage 3 builds on this group.
+
+## 3. When not to use
+
+| Situation                                   | Use instead                                                        | Source       |
+| ------------------------------------------- | ------------------------------------------------------------------ | ------------ |
+| Several options may be chosen               | `Checkbox` for each                                                | WAI-ARIA APG |
+| More than about 5 options, or long names    | a list with a search field (not in version 1; see What is missing) | P4           |
+| Something that happens at once as an action | `Button`                                                           | —            |
+
+## 4. Anatomy
+
+| Part                | Required | Notes                                                                                              |
+| ------------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| Group               | yes      | `role="radiogroup"`, named with `aria-label` or a visible heading (`aria-labelledby`)              |
+| Item (list)         | yes      | 44 × 44 px target with a 20px circle; selected: `color-action-primary` border and dot (T10, R02.3) |
+| Label (list)        | yes      | `Label htmlFor` next to each item                                                                  |
+| Segment (segmented) | yes      | 44px high; its children are the name (text, optionally an icon)                                    |
+| Frame (segmented)   | yes      | 1px `color-border-control`, `radius-control`                                                       |
+
+## 5. Variants
+
+| Variant          | Choose it when                                                             | Source                |
+| ---------------- | -------------------------------------------------------------------------- | --------------------- |
+| `list` (default) | Options are read one under another; each has a label.                      | WAI-ARIA APG          |
+| `segmented`      | Two or three very short options that switch something at once (the theme). | P4, R02 code (`.seg`) |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State          | List item                                                                                     | Segment                                                     | Source                |
+| -------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------- |
+| Default        | Empty circle                                                                                  | Muted, regular weight                                       | R02 code              |
+| Selected       | Green border and dot                                                                          | Raised tone, primary text, **bold**, so not by colour alone | R02.3, WCAG 1.4.1     |
+| Hover          | Circle on `color-surface-raised`                                                              | Text becomes primary                                        | proposal C1, R02 code |
+| Focus          | 2px outline around the circle                                                                 | 2px outline around the segment                              | R02 code, K3          |
+| Pressed        | Same as hover                                                                                 | Same as hover                                               | K4                    |
+| Disabled       | `opacity-disabled`                                                                            | `opacity-disabled`                                          | K3                    |
+| Loading, error | Do not apply: the theme switches at once; the colour picker shows only free colours (Luki 3). | —                                                           |
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** Tab enters the group on the selected option; arrow keys move and select; Tab leaves the group (WAI-ARIA APG, radio group). Covered by the Playground and ThemeSwitchKeyboard tests.
+- **Roles:** `radiogroup` and `radio` with `aria-checked` (Radix).
+- **Name:** the group needs a name ("Theme", "Colour of the place"); each item gets its name from its Label or, in a segment, from its text. Icons in segments are `aria-hidden`.
+- **Target size:** 44 × 44 px per item and 44px-high segments; the segmented frame adds 1px each side (46px in total) (K1).
+- **Colour:** a selected segment differs by tone, text colour and weight (WCAG 1.4.1).
+
+## 8. Content
+
+- Option names are one or two words: "Dark", "Light" / "Ciemny", "Jasny" (Luki 2).
+- The group name is a noun: "Theme" / "Motyw".
+- Segments share the width equally, so the longest name decides the width; keep names of similar length.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                             | Source      |
+| ------ | ----------------------------------------------------------------------------------------------------- | ----------- |
+| 320px  | The segmented control never exceeds the column (`max-w-full`); names stay on one line at this length. | WCAG 1.4.10 |
+| 768px  | Same.                                                                                                 | —           |
+| 1440px | Same; the switch sits in the header.                                                                  | Luki 2      |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`RadioGroupItem` and `RadioGroupSegment` take `value`, `id`, `disabled` and the usual button attributes.
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<RadioGroup aria-label="Colour of the place" defaultValue="blue">
+  <div className="flex items-center">
+    <RadioGroupItem value="blue" id="c-blue" />
+    <Label htmlFor="c-blue">Blue</Label>
+  </div>
+</RadioGroup>
+```
+
+In Taskly: the theme switch.
+
+```tsx
+<RadioGroup aria-label="Theme" variant="segmented" value={theme} onValueChange={setTheme}>
+  <RadioGroupSegment value="dark">
+    <Moon aria-hidden="true" />
+    Dark
+  </RadioGroupSegment>
+  <RadioGroupSegment value="light">
+    <Sun aria-hidden="true" />
+    Light
+  </RadioGroupSegment>
+</RadioGroup>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Checkbox` (any number of choices), tabs (not in version 1, P4).
+- **Patterns:** App shell (theme switch), place colour picker (E02).

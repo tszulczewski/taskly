@@ -1,0 +1,59 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Form.stories";
+
+<Meta of={Stories} />
+
+# Form
+
+How every Taskly form behaves: sign-in, sign-up, and in E01 quick add and editing a task. Shown on the sign-up form. The behaviour lives in `useForm` (`@taskly/ui`), so each form gets it the same way; the rules and messages come from the app's shared Zod schema (standards §5, P1).
+
+## Rules
+
+| Rule                                                                                                                                                                 | Source                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Every field has a visible label; a placeholder is only an example.                                                                                                   | WCAG 3.3.2, FormField       |
+| A field is checked when the user leaves it after typing; a message already shown clears as soon as the value is valid. Tabbing through an empty field shows nothing. | prompt (Form), decision E2  |
+| Submit checks every field; focus moves to the first invalid one in the same render that shows the messages.                                                          | sign-in spec, Accessibility |
+| What was typed stays after any failure.                                                                                                                              | prompt (Form)               |
+| While sending, the button shows a spinner and a second submit (click or Enter) is ignored.                                                                           | sign-in spec, UI/UX         |
+| The form counts as done only when the server confirmed; until the page changes the button stays busy.                                                                | prompt (Form), decision E4  |
+| Server field errors appear under their fields and take focus like client ones.                                                                                       | standards §5 (Forms)        |
+| A server or network error appears above the form as an `Alert` (`role="alert"`).                                                                                     | sign-in spec, P3            |
+| Required is the default; optional fields say "(optional)".                                                                                                           | K5                          |
+
+## States
+
+| State                       | Story                      |
+| --------------------------- | -------------------------- |
+| Empty                       | Empty                      |
+| Checked on leaving a field  | Checked On Leaving A Field |
+| Submitted with errors       | Submitted With Errors      |
+| Pending (double submit)     | Pending                    |
+| Confirmed by the server     | Confirmed By Server        |
+| Field error from the server | Field Error From Server    |
+| Server error                | Server Error               |
+| No network                  | No Network                 |
+
+<Unstyled>
+  <Story of={Stories.SubmittedWithErrors} />
+  <Story of={Stories.ServerError} />
+</Unstyled>
+
+## Using it in a new form
+
+```tsx
+const form = useForm<"title" | "min" | "max">({
+  initialValues: { title: "", min: "", max: "" },
+  validate: (values) => fieldErrorsOf(createTaskInput, values),
+  onSubmit: createTask,
+  unexpectedError: "Something went wrong. Try again.",
+});
+
+<form {...form.formProps}>
+  {form.formError ? <Alert title={form.formError} /> : null}
+  <FormField label="Title" error={form.errors.title}>
+    {(control) => <Input {...control} {...form.field("title")} />}
+  </FormField>
+  …
+</form>;
+```

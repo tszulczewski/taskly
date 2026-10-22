@@ -18,6 +18,8 @@
   --background-color-raised: var(--color-surface-raised);
   --background-color-action: var(--color-action-primary);
   --background-color-action-hover: var(--color-action-primary-hover);
+  --background-color-raised-hover: var(--color-surface-raised-hover);
+  --background-color-scrim: var(--color-scrim);
   --background-color-place-1: var(--color-place-1);
   --background-color-place-2: var(--color-place-2);
   --background-color-place-3: var(--color-place-3);
@@ -40,6 +42,8 @@
   --border-color-divider: var(--color-border-divider);
   --border-color-control: var(--color-border-control);
   --border-color-action: var(--color-action-primary);
+  --border-color-action-hover: var(--color-action-primary-hover);
+  --border-color-danger: var(--color-text-danger); /* K3: same value as error text */
   --outline-color-focus: var(--color-focus-ring);
   --accent-color-action: var(--color-action-primary);
 
@@ -59,6 +63,7 @@
   --leading-heading: var(--line-height-heading);
 
   /* Spacing (padding, margin, gap, inset) and component sizes */
+  --spacing-0: 0; /* zero is not a design value: min-w-0, inset-0, right-0 */
   --spacing-inline: var(--space-inline);
   --spacing-group: var(--space-group);
   --spacing-between-groups: var(--space-between-groups);
@@ -73,12 +78,18 @@
   --spacing-checkbox: var(--checkbox-size);
   --spacing-dot: var(--place-dot-size);
   --spacing-icon: var(--icon-size);
+  --spacing-control: var(--control-height);
+  --spacing-control-x: var(--control-padding-x);
+  --spacing-field-x: var(--field-padding-x);
+  --spacing-field-y: var(--field-padding-y);
+  --spacing-radio-dot: var(--radio-dot-size);
 
   /* Layout */
   --max-width-content: var(--layout-content-max-width);
   --max-width-measure: var(--layout-text-measure);
 
   /* Shape */
+  --default-border-width: var(--border-width);
   --radius-control: var(--radius-control);
   --radius-surface: var(--radius-surface);
   --radius-checkbox: var(--checkbox-radius);

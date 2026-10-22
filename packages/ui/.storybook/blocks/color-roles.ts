@@ -21,6 +21,16 @@ export const surfaceRoles: ColorRole[] = [
     use: "A hovered, expanded or dragged row; loading bars (Luki 8); the error alert (P3).",
     avoid: "The frame of a panel inside a panel.",
   },
+  {
+    token: "color-surface-raised-hover",
+    use: "A highlighted menu item (pointer or arrow keys). Dark: one tone above the panel, as in R02. Light: white, because the darker step leaves danger text at 4.1:1 (D1).",
+    avoid: "Rows on the list surface (they use color-surface-raised); the selected state.",
+  },
+  {
+    token: "color-scrim",
+    use: "Behind the confirm dialog, dimming the page (K2).",
+    avoid: "Any surface people read text on.",
+  },
 ];
 
 export const lineRoles: ColorRole[] = [
@@ -98,6 +108,12 @@ export const contrastPairs: ContrastPair[] = [
     surfaces.map((background) => ({ foreground, background, kind: "text" as const })),
   ),
   { foreground: "color-text-on-action", background: "color-action-primary", kind: "text" },
+  ...["color-text-primary", "color-text-danger"].map((foreground) => ({
+    foreground,
+    background: "color-surface-raised-hover",
+    kind: "text" as const,
+  })),
+  { foreground: "color-focus-ring", background: "color-surface-raised-hover", kind: "ui" },
   ...["color-action-primary", "color-border-control", "color-focus-ring"].flatMap((foreground) =>
     surfaces.map((background) => ({ foreground, background, kind: "ui" as const })),
   ),

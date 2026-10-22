@@ -1,0 +1,123 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./SignInForm.stories";
+
+<Meta of={Stories} />
+
+# Sign-in form
+
+`import { SignInForm } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the owner get back into their renovation plan with an email and a password, and says plainly what went wrong when it fails.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- The `/sign-in` page, inside `AuthCard` (sign-in spec, UI/UX).
+
+## 3. When not to use
+
+| Situation                     | Use instead               | Source                 |
+| ----------------------------- | ------------------------- | ---------------------- |
+| Creating the account          | `SignUpForm`              | sign-in spec           |
+| Signing in with Google        | not in version 1          | AGENTS.md (after MVP)  |
+| Changing the password from UI | not in version 1 (script) | sign-in spec, Q2 / Q13 |
+
+## 4. Anatomy
+
+| Part              | Required | Notes                                                                                  |
+| ----------------- | -------- | -------------------------------------------------------------------------------------- |
+| Error             | optional | `Alert` above the fields, `role="alert"`; the spec's generic messages                  |
+| Email             | yes      | `Input type="email"`, `autocomplete="email"`                                           |
+| Password          | yes      | `PasswordInput` with the show-password button, `autocomplete="current-password"` (Q10) |
+| Sign in           | yes      | Primary `Button`; spinner and "Signing in…" while sending                              |
+| Create an account | optional | `Link`, only while sign-up is open (Q1)                                                |
+
+No "Remember me" checkbox: sessions are always persistent (Q8).
+
+## 5. Variants
+
+| Variant                      | Choose it when                                        | Source |
+| ---------------------------- | ----------------------------------------------------- | ------ |
+| Without `signUpHref`         | Sign-up is closed (the default, `ALLOW_SIGN_UP` off). | Q1     |
+| With `signUpHref="/sign-up"` | Sign-up is open.                                      | Q1     |
+
+<Story of={Stories.SignUpClosed} />
+
+## 6. States
+
+Each state is a story with a play function that reaches it.
+
+| State                   | What the user sees                                                 | Story          | Source              |
+| ----------------------- | ------------------------------------------------------------------ | -------------- | ------------------- |
+| Empty                   | Two labelled fields and "Sign in".                                 | Sign Up Closed | sign-in spec        |
+| Missing fields          | Messages under both fields; focus on Email.                        | Missing Fields | spec, Accessibility |
+| Pending                 | Spinner, "Signing in…"; a second click or Enter sends nothing.     | Pending        | spec, UI/UX         |
+| Wrong email or password | "Email or password is incorrect." above the form; the email stays. | Wrong Password | spec, Messages      |
+| Rate limited            | "Too many attempts. Wait a few seconds and try again."             | Rate Limited   | spec, Messages      |
+| No network              | "Something went wrong. Try again."                                 | Offline        | spec, Messages      |
+| Signed in               | The button stays busy until the app has gone to `/` (decision E4). | Playground     | Q7                  |
+
+Loading, many items and partial data do not apply: the form loads no data.
+
+<Story of={Stories.WrongPassword} />
+
+## 7. Behaviour and accessibility
+
+- **Order:** Email → Password → show-password button → Sign in → Create an account. Enter in a field submits.
+- **Validation:** a field is checked when the user leaves it after typing, and every field on submit; focus moves to the first invalid field (pattern Form, spec Accessibility). Covered by the Missing Fields test.
+- **Errors:** field messages are linked with `aria-describedby`; the form error is announced (`role="alert"`, WCAG 4.1.3).
+- **Double submit:** blocked while sending, so a second attempt is not spent against the rate limit (spec, UI/UX). Covered by the Pending test.
+- **Password:** hidden again on submit (Q10).
+- **Targets:** fields, buttons and the eye button are 44px (K1).
+
+## 8. Content
+
+- Labels: "Email", "Password"; button "Sign in"; link "Create an account" (spec).
+- Error messages never say whether the email exists (spec, Messages).
+- Field messages come from the shared schema `signInInput`; the ones in these stories are examples (decision E3).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                 | Source                        |
+| ------ | ----------------------------------------------------------------------------------------- | ----------------------------- |
+| 320px  | One column; the button spans the card (decision E5); long emails scroll inside the field. | spec ("one column on phones") |
+| 768px  | Card at most `layout-text-measure`; button as wide as its text.                           | F1, decision E5               |
+| 1440px | Same as 768px.                                                                            | —                             |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`validate` and `onSubmit` come from the app (P1): `validate` applies `signInInput`; `onSubmit` calls `authCall` and maps the response to `{ ok: true }` or `{ ok: false, formError }`.
+
+## 11. Code
+
+```tsx
+<AuthCard title="Sign in">
+  <SignInForm
+    validate={(values) => fieldErrorsOf(signInInput, values)}
+    onSubmit={signIn}
+    signUpHref={signUpOpen ? "/sign-up" : undefined}
+  />
+</AuthCard>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `SignUpForm` (adds a name and a password hint).
+- **Patterns:** Form. **Screens:** Sign-in / Screens.

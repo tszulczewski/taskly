@@ -8,6 +8,15 @@ function parseRgb(value: string): Rgb | null {
   return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
 }
 
+/** Opacity of a translucent colour such as the scrim ("rgba(10, 16, 13, 0.5)"), else null. */
+function parseAlpha(value: string): number | null {
+  const channels = /rgba?\(([^)]*)\)/
+    .exec(value)?.[1]
+    ?.split(/[\s,/]+/)
+    .filter(Boolean);
+  return channels?.length === 4 ? Number(channels[3]) : null;
+}
+
 /** WCAG 2.x relative luminance. */
 function luminance([r, g, b]: Rgb): number {
   const channel = (v: number) => {
@@ -31,6 +40,8 @@ export interface Measured {
   value: string;
   /** Present when the token resolves to a colour. */
   rgb: Rgb | null;
+  /** Opacity when the colour is translucent (the scrim), else null. */
+  alpha: number | null;
 }
 
 /**
@@ -50,8 +61,8 @@ export function measureTokens(names: readonly string[], theme: Theme): Record<st
     const value = getComputedStyle(probe).getPropertyValue(`--${name}`).trim();
     swatch.style.color = "";
     swatch.style.color = `var(--${name})`;
-    const rgb = name.startsWith("color-") ? parseRgb(getComputedStyle(swatch).color) : null;
-    result[name] = { value, rgb };
+    const color = name.startsWith("color-") ? getComputedStyle(swatch).color : "";
+    result[name] = { value, rgb: parseRgb(color), alpha: parseAlpha(color) };
   }
   probe.remove();
   return result;

@@ -1,0 +1,106 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./CompleteTaskDialog.stories";
+
+<Meta of={Stories} />
+
+# Complete task dialog
+
+`import { CompleteTaskDialog } from "@taskly/ui";`
+
+## 1. What it is for
+
+Asks once before a task with open subtasks is completed: they are completed with it (R09) and reopening the task later does not reopen them (R11), so the owner could not undo the cascade with one tap (decision I2).
+
+<Story of={Stories.OpenSubtasks} />
+
+## 2. When to use
+
+- Checking a task's box while at least one of its subtasks is open; `TaskList` opens it.
+
+## 3. When not to use
+
+| Situation                            | Use instead                         | Source      |
+| ------------------------------------ | ----------------------------------- | ----------- |
+| A task without subtasks, or all done | complete at once, no question       | decision I2 |
+| Completing a subtask                 | complete at once (nothing cascades) | R11         |
+| Reopening                            | reopen at once (nothing cascades)   | R11         |
+| Deleting                             | `DeleteTaskDialog`                  | spec E01    |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                                                        |
+| ----------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| Question    | yes      | `Complete “{title}” and its N open subtasks?` / "… and its open subtask?"                                    |
+| Description | yes      | "Reopening the task later does not reopen its subtasks." in muted text (R11)                                 |
+| Complete    | yes      | "Complete task", **primary** button: the action is not destructive (`confirmVariant="primary"`, decision J3) |
+| Cancel      | yes      | Takes focus first                                                                                            |
+
+Built on `ConfirmDialog` (alert dialog, scrim, focus trap).
+
+## 5. Variants
+
+| Variant      | Choose it when                       | Source      |
+| ------------ | ------------------------------------ | ----------- |
+| Several open | Two or more subtasks are still open. | decision I2 |
+| One open     | Exactly one: "its open subtask".     | decision I2 |
+
+<Story of={Stories.OneOpenSubtask} />
+
+## 6. States
+
+| State      | What the user sees                               | Story         | Source |
+| ---------- | ------------------------------------------------ | ------------- | ------ |
+| Asking     | The question; focus on Cancel.                   | Open Subtasks | APG    |
+| Long title | The question wraps inside `layout-text-measure`. | Long Title    | —      |
+
+There is no "completing" state: the dialog closes at once and the list shows the change optimistically; a refusal rolls back with a message in the row (Optimistic change). Loading, empty and errors inside the dialog do not apply.
+
+## 7. Behaviour and accessibility
+
+- `alertdialog` named by the question, described by the sentence under it; focus starts on Cancel and stays inside (WAI-ARIA APG).
+- Escape or Cancel closes without a change; focus returns to the task's checkbox. After "Complete task" focus also goes to that checkbox, now at the end of the list (decision J7).
+
+## 8. Content
+
+- The question names the task and the number of open subtasks; the button is a verb and the object.
+- Polish: `Ukończyć „{title}” i 2 otwarte podzadania?`, "… i 5 otwartych podzadań?", button "Ukończ zadanie" (decision J9).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                     | Source        |
+| ------ | ------------------------------------------------------------- | ------------- |
+| 320px  | Full width inside the page gutter; buttons stacked.           | decision E5   |
+| 768px  | At most `layout-text-measure`, centred; buttons side by side. | ConfirmDialog |
+| 1440px | Same as 768px.                                                | —             |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+`TaskList` renders it; a dialog on its own is only for tests and stories.
+
+```tsx
+<CompleteTaskDialog
+  task={asking?.task ?? null}
+  openSubtasks={asking?.open ?? 0}
+  onConfirm={(task) => complete(task.id)}
+  onCancel={() => setAsking(null)}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** `ConfirmDialog` (primary variant). **Used in:** `TaskList`. **Opened from:** `TaskCheckbox`.
+- **Patterns:** Complete and reopen, Delete confirmation.

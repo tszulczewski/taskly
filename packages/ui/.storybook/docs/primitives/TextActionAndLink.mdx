@@ -1,0 +1,158 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./TextActionAndLink.stories";
+
+<Meta of={Stories} />
+
+# Text action and link
+
+`import { Link, TextAction } from "@taskly/ui";`
+
+## 1. What it is for
+
+`TextAction` lets the user act on something in a row or list without a framed button competing with the content; `Link` takes the user to another page.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+**TextAction**
+
+- "Add estimate" next to each task in the list of tasks without an estimate (tokens: future expenses, Luki 9).
+- "3 tasks without an estimate", the collapsed line under the total (Luki 9, R02.3).
+- "Add subtask" under a task (R02.9, P05).
+- `tone="muted"`: the prompt that stands in for an empty value, such as "Add a description" in an expanded row (R01.4, tokens rule 6).
+
+**Link**
+
+- "Create an account" on the sign-in page while sign-up is open, and "Go to sign in" when it is closed (sign-in spec).
+- Any text that navigates to another route.
+
+## 3. When not to use
+
+| Situation                                                 | Use instead                | Source                        |
+| --------------------------------------------------------- | -------------------------- | ----------------------------- |
+| The main action of a form ("Sign in", "Add")              | `Button variant="primary"` | R02.3                         |
+| An action that changes or deletes data after confirmation | `Button variant="danger"`  | P3                            |
+| Something that does not navigate                          | `TextAction`, never `Link` | WAI-ARIA APG (link vs button) |
+| Several actions on one row                                | the "…" menu               | R02.1, A01.3                  |
+
+## 4. Anatomy
+
+| Part      | Required                                     | Notes                                                                                                  |
+| --------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Text      | yes                                          | `font-size-body`; action tone `font-weight-strong` in `color-action-primary` (R02.3, R02 code `.link`) |
+| Icon      | optional                                     | Only "+" for adding (Luki 7), 20px, before the text with `space-inline`                                |
+| Underline | Link: always; TextAction: on hover and press | Links are underlined so colour is not the only cue (WCAG 1.4.1)                                        |
+
+## 5. Variants
+
+| Variant                              | Choose it when                                    | Source               |
+| ------------------------------------ | ------------------------------------------------- | -------------------- |
+| `TextAction tone="action"` (default) | A secondary action that does something here.      | R02.3                |
+| `TextAction tone="muted"`            | An empty value; clicking it starts filling it in. | R01.4, tokens rule 6 |
+| `Link`                               | The text goes to another page or site.            | WAI-ARIA APG (link)  |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State                    | TextAction                                 | Link                                                              | Source           |
+| ------------------------ | ------------------------------------------ | ----------------------------------------------------------------- | ---------------- |
+| Default                  | Action colour (or muted), no underline     | Action colour, underlined                                         | R02 code `.link` |
+| Hover                    | Underline appears                          | No change (already underlined)                                    | proposal         |
+| Focus                    | 2px `color-focus-ring` outline, 2px offset | Same                                                              | R02 code, T6, K3 |
+| Pressed                  | Same as hover                              | Browser default                                                   | K4               |
+| Disabled                 | `opacity-disabled`                         | Does not apply: a link that goes nowhere is removed, not disabled | K3, proposal     |
+| Loading, selected, error | Do not apply.                              | Do not apply.                                                     | —                |
+
+A disabled text action is rare: when an action is unavailable, prefer not showing it, or show the reason as text next to it.
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** TextAction is a native `<button>` (Enter and Space). Link is a native `<a href>` (Enter). Covered by the Playground and LinkNavigates tests (WAI-ARIA APG).
+- **Role:** button vs link follows what happens, not how it looks: `TextAction` never navigates and `Link` never runs an action (WAI-ARIA APG).
+- **Name:** the visible text is the accessible name. Do not add a different `aria-label` (WCAG 2.5.3).
+- **Target size:** TextAction is at least 44px high (`touch-target-min`, spec E01). A Link inside a sentence follows the line height; WCAG 2.5.8 exempts inline links.
+- **Colour:** action text has 6.70:1 (dark) and 6.35:1 (light) on the list surface; muted text 6.94:1 and 6.31:1 (tokeny.md contrast table, WCAG 1.4.3).
+- `asChild` on `Link` styles the app's router link (`next/link`) without a nested `<a>`.
+
+## 8. Content
+
+- TextAction: a verb and an object, sentence case: "Add estimate", "Add subtask" (Luki 5).
+- A count is written in digits and says what it counts: "3 tasks without an estimate" (Luki 5, Luki 9).
+- Link text says where it goes: "Go to sign in", not "here" or "click here" (WCAG 2.4.4).
+- Keep both short (about 5 words). Long text wraps; it is never truncated, because the end of the sentence is usually the important part (proposal).
+- Polish is longer ("Dodaj szacunek", "Załóż konto"): test with the Polish story.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                              | Source                |
+| ------ | ---------------------------------------------------------------------- | --------------------- |
+| 320px  | Text wraps; TextAction keeps its 44px minimum height.                  | WCAG 1.4.10, spec E01 |
+| 768px  | One line in most cases.                                                | —                     |
+| 1440px | Unchanged; the content column is capped at `layout-content-max-width`. | P01                   |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+**TextAction**
+
+<ArgTypes of={Stories} />
+
+**Link**: every native `<a>` attribute, plus `asChild?: boolean` (default `false`): render the single child with the link styles.
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<TextAction onClick={openEstimate}>Add estimate</TextAction>
+<Link href="/sign-up">Create an account</Link>
+```
+
+In Taskly, with the app's router:
+
+```tsx
+import NextLink from "next/link";
+
+<p>
+  No account yet?{" "}
+  <Link asChild>
+    <NextLink href="/sign-up">Create an account</NextLink>
+  </Link>
+</p>;
+```
+
+An empty description in an expanded row:
+
+```tsx
+{
+  task.description ?? (
+    <TextAction tone="muted" onClick={startEditing}>
+      Add a description
+    </TextAction>
+  );
+}
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Button` (framed, for the main or confirming action). See **How to choose**.
+- **Patterns:** Quick capture ("Add subtask"), Details in row (muted prompts), Complete and reopen / future expenses ("Add estimate", "N tasks without an estimate"), sign-in screens (links between sign-in and sign-up).

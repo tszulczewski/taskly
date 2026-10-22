@@ -1,0 +1,142 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./ConfirmDialog.stories";
+
+<Meta of={Stories} />
+
+# Confirm dialog
+
+`import { ConfirmDialog } from "@taskly/ui";`
+
+## 1. What it is for
+
+Stops the user before an action that cannot be undone and says exactly what will be lost or what else will change.
+
+<Story of={Stories.Open} />
+
+## 2. When to use
+
+- Deleting a task or a subtask: `"Delete '{title}' and its N subtasks?"` (spec E01, Delete). Deletion is irreversible, there is no soft delete.
+- Completing a task that still has open subtasks, which completes them too and is not undone by reopening (R09, R11, decision I2): the **primary** variant (decision J3).
+
+## 3. When not to use
+
+| Situation                               | Use instead                                    | Source                 |
+| --------------------------------------- | ---------------------------------------------- | ---------------------- |
+| An action that can be undone in one tap | act at once                                    | R02.2                  |
+| Showing or editing task details         | `Collapsible` in the row                       | Q2, A01.3, R02.6       |
+| Telling the user that something failed  | `Alert` or the inline error in the form or row | spec E01 (toast-free)  |
+| Asking for more data before an action   | a form in place                                | spec E01 (Edit), A01.3 |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                                                        |
+| ----------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| Scrim       | yes      | `color-scrim` over the page (K2)                                                                             |
+| Panel       | yes      | Raised tone, 1px `color-border-control` edge, `radius-surface`, `space-inset`; at most `layout-measure` (K2) |
+| Title       | yes      | The question, in strong primary text; names the task and what goes with it (spec E01)                        |
+| Description | optional | What will happen, in muted text: "This cannot be undone."                                                    |
+| Error       | optional | Why the action failed, in `color-text-danger`, announced (`role="alert"`)                                    |
+| Confirm     | yes      | `Button variant="danger"` (or `"primary"`), a verb and the object: "Delete task", "Complete task"            |
+| Cancel      | yes      | `Button` (secondary), "Cancel"                                                                               |
+
+## 5. Variants
+
+| Variant                    | Choose it when                                                     | Source           |
+| -------------------------- | ------------------------------------------------------------------ | ---------------- |
+| `confirmVariant="danger"`  | The default: something is lost for good (delete).                  | spec E01         |
+| `confirmVariant="primary"` | Nothing is lost, but more changes than the user tapped (complete). | decisions I2, J3 |
+
+The content changes too (with or without subtasks, with or without a description).
+
+<Story of={Stories.WithoutSubtasks} />
+
+<Story of={Stories.PrimaryConfirm} />
+
+## 6. States
+
+| State   | Looks like                                                                                  | Source           |
+| ------- | ------------------------------------------------------------------------------------------- | ---------------- |
+| Open    | Scrim and panel; focus on Cancel.                                                           | WAI-ARIA APG     |
+| Pending | Confirm shows the spinner and "Deleting…"; Cancel is disabled; Escape does nothing.         | B2, sign-in spec |
+| Failed  | The error appears above the buttons; the dialog stays open so the user can retry or cancel. | spec E01         |
+| Closed  | Nothing; focus is back on the trigger.                                                      | spec E01         |
+
+Hover, focus, pressed and disabled are the buttons' own states (see Button).
+
+<Story of={Stories.Pending} />
+
+<Story of={Stories.Failed} />
+
+## 7. Behaviour and accessibility
+
+- **Role:** `alertdialog`, named by the title and described by the description when there is one (WAI-ARIA APG, alert dialog).
+- **Focus:** starts on Cancel, the safe choice; Tab stays inside the dialog; on close it returns to the trigger (spec E01: "The dialog traps focus and returns focus to the trigger"). Covered by the Playground test.
+- **Closing:** Escape or Cancel. A click on the scrim does not close it, so a stray tap cannot dismiss the question (WAI-ARIA APG, alert dialog).
+- **Pending:** the dialog cannot be closed until the server answers; the confirm button has `aria-busy="true"`. Covered by the ClosesAfterServerConfirms test.
+- **Error:** the message is announced (`role="alert"`, WCAG 4.1.3).
+- **Motion:** none; the dialog appears at once (K2, tokens rule 12).
+
+## 8. Content
+
+- The title is a question that names the object and its count: "Delete “Paint the bathroom ceiling” and its 3 subtasks?" (spec E01).
+- The confirm label is a verb and the object: "Delete task" / "Usuń zadanie", never "OK" or "Yes" (Luki 5).
+- Cancel is "Cancel" / "Anuluj".
+- The error says what failed and what to check: "Could not delete the task. Check your connection and try again." (Luki 5).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                               | Source      |
+| ------ | --------------------------------------------------------------------------------------- | ----------- |
+| 320px  | Panel spans the column minus the page gutter; buttons stack full width, confirm on top. | WCAG 1.4.10 |
+| 768px  | Panel at most `layout-measure`, centred; buttons side by side.                          | T7          |
+| 1440px | Same as 768px.                                                                          | —           |
+
+<Story of={Stories.LongTitleNarrow} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<ConfirmDialog
+  trigger={<Button variant="danger">Delete task</Button>}
+  title="Delete “Seal the bath”?"
+  confirmLabel="Delete task"
+  onConfirm={remove}
+/>
+```
+
+In Taskly: deleting a task from the row menu, closed when the server confirms.
+
+```tsx
+<ConfirmDialog
+  open={open}
+  onOpenChange={setOpen}
+  title={`Delete “${task.title}” and its ${task.subtasks.length} subtasks?`}
+  description="This cannot be undone."
+  confirmLabel="Delete task"
+  pendingLabel="Deleting…"
+  pending={deleteTask.isPending}
+  error={
+    deleteTask.error ? "Could not delete the task. Check your connection and try again." : null
+  }
+  onConfirm={() => deleteTask.mutate(task.id, { onSuccess: () => setOpen(false) })}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** a drawer or a details window (Taskly has none, Q2), `Popover` (no scrim, no question).
+- **Patterns:** Details in row (delete from the row menu), List.

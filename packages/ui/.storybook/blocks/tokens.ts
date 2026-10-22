@@ -25,6 +25,18 @@ const componentTokens = new Set([
   "input-font-size-mobile",
   "icon-stroke-width",
   "icon-size",
+  "control-height",
+  "control-padding-x",
+  "field-padding-x",
+  "field-padding-y",
+  "focus-ring-width",
+  "focus-ring-offset",
+  "focus-ring-offset-field",
+  "opacity-disabled",
+  "spinner-size",
+  "spinner-stroke",
+  "spinner-duration",
+  "radio-dot-size",
 ]);
 
 const declaration = /^\s*--([\w-]+):\s*([^;]+);\s*(?:\/\*\s*(.*?)\s*\*\/)?\s*$/;

@@ -1,0 +1,109 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./TaskCheckbox.stories";
+
+<Meta of={Stories} />
+
+# Task checkbox
+
+`import { TaskCheckbox } from "@taskly/ui";`
+
+## 1. What it is for
+
+Completes or reopens one task or subtask in a single tap (E03-S01, D20, R11). A completed task stays in the list, muted, so the owner sees what is done and can undo it.
+
+<Story of={Stories.Playground} />
+
+## 2. When to use
+
+- In every task and subtask row once the list has completion; `TaskRow` renders it when it gets `onToggleComplete` (R02.1, R02.2).
+
+## 3. When not to use
+
+| Situation                     | Use instead                     | Source      |
+| ----------------------------- | ------------------------------- | ----------- |
+| A choice in a form            | `Checkbox` with a visible label | Primitives  |
+| Important / Urgent            | checkbox items in the row's "…" | decision G3 |
+| Choosing places               | `PlacePicker`                   | decision G3 |
+| Completing many tasks at once | not in version 1                | D20         |
+
+## 4. Anatomy
+
+| Part  | Required | Notes                                                                                     |
+| ----- | -------- | ----------------------------------------------------------------------------------------- |
+| Box   | yes      | `Checkbox`: 20px box (`size-checkbox`) in a 44 × 44 px target (`size-touch`), K1          |
+| Check | yes      | Checked in `color-action-primary`, the one accent (R02.2, R02.3)                          |
+| Name  | yes      | Not visible: `aria-label` `Complete “{title}”`; the title next to it is the visible label |
+
+In the row it sits after the arrow (from 640px) and before the title; below 640px it is first (R02.1, decisions I3, J1).
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State     | What the user sees                                                          | Story       | Source              |
+| --------- | --------------------------------------------------------------------------- | ----------- | ------------------- |
+| Open      | Empty box with the control border.                                          | States      | tokens              |
+| Completed | Checked box in the accent; the row's title muted and struck through.        | States      | R02.2               |
+| Disabled  | While the row is not saved yet ("Saving…"), so no temporary id is sent.     | States      | spec E01            |
+| Focus     | Focus ring around the 44px target.                                          | (keyboard)  | T6                  |
+| Moving    | After a change the row slides to its new place over `motion-duration-base`. | In The List | decision 2026-10-21 |
+
+## 7. Behaviour and accessibility
+
+- A native-like checkbox (Radix): Space toggles; the name says what it does and "checked" says it is done.
+- Completing a task that still has open subtasks first asks (`CompleteTaskDialog`, decision I2); everything else changes at once and rolls back with a message in the row if the server refuses (Optimistic change).
+- Completed rows go to the end of their group and reopened ones to the start (decision 2026-10-21); focus stays on the same checkbox in its new place, so keyboard users are not lost.
+- The move is animated only when motion is allowed; under `prefers-reduced-motion: reduce` it is instant (`motion-duration-base` is 0).
+
+<Unstyled>
+  <Story of={Stories.InTheList} />
+</Unstyled>
+
+## 8. Content
+
+- Name: `Complete “{title}”`; Polish `Ukończ „{title}”` (decision J9). The checked state is announced by the reader, so there is no separate "Reopen" name.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                   | Source |
+| ------ | ------------------------------------------- | ------ |
+| 320px  | Same 44px target; the title wraps after it. | K1     |
+| 768px  | Same.                                       | —      |
+| 1440px | Same.                                       | —      |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+`TaskRow` renders it; pass `onToggleComplete` to `TaskList`.
+
+```tsx
+<TaskList {...listProps} onToggleComplete={(id, completed) => toggle.mutate({ id, completed })} />
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** `Checkbox`. **Used in:** `TaskRow`. **Asks first with:** `CompleteTaskDialog`. **Shows next to it:** `SubtaskProgress`.
+- **Patterns:** Complete and reopen, Optimistic change.

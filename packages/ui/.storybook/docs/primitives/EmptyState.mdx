@@ -1,0 +1,105 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./EmptyState.stories";
+
+<Meta of={Stories} />
+
+# Empty state
+
+`import { EmptyState } from "@taskly/ui";`
+
+## 1. What it is for
+
+Tells the user plainly why a place is empty and what to do next.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- The task list with no tasks: "No tasks yet. Add the first thing you need to do." with focus in the quick-add title field (spec E01, States).
+- A region with nothing to show yet: no subtasks, no places (R02.13: "No subtasks yet.").
+
+## 3. When not to use
+
+| Situation                                  | Use instead           | Source        |
+| ------------------------------------------ | --------------------- | ------------- |
+| Data is still loading                      | `Skeleton`            | spec E01      |
+| Loading failed                             | `ErrorState`          | spec E01      |
+| One missing value in a row ("No estimate") | muted text in the row | R02.5, R02.13 |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                                                          |
+| ------- | -------- | ------------------------------------------------------------------------------ |
+| Title   | yes      | What is empty, in strong primary text                                          |
+| Message | optional | The next step, in muted text, at most `layout-measure` wide                    |
+| Action  | optional | One `Button` or `TextAction`, only when the next step is not already on screen |
+
+No illustration and no icon (A02, Luki 7: icons only where they replace a known gesture).
+
+## 5. Variants
+
+| Variant     | Choose it when                                                 | Source      |
+| ----------- | -------------------------------------------------------------- | ----------- |
+| Words only  | The next step is already on screen (quick add above the list). | spec E01    |
+| With action | The next step is elsewhere.                                    | proposal D5 |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Static. Hover, focus, pressed, disabled and loading belong to its action.
+
+## 7. Behaviour and accessibility
+
+- Plain text in the flow of the page; it is not announced as a status. When the last task is deleted, the delete confirmation is what the user hears.
+- The title is not a heading by default; the screen heading sits above (Luki 1).
+- The action is reachable by Tab like any button. Covered by the ActionRuns test.
+
+## 8. Content
+
+- Say what is empty and what to do, in short sentences: "No tasks yet." + "Add the first thing you need to do." (spec E01, Luki 5).
+- No exclamation marks, jokes or slogans (Luki 5, A02).
+- Polish: "Nie masz jeszcze zadań." + "Dodaj pierwszą rzecz do zrobienia."
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                       | Source      |
+| ------ | ----------------------------------------------- | ----------- |
+| 320px  | Text wraps; left-aligned with the list content. | WCAG 1.4.10 |
+| 768px  | Message at most `layout-measure` wide.          | —           |
+| 1440px | Same.                                           | —           |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<Surface>
+  <EmptyState title="No tasks yet.">Add the first thing you need to do.</EmptyState>
+</Surface>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Skeleton` (loading), `ErrorState` (failure).
+- **Patterns:** List (empty), Quick capture.

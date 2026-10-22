@@ -1,0 +1,113 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./DragHandle.stories";
+
+<Meta of={Stories} />
+
+# Drag handle
+
+`import { DragHandle } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the owner put tasks in the order the work will happen: drag a row by its grip with a mouse, or move it with the keyboard. Only the moved row gets a new position (E02-S01, fractional indexing).
+
+<Unstyled>
+  <Story of={Stories.InTheList} />
+</Unstyled>
+
+## 2. When to use
+
+- At the start of every task and subtask row in a list that can be reordered. `TaskRow` renders it when it gets `move`; subtasks move only among the subtasks of their task (decision G1).
+
+## 3. When not to use
+
+| Situation                        | Use instead                                   | Source                    |
+| -------------------------------- | --------------------------------------------- | ------------------------- |
+| Below 640px                      | Long press on the row, or Move up / Move down | decision G2               |
+| A pending (unconfirmed) row      | Nothing: it cannot move until it has an id    | spec E01                  |
+| A completed task or subtask      | Nothing: completed rows are not dragged       | decision 2026-10-21 (E03) |
+| Moving a subtask to another task | Not supported                                 | decision G1               |
+
+## 4. Anatomy
+
+| Part   | Required | Notes                                                                             |
+| ------ | -------- | --------------------------------------------------------------------------------- |
+| Grip   | yes      | Lucide `GripVertical` at `size-icon`, the one icon for this gesture (Luki 7)      |
+| Button | yes      | Ghost icon button, 44 × 44 px; named "Move “title”", described as a "movable row" |
+| Cursor | yes      | `grab`, `grabbing` while pressed                                                  |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State     | What the user sees                                                                                        | Story       | Source     |
+| --------- | --------------------------------------------------------------------------------------------------------- | ----------- | ---------- |
+| Default   | Muted grip                                                                                                | Playground  | Luki 7     |
+| Hover     | Raised tone behind it, `grab` cursor                                                                      | (pointer)   | tokens     |
+| Focus     | Focus ring                                                                                                | (keyboard)  | T6         |
+| Picked up | The row lifts on `color-surface-raised` above the others; the rest make room over `motion-duration-quick` | In The List | Luki 8, K2 |
+| Disabled  | Pending row: faded, cannot move                                                                           | Disabled    | spec E01   |
+
+## 7. Behaviour and accessibility
+
+- **Mouse:** drag the grip; the rest of the row stays clickable. Rows move only up and down and never leave their group.
+- **Keyboard:** Tab to the grip, Space or Enter picks the row up, Up and Down move it, Space or Enter drops it, Escape puts it back. Focus stays on the grip.
+- **Screen readers:** the grip is a "movable row"; the instructions are read with it, and each step is announced by title ("“Hang the curtain rods” was moved to “Paint the bathroom ceiling”.").
+- **Touch:** a long press (250 ms, decision H1) on the row picks it up; a short tap and scrolling work as usual (decision G2).
+- **Without dragging:** "Move up" and "Move down" in "…" do the same one step (WCAG 2.5.7), disabled at the ends.
+- Movement runs over `motion-duration-quick` and not at all with reduced motion (Luki 8).
+
+## 8. Content
+
+- Name: "Move “Seal the bath”"; role description: "movable row" (decision H6).
+- Announcements: picked up, moved over, dropped, cancelled, each with the task titles.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width        | Behaviour                                                        | Source      |
+| ------------ | ---------------------------------------------------------------- | ----------- |
+| 320px        | No handle: long press on the row, or Move up / Move down in "…". | decision G2 |
+| 640px and up | The handle at the start of the row.                              | decision G2 |
+| 1440px       | Same as 640px.                                                   | —           |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`SortableGroup` wraps a group of rows: `items` (`{ id, title }[]`, never pending rows), `onMove(id, { afterId, beforeId })`, `text`. `moveTarget` and `stepTarget` give the new neighbours for a drop or a step.
+
+## 11. Code
+
+`TaskList` and `TaskRow` wire it when the list gets `onMove`; the app sends only the neighbours.
+
+```tsx
+<TaskList
+  {...listProps}
+  onMove={(id, { afterId, beforeId }) => moveTask.mutate({ id, afterId, beforeId })}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** `Button` (ghost icon), dnd-kit. **Used in:** `TaskRow`, `TaskList`.
+- **Patterns:** Reorder, Optimistic change.

@@ -1,0 +1,120 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Skeleton.stories";
+
+<Meta of={Stories} />
+
+# Skeleton
+
+`import { Skeleton } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows the shape of content that is still loading, so the page does not jump and the user knows something is coming.
+
+<Unstyled>
+  <Story of={Stories.ListLoading} />
+</Unstyled>
+
+## 2. When to use
+
+- The task list while it loads for the first time (spec E01: "Loading: a skeleton").
+- The future expenses line while totals load (backlog E03-S02).
+
+## 3. When not to use
+
+| Situation                                     | Use instead                          | Source       |
+| --------------------------------------------- | ------------------------------------ | ------------ |
+| Waiting for a button's action                 | `Button loading`                     | sign-in spec |
+| A change that is already shown optimistically | the pending row (dimmed)             | spec E01     |
+| Waits after the first load                    | keep showing the data already loaded | proposal C3  |
+
+## 4. Anatomy
+
+| Part   | Required             | Notes                                                                                                      |
+| ------ | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Bar    | yes                  | `color-surface-raised`, `radius-control`; one text line high by default (`h-lh`) (Luki 8)                  |
+| Status | yes, once per region | A visually hidden `role="status"` text ("Loading tasks…") in the region, which also has `aria-busy="true"` |
+
+## 5. Variants
+
+None. Size comes from token utilities: text line (default), `h-control` for a field, widths as fractions of the row (`w-2/3`, `w-1/2`) — see Variants story.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+One state: shown. It never pulses or shimmers (Luki 8, tokens rule 12, R02.12). Hover, focus, pressed, disabled, selected and error do not apply; a load that fails replaces the skeleton with an `Alert` and "Try again".
+
+## 7. Behaviour and accessibility
+
+- Bars are `aria-hidden`: a screen reader hears one "Loading tasks…" from the status text, not a list of empty shapes (WCAG 4.1.3). Covered by the ListLoading test.
+- The loading region has `aria-busy="true"` until the content arrives.
+- No motion at all, so nothing to reduce (WCAG 2.3.3).
+
+## 8. Content
+
+- Only the status text: "Loading tasks…" / "Wczytywanie zadań…" (Luki 5).
+- Draw bars in the shape of the real rows: two lines per task row, title longer than the second line.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                              | Source      |
+| ------ | ------------------------------------------------------ | ----------- |
+| 320px  | Bars are fractions of the row, so they shrink with it. | WCAG 1.4.10 |
+| 768px  | Same.                                                  | —           |
+| 1440px | Same, inside the capped column.                        | P01         |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+Every `<div>` attribute is passed through; use `className` for size only.
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Skeleton className="w-1/2" />
+```
+
+In Taskly: the task list loading.
+
+```tsx
+<Surface aria-busy="true">
+  <span className="sr-only" role="status">
+    Loading tasks…
+  </span>
+  {[0, 1, 2].map((i) => (
+    <div key={i} className="flex min-h-row flex-col justify-center gap-inline px-inset">
+      <Skeleton className="w-2/3" />
+      <Skeleton className="w-1/3" />
+    </div>
+  ))}
+</Surface>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** a spinner (only inside a Button).
+- **Patterns:** List (loading), future expenses (loading), Error state (what replaces it on failure).

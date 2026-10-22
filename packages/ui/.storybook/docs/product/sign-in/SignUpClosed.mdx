@@ -1,0 +1,81 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./SignUpClosed.stories";
+
+<Meta of={Stories} />
+
+# Sign-up closed
+
+`import { SignUpClosed } from "@taskly/ui";`
+
+## 1. What it is for
+
+Tells a visitor why they cannot create an account and gives them the way back.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- `/sign-up` while sign-up is closed, the default (Q1).
+
+## 3. When not to use
+
+| Situation        | Use instead  | Source |
+| ---------------- | ------------ | ------ |
+| Sign-up is open  | `SignUpForm` | Q1     |
+| A failed request | `Alert`      | P3     |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                              |
+| ------- | -------- | -------------------------------------------------- |
+| Message | yes      | "Sign-up is closed. Ask the owner of this Taskly." |
+| Link    | yes      | "Sign in" to `/sign-in`                            |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+Static: one state. It is information, not an error, so it is plain text, not an `Alert` (P3: alerts are for errors).
+
+## 7. Behaviour and accessibility
+
+The link is the only focusable element. No `role="alert"`: nothing failed.
+
+## 8. Content
+
+Exactly the spec's sentence; it does not say how to open sign-up (that is an operator step, Runbook).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+Text wraps at 320px; the same at 768px and 1440px inside the card.
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<AuthCard title="Create an account">
+  <SignUpClosed signInHref="/sign-in" />
+</AuthCard>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `EmptyState` (empty data, not a closed door).
+- **Screens:** Sign-in / Screens.

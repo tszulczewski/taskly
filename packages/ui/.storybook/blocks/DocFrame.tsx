@@ -23,3 +23,10 @@ export function DocFrame({ children, theme, label }: DocFrameProps) {
     </div>
   );
 }
+
+/** Story decorator: every component story sits on the page surface of the active theme. */
+export const withDocFrame = (Story: () => ReactNode) => (
+  <DocFrame>
+    <Story />
+  </DocFrame>
+);

@@ -1,0 +1,30 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./DeleteConfirmation.stories";
+
+<Meta of={Stories} />
+
+# Delete confirmation
+
+How Taskly deletes: it asks once, names what will be lost, and only then deletes. There is no undo, because deletion is permanent (spec E01: no soft delete). Built from `DeleteTaskDialog` (on `ConfirmDialog`).
+
+## Rules
+
+| Rule                                                                                                   | Source                  |
+| ------------------------------------------------------------------------------------------------------ | ----------------------- |
+| Ask before every delete; the question names the item and what goes with it ("and its 3 subtasks").     | spec E01, Delete        |
+| The confirming button is a verb and the object ("Delete task"), in the danger style; never "OK".       | task rules, P3          |
+| Focus starts on Cancel; Escape cancels; focus is trapped in the dialog.                                | WAI-ARIA APG, spec E01  |
+| Cancel returns focus to the "…" that opened it; after a delete focus goes to the list.                 | spec E01, decision F6   |
+| While deleting, the dialog stays and cannot be closed; a failure is shown inside it.                   | ConfirmDialog (stage 2) |
+| Delete lives in the "…" menu, after a separator, in `color-text-danger`; never a lone icon in the row. | R02.1, P2, P3           |
+
+## States
+
+| State     | Story     |
+| --------- | --------- |
+| Asked     | Asked     |
+| Cancelled | Cancelled |
+| Deleted   | Deleted   |
+| Failed    | Failed    |
+
+<Story of={Stories.Asked} />

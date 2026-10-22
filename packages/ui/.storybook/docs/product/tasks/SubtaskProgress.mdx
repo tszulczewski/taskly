@@ -1,0 +1,92 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./SubtaskProgress.stories";
+
+<Meta of={Stories} />
+
+# Subtask progress
+
+`import { SubtaskProgress } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows how many of a task's subtasks are done, "1/3", so the owner sees from the collapsed row whether the task is ready to complete. Completing every subtask does not complete the task (R11); this is only a hint.
+
+<Story of={Stories.Playground} />
+
+## 2. When to use
+
+- In the meta line of a task with subtasks, once the list has completion; `TaskRow` shows it in place of "3 subtasks" (Luki 6, decision 2026-10-22).
+
+## 3. When not to use
+
+| Situation                        | Use instead              | Source      |
+| -------------------------------- | ------------------------ | ----------- |
+| A list without completion        | "3 subtasks" (the count) | decision F4 |
+| Progress of the whole renovation | not in version 1         | D19, P04    |
+| A bar or a percentage            | the fraction             | P04, P12    |
+
+## 4. Anatomy
+
+| Part      | Required | Notes                                                                                 |
+| --------- | -------- | ------------------------------------------------------------------------------------- |
+| Fraction  | yes      | "done/total" with tabular figures (`numeric`), 13px muted, hidden from screen readers |
+| Read text | yes      | `sr-only`: "1 of 3 subtasks completed"                                                |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Static text; the row hides it when the task has no subtasks. It changes with every completed or reopened subtask, at once (Optimistic change).
+
+## 7. Behaviour and accessibility
+
+- "1/3" read aloud is unclear ("one slash three"), so the screen reader hears words instead (decision J5).
+- Not a live region: the change is announced by the checkbox the owner just used.
+
+## 8. Content
+
+- Visible: "1/3". Read: "1 of 3 subtasks completed", "0 of 1 subtask completed". Polish read text: "Ukończone podzadania: 2 z 5" (decision J5: avoids Polish plural after "z").
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                               | Source      |
+| ------ | ------------------------------------------------------- | ----------- |
+| 320px  | The meta line wraps; the fraction stays whole and last. | WCAG 1.4.10 |
+| 768px  | One line in most rows.                                  | Luki 6      |
+| 1440px | Same as 768px.                                          | —           |
+
+<Unstyled>
+  <Story of={Stories.InTheMetaLine} />
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<SubtaskProgress done={doneCount} total={subtasks.length} label={t.subtaskProgressLabel} />
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Used in:** `TaskRow` (meta line). **Next to:** `PlaceTag`, `Markers`. **Changed by:** `TaskCheckbox`.
+- **Patterns:** Complete and reopen.

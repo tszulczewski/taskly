@@ -17,7 +17,10 @@ function Swatch({ token, theme }: { token: string; theme: "dark" | "light" }) {
           style={{ background: `var(--${token})` }}
         />
       </span>
-      <span className="text-meta numeric">{measured?.rgb ? toHex(measured.rgb) : "—"}</span>
+      <span className="text-meta numeric">
+        {measured?.rgb ? toHex(measured.rgb) : "—"}
+        {measured && measured.alpha !== null ? ` at ${Math.round(measured.alpha * 100)}%` : null}
+      </span>
     </span>
   );
 }

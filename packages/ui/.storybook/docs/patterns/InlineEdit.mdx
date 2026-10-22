@@ -1,0 +1,34 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./InlineEdit.stories";
+
+<Meta of={Stories} />
+
+# Inline edit
+
+How an existing item is changed: the row becomes its form, in place and prefilled, and becomes the row again after Save or Cancel. Built from `TaskRow` and `TaskForm`.
+
+## Rules
+
+| Rule                                                                                         | Source                |
+| -------------------------------------------------------------------------------------------- | --------------------- |
+| Edit opens from the row's "…" menu; the row switches in place to the same fields, prefilled. | spec E01, Edit; P2    |
+| Focus goes to the first field; after Save or Cancel it returns to the row's "…".             | decision F6           |
+| Escape cancels, except while saving.                                                         | decision F2           |
+| Clearing both amounts removes the estimate.                                                  | spec E01              |
+| The form closes only after the server confirmed; a refusal keeps the form and the values.    | decision F2, spec E01 |
+| Validation and messages follow the Form pattern.                                             | Patterns / Form       |
+| One form per row; the rest of the list stays usable.                                         | Q2                    |
+
+## States
+
+| State     | Story     |
+| --------- | --------- |
+| Editing   | Editing   |
+| Saved     | Saved     |
+| Cancelled | Cancelled |
+| Invalid   | Invalid   |
+| Refused   | Refused   |
+
+<Unstyled>
+  <Story of={Stories.Editing} />
+</Unstyled>

@@ -1,0 +1,38 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./DetailsInRow.stories";
+
+<Meta of={Stories} />
+
+# Details in row
+
+How a task's details are shown: they open in place, under the row, instead of in a drawer, a window or a separate page. The owner keeps the list and its order in view while reading one task. Built from `TaskRow` and `Collapsible`.
+
+## Rules
+
+| Rule                                                                                                                                | Source                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Collapsed, a row shows only the task: title, estimate, one meta line.                                                               | Luki 6, decision 2026-10-22            |
+| The title (and from 640px the arrow before it) opens the description, the subtasks and a visible "Add subtask" together.            | decision 2026-10-22 (variant 2), R02.9 |
+| The open task sits on `color-surface-raised`; it opens over `motion-duration-base`, instantly under reduced motion.                 | tokens, Luki 8                         |
+| Nothing opens on top of the list: no drawer, no window, no panel in a panel.                                                        | R02.6, Q2, A01.3                       |
+| A subtask opens (arrow, clickable title) only when it has a description to show.                                                    | decision F5                            |
+| The title is the disclosure button, with `aria-expanded`; the arrow only repeats it for the pointer. Below 640px there is no arrow. | WAI-ARIA APG (disclosure), decision J1 |
+| Several tasks can be open at once; opening one does not close another.                                                              | proposal                               |
+
+## Not found or no access
+
+The server answers "not found" both when a task was deleted elsewhere and when the user has no access to it, so the screen cannot tell them apart and must not try (standards: non-member → `NotFoundError`). The form shows one message and the app refetches the list, which removes the row (spec E01, Edge cases). The message text is a proposal.
+
+## States
+
+| State                    | Story                  |
+| ------------------------ | ---------------------- |
+| Collapsed                | Collapsed              |
+| Opened (mouse, keyboard) | Opened                 |
+| Subtask opened           | Subtask Opened         |
+| Not found or no access   | Not Found Or No Access |
+
+<Unstyled>
+  <Story of={Stories.Collapsed} />
+  <Story of={Stories.NotFoundOrNoAccess} />
+</Unstyled>

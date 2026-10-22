@@ -35,6 +35,7 @@
   --raw-green-800: #175548;
   --raw-red-300: #f08a7b;
   --raw-red-700: #b83a2b;
+  --raw-scrim: rgb(10 16 13 / 0.5);
   --raw-place-blue: #4f86b8;
   --raw-place-ochre: #c79a2b;
   --raw-place-ochre-deep: #a58024;
@@ -75,6 +76,7 @@
 
   --raw-duration-150: 150ms;
   --raw-duration-200: 200ms;
+  --raw-duration-1200: 1200ms;
   --raw-ease-out: ease-out;
 }
 
@@ -107,6 +109,7 @@
   --motion-duration-quick: var(--raw-duration-150); /* Luki 8 */
   --motion-duration-base: var(--raw-duration-200); /* Luki 8 */
   --motion-easing: var(--raw-ease-out); /* Luki 8 */
+  --motion-duration-highlight: var(--raw-duration-1200); /* spec E01 (after an add); proposal F1 */
 }
 
 /* T7: the page gutter grows to 24px above 640px. */
@@ -121,6 +124,7 @@
   :root {
     --motion-duration-quick: 0ms; /* Luki 8 */
     --motion-duration-base: 0ms; /* Luki 8 */
+    --motion-duration-highlight: 0ms; /* spec E01: no highlight under reduced motion */
   }
 }
 
@@ -131,6 +135,7 @@
   --color-surface-page: var(--raw-neutral-950); /* R01.1, Q1, Luki 2 */
   --color-surface-list: var(--raw-neutral-910); /* R02.1 */
   --color-surface-raised: var(--raw-neutral-850); /* R01.1 (tone instead of shadow) */
+  --color-surface-raised-hover: var(--raw-neutral-800); /* R02 code (.menu :hover); D1 */
   --color-border-divider: var(--raw-neutral-800); /* R01.1, R02.1; decorative only (T1) */
   --color-border-control: var(--raw-neutral-400); /* T1 */
   --color-text-primary: var(--raw-neutral-100); /* R01.3 */
@@ -140,6 +145,7 @@
   --color-text-on-action: var(--raw-neutral-990); /* R02 code */
   --color-focus-ring: var(--raw-green-400); /* R02 code (:focus-visible); T6 */
   --color-text-danger: var(--raw-red-300); /* R02 code; T5 */
+  --color-scrim: var(--raw-scrim); /* R02 code (.backdrop); K2 */
   --color-place-1: var(--raw-place-blue); /* Q3, Luki 3 */
   --color-place-2: var(--raw-place-ochre); /* Q3, Luki 3, T3 */
   --color-place-3: var(--raw-place-terracotta); /* Q3, Luki 3 */
@@ -158,6 +164,7 @@
   --color-surface-page: var(--raw-neutral-50); /* R01.1, Q1, Luki 2 */
   --color-surface-list: var(--raw-neutral-0); /* R02.1 */
   --color-surface-raised: var(--raw-neutral-150); /* R01.1 (tone instead of shadow) */
+  --color-surface-raised-hover: var(--raw-neutral-0); /* D1; WCAG 1.4.3 */
   --color-border-divider: var(--raw-neutral-200); /* R01.1, R02.1; decorative only (T1) */
   --color-border-control: var(--raw-neutral-600); /* T1 */
   --color-text-primary: var(--raw-neutral-900); /* R01.3 */
@@ -167,6 +174,7 @@
   --color-text-on-action: var(--raw-neutral-0); /* R02 code */
   --color-focus-ring: var(--raw-green-700); /* R02 code (:focus-visible); T6 */
   --color-text-danger: var(--raw-red-700); /* R02 code; T5 */
+  --color-scrim: var(--raw-scrim); /* R02 code (.backdrop, one value for both themes); K2 */
   --color-place-1: var(--raw-place-blue); /* Q3, Luki 3 */
   --color-place-2: var(--raw-place-ochre-deep); /* Q3, Luki 3, T3 */
   --color-place-3: var(--raw-place-terracotta); /* Q3, Luki 3 */
@@ -191,4 +199,23 @@
   --input-font-size-mobile: var(--raw-size-16); /* Luki 1 */
   --icon-stroke-width: 2; /* Luki 7 (Lucide, 2px stroke) */
   --icon-size: 1.25rem; /* F2 (accepted 2026-10-21) */
+  --control-height: var(--touch-target-min); /* K1: 44px at every width (E01 and sign-in specs) */
+  --control-padding-x: var(--raw-space-16); /* R02 code (.btn 14px) on the T7 scale; batch 1 */
+  --field-padding-x: var(--raw-space-12); /* R02 code (input 10px) on the T7 scale; batch 1 */
+  --field-padding-y: var(--raw-space-8); /* R02 code (input 8px); batch 1 */
+  --focus-ring-width: 2px; /* R02 code (:focus-visible); K3 */
+  --focus-ring-offset: 2px; /* R02 code (:focus-visible); K3 */
+  --focus-ring-offset-field: 0px; /* R02 code (input:focus); K3 */
+  --opacity-disabled: 0.55; /* R02 code (:disabled); K3 */
+  --spinner-size: 0.875rem; /* R02 code (.spin 14px); K3 */
+  --spinner-stroke: 2px; /* R02 code (.spin); K3 */
+  --spinner-duration: 700ms; /* R02.12, R02 code (.spin .7s); K3 */
+  --radio-dot-size: 0.5rem; /* proposal C2 (batch 2): dot of a selected radio */
+}
+
+/* K3, tokens rule 12: with reduced motion the spinner stands still; its text carries the meaning. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --spinner-duration: 0ms; /* K3 */
+  }
 }

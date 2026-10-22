@@ -1,0 +1,137 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Input.stories";
+
+<Meta of={Stories} />
+
+# Input
+
+`import { Input } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the user type one short value: a task title, an e-mail address or an amount in złoty.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- The quick-add title field: only the title is required, Enter adds the task (spec E01, R02.9).
+- Email and name on the sign-in and sign-up pages (sign-in spec).
+- Min and max of an estimate, with `inputMode="decimal"` and `suffix="zł"` (spec E01).
+- Editing a task title in the row (spec E01, Inline edit).
+
+## 3. When not to use
+
+| Situation                              | Use instead            | Source                 |
+| -------------------------------------- | ---------------------- | ---------------------- |
+| A password                             | `PasswordInput`        | sign-in spec, Q10      |
+| Text that may run to several sentences | `Textarea`             | spec E01 (description) |
+| A field without a visible label        | wrap it in `FormField` | WCAG 3.3.2, A03        |
+| Choosing from a short, fixed list      | radio group (batch 2)  | P4                     |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                                      |
+| ----------- | -------- | ------------------------------------------------------------------------------------------ |
+| Frame       | yes      | 1px `color-border-control`, `radius-control`, `color-surface-list`, 44px high (T1, T8, K1) |
+| Value       | yes      | 16px below 640px (stops iOS zooming), 15px above (Luki 1)                                  |
+| Placeholder | optional | An example in `color-text-muted`, starting with "e.g." / "np."; never the field's name     |
+| Suffix      | optional | A unit, e.g. "zł", in `color-text-muted`; announced with the field via `aria-describedby`  |
+
+The label, hint and error are not part of `Input`; `FormField` adds them.
+
+## 5. Variants
+
+| Variant                               | Choose it when                               | Source                  |
+| ------------------------------------- | -------------------------------------------- | ----------------------- |
+| Text (default)                        | Titles and names.                            | spec E01                |
+| `type="email"`                        | E-mail address, with `autoComplete="email"`. | sign-in spec            |
+| `suffix="zł"` + `inputMode="decimal"` | Amounts. Digits get `tabular-nums`.          | spec E01, tokens rule 5 |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State                      | Looks like                                                                                           | Source                    |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------- |
+| Empty                      | Placeholder example in muted text.                                                                   | R01.4                     |
+| Hover                      | No change; the text cursor is the signal.                                                            | R02 code (no input hover) |
+| Focus                      | Frame border and a 2px outline in `color-focus-ring`, no offset.                                     | R02 code, T6, K3          |
+| Error                      | `aria-invalid` turns the frame border to `color-text-danger`; the message is text below (FormField). | R02 code, tokens rule 3   |
+| Disabled                   | `opacity-disabled`; the value cannot be changed.                                                     | K3                        |
+| Pressed, loading, selected | Do not apply to a text field.                                                                        | —                         |
+
+**Disabled fields.** Taskly has no disabled fields in version 1. If one is needed, say why in the hint (for example "Available after you sign in"); the hint stays readable because only the field is dimmed.
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** standard text input. Enter submits the surrounding form (quick add: Enter adds, spec E01). Covered by the Playground test.
+- **Name:** always from a visible `<label>` (FormField) or, only where the design has no visible label, `aria-label` (WCAG 1.3.1, 3.3.2).
+- **Description:** FormField links the hint and error with `aria-describedby`; a suffix is appended to the same list, so "zł" is read with the field. Covered by the AmountKeepsUnit test.
+- **Invalid:** `aria-invalid="true"` together with a text message; colour is never the only signal (WCAG 1.4.1, 3.3.1).
+- **Size:** the frame is 44px high, which is also the click target (spec E01, sign-in spec).
+- **Zoom on phones:** 16px text below 640px prevents iOS from zooming into the field (Luki 1).
+- **Contrast:** the frame border has 6.94:1 (dark) and 6.31:1 (light) on the list surface (T1, WCAG 1.4.11).
+
+## 8. Content
+
+- The label names the field; the placeholder only shows an example, starting with "e.g." / "np.": "e.g. Paint the bathroom ceiling" (WCAG 3.3.2, task rules).
+- Put the unit in the label for amounts as well as the suffix: "Minimum, zł" (spec E01, WCAG 1.3.1).
+- Amounts: a space as the thousands separator ("1 200", P06, tokens rule 5); a comma for decimals in Polish ("12,50", proposal). Parsing belongs to the app (spec E01: grosze).
+- Long values scroll inside the field; the field never grows wider than its column (WCAG 1.4.10).
+- Polish examples are longer: "np. Pomalować sufit w łazience".
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                          | Source     |
+| ------ | ------------------------------------------------------------------ | ---------- |
+| 320px  | Full width of the column, 16px text, 44px high.                    | Luki 1, K1 |
+| 768px  | Full width of its form column; 15px text from 640px.               | Luki 1, F5 |
+| 1440px | Same as 768px; the column is capped at `layout-content-max-width`. | P01        |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`Input` accepts every native `<input>` attribute; they go to the `<input>`. `className` goes to the frame (width, margins).
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<FormField label="Email">
+  {(field) => <Input {...field} type="email" autoComplete="email" />}
+</FormField>
+```
+
+In Taskly: the minimum of an estimate in quick-add details.
+
+```tsx
+<FormField label="Minimum, zł" optional error={errors.min}>
+  {(field) => <Input {...field} name="min" inputMode="decimal" suffix="zł" />}
+</FormField>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Textarea` (several lines), `PasswordInput` (hidden value).
+- **Patterns:** Form, Quick capture, Inline edit.

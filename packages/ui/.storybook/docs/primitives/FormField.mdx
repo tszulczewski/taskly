@@ -1,0 +1,130 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./FormField.stories";
+
+<Meta of={Stories} />
+
+# Form field
+
+`import { FormField, Label } from "@taskly/ui";`
+
+## 1. What it is for
+
+Tells the user what a field is for, what it expects and what went wrong, and makes sure screen readers say the same.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- Around every `Input`, `PasswordInput` and `Textarea`: sign-in and sign-up fields, quick-add details (description, min, max), inline edit (sign-in spec, spec E01).
+- `Label` alone only names a checkbox or radio next to it (batch 2).
+
+## 3. When not to use
+
+| Situation                                                                | Use instead                                                 | Source            |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------- | ----------------- |
+| The quick-add title, where the design has no visible label               | `Input aria-label="Task title"` with an example placeholder | R02.9, WCAG 4.1.2 |
+| An error about the whole form or the server ("Wrong email or password.") | an alert above the form (batch 2)                           | sign-in spec      |
+| A rule that applies to the whole screen                                  | one sentence of text in the screen                          | Luki 5            |
+
+## 4. Anatomy
+
+| Part            | Required                 | Notes                                                                      |
+| --------------- | ------------------------ | -------------------------------------------------------------------------- |
+| Label           | yes                      | Above the control, always visible; 15px regular, `color-text-primary` (F3) |
+| Optional marker | only for optional fields | "(optional)" in `color-text-muted`, inside the label (K5)                  |
+| Control         | yes                      | Rendered by you through the `children` function                            |
+| Hint            | optional                 | 13px `color-text-muted`, below the control (Luki 1)                        |
+| Error           | when invalid             | 13px `color-text-danger`, below the hint (T5)                              |
+
+Parts are `space-inline` (4px) apart; fields in a form are `space-between-groups` (16px) apart (T7, F4; distances from R02 code rounded to the scale).
+
+## 5. Variants
+
+| Variant            | Choose it when                                            | Source       |
+| ------------------ | --------------------------------------------------------- | ------------ |
+| Required (default) | Most fields. Not marked visually; `aria-required="true"`. | K5           |
+| `optional`         | The field may stay empty: description, min, max.          | K5, spec E01 |
+| With `hint`        | The user needs a rule before typing.                      | sign-in spec |
+| With `error`       | Validation failed for this field.                         | spec E01     |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State                             | What changes                                                                         | Source        |
+| --------------------------------- | ------------------------------------------------------------------------------------ | ------------- |
+| Default                           | Label and control.                                                                   | —             |
+| Focus                             | Only the control changes (see its page).                                             | —             |
+| Error                             | Message appears below; control gets `aria-invalid` and a `color-text-danger` border. | tokens rule 3 |
+| Disabled                          | Only the control is dimmed; label and hint stay readable and the hint says why.      | K3, proposal  |
+| Hover, pressed, loading, selected | Do not apply to a field wrapper.                                                     | —             |
+
+## 7. Behaviour and accessibility
+
+- **Label:** a real `<label for>`; clicking it focuses the control (WCAG 1.3.1, 3.3.2).
+- **Description:** hint and error ids go into the control's `aria-describedby`, so a screen reader reads "Password, edit text, required, At least 10 characters". Covered by the ErrorAfterLeavingField test.
+- **Required:** `aria-required="true"` on required fields; the browser's own validation bubbles are not used (forms set `noValidate`) (K5).
+- **When errors appear:** after the user leaves a field and when the form is submitted, never while typing the first characters. After a failed submit, focus moves to the first invalid field (sign-in spec; Form pattern in stage 3).
+- **Live announcements:** field errors are read when the field is focused; they are not live regions, so leaving a field does not interrupt with an announcement. Form-level errors use an alert with `role="alert"` (sign-in spec).
+- **Colour:** an error is always words; the red border only repeats it (WCAG 1.4.1, tokens rule 3).
+
+## 8. Content
+
+- Labels are nouns in sentence case, no colon: "Email", "Password", "Minimum, zł" (Luki 5).
+- Hints state the rule: "At least 10 characters" (sign-in spec).
+- Errors say what happened and what to do, in one sentence: "Maximum must be at least the minimum." (spec E01, Luki 5). Not "Invalid value".
+- Optional marker in Polish: `optionalText="(opcjonalnie)"`.
+- Long labels and errors wrap; nothing is truncated.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                    | Source      |
+| ------ | ------------------------------------------------------------ | ----------- |
+| 320px  | Label, control, hint and error stack in one column and wrap. | WCAG 1.4.10 |
+| 768px  | Same; the form column decides the width.                     | —           |
+| 1440px | Same; the content column is capped.                          | P01         |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`children` receives `{ id, "aria-describedby", "aria-invalid", "aria-required" }`; spread it onto the control. `Label` accepts every `<label>` attribute.
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<FormField label="Name">{(field) => <Input {...field} autoComplete="name" />}</FormField>
+```
+
+In Taskly: the maximum of an estimate, validated against the minimum.
+
+```tsx
+<FormField label="Maximum, zł" optional error={errors.max}>
+  {(field) => <Input {...field} name="max" inputMode="decimal" suffix="zł" />}
+</FormField>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** an alert (errors about the whole form), a tooltip (never holds the hint).
+- **Patterns:** Form, Quick capture (details), Inline edit.

@@ -1,0 +1,136 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./QuickAdd.stories";
+
+<Meta of={Stories} />
+
+# Quick add
+
+`import { QuickAdd } from "@taskly/ui";`
+
+## 1. What it is for
+
+Captures a task by its title alone, before it is forgotten, and is ready for the next one straight away. Description and estimate can be added now under "Details" or later.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- Above the task list, as the one way to add a task (spec E01, Quick add; R02.9).
+- Under an expanded task for its subtasks, with Cancel (spec E01, R02.9: a visible "Add subtask").
+
+## 3. When not to use
+
+| Situation                 | Use instead             | Source   |
+| ------------------------- | ----------------------- | -------- |
+| Changing an existing task | `TaskForm` in the row   | spec E01 |
+| A form in a modal window  | not used for adding     | A03, Q2  |
+| A subtask under a subtask | not offered (one level) | spec E01 |
+
+## 4. Anatomy
+
+| Part                  | Required | Notes                                                                                      |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| Error                 | optional | `Alert` above the form after a failed add; what was typed stays                            |
+| Title                 | yes      | Label "New task" or "New subtask"; Enter submits                                           |
+| Add                   | yes      | Primary `Button` beside the field; "Adding…" with a spinner while sending                  |
+| Details               | yes      | Muted `TextAction` with an arrow; opens the description and the estimate in place          |
+| Description, Min, Max | optional | Marked "(optional)"; amounts with `inputmode="decimal"` and the suffix "zł" (spec E01, K5) |
+| Cancel                | subtask  | Muted `TextAction`; Escape does the same                                                   |
+
+## 5. Variants
+
+| Variant         | Choose it when                                                                | Source                |
+| --------------- | ----------------------------------------------------------------------------- | --------------------- |
+| Task (default)  | The quick add above the list.                                                 | spec E01              |
+| With `onCancel` | Adding a subtask: "New subtask", Cancel; Escape or a confirmed add closes it. | spec E01, decision F7 |
+
+<Story of={Stories.Subtask} />
+
+## 6. States
+
+Each state is a story with a play function that reaches it.
+
+| State                   | What the user sees                                         | Story                   | Source                 |
+| ----------------------- | ---------------------------------------------------------- | ----------------------- | ---------------------- |
+| Empty                   | The title field and "Add"; Details closed.                 | Polish                  | spec E01               |
+| Added                   | The field is empty again and keeps focus.                  | Playground              | spec E01, After an add |
+| With details            | Description and min / max open.                            | With Details            | spec E01               |
+| Missing title           | "Enter a title." under the field, focus there.             | Missing Title           | Form pattern           |
+| Min over max            | "Min must not exceed max" under Max, focus there.          | Min Over Max            | spec E01, Errors       |
+| Error in closed Details | Details opens by itself; focus on the field (decision F9). | Error In Closed Details | Form pattern           |
+| Pending                 | Spinner and "Adding…"; a second Enter sends nothing.       | Pending                 | spec E01               |
+| Add failed              | The message above the form; the title stays.               | Add Failed              | spec E01, rollback     |
+| No network              | "Something went wrong. Try again."                         | Offline                 | spec E01, Edge cases   |
+
+Loading and many items do not apply. Disabled does not exist: the form is always ready.
+
+<Unstyled>
+  <Story of={Stories.MinOverMax} />
+  <Story of={Stories.AddFailed} />
+</Unstyled>
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** title → Add → Details → (description → Min → Max). Enter in any one-line field submits. Covered by the Playground test.
+- **After an add:** the field clears and focus stays in it (spec E01). The form counts as added only after the server confirmed, so a refused add keeps what was typed (decision F2).
+- **Errors:** linked with `aria-describedby`; the form error is announced (`role="alert"`). A field inside Details with an error keeps Details open (decision F9).
+- **Details:** a disclosure button with `aria-expanded`; the arrow turns over `motion-duration-base` (Luki 8).
+- **Targets:** field, Add and Details are at least 44px high (K1).
+
+## 8. Content
+
+- Labels: "New task", "New subtask", "Details", "Description", "Min", "Max" (spec E01). Button: "Add".
+- Messages: "Enter an amount like 1 500,50", "Min must not exceed max", "Enter both amounts or neither" (spec E01). "Enter a title." and "Enter at most 10 000 000 zł" are examples; the real ones come from the shared schema (decision E3).
+- Amounts accept Polish formatting: "1 500,50", "1500.5" (spec E01).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                           | Source      |
+| ------ | ------------------------------------------------------------------- | ----------- |
+| 320px  | Title and Add share a line; Min and Max share a line under Details. | WCAG 1.4.10 |
+| 768px  | Same, as wide as the content column.                                | P01         |
+| 1440px | Same, at most `layout-content-max-width`.                           | P01, R01.5  |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`validate` applies the shared schema (`taskFields`, `parsePlnToGrosze`); `onSubmit` sends the typed text and the app converts amounts to grosze (P1).
+
+## 11. Code
+
+```tsx
+<QuickAdd validate={validateTaskForm} onSubmit={(values) => createTask.mutateAsync(values)} />
+```
+
+In Taskly: under an expanded task, for a subtask.
+
+```tsx
+<QuickAdd
+  validate={validateTaskForm}
+  onSubmit={(values) => createTask.mutateAsync({ ...values, parentId: task.id })}
+  onCancel={() => setAdding(false)}
+  autoFocus
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `TaskForm` (edits, Save / Cancel, does not clear).
+- **Patterns:** Quick capture, Form, Optimistic change. **Screens:** Tasks / Screens.

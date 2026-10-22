@@ -1,0 +1,145 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Collapsible.stories";
+
+<Meta of={Stories} />
+
+# Collapsible
+
+`import { Collapsible, CollapsibleContent, CollapsibleIndicator, CollapsibleTrigger } from "@taskly/ui";`
+
+## 1. What it is for
+
+Keeps rarely needed details out of the way and opens them in place, so the user never leaves the list.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- Quick-add "Details": description, min and max (spec E01, R02.9).
+- Expanding a task row to show its description and details in place (Q2, Luki 6, tokens rule 8) — the TaskRow in stage 3 builds on this.
+- "N tasks without an estimate" under the future expenses total, opening the list with "Add estimate" (Luki 9, P04).
+
+## 3. When not to use
+
+| Situation                                            | Use instead                    | Source                     |
+| ---------------------------------------------------- | ------------------------------ | -------------------------- |
+| Details in a drawer or a window over the content     | Collapsible in place           | Q2, A01.3, tokens rule 8   |
+| Switching between views                              | separate pages (no tabs in v1) | P4, R01.6                  |
+| Information the user needs to act (a rule, an error) | show it, do not hide it        | task rules (What to avoid) |
+
+## 4. Anatomy
+
+| Part      | Required | Notes                                                                                   |
+| --------- | -------- | --------------------------------------------------------------------------------------- |
+| Root      | yes      | Holds the open state                                                                    |
+| Trigger   | yes      | Use `asChild` with a `TextAction` or `Button`; gets `aria-expanded` and `aria-controls` |
+| Indicator | optional | Lucide chevron, right when closed, down when open (Luki 7: the expand arrow)            |
+| Content   | yes      | Opens below the trigger, pushing content down; never overlays it (Q2)                   |
+
+## 5. Variants
+
+None of its own; the trigger decides the look:
+
+| Trigger                         | Choose it when                                                                       | Source         |
+| ------------------------------- | ------------------------------------------------------------------------------------ | -------------- |
+| `TextAction` + indicator        | A labelled line: "Details", "3 tasks without an estimate".                           | R02.3, Luki 9  |
+| Indicator beside a text trigger | A task row: the title is the trigger, the arrow repeats it from 640px (decision J1). | Luki 6, Luki 7 |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State                           | Looks like                                                                            | Source |
+| ------------------------------- | ------------------------------------------------------------------------------------- | ------ |
+| Closed                          | Arrow points right.                                                                   | Luki 7 |
+| Open                            | Arrow points down; content slides open over `motion-duration-base` (200ms, ease-out). | Luki 8 |
+| Hover, focus, pressed, disabled | From the trigger component.                                                           | —      |
+| Loading, selected, error        | Do not apply.                                                                         | —      |
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** the trigger is a button; Enter or Space opens and closes; focus stays on the trigger (WAI-ARIA APG, disclosure). Covered by the Playground test.
+- **ARIA:** `aria-expanded` on the trigger, `aria-controls` pointing to the content (Radix). A screen reader says "Details, button, collapsed".
+- **Motion:** with `prefers-reduced-motion: reduce` the content appears at once (tokens rule 12).
+- **Focus:** opening does not move focus. In quick add, the user tabs into the new fields next (spec E01: focus stays in the title field after adding).
+
+## 8. Content
+
+- The trigger says what is inside, with a count when there is one: "3 tasks without an estimate", not "More" (Luki 9, Luki 5).
+- Keep the same text open or closed; the arrow shows the state.
+- Polish: "3 zadania bez szacunku".
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                              | Source      |
+| ------ | ------------------------------------------------------ | ----------- |
+| 320px  | Content stacks in one column; long trigger text wraps. | WCAG 1.4.10 |
+| 768px  | Same.                                                  | —           |
+| 1440px | Same, within the content column.                       | P01         |
+
+<Unstyled>
+  <Story of={Stories.ManyItemsNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`Collapsible` takes `open`, `defaultOpen`, `onOpenChange`; `CollapsibleTrigger` and `CollapsibleContent` accept `asChild` and the usual element attributes (Radix).
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Collapsible>
+  <CollapsibleTrigger asChild>
+    <TextAction>
+      <CollapsibleIndicator />
+      Details
+    </TextAction>
+  </CollapsibleTrigger>
+  <CollapsibleContent>…</CollapsibleContent>
+</Collapsible>
+```
+
+In Taskly: tasks without an estimate.
+
+```tsx
+<Collapsible>
+  <CollapsibleTrigger asChild>
+    <TextAction>
+      <CollapsibleIndicator />
+      {count} tasks without an estimate
+    </TextAction>
+  </CollapsibleTrigger>
+  <CollapsibleContent>
+    <ul>
+      {tasks.map((t) => (
+        <li key={t.id}>
+          {t.title} <TextAction>Add estimate</TextAction>
+        </li>
+      ))}
+    </ul>
+  </CollapsibleContent>
+</Collapsible>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** a dialog or drawer (not used for details, Q2), tabs (not in v1).
+- **Patterns:** Quick capture, Details in row, future expenses.

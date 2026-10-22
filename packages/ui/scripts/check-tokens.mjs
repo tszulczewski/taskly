@@ -5,7 +5,9 @@
  * - a Tailwind palette class (bg-zinc-900, text-white);
  * - an arbitrary Tailwind value (p-[13px], bg-[#fff]);
  * - a default Tailwind scale class, which does not exist in this theme and would silently do
- *   nothing (p-4, text-sm, rounded-lg, shadow-md, border-2, duration-150);
+ *   nothing (p-4, text-sm, rounded-lg, shadow-md, border-2, duration-150); zero (min-w-0,
+ *   inset-y-0, border-b-0) is allowed because theme.css maps --spacing-0, and so are fractions (w-1/2), which
+ *   are proportions of the parent, not design values;
  * - in src/ only: a raw length or duration in CSS outside tokens.css.
  *
  * A line may opt out with a comment containing "check-tokens-allow: <reason>".
@@ -39,21 +41,21 @@ const rules = [
     applies: () => true,
   },
   {
-    // Arbitrary values (p-[13px]) and properties ([color:red]); arbitrary variants (data-[state=open]:) are fine.
+    // Arbitrary values (p-[13px]) and properties ([color:red]); arbitrary variants (data-[state=open]:, group-data-[state=open]/name:) are fine.
     id: "tailwind-arbitrary-value",
     pattern:
-      /(?<![\w-])(?:[\w-]+:)*-?[a-z][\w-]*-\[[^\]\s]+\](?!:)|(?<![\w\]])\[[a-z-]+:[^\]\s]+\](?!:)/g,
+      /(?<![\w-])(?:[\w-]+:)*-?[a-z][\w-]*-\[[^\]\s]+\](?!:|\/[\w-]+:)|(?<![\w\]])\[[a-z-]+:[^\]\s]+\](?!:)/g,
     applies: (file) => !file.endsWith(".css"),
   },
   {
     id: "tailwind-default-scale",
     pattern: new RegExp(
       [
-        "(?<![\\w-])(?:[\\w-]+:)*-?(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|size|min-w|min-h|max-w|max-h|inset|top|right|bottom|left|translate-x|translate-y)-(?:\\d+(?:\\.5)?|px)(?![\\w-])",
+        "(?<![\\w-])(?:[\\w-]+:)*-?(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|size|min-w|min-h|max-w|max-h|inset|top|right|bottom|left|translate-x|translate-y)-(?:(?!0(?![\\d.]))\\d+(?:\\.5)?|px)(?![\\w/-])",
         "(?<![\\w-])(?:[\\w-]+:)*text-(?:xs|sm|base|lg|xl|\\dxl)(?![\\w-])",
         "(?<![\\w-])(?:[\\w-]+:)*rounded(?:-[trblse]{1,2})?-(?:xs|sm|md|lg|xl|\\dxl)(?![\\w-])",
         "(?<![\\w-])(?:[\\w-]+:)*shadow(?:-(?:xs|sm|md|lg|xl|2xl|inner|none))?(?![\\w-])",
-        "(?<![\\w-])(?:[\\w-]+:)*(?:border|border-[trblxyse]|outline|ring|ring-offset|outline-offset|divide-[xy]|duration|delay|opacity)-\\d+(?![\\w-])",
+        "(?<![\\w-])(?:[\\w-]+:)*(?:border|border-[trblxyse]|outline|ring|ring-offset|outline-offset|divide-[xy]|duration|delay|opacity)-(?!0(?!\\d))\\d+(?![\\w-])",
         "(?<![\\w-])(?:[\\w-]+:)*font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|sans|serif|mono)(?![\\w-])",
         "(?<![\\w-])(?:[\\w-]+:)*leading-(?:none|tight|snug|normal|relaxed|loose|\\d+)(?![\\w-])",
         "(?<![\\w-])(?:[\\w-]+:)*(?:sm|md|lg|xl|2xl):[\\w-]",

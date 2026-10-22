@@ -1,0 +1,117 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./ErrorState.stories";
+
+<Meta of={Stories} />
+
+# Error state
+
+`import { ErrorState } from "@taskly/ui";`
+
+## 1. What it is for
+
+Replaces content that failed to load with a plain message and one way to try again.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- The task list failed to load: "a message with “Try again” (refetch)" (spec E01, States).
+- Not for the future expenses line: its load error stays in that one line with "Try again", so the list keeps working (decision J6).
+
+## 3. When not to use
+
+| Situation                       | Use instead                                   | Source   |
+| ------------------------------- | --------------------------------------------- | -------- |
+| A form field is invalid         | the field error in `FormField`                | spec E01 |
+| Saving a change failed          | the inline error on the form or row (`Alert`) | spec E01 |
+| Deleting failed                 | the error inside `ConfirmDialog`              | spec E01 |
+| Nothing to show, nothing failed | `EmptyState`                                  | spec E01 |
+
+## 4. Anatomy
+
+Built on `Alert` (C7: title in `color-text-danger`, message in primary text).
+
+| Part    | Required | Notes                                                                         |
+| ------- | -------- | ----------------------------------------------------------------------------- |
+| Title   | yes      | What failed, in `color-text-danger`                                           |
+| Message | optional | What to check, and that nothing was lost when that is true                    |
+| Retry   | yes      | `Button` (secondary) "Try again"; while retrying, spinner and "Trying again…" |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State    | Looks like                                                      | Source   |
+| -------- | --------------------------------------------------------------- | -------- |
+| Failed   | Title, message, "Try again".                                    | spec E01 |
+| Retrying | The button shows the spinner and "Trying again…" (`aria-busy`). | B2       |
+| Success  | The content replaces the error state.                           | spec E01 |
+
+## 7. Behaviour and accessibility
+
+- `role="alert"`: the title and message are announced when the state appears (WCAG 4.1.3).
+- The retry button keeps focus while retrying; it cannot be pressed twice (B2). Covered by the RetryShowsProgress test.
+- Danger is shown by colour and by the words of the title (WCAG 1.4.1).
+
+## 8. Content
+
+- Title: what failed, in the user's words: "Could not load your tasks." (Luki 5, A05).
+- Message: what to check and what is safe: "Check your connection. Nothing you entered was lost."
+- No codes, stack traces or server words ("503", "timeout") (A05).
+- Polish: "Nie udało się wczytać zadań." / "Spróbuj ponownie".
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                    | Source      |
+| ------ | -------------------------------------------- | ----------- |
+| 320px  | Text wraps; the button stays below the text. | WCAG 1.4.10 |
+| 768px  | Same.                                        | —           |
+| 1440px | Same.                                        | —           |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+const tasks = useQuery(tasksQuery(listId));
+
+if (tasks.isError)
+  return (
+    <ErrorState
+      title="Could not load your tasks."
+      retrying={tasks.isFetching}
+      onRetry={() => tasks.refetch()}
+    >
+      Check your connection.
+    </ErrorState>
+  );
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Alert` (the building block, also for save errors), `EmptyState`.
+- **Patterns:** List (error), future expenses (error).
