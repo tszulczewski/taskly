@@ -1,0 +1,65 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Content" />
+
+# Content
+
+How Taskly talks. The interface is mainly Polish, with an English version; E01 and sign-in were written in English first, so stories default to English and each component has a "Polish" story to check lengths (Luki 5, Q5, P5).
+
+## Tone
+
+Short and plain, **ty** form in Polish, the words of a renovation rather than of software. A rule is explained in one sentence where it changes a number (Luki 5, R02.13).
+
+| Taskly says                                                            | Taskly does not say                                | Why                                                           |
+| ---------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------- |
+| "No estimate" / "Bez szacunku"                                         | "Cost: N/A", "—"                                   | the empty state named plainly (R02.13)                        |
+| "They are not counted in future expenses until they have an estimate." | "These count as zero until they have an estimate." | they are left out, not free (R10, decision J9)                |
+| "Could not move “Seal the bath”. It is back where it was."             | "Error 409: conflict on PATCH /tasks"              | what happened and what it means, no jargon (A05, decision H5) |
+
+Glossary (Luki 5): task → **zadanie**, subtask → **podzadanie**, future expenses → **przyszłe wydatki**, completed → **ukończone**, estimate → **szacunek**, place → **miejsce**. Never "issue", "ticket", "backlog", "scope", ids like "EA-490" (A05, R01.6).
+
+## Buttons and actions
+
+| Rule                                                                     | Good                                             | Not                                     | Source                |
+| ------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------- | --------------------- |
+| A verb, plus the object when it is not obvious; imperative in Polish.    | "Delete task" / "Usuń zadanie", "Add estimate"   | "OK", "Yes", "Submit"                   | Luki 5, spec E01      |
+| The pending label is the same verb in "-ing".                            | "Saving…", "Deleting…" / "Zapisywanie…"          | a bare spinner                          | B2, sign-in spec      |
+| An icon button's name says the action and the object.                    | "More actions for “Seal the bath”"               | "Menu"                                  | WCAG 2.5.3, 4.1.2     |
+| Questions name the object and what else changes.                         | "Delete “Paint the ceiling” and its 3 subtasks?" | "Are you sure?"                         | spec E01, decision I2 |
+| At most about three words on a button; long labels wrap, never truncate. | "Create account"                                 | "Click here to create your new account" | Button page           |
+
+## Errors
+
+Say **what happened** and **what to do**, in that order, next to where it happened. Never blame the user, never show codes (spec E01, A05).
+
+| Situation            | Message                                                    | Where                   | Source       |
+| -------------------- | ---------------------------------------------------------- | ----------------------- | ------------ |
+| A field              | "Enter an amount like 1 500,50"; "Min must not exceed max" | under the field         | spec E01     |
+| Credentials          | "Email or password is incorrect."                          | above the form          | sign-in spec |
+| A refused change     | "Could not save “X”. It is back as it was."                | in the row              | decision H5  |
+| A failed load        | "Could not load your tasks." + "Try again"                 | in place of the content | spec E01     |
+| A failed delete      | "Could not delete the task. Try again."                    | inside the dialog       | spec E01     |
+| Something unexpected | "Something went wrong. Try again."                         | above the form          | sign-in spec |
+
+## Empty states
+
+Say **why it is empty** and **the next step** (spec E01, R02.13).
+
+| Where                      | Text                                                  | Next step                                 |
+| -------------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| No tasks                   | "No tasks yet." "Add the first thing you need to do." | focus in quick add                        |
+| A task without an estimate | "No estimate" (muted)                                 | "Edit", or "Add estimate" under the total |
+| No estimates at all        | "No estimates yet" (muted, in the total)              | "Add estimate" (decision J2)              |
+| No places yet              | "No places yet." (in the place picker)                | "New place"                               |
+
+## Formats
+
+| What             | Format                                                                                                                                                                                                                           | Source                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Money            | Złoty only, integer grosze end to end, formatted on the server; shown at the UI edge.                                                                                                                                            | AGENTS.md, standards §6          |
+| An estimate      | "1 200–1 500 zł": en dash without spaces, non-breaking space before "zł" and as the thousands separator, tabular figures, right-aligned in a row. `formatPlnRange` in `@taskly/core` does not do this yet (see What is missing). | tokens rule 5, P06, decision F11 |
+| Grosze           | Only when not zero: "62 500,50 zł" (comma as the decimal separator).                                                                                                                                                             | decision F11                     |
+| Typing an amount | "1500", "1 500", "1 500,50" or "1500.50"; at most 10 000 000 zł per amount.                                                                                                                                                      | spec E01                         |
+| Counts           | Words with the number: "3 subtasks", "1 task without an estimate"; Polish plural forms (1 zadanie, 2 zadania, 5 zadań).                                                                                                          | decision F4, decision J9         |
+| Subtask progress | "1/3" shown, "1 of 3 subtasks completed" read.                                                                                                                                                                                   | Luki 6, decision J5              |
+| Dates and times  | Not shown in version 1. Proposal for later: Polish "22 paź 2026", "14:30"; English "22 Oct 2026", "2:30 pm".                                                                                                                     | proposal                         |

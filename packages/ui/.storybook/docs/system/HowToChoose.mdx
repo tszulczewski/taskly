@@ -1,0 +1,96 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/How to choose" />
+
+# How to choose
+
+"If … then use …" for the choices that come up on every screen, each with an example from Taskly. Where the answer is "not in version 1", the component does not exist on purpose: see [What is missing](?path=/docs/design-system-what-is-missing--docs) before adding it.
+
+## Button, link, icon button, action menu
+
+| If …                                                           | then use …                                           | Example in Taskly                          | Source                 |
+| -------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------ | ---------------------- |
+| it is the one main action of a form or step                    | `Button variant="primary"`                           | "Add" in quick add, "Sign in", "Save"      | R02.3                  |
+| it cancels, retries or is a second action next to the main one | `Button` (secondary)                                 | "Cancel", "Try again"                      | spec E01               |
+| it deletes data after a question                               | `Button variant="danger"`                            | "Delete task" in the dialog                | P3                     |
+| it acts quietly inside a row or a list                         | `TextAction`                                         | "Add estimate", "Add subtask"              | R01.4, R02.3, Luki 9   |
+| it stands in for an empty value the user can fill in           | `TextAction tone="muted"`                            | "Details" in quick add                     | R01.4, tokens rule 6   |
+| it takes the user to another page                              | `Link`                                               | "Create an account", "Go to sign in"       | WAI-ARIA APG (link)    |
+| it is a known gesture with an icon only                        | `Button size="icon"` with `aria-label` (+ `Tooltip`) | "…", the drag handle                       | Luki 7, tokens rule 11 |
+| one row has several actions                                    | one "…" `Menu`                                       | Add subtask, Edit, Places…, Delete         | R02.1, A01.3, P2       |
+| an icon would need explaining                                  | a word instead                                       | "Important", "Urgent" are words, not icons | Luki 4, Luki 7         |
+
+## Radio, select, field with search
+
+| If …                                           | then use …                       | Example in Taskly                   | Source            |
+| ---------------------------------------------- | -------------------------------- | ----------------------------------- | ----------------- |
+| one of 2–5 options, all visible                | `RadioGroup`                     | a place's colour among free colours | WAI-ARIA APG      |
+| one of two positions that applies at once      | `RadioGroup variant="segmented"` | the theme: Dark / Light             | P4, Luki 2        |
+| several options may be chosen                  | a `Checkbox` per option          | the places of a task                | WAI-ARIA APG, D09 |
+| one of many options (a select)                 | not in version 1                 | —                                   | P4                |
+| finding one of very many (a field with search) | not in version 1                 | —                                   | P4                |
+
+## Switch and checkbox
+
+| If …                                             | then use …                        | Example in Taskly             | Source       |
+| ------------------------------------------------ | --------------------------------- | ----------------------------- | ------------ |
+| a task or subtask is done or not                 | `TaskCheckbox`                    | the box at the start of a row | R02.1, R02.2 |
+| a choice in a form, applied when it is submitted | `Checkbox` with a visible `Label` | a place in the place picker   | WAI-ARIA APG |
+| an on/off setting applied at once (a switch)     | not in version 1; use `Checkbox`  | —                             | P4           |
+| a marker in the row menu                         | `MenuCheckboxItem`                | "Important", "Urgent"         | decision G3  |
+
+## Dialog, confirmation, side panel, page, popover, tooltip
+
+| If …                                                      | then use …                                       | Example in Taskly                           | Source                    |
+| --------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------- | ------------------------- |
+| something is lost for good after one press                | `ConfirmDialog` (danger), named action           | `DeleteTaskDialog`                          | spec E01, P3              |
+| more changes than the user tapped and it cannot be undone | `ConfirmDialog confirmVariant="primary"`         | `CompleteTaskDialog`                        | R09, R11, decision I2, J3 |
+| the action can be undone in one tap                       | act at once, no question                         | completing a task without open subtasks     | R02.2, decision I2        |
+| details or a form for one task                            | open them in the row (`Collapsible`, `TaskForm`) | the expanded row, "Edit"                    | Q2, R02.6, A01.3          |
+| a side panel or drawer                                    | never: open in the row                           | —                                           | Q2, R02.6, tokens rule 8  |
+| a different place of the app                              | a separate page                                  | `/sign-in`, `/sign-up`                      | sign-in spec              |
+| a few choices next to the thing they change               | `Popover`                                        | `PlacePicker` from "Places…"                | decision G3               |
+| the name of an icon button                                | `Tooltip` (the name is always in `aria-label`)   | "More actions for “Seal the bath”"          | P4, WCAG 4.1.2            |
+| information the user needs to act                         | visible text, never a tooltip                    | "They are not counted in future expenses …" | Luki 5, P4                |
+| a general-purpose dialog with a form                      | not in version 1                                 | —                                           | P4, A03                   |
+
+## Field error, alert, toast
+
+| If …                                        | then use …                                                    | Example in Taskly                                          | Source                |
+| ------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------- | --------------------- |
+| one field is wrong                          | the error of its `FormField`                                  | "Min must not exceed max"                                  | spec E01, WCAG 3.3.1  |
+| the whole form failed (server, credentials) | `Alert` above the form                                        | "Email or password is incorrect."                          | sign-in spec          |
+| a change shown at once was refused          | the message in that row, `role="alert"`                       | "Could not move “Seal the bath”. It is back where it was." | spec E01, decision H5 |
+| a screen's data failed to load              | `ErrorState` with "Try again"                                 | "Could not load your tasks."                               | spec E01              |
+| one line's data failed to load              | the message in that line with "Try again"                     | future expenses                                            | decision J6           |
+| a short notice that disappears (toast)      | not in version 1; an error that needs action is never a toast | —                                                          | spec E01, P4          |
+| it succeeded                                | nothing: the result is the confirmation                       | the new row, highlighted                                   | P3, spec E01          |
+
+## Skeleton and loading indicator
+
+| If …                                     | then use …                             | Example in Taskly              | Source                |
+| ---------------------------------------- | -------------------------------------- | ------------------------------ | --------------------- |
+| content loads for the first time         | `Skeleton` rows in its place, static   | the task list, future expenses | spec E01, Luki 8      |
+| a button's action is running             | `Button loading` with a verb in "-ing" | "Saving…", "Deleting…"         | sign-in spec, B2      |
+| a change is already shown optimistically | the pending row, muted, "Saving…"      | a task just added              | spec E01, decision F3 |
+| data loads again after the first time    | keep showing what is loaded            | "Try again" after an error     | C3                    |
+
+## Table, list, cards
+
+| If …                                | then use …                                | Example in Taskly         | Source     |
+| ----------------------------------- | ----------------------------------------- | ------------------------- | ---------- |
+| many items of the same kind         | rows on one `Surface`, divided by a line  | `TaskList`                | R02.1      |
+| items with sub-items                | rows with the sub-items indented in place | subtasks under their task | R02.1      |
+| numbers to compare                  | one amount per row, right-aligned         | `EstimateRange`           | R02.5, A04 |
+| a table with many columns           | not used                                  | —                         | A04        |
+| a card per item, a board of columns | not used                                  | —                         | A01.2, A02 |
+| a total                             | one line, not tiles                       | `FutureExpenses`          | P04, R02.7 |
+
+## Tabs and separate pages
+
+| If …                       | then use …                                                                         | Example in Taskly | Source           |
+| -------------------------- | ---------------------------------------------------------------------------------- | ----------------- | ---------------- |
+| two views of the same data | not in version 1 (one list, one total)                                             | —                 | D19, P4          |
+| two places of the app      | separate pages                                                                     | the list, sign-in | P01, R01.6       |
+| tabs                       | not in version 1                                                                   | —                 | P02, P4          |
+| navigation on a phone      | at the bottom, as many items as places in version 1; none while there is one place | —                 | P07, decision E1 |

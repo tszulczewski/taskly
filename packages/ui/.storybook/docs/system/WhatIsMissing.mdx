@@ -1,0 +1,64 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/What is missing" />
+
+# What is missing
+
+What the design system covers today, what it leaves out on purpose, and what still has to happen outside it. Read this before adding a component: if it is listed under "Not built on purpose", it needs the product owner's decision first (see [Contributing](?path=/docs/design-system-contributing--docs)).
+
+## Backlog coverage
+
+"Designed" means the components, screen stories and interaction tests exist here; it does not mean the app has the feature. The app imports the tokens and the font (`@taskly/ui/styles.css`), but it still shows the starter page and uses no component yet. Priorities come from `.ai/specs/backlog.md`.
+
+| Backlog item                                                | Components and screens                                                                                                                                                                                             | State in the design system                                                           | Priority, risk |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | -------------- |
+| Sign-in (prerequisite)                                      | [Sign-in screens](?path=/docs/product-sign-in-screens--docs), `AuthCard`, `SignInForm`, `SignUpForm`, `SignUpClosed`; [App shell screens](?path=/docs/product-app-shell-screens--docs), `AppHeader`, `ThemeToggle` | Designed; spec `2026-10-16-sign-in-pages.md` is active, the pages are not in the app | —              |
+| E01-S01 Add a task with a description and an estimate range | [Tasks screens](?path=/docs/product-tasks-screens--docs) (list, loading, empty, add, edit, delete), `QuickAdd`, `TaskList`, `TaskRow`, `TaskForm`, `EstimateRange`, `DeleteTaskDialog`                             | Designed; spec E01 active, needs the UI/UX fix below                                 | medium, high   |
+| E01-S02 Subtasks with their own estimate                    | `TaskRow` (indented subtasks), `TaskForm` ("Add subtask")                                                                                                                                                          | Designed                                                                             | medium, high   |
+| E02-S01 Reorder tasks                                       | `DragHandle`, [Reorder](?path=/docs/patterns-reorder--docs), Move up / Move down in the row menu                                                                                                                   | Designed (decisions G1, G2, H1, H6–H8); no spec yet                                  | medium, medium |
+| E02-S02 Important and urgent markers                        | `Markers`, `MenuCheckboxItem` in the row menu                                                                                                                                                                      | Designed (decision G3); no spec yet                                                  | medium, low    |
+| E02-S03 Several places per task                             | `PlaceTag`, `PlacePicker` (create, choose, edit, delete), `PlaceColorPicker`                                                                                                                                       | Designed (decisions G3–G6, H2–H4, H9); no spec yet                                   | medium, low    |
+| E03-S01 Complete and reopen                                 | `TaskCheckbox`, `SubtaskProgress`, `CompleteTaskDialog`, [Complete and reopen](?path=/docs/patterns-complete-and-reopen--docs)                                                                                     | Designed (decisions J1–J7, J9); no spec yet                                          | medium, medium |
+| E03-S02 Future expenses as one min–max range                | `FutureExpenses`, `UnestimatedTasks`                                                                                                                                                                               | Designed (decisions J2, J4, J6, J8, J9); no spec yet                                 | medium, high   |
+| E04 Later                                                   | none                                                                                                                                                                                                               | Not designed; see Later                                                              | low, low       |
+
+The E02 and E03 specs do not exist yet. When they are written, they should take the decisions above (POSTEP.md, batches 3 and 4) and the completed-task order decision (`research/decisions/2026-10-21-completed-tasks-order.md`) as their UI/UX part.
+
+## Not built on purpose
+
+Version 1 has no screen that needs these. Each would need a decision before it is added (decision P4).
+
+| Component                   | Why not                                                                   | Use instead                                                      | Source             |
+| --------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------ |
+| Avatar                      | One user, no sharing in version 1.                                        | nothing                                                          | N02, R02.8, P4     |
+| Tabs                        | One screen; two views of the same data are not in scope.                  | separate pages                                                   | R01.6, P02, P4     |
+| Toast                       | Errors stay where they happened; success is the result itself.            | the error in the field, form, row or line                        | spec E01, P4       |
+| Status badge                | There are no statuses; markers are plain words, pills are a generic look. | `Markers`, strike-through for completed                          | Luki 4, A02, P4    |
+| Select                      | No screen chooses one of many.                                            | `RadioGroup` for 2–5 visible options                             | P4                 |
+| Switch                      | No setting applies at once; the theme has two named positions.            | `ThemeToggle` (segmented radio group), `Checkbox`                | P4, Luki 2         |
+| General-purpose dialog      | Details and forms open in the row; dialogs only confirm.                  | `Collapsible` in the row, `ConfirmDialog`                        | Q2, A01.3, A03, P4 |
+| List with filters           | Filters are not in scope; the list is short and ordered by hand.          | `TaskList`                                                       | P03, P4            |
+| Bottom navigation on phones | Version 1 has one screen; a bar with one item does nothing.               | nothing; it comes back with a second screen                      | P07, decision E1   |
+| Date and time formats       | Version 1 shows no dates.                                                 | a proposal in [Content](?path=/docs/design-system-content--docs) | proposal           |
+
+## Later (version 2, backlog E04)
+
+Not designed, and nothing here should look ready for them (R02.8, P03): real cost and payments (D17); incurred expenses and the expenses of completed tasks, a single value (D18); marking which job comes before which (D10, Q12); effort (D05); AI estimates (D04, D11); the quick shopping list on the phone; sharing, roles and testing by friends (D02, N02). When one of them starts, it needs its own tokens check (a second total, a new status), and the items above (Avatar, Toast, Tabs) may come back.
+
+## Outside the design system, still to do
+
+| Item                                                                                                                                                                                                             | Where                                               | Source            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------- |
+| `formatPlnRange` returns "1200,00 zł – 1500,00 zł"; the system needs "1 200–1 500 zł" (non-breaking spaces, grosze only when not zero, en dash without spaces, one "zł"). The note is in spec E01.               | `packages/core/src/money.ts`, spec E01 (PR B)       | decision F11      |
+| Spec E01 still shows the description in the row (clamped to 2 lines) and "Add subtask", "Edit", "Delete" as row actions; the system shows the description only when the row is open and puts the actions in "…". | `.ai/specs/2026-10-16-tasks-and-subtasks.md`, UI/UX | P2, Luki 6, R02.1 |
+| The app shows the Next.js starter page; the screens, the TanStack Query wrappers and the theme switch (saved choice, `data-theme` on `<html>`) are not built.                                                    | `packages/app`                                      | P1, standards §5  |
+| Polish is the main language, but the app has no way to choose it yet; `<html lang>` is fixed to English.                                                                                                         | `packages/app`                                      | Q5, P5            |
+| Done: the app imports `@taskly/ui/styles.css`, Geist was replaced by Instrument Sans, and the P1 exception is in standards §5.                                                                                   | —                                                   | P1, Q4, Luki 1    |
+
+## Open questions
+
+Left open in the backlog and not decided by the design system:
+
+- **Places and lists.** How places relate to project lists. The design system treats places as one set per user, at most 10 (decisions G4, G5); the E02 spec should confirm it.
+- **Order of jobs.** Whether manual order is enough or a "comes before" mark is needed (Q12, Later).
+- **Language switch.** Where the user chooses Polish or English, and whether the choice is saved (proposal for the app work: follow the browser on first visit, with no switch in version 1).

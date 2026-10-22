@@ -134,6 +134,11 @@ Stage 3, batch 1: sign-in and app shell (2026-10-22):
   - Not run: screen reader, iOS Safari, `test:integration`.
   - Proposals J1–J10 wait for the owner (see `packages/ui/POSTEP.md`).
 - Stage 3 batch 4: owner chose J1 = C and accepted J2–J10 2026-10-22. The task title is now the row's disclosure button at every width (whole text block as target, ring around it); the arrow is decorative and shown from 640px only. Title width at 320px back to 150px. 250 unit tests at 100%, 882 story tests, lint and typecheck clean. Stage 3 done; stage 4 started.
+- Stage 4 (2026-10-22, new session): the pages had been written in the previous session (Design system: Start here, Components, How to choose, Usage and accessibility, Content, What to avoid, What is missing, Contributing; Epics: Sign-in, E01, E02, E03; `.ai/docs/design-system.md` linked from AGENTS.md) but not verified or logged.
+  - Verification: check:tokens, format:check, lint, typecheck clean; 250 unit tests at 100%; 894 story tests (447 × 2 themes); build-storybook succeeds; 119 `?path=` links resolve in the built `index.json`; 12 stage-4 docs pages render with GFM tables; 5 pages at 320/768/1440 in both themes without horizontal scroll.
+  - Fixed: the Components page scrolled 1px sideways at 320px because the `AppHeader` preview sits in a 174px column; the preview now scrolls in its own focusable group (`role="region"` failed `landmark-banner-is-top-level`). Lesson recorded.
+  - Not run: screen reader, app build (no app code changed), `test:integration`.
+  - Proposals L1–L4 wait for the owner (see `packages/ui/POSTEP.md`).
 
 ## Lessons recorded (links into .ai/lessons.md)
 
@@ -153,3 +158,4 @@ Stage 3, batch 1: sign-in and app shell (2026-10-22):
 - 2026-10-22 Radix overlay numbers from tokens; minified CSS turns translucent colours into 8-digit hex.
 - 2026-10-22 Focus after async validation needs `useLayoutEffect`; Storybook `useGlobals` only in the render function and not in Vitest; busy buttons block `userEvent.click`.
 - 2026-10-22 Radix close autofocus runs on the next task; `autoFocus` in docs-page stories; regex names match "More actions for …".
+- 2026-10-22 Narrow docs previews: own scroll box with `role="group"`, not `region` (banner landmark).

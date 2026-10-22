@@ -14,6 +14,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-22 — A component that is wider than a narrow docs preview (e.g. `AppHeader` in a 174px catalog column at 320px) widens the whole docs page; give that preview its own `overflow-x-auto` box with `tabIndex={0}` and a name (axe `scrollable-region-focusable`), using `role="group"`, not `role="region"`: a region is a landmark, and a `<header>` inside it fails `landmark-banner-is-top-level`. Check docs pages for `scrollWidth > clientWidth`, not just story canvases.
+
 - 2026-10-22 — Radix close autofocus runs on the next task (assert with `waitFor`); a menu item opening a form must prevent the menu's close autofocus; `autoFocus` stories on a docs page make it jump; regex names also match "More actions for …" → [details](lessons/2026-10-22-radix-focus-and-docs-autofocus.md)
 - 2026-10-22 — Radix RadioGroup selects on arrow keys only if the key is still down when focus arrives, and roving focus moves in a `setTimeout`; `userEvent.keyboard("{ArrowRight}")` releases at once, so nothing gets selected. In play functions hold the key (`{ArrowRight>}`), `waitFor` the checked state, then release (`{/ArrowRight}`).
 - 2026-10-22 — shadcn CLI in `packages/ui`: point `tailwind.css` in a temporary `components.json` at a scratch file (otherwise it writes its own colour variables into our CSS), and check `package.json` afterwards: with `"utils": "@/lib/cn"` it installs the unrelated npm package `cn` on every `add`. Rewrite generated imports to relative paths (`@/` collides with the app's alias).

@@ -60,7 +60,7 @@ Rules:
 
 ### Engineering standards (digest)
 
-Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before writing code. The essentials:
+Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before writing code. For any UI, also read `.ai/docs/design-system.md` (the design system in `packages/ui` and its Storybook). The essentials:
 
 - **Layering:** `app → core → db`; `ui` imports no `@taskly/*`. Client code imports only `@taskly/core` (isomorphic), never `@taskly/core/server` or `@taskly/db`. `core` never imports `next`/`react`. Enforced by ESLint `no-restricted-imports`.
 - **Services = plain functions** `(db, actorUserId, input)`; no DI container, no classes. Order: Zod-parse → `requireRole` → work → publish event. Non-member → `NotFoundError`, insufficient role → `ForbiddenError`; fail closed. Check-then-write runs in a transaction.
@@ -87,7 +87,7 @@ All AI-related project metadata lives in `.ai/`. Agents MUST use this structure.
 │   ├── YYYY-MM-DD-slug.md  # Active specs (not yet implemented)
 │   ├── implemented/        # Specs whose implementation is complete
 │   └── archive/            # Obsolete, rejected or superseded specs
-├── docs/                   # Long-lived reference docs (engineering-standards.md)
+├── docs/                   # Long-lived reference docs (engineering-standards.md, design-system.md)
 ├── runs/                   # Logs of autonomous AI runs
 │   └── YYYY-MM-DD-slug.md
 ├── lessons.md              # Index of lessons learned (long-term memory)

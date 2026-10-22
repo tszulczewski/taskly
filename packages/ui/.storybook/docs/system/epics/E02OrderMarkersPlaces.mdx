@@ -1,0 +1,46 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Epics/E02 Order, markers and places" />
+
+# E02 Order, markers and places
+
+Backlog E02 (#12): E02-S01 reorder tasks and keep the order (#17), E02-S02 mark a task or subtask important and/or urgent (#18), E02-S03 assign a task or subtask to several places (#19). No spec yet; the design decisions below (G1–G6, H1–H10, POSTEP.md) are the input for its UI/UX. Screen S7.
+
+## Flow
+
+1. **Reorder from 640px:** drag a task by its handle, or focus the handle and use Space, the arrows and Space (Escape cancels); each step is announced.
+2. **Reorder on a phone:** hold the row for 250 ms and drag, or "…" → "Move up" / "Move down". A subtask moves only among its task's subtasks. Completed and unsaved rows cannot be moved.
+3. **Markers:** "…" → "Important" or "Urgent" (each a checkbox item); the words appear on the row's second line.
+4. **Places:** "…" → "Places…" opens a small popover anchored to "…": tick one or more places, or type a new one and press "Create" (it is ticked for this task at once). The first six get colours automatically, from the seventh the owner picks one of the free colours; at most 10 places.
+5. **Edit places** in the same popover: rename, change the colour, or delete (asked in place: "It is removed from every task.").
+6. A refused change goes back, with "Could not move “X”. It is back where it was." or "Could not save “X”. It is back as it was." in the row.
+
+## Screens and stories
+
+| Screen | State                                            | Story                                                                                                                                                                                                                                |
+| ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S7     | Ready at 1440, 768 and 320 px                    | [Desktop](?path=/story/product-tasks-screens--organized-desktop), [Tablet](?path=/story/product-tasks-screens--organized-tablet), [Phone](?path=/story/product-tasks-screens--organized-phone)                                       |
+| S7     | Reorder by keyboard; Move up on a phone; refused | [Reorder With Keyboard](?path=/story/product-tasks-screens--reorder-with-keyboard), [Move From Menu Phone](?path=/story/product-tasks-screens--move-from-menu-phone), [Move Failed](?path=/story/product-tasks-screens--move-failed) |
+| S7     | Marked urgent                                    | [Mark Urgent](?path=/story/product-tasks-screens--mark-urgent)                                                                                                                                                                       |
+| S7     | Choosing, creating, the limit of 10              | [Choose Places](?path=/story/product-tasks-screens--choose-places), [Create Place Phone](?path=/story/product-tasks-screens--create-place-phone), [Places At Limit](?path=/story/product-tasks-screens--places-at-limit)             |
+| S7     | Polish text                                      | [Organized Polish Phone](?path=/story/product-tasks-screens--organized-polish-phone)                                                                                                                                                 |
+
+Pattern: [Reorder](?path=/docs/patterns-reorder--docs).
+
+## Components
+
+`DragHandle`, `Markers` (`src/product/tasks/`); `PlaceTag`, `PlacePicker`, `PlaceColorPicker` (`src/product/places/`); built on `Menu` (`MenuCheckboxItem`), `Popover` (`PopoverAnchor`), `Checkbox`, `RadioGroup`, `Input`, `Button`.
+
+## Decisions that shape it
+
+- Only the moved row changes its position; the server keeps fractional `position` (AGENTS.md).
+- No handle below 640px; long press (250 ms, 5 px) or Move up / Move down (G2, H1).
+- Markers and places live in "…", not as icons in the row (G3, A01.3).
+- A place is an 8px dot and its name in neutral text, never a coloured pill (R02.3, Q3); colour is never the only signal (WCAG 1.4.1).
+- A lifted row has the raised surface, no shadow and no scaling (H8).
+
+## Remaining product work
+
+- Write the E02 spec, taking G1–G6, H1–H10 and the completed-task order decision (`research/decisions/2026-10-21-completed-tasks-order.md`: completed rows cannot be moved, the server refuses).
+- Confirm how places relate to project lists; the design treats them as one set per user (open point in the backlog).
+- In the app: the reorder call sends only `afterId` and `beforeId`; markers and places are optimistic with rollback.

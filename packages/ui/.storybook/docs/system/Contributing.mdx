@@ -1,0 +1,68 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Contributing" />
+
+# Contributing
+
+How the system grows without drifting. Most screens need nothing new: check [Components](?path=/docs/design-system-components--docs) and [How to choose](?path=/docs/design-system-how-to-choose--docs) first, and [What is missing](?path=/docs/design-system-what-is-missing--docs) for what was left out on purpose.
+
+## Add nothing, a variant, or a component?
+
+| Situation                                                                               | Do                                                                                                  | Source                        |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------- |
+| An existing component does the job, maybe with different text or children               | Use it as it is. No `className` override that changes its look.                                     | task rule 6                   |
+| The need appears on one screen only                                                     | Build it from primitives in that screen; do not add it to the system yet.                           | proposal                      |
+| The same need appears in at least two places                                            | Propose a component.                                                                                | proposal                      |
+| A component needs a different look for a different meaning (not for one screen's taste) | Propose a variant, with the meaning in its name (`danger`, `muted`), not the look (`red`, `small`). | proposal, Foundations / Color |
+| It is on the "Not built on purpose" list, or it belongs to version 2                    | Ask the product owner first.                                                                        | P4, D13                       |
+| It needs a value no token has                                                           | Propose a token (below) before writing the component.                                               | tokeny.md, task rule 3        |
+
+A proposal says what the need is, where it appears, which sources support it, and what it costs (states, tests, docs). The product owner approves it; until then it is marked "proposal" in the docs.
+
+## Where the code goes
+
+| What                                      | Where                                 | Notes                                                                                                  |
+| ----------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| A primitive (button, field, menu)         | `packages/ui/src/components/ui/`      | Added with `npx shadcn@latest add`, then rewritten to tokens. Check `package.json` after the CLI.      |
+| A shared state (empty, error, form field) | `packages/ui/src/components/`         | Built from primitives.                                                                                 |
+| A product component                       | `packages/ui/src/product/<epic>/`     | Presentational only: props in, callbacks out, amounts arrive formatted; no `fetch`, no `@taskly/core`. |
+| Its data, queries and rules               | `packages/app`, `@taskly/core`        | The app wraps the component with TanStack Query and the shared Zod schema.                             |
+| Its docs and stories                      | `packages/ui/.storybook/docs/<area>/` | One `.mdx` and one `.stories.tsx` per component.                                                       |
+
+Sources: P1, standards §5.
+
+## What a new component needs
+
+1. **A page with the 13 sections**, in this order: What it is for, When to use, When not to use, Anatomy, Variants, States, Behaviour and accessibility, Content, Responsive, API, Code, Do and don't, Related. Every rule names its source or says "proposal".
+2. **A state matrix**: one story per state the component can be in (default, hover, focus, pressed, disabled, loading, error, empty, long text), shown in both themes.
+3. **Realistic data**: renovation tasks, places and amounts from the specs, never lorem ipsum; a "Polish" story when it has text, to check lengths.
+4. **Interaction tests** in `play` for keyboard use, focus and announcements; axe must pass in both themes.
+5. **Unit tests** next to the code, 100% coverage, without network or database.
+6. **The catalog**: an entry in `.storybook/blocks/catalog.ts` and a preview in `Catalog.tsx` (the Components page test fails without them), and the sort order in `.storybook/preview.tsx`.
+7. **A check at 320, 768 and 1440 px** in the built Storybook, in both themes.
+
+## When a token changes
+
+- Change the raw value or the semantic mapping in `src/styles/tokens.css` only; components keep using the semantic name.
+- Check the contrast table in [Foundations / Color](?path=/docs/foundations-color--docs) in **both themes**: text at least 4.5:1, controls, dots and the focus ring at least 3:1.
+- Run `npm run check:tokens` and `npm run test:storybook` (axe checks text contrast in every story, in both themes).
+- Look at the screens that use it at 320 px and 1440 px; spacing and size changes move wrapping.
+- A new semantic token gets a row in the Foundations page with its purpose and source, and a Tailwind utility in `src/styles/theme.css` only if components need it.
+
+## Who approves
+
+The product owner decides the look, new components, variants and tokens, and anything that changes a product rule. Agents propose and mark proposals; they do not merge a new component or token on their own. Decisions are recorded in `packages/ui/POSTEP.md` with an id (for example J1) and cited where they apply.
+
+## Commands
+
+Run from the repository root.
+
+| Command                                  | What it does                                                    |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `npm run storybook -w packages/ui`       | Storybook on port 6006                                          |
+| `npm run build-storybook -w packages/ui` | static Storybook in `packages/ui/storybook-static`              |
+| `npm run test:storybook -w packages/ui`  | every story in both themes, with interaction and a11y checks    |
+| `npm run check:tokens -w packages/ui`    | fails on any value outside the tokens                           |
+| `npm test`                               | unit tests with 100% coverage                                   |
+| `npm run format`                         | Prettier for code and MDX                                       |
+| `npm run lint`, `npm run typecheck`      | ESLint, including the import rules between packages; TypeScript |

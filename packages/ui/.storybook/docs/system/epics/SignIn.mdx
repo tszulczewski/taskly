@@ -1,0 +1,47 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Epics/Sign-in" />
+
+# Sign-in (prerequisite)
+
+Every Taskly screen is for a signed-in owner, so sign-in comes before E01. Spec: `.ai/specs/2026-10-16-sign-in-pages.md` (draft, Phase A for the pages). The pages are designed here; they are not in the app yet.
+
+## Flow
+
+1. A signed-out visitor opens any page and is sent to `/sign-in` (server guard).
+2. They type their email and password (the eye button shows the password) and press "Sign in"; the button shows "Signing in…" and cannot be pressed twice until the server answers.
+3. Wrong credentials: "Email or password is incorrect." above the form (`role="alert"`); what they typed stays.
+4. Signed in: always the list at `/`, inside the app shell (name, theme switch, "Sign out").
+5. Sign-up is closed unless the server enables it: `/sign-up` then says "Sign-up is closed. Ask the owner of this Taskly." with a link to sign in. When open, the form asks for a name, an email and a password ("At least 10 characters") and signs the account in at once.
+6. "Sign out" in the header ends the session and returns to `/sign-in`; if it fails, the header says "Could not sign out. Try again."
+
+## Screens and stories
+
+| Screen        | State                             | Story                                                                                                                                                                        |
+| ------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1 `/sign-in` | Default, sign-up closed           | [Sign In](?path=/story/product-sign-in-screens--sign-in)                                                                                                                     |
+| S1 `/sign-in` | Sign-up open (link)               | [Sign In With Sign Up Open](?path=/story/product-sign-in-screens--sign-in-with-sign-up-open)                                                                                 |
+| S1 `/sign-in` | Wrong email or password           | [Sign In Failed](?path=/story/product-sign-in-screens--sign-in-failed)                                                                                                       |
+| S2 `/sign-up` | Open                              | [Sign Up Open](?path=/story/product-sign-in-screens--sign-up-open), [phone](?path=/story/product-sign-in-screens--sign-up-open-phone)                                        |
+| S3 `/sign-up` | Closed                            | [Sign Up Is Closed](?path=/story/product-sign-in-screens--sign-up-is-closed)                                                                                                 |
+| S4 app shell  | Signed in, desktop, tablet, phone | [Desktop](?path=/story/product-app-shell-screens--desktop), [Tablet](?path=/story/product-app-shell-screens--tablet), [Phone](?path=/story/product-app-shell-screens--phone) |
+| S4 app shell  | Sign-out failed                   | [Sign Out Failed Phone](?path=/story/product-app-shell-screens--sign-out-failed-phone)                                                                                       |
+
+Every form state (missing fields, pending, rate limited, offline) is on the [Sign-in form](?path=/docs/product-sign-in-sign-in-form--docs) and [Sign-up form](?path=/docs/product-sign-in-sign-up-form--docs) pages and in [Patterns / Form](?path=/docs/patterns-form--docs).
+
+## Components
+
+`AuthCard`, `SignInForm`, `SignUpForm`, `SignUpClosed` (`src/product/sign-in/`); `AppShell`, `AppHeader`, `ThemeToggle` (`src/product/shell/`); built on `FormField`, `Input`, `PasswordInput`, `Button`, `Alert`, `Link`, `RadioGroup`.
+
+## Decisions that shape it
+
+- One centred card is the only centred layout in Taskly (What to avoid).
+- The theme switch has two named positions, Dark and Light, dark by default, and sets `data-theme` on `<html>` (Q1, Luki 2, P4).
+- Validation on leaving a field and on submit; the error under the field; the form error above the form (sign-in spec, Patterns / Form).
+- No bottom navigation on phones in version 1 (decision E1); a "Sign in" link on the sign-up page (decision E11).
+
+## Remaining product work
+
+- Build the pages, the guard and the auth configuration in `packages/app` (spec Phase A), wrapping these components with the Better Auth calls.
+- Save the theme choice and apply it on `<html>` before the first paint.
+- The password-reset script (spec Phase B) has no UI.

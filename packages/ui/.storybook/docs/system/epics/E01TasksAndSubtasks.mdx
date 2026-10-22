@@ -1,0 +1,48 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Epics/E01 Tasks and subtasks" />
+
+# E01 Tasks and subtasks
+
+Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (#15), E01-S02 subtasks with their own estimate that changes nothing in the task (#16). Spec: `.ai/specs/2026-10-16-tasks-and-subtasks.md` (PR A: data and services; PR B: routes and the screen; PR C: subtasks). Screens S5 and S6.
+
+## Flow
+
+1. The owner opens `/` and sees one list on one surface; while it loads, static grey rows.
+2. They type a title in quick add and press "Add" (or Enter). The row appears at once, muted with "Saving…", and is confirmed or rolled back with the message on the form; focus stays in quick add for the next task.
+3. "Details" in quick add opens the description and the estimate (min and max in złoty) for those who want them now; only the title is required.
+4. Pressing a task's title opens the row in place: the description, the subtasks and "Add subtask". The estimate stays at the right of the title from 640px and goes under it on phones.
+5. "…" → "Edit" turns the row into the same form, filled in; Cancel or Save returns focus to "…".
+6. "…" → "Add subtask" opens a form under the task; the subtask's estimate never changes the task's estimate.
+7. "…" → "Delete" asks once, naming the task and how many subtasks go with it; there is no undo.
+
+## Screens and stories
+
+| Screen | State                                    | Story                                                                                                                                                                                  |
+| ------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S5     | Ready at 1440, 768 and 320 px            | [Desktop](?path=/story/product-tasks-screens--list-desktop), [Tablet](?path=/story/product-tasks-screens--list-tablet), [Phone](?path=/story/product-tasks-screens--list-phone)        |
+| S5     | Loading; load failed → Try again; empty  | [Loading](?path=/story/product-tasks-screens--loading), [Load Failed](?path=/story/product-tasks-screens--load-failed), [Empty](?path=/story/product-tasks-screens--empty)             |
+| S5     | Adding: confirmed, not answered, refused | [Add Task](?path=/story/product-tasks-screens--add-task), [Pending Add](?path=/story/product-tasks-screens--pending-add), [Add Failed](?path=/story/product-tasks-screens--add-failed) |
+| S5     | Editing in place; delete confirmation    | [Edit In Place](?path=/story/product-tasks-screens--edit-in-place), [Confirm Delete](?path=/story/product-tasks-screens--confirm-delete)                                               |
+| S5     | 30 tasks; Polish text                    | [Many Tasks](?path=/story/product-tasks-screens--many-tasks), [Polish Phone](?path=/story/product-tasks-screens--polish-phone)                                                         |
+| S6     | Task opened; adding a subtask on a phone | [Task Opened Desktop](?path=/story/product-tasks-screens--task-opened-desktop), [Task Opened Phone](?path=/story/product-tasks-screens--task-opened-phone)                             |
+
+The full state map is on [Tasks screens](?path=/docs/product-tasks-screens--docs). Patterns: [Quick capture](?path=/docs/patterns-quick-capture--docs), [Details in row](?path=/docs/patterns-details-in-row--docs), [Inline edit](?path=/docs/patterns-inline-edit--docs), [Optimistic change](?path=/docs/patterns-optimistic-change--docs), [Delete confirmation](?path=/docs/patterns-delete-confirmation--docs), [List](?path=/docs/patterns-list--docs), [Form](?path=/docs/patterns-form--docs).
+
+## Components
+
+`QuickAdd`, `TaskList`, `TaskRow`, `TaskForm`, `EstimateRange`, `DeleteTaskDialog` (`src/product/tasks/`); built on `Surface`, `Collapsible`, `Menu`, `FormField`, `Input`, `Textarea`, `TextAction`, `ConfirmDialog`, `Skeleton`, `EmptyState`, `ErrorState`.
+
+## Decisions that shape it
+
+- A list of rows, not cards or a board; one surface, rows divided by a line (R02.1, A01.2).
+- The description shows only when the row is open; row actions are in "…" (Luki 6, R02.1, P2).
+- The title is the row's one disclosure; the arrow from 640px is decorative (decision J1).
+- An estimate is "1 200–1 500 zł"; both amounts or neither; "No estimate" when empty (R07, tokens rule 5, F11).
+- A change shows at once and rolls back with a message where it happened, never a toast (spec E01, P4).
+
+## Remaining product work
+
+- Correct the spec's UI/UX to Luki 6 (description only in the open row, actions in "…"), decision P2.
+- Fix `formatPlnRange` to "1 200–1 500 zł" with unit tests, decision F11 (the spec has the note; PR B).
+- Build PR A–C; in the app, wrap these components with TanStack Query (optimistic updates and rollback) and the shared Zod schema.

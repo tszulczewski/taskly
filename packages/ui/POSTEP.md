@@ -13,10 +13,10 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 1. Fundamenty              | zakończony; F1–F8 przyjęte                                                    | 2026-10-21 |
 | 2. Komponenty bazowe       | zakończony: partie 1–3 (K1–K5, B1–B9, C1–C10, D1–D10 rozstrzygnięte)          | 2026-10-22 |
 | 3. Produkt, wzorce, ekrany | zakończony: partie 1–4 (E1–E12, F1–F14, G1–G6, H1–H10, I1–I4, J1–J10 rozstrzygnięte) | 2026-10-22 |
-| 4. Strony, które uczą      | w toku                                                                        | 2026-10-22 |
+| 4. Strony, które uczą      | zakończony i sprawdzony; propozycje L1–L4 czekają na decyzję                  | 2026-10-22 |
 | 5. Sprawdzenie i raport    | nie rozpoczęty                                                                | —          |
 
-**Następny krok:** etap 4: strony, które uczą (Design system/*, strony epików, plik dla agentów `.ai/docs/design-system.md`).
+**Następny krok:** decyzje L1–L4 (sekcja „Etap 4” na końcu pliku), potem po „dalej” etap 5: sprawdzenie i raport.
 
 ## Etap 2: różnice względem shadcn (2026-10-22, przed partią 1)
 
@@ -645,3 +645,37 @@ Pytania:
 - **J1 C:** tytuł z rozwijaną treścią jest przyciskiem rozwijania (`aria-expanded`) na każdej szerokości. Cały blok tekstu (tytuł, kwota, linia meta) to jego cel dotyku, z pierścieniem fokusu wokół bloku. Strzałka od 640px tylko powtarza tytuł dla myszy (`aria-hidden`, poza kolejnością Tab); poniżej 640px jej nie ma. Jedna kontrolka na wiersz zamiast przełączania przez media query, bo przy renderowaniu na serwerze telefon zobaczyłby najpierw zły układ. Wygląd od 640px bez zmian; kolejność Tab: uchwyt → checkbox → tytuł → „…”. Na 320px tytuł ma 150px z checkboxem (było 98px), 202px bez niego.
 - J2–J10: w dokumentacji „proposal” zmienione na „decision J…”.
 - Sprawdzenie: `npm test` 250, 100%; `test:storybook` 882; lint, typecheck; Storybook zbudowany i obejrzany (320px polski, 1440px fokus klawiatury).
+
+## Etap 4: co powstało (2026-10-22)
+
+Strony pisane w poprzedniej sesji, sprawdzone i domknięte w tej (sesja przerwała się przed sprawdzeniem i wpisem tutaj).
+
+- **Design system** (`.storybook/docs/system/`):
+  - Start here: charakter w trzech zdaniach, słowa charakteru i antycharakteru, pięć kroków budowy ekranu, tabela 40 komponentów (link, import, kiedy, kiedy nie), legenda źródeł (R0x, P01–P15 kontra P1–P5 itd.), komendy;
+  - Components: katalog w grupach (Primitives; Product · App shell, Sign-in, Tasks, Places, Expenses) z działającym podglądem, jednym zdaniem i linkiem; dane w `.storybook/blocks/catalog.ts`, podglądy w `Catalog.tsx`; test w story sprawdza, że każda strona komponentu jest w katalogu i każda pozycja ma podgląd;
+  - How to choose: 8 tabel „if … use …” (przycisk/link/ikona/menu; radio/select/wyszukiwanie; przełącznik/checkbox; dialog/potwierdzenie/panel/strona/popover/podpowiedź; błąd pola/alert/toast; szkielet/wskaźnik; tabela/lista/karty; zakładki/strony) z przykładami z produktu;
+  - Usage and accessibility: klawiatura i fokus, formularze i komunikaty, kolor, ruch, układ na szerokościach, reguły produktu pilnowane przez interfejs; każda reguła ze źródłem;
+  - Content: ton (3 zdania, które mówimy, i 3, których nie), słowniczek PL/EN, przyciski, błędy, puste stany, formaty (kwoty, przedziały, liczby; daty jako propozycja L2);
+  - What to avoid: antywzorce produktu (A01–A05), generyczny wygląd AI, błędy implementacji; przy każdym: jak rozpoznać w kodzie, dlaczego, czym zastąpić;
+  - What is missing: pokrycie backlogu (pozycja, komponenty i ekrany, stan, priorytet), czego nie zbudowano celowo (Avatar, Tabs, Toast, Status badge, Select, Switch, ogólny Dialog, lista z filtrami, dolna nawigacja), E04, praca poza design systemem, otwarte pytania;
+  - Contributing: kiedy nic, wariant, komponent; gdzie kod; co musi mieć nowy komponent (13 sekcji, stories, testy); zmiana tokenu; kto zatwierdza; komendy.
+- **Strony epików** (`Design system/Epics/`): Sign-in (warunek wstępny), E01, E02, E03; każda: przepływ, ekrany i stories (mapa), komponenty i pliki, decyzje, praca, która zostaje w produkcie.
+- **Plik dla agentów:** `.ai/docs/design-system.md` (charakter, sprawdzane reguły, tabela komponentów, tokeny znaczeniowe, „if … then use …”, czego unikać, treść, komendy, źródła); odwołanie w `AGENTS.md` (digest standardów i drzewo `.ai/docs/`).
+
+### Etap 4: sprawdzenie (2026-10-22)
+
+- `check:tokens`, `format:check`, `lint`, `typecheck`: bez błędów.
+- `npm test`: 250, progi 100% spełnione (exit 0).
+- `test:storybook`: 894 (447 stories × 2 motywy), a11y = error; po poprawce poniżej ponownie stories strony Components (12).
+- `build-storybook`: sukces. Linki `?path=` ze stron etapu 4: 119, wszystkie wskazują istniejące wpisy w `index.json` zbudowanego Storybooka.
+- Zbudowany Storybook (agent-browser): 12 stron etapu 4 renderuje się bez błędu, tabele GFM działają (brak surowych `| ---`); 5 stron (Components, Start here, How to choose, What to avoid, E02) na 320, 768 i 1440 px w obu motywach bez przewijania w poziomie; zrzuty katalogu na 1440 (ciemny) i 320 (jasny).
+- Poprawione: na 320 px strona Components przewijała się w poziomie o 1 px, bo podgląd `AppHeader` w kolumnie katalogu ma 174 px (na prawdziwym ekranie 320 px nagłówek ma 288 px i się mieści). Podgląd dostał własne pole przewijania (`overflow-x-auto`, `tabIndex={0}`, `role="group"`, nazwa „App shell preview”); `role="region"` łamał `landmark-banner-is-top-level` (lekcja). Komponent produktu bez zmian.
+- Kod aplikacji bez zmian. Bez nowych zależności.
+- Nie sprawdzone: czytnik ekranu; pełne źródłowanie reguł stron etapu 4 sprawdziłem wyrywkowo (wyszukanie „proposal” i przegląd tabel), nie zdanie po zdaniu.
+
+### Etap 4: propozycje L1–L4 (do decyzji product ownera)
+
+- **L1. Reguły w Contributing** (oznaczone „proposal”): potrzeba na jednym ekranie → nic nie dodajemy do systemu; ta sama potrzeba w co najmniej dwóch miejscach → komponent; inny wygląd dla innego znaczenia → wariant nazwany znaczeniem (`danger`), nie wyglądem (`red`). Pierwsze dwie pochodzą z treści zadania (etap 4). Przyjąć i zmienić źródło na „task, stage 4”?
+- **L2. Formaty dat i godzin** (Content, What is missing): wersja 1 nie pokazuje dat. Propozycja na później: „22 paź 2026”, „14:30” / „22 Oct 2026”, „2:30 pm”.
+- **L3. Wybór języka** (What is missing, otwarte pytania): w wersji 1 język z przeglądarki przy pierwszej wizycie, bez przełącznika. Dotyczy aplikacji, nie design systemu.
+- **L4. Strona epiku E04** („Later”, zaparkowany): zadanie mówi „jedna strona na każdy epik”, a E04 nie ma przepływu ani ekranów, więc jest opisany w What is missing › Later (version 2, backlog E04) zamiast osobnej strony. Zostawić tak, czy dodać krótką stronę `Design system/Epics/E04 Later` z tą samą treścią?
