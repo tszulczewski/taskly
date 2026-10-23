@@ -24,7 +24,7 @@
     "@testcontainers/postgresql": "^12.2.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24.19.2",
-    "@vitest/coverage-v8": "^5.0.4",
+    "@vitest/coverage-v8": "^5.0.5",
     "agent-browser": "^0.39.1",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
@@ -32,6 +32,6 @@
     "prettier": "^3.9.10",
     "testcontainers": "^12.2.1",
     "typescript": "^5",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   }
 }
