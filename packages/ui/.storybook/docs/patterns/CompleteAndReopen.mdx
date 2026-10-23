@@ -9,18 +9,18 @@ How the owner marks work done and takes it back, shown on the task list with fut
 
 ## Rules
 
-| Rule                                                                                                                                                                                         | Source                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A completed task stays in the list: checkbox checked in the accent, title muted and struck through.                                                                                          | R02.2, decision 2026-10-21           |
-| Completed tasks are shown after the open ones, completed subtasks after their task's open subtasks, in plan order. Display order only.                                                       | decision 2026-10-21 (1, 2, 4)        |
-| A reopened task is shown first in the list; a reopened subtask first in its task.                                                                                                            | decision 2026-10-21 (3)              |
-| Completing a main task completes its subtasks; if any is open, the owner is asked first.                                                                                                     | R09, decision I2                     |
-| A subtask can be completed alone; completing every subtask does not complete the task.                                                                                                       | R11                                  |
-| Reopening a task does not reopen its subtasks.                                                                                                                                               | R11                                  |
-| A completed row keeps Edit, Places…, markers and Delete; it loses the handle, Move up / Move down and "Add subtask". Amount, places and markers are muted; the amount is not struck through. | decision I3, decision 2026-10-21 (5) |
-| Future expenses counts open main tasks with an estimate and changes with every completion, reopening and estimate.                                                                           | R08, R10, D19                        |
-| Every change shows at once; if the server refuses, the row goes back and says so in the row, and the total goes back with it.                                                                | Optimistic change                    |
-| The row slides to its new place over `motion-duration-base`; focus stays on its checkbox. With reduced motion it jumps.                                                                      | Luki 8, decision J7                  |
+| Rule                                                                                                                                                                                                       | Source                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| A completed task stays in the list: checkbox checked in the accent, title muted and struck through.                                                                                                        | R02.2, decision 2026-10-21           |
+| Completed tasks are shown after the open ones, completed subtasks after their task's open subtasks, in plan order. Display order only.                                                                     | decision 2026-10-21 (1, 2, 4)        |
+| A reopened task is shown first in the list; a reopened subtask first in its task.                                                                                                                          | decision 2026-10-21 (3)              |
+| Completing a main task completes its subtasks; if any is open, the owner is asked first.                                                                                                                   | R09, decision I2                     |
+| A subtask can be completed alone; completing every subtask does not complete the task.                                                                                                                     | R11                                  |
+| Reopening a task does not reopen its subtasks.                                                                                                                                                             | R11                                  |
+| A completed row keeps Edit, Places…, markers and Delete; it loses the handle, Move up / Move down and "Add subtask". Amount, places and markers are muted; the amount is not struck through.               | decision I3, decision 2026-10-21 (5) |
+| Future expenses counts open main tasks with an estimate and changes with every completion, reopening and estimate.                                                                                         | R08, R10, D19                        |
+| Every change shows at once; if the server refuses, the row goes back and says so in the row, and the total goes back with it.                                                                              | Optimistic change                    |
+| The row slides to its new place over `motion-duration-base`; focus stays on its checkbox. With reduced motion it jumps. Lists that are not tasks jump too, until they share a row component (decision N9). | Luki 8, decisions J7, N9             |
 
 ## States
 

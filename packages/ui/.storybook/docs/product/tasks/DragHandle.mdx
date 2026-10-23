@@ -30,11 +30,12 @@ Lets the owner put tasks in the order the work will happen: drag a row by its gr
 
 ## 4. Anatomy
 
-| Part   | Required | Notes                                                                             |
-| ------ | -------- | --------------------------------------------------------------------------------- |
-| Grip   | yes      | Lucide `GripVertical` at `size-icon`, the one icon for this gesture (Luki 7)      |
-| Button | yes      | Ghost icon button, 44 × 44 px; named "Move “title”", described as a "movable row" |
-| Cursor | yes      | `grab`, `grabbing` while pressed                                                  |
+| Part    | Required | Notes                                                                                                                                                       |
+| ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grip    | yes      | Lucide `GripVertical` at `size-icon`, the one icon for this gesture (Luki 7)                                                                                |
+| Button  | yes      | Ghost icon button, 44 × 44 px; named "Move “title”", described as a "movable row"                                                                           |
+| Cursor  | yes      | `grab`, `grabbing` while pressed                                                                                                                            |
+| Tooltip | yes      | `Tooltip` with the same name on hover and keyboard focus (Luki 7, decision N4); it wraps the button, so the row hides the handle with a wrapper below 640px |
 
 ## 5. Variants
 

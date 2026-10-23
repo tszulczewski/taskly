@@ -16,17 +16,32 @@ None. No component, pattern or screen story belongs to E04.
 
 ## Parked items
 
-| Item                                                                               | Source      | What it would need from the system                                         |
-| ---------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| Real cost and payments                                                             | D17         | A second money figure next to the estimate; a tokens check for a new total |
-| Incurred expenses and the expenses of completed tasks, a single value, not a range | D18         | A second line beside future expenses (today one line only: R02.7, P04)     |
-| Marking which job must come before which                                           | D10, Q12    | A way to show the link in the row without crowding it (R02.5)              |
-| Effort level                                                                       | D05         | A new marker, checked against the plain-word markers (Luki 4)              |
-| AI cost estimates                                                                  | D04, D11    | A loading and "not trusted yet" state; no sparkles or AI look (A02)        |
-| The quick shopping list on the phone                                               | backlog E04 | A second screen, so navigation (bottom bar was left out: decision E1)      |
-| Sharing, roles and testing by friends                                              | D02, N02    | `Avatar`, roles in the UI; left out on purpose (P4)                        |
+| Item                                                                               | Source      | What it would need from the system                                                                                           |
+| ---------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Real cost and payments                                                             | D17         | A second money figure next to the estimate; a tokens check for a new total                                                   |
+| Incurred expenses and the expenses of completed tasks, a single value, not a range | D18         | A second line beside future expenses (today one line only: R02.7, P04)                                                       |
+| Marking which job must come before which                                           | D10, Q12    | A way to show the link in the row without crowding it (R02.5)                                                                |
+| Effort level                                                                       | D05         | A new marker, checked against the plain-word markers (Luki 4)                                                                |
+| AI cost estimates                                                                  | D04, D11    | A loading and "not trusted yet" state; no sparkles or AI look (A02)                                                          |
+| The quick shopping list on the phone                                               | backlog E04 | A second screen, so navigation (bottom bar was left out: decision E1); a shared list row (N1) and a name-only quick add (N3) |
+| Sharing, roles and testing by friends                                              | D02, N02    | `Avatar`, roles in the UI; left out on purpose (P4)                                                                          |
 
 The "What it would need from the system" column is a proposal: a note for whoever starts the item, not a design and not a decision.
+
+## Quick shopping list: what the agent test left open
+
+The design-system agent test (2026-10-23, `.ai/runs/2026-10-23-shopping-screen-agent-test.md`) built this screen as an exercise, on a branch that is not merged. These questions belong to the product, not to the system; answer them in the E04 spec before the screen is built.
+
+| Question                                                                                                               | What the test assumed                                                          |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| The screen's name and the words for it: shopping list, one thing on it, bought (not in the glossary)                   | "Shopping list" / "Lista zakupów", "item" / "rzecz", "bought" by the check box |
+| How bought items leave the list: one by one, all at once, or by themselves after a while                               | one by one with Delete                                                         |
+| The longest name and its message                                                                                       | only "Enter a name."                                                           |
+| What a list with everything bought says                                                                                | nothing beyond the rows                                                        |
+| Whether the owner reorders items                                                                                       | no: open in the order added, bought after them                                 |
+| Navigation between the task list and the shopping list on a phone (bottom bar, P07, R02.11, decision E1)               | none shown                                                                     |
+| Where the add field sits on a phone for one-handed use: on top, at the bottom, pinned above the keyboard (decision N7) | on top, like the task list                                                     |
+| Example data beyond the three items in the brief (door lock, glue, grass fertilizer)                                   | materials named in the brief and spec E01                                      |
 
 ## Decisions that shape it
 

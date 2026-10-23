@@ -229,15 +229,16 @@ export function SpacingRelations() {
   return (
     <DocFrame label="Each level uses exactly one token; the gaps grow from the inside out">
       <div className="flex flex-col gap-section">
-        <div className="bg-list rounded-surface p-inset flex items-center justify-between gap-between-groups">
-          <div className="flex flex-col gap-inline">
-            <span className="flex items-center gap-group">
+        {/* Wraps at 320px instead of widening the docs page (decision N11). */}
+        <div className="bg-list rounded-surface p-inset flex flex-wrap items-center justify-between gap-between-groups">
+          <div className="flex min-w-0 flex-col gap-inline">
+            <span className="flex flex-wrap items-center gap-group">
               <Box label="handle" />
               <Box label="chevron" />
               <Box label="checkbox" />
               <Box label="title" />
             </span>
-            <span className="flex items-center gap-group">
+            <span className="flex flex-wrap items-center gap-group">
               <span className="inline-flex items-center gap-inline">
                 <Box label="dot" />
                 <Box label="place" />

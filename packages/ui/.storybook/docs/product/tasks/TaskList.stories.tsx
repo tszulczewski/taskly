@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { TaskList, type TaskListProps } from "../../../../src";
+import { tokenPx } from "../../../../src/lib/token-px";
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { answer } from "../../../blocks/fake-api";
 import { DoDont, Narrow } from "../../../blocks/Primitives";
@@ -56,6 +57,15 @@ export const Loading: Story = {
   args: { status: "loading" },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole("status")).toHaveTextContent("Loading tasks…");
+    // A skeleton row is as high as a one-line row: a 44px target between 12px paddings (N8).
+    const row = 2 * tokenPx("--task-row-padding-y") + tokenPx("--touch-target-min");
+    const rows = canvasElement.querySelectorAll<HTMLElement>('[aria-busy="true"] > div');
+    await expect(rows).toHaveLength(3);
+    for (const [index, skeleton] of Array.from(rows).entries()) {
+      // The first row has no top line; the others add the 1px divider.
+      const line = index === 0 ? 0 : 1;
+      await expect(skeleton.getBoundingClientRect().height).toBeCloseTo(row + line, 0);
+    }
   },
 };
 

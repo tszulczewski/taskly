@@ -189,8 +189,8 @@
 
 /* 3. Component tokens ---------------------------------------------------------------------- */
 :root {
-  --task-row-min-height: 4rem; /* Luki 6 (64px) */
-  --task-row-padding-y: var(--raw-space-12); /* T10 (12 + 22 + 18 + 12 = 64) */
+  --task-row-min-height: 4rem; /* Luki 6 (64px floor; a row with a 44px target is 68px: N8) */
+  --task-row-padding-y: var(--raw-space-12); /* T10 (12 + 44 + 12 = 68); every list row: N2 */
   --task-row-indent: var(--raw-space-24); /* R02.1 (about 22px); T10 */
   --place-dot-size: 0.5rem; /* R02 code (9px); T10 */
   --checkbox-size: 1.25rem; /* R02.1; T10 */

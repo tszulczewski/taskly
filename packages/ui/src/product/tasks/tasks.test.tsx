@@ -265,6 +265,18 @@ describe("TaskList", () => {
     expect(screen.getByRole("button", { name: "Add subtask" })).toBeTruthy();
   });
 
+  it("captions the row menu button with its own name on focus (decision N4)", async () => {
+    renderList({ tasks: [sealBath] });
+    const more = screen.getByRole("button", { name: "More actions for “Seal the bath”" });
+    await act(async () => {
+      more.focus();
+    });
+    expect(document.querySelector('[data-slot="tooltip"]')?.textContent).toBe(
+      "More actions for “Seal the bath”",
+    );
+    expect(more.hasAttribute("aria-describedby")).toBe(false);
+  });
+
   it("toggles from the arrow too, which only repeats the title for the pointer", () => {
     renderList({ tasks: [paint] });
     const title = screen.getByRole("button", { name: "Paint the ceiling" });
@@ -433,7 +445,10 @@ describe("TaskList ordering, markers and places", () => {
   it("gives each movable row a handle, but not a pending one", () => {
     renderList({ tasks: [paint, rods, { ...sealBath, pending: true }], onMove: vi.fn() });
     const handle = screen.getByRole("button", { name: "Move “Paint the ceiling”" });
-    expect(handle.className).toContain("wide:inline-flex");
+    // Hidden below 640px by the row's wrapper around the handle and its tooltip (G2, N4).
+    const wrapper = handle.closest("[data-slot=tooltip-trigger]")?.parentElement;
+    expect(wrapper?.className).toContain("hidden");
+    expect(wrapper?.className).toContain("wide:inline-flex");
     expect(handle.getAttribute("aria-roledescription")).toBe("movable row");
     expect(
       (screen.getByRole("button", { name: "Move “Seal the bath”" }) as HTMLButtonElement).disabled,

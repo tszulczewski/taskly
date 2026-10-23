@@ -55,9 +55,19 @@ export function DoDont({ good, bad }: { good: Example; bad: Example }) {
       ].map(({ verdict, example }) => (
         <figure
           key={verdict}
-          className="flex flex-col gap-group rounded-surface border border-divider p-inset"
+          className="flex min-w-0 flex-col gap-group rounded-surface border border-divider p-inset"
         >
-          <div className="flex flex-col items-start gap-group">{example.node}</div>
+          {/* Examples are laid out for the page width; in a narrow docs column they scroll on
+              their own instead of widening the page (decision N11). The padding keeps focus rings
+              inside the scroll box. */}
+          <div
+            role="group"
+            aria-label={`${verdict} example`}
+            tabIndex={0}
+            className="-m-inline flex flex-col items-start gap-group overflow-x-auto p-inline outline-none focus-visible:focus-ring"
+          >
+            {example.node}
+          </div>
           <figcaption className="text-meta">
             <strong className={verdict === "Do" ? "text-action" : "text-danger"}>{verdict}.</strong>{" "}
             <span className="text-muted">{example.why}</span>

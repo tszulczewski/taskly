@@ -20,6 +20,7 @@ import {
 } from "../../components/ui/menu";
 import { Popover, PopoverAnchor, PopoverContent } from "../../components/ui/popover";
 import { TextAction } from "../../components/ui/text-action";
+import { Tooltip } from "../../components/ui/tooltip";
 import { cn } from "../../lib/cn";
 import type { SubmitResult } from "../../lib/use-form";
 import { PlacePicker, type PlaceValues } from "../places/place-picker";
@@ -244,18 +245,21 @@ export function TaskRow({
 
   const menu = (
     <Menu modal={false}>
-      <MenuTrigger asChild>
-        <PopoverAnchor asChild>
-          <Button
-            ref={menuTriggerRef}
-            variant="ghost"
-            size="icon"
-            aria-label={t.moreActions(task.title)}
-          >
-            <Ellipsis />
-          </Button>
-        </PopoverAnchor>
-      </MenuTrigger>
+      {/* The tooltip reads the label of its direct child, so MenuTrigger carries it too (N4). */}
+      <Tooltip>
+        <MenuTrigger asChild aria-label={t.moreActions(task.title)}>
+          <PopoverAnchor asChild>
+            <Button
+              ref={menuTriggerRef}
+              variant="ghost"
+              size="icon"
+              aria-label={t.moreActions(task.title)}
+            >
+              <Ellipsis />
+            </Button>
+          </PopoverAnchor>
+        </MenuTrigger>
+      </Tooltip>
       <MenuContent
         onCloseAutoFocus={(event) => {
           if (!menuMovedFocus.current) return;
@@ -381,13 +385,15 @@ export function TaskRow({
             )}
           >
             {movable ? (
-              <DragHandle
-                ref={setActivatorNodeRef}
-                {...attributes}
-                label={t.dragHandle(task.title)}
-                disabled={task.pending}
-                className="hidden wide:inline-flex"
-              />
+              // The handle's tooltip wraps it, so this wrapper hides both below 640px (G2).
+              <span className="hidden shrink-0 wide:inline-flex">
+                <DragHandle
+                  ref={setActivatorNodeRef}
+                  {...attributes}
+                  label={t.dragHandle(task.title)}
+                  disabled={task.pending}
+                />
+              </span>
             ) : columns.handle ? (
               <HandleSpace />
             ) : null}

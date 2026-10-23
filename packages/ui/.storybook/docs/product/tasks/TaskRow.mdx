@@ -29,20 +29,20 @@ Shows one task or subtask as a single calm line: what to do and what it may cost
 
 ## 4. Anatomy
 
-| Part             | Required | Notes                                                                                                                                                                                           |
-| ---------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Handle           | optional | `DragHandle` at the start, from 640px, when the row gets `move` (E02-S01, decision G2)                                                                                                          |
-| Arrow            | optional | From 640px: the chevron before the checkbox; it only repeats the title for the pointer (`aria-hidden`, not a tab stop). Always on tasks, on subtasks only with a description (decisions F5, J1) |
-| Checkbox         | optional | `TaskCheckbox` after the arrow (from 640px) or first in the row, when the row gets `onToggleComplete` (E03-S01, R02.1, decision I3)                                                             |
-| Title            | yes      | `font-weight-strong`; wraps, never truncated. With details it is the disclosure button (`aria-expanded`), and the whole text block is its 44px target (decision J1)                             |
-| Estimate         | yes      | `EstimateRange`: right of the title from 640px, under it below                                                                                                                                  |
-| Meta line        | optional | 13px muted, wraps: "Saving…" while pending (decision F3), `PlaceTag`s, `Markers`, then "3 subtasks", or `SubtaskProgress` "1/3" with completion (Luki 6, decision F4)                           |
-| "…" menu         | yes      | Add subtask (tasks only), Edit, Places…; Important, Urgent; Move up, Move down; Delete in `color-text-danger` (R02.1, P2, decision G3)                                                          |
-| Places popover   | optional | `PlacePicker` in a `Popover` aligned to the end of "…" (decision G3, decision H7)                                                                                                               |
-| Row error        | optional | 13px `color-text-danger`, `role="alert"`, under the title after a rollback (spec E01)                                                                                                           |
-| Expanded content | optional | Description (primary text, `layout-text-measure`), the subtasks indented by `task-row-indent`, "Add subtask"                                                                                    |
+| Part             | Required | Notes                                                                                                                                                                                                          |
+| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Handle           | optional | `DragHandle` at the start, from 640px, when the row gets `move` (E02-S01, decision G2); its `Tooltip` shows the name (decision N4)                                                                             |
+| Arrow            | optional | From 640px: the chevron before the checkbox; it only repeats the title for the pointer (`aria-hidden`, not a tab stop). Always on tasks, on subtasks only with a description (decisions F5, J1)                |
+| Checkbox         | optional | `TaskCheckbox` after the arrow (from 640px) or first in the row, when the row gets `onToggleComplete` (E03-S01, R02.1, decision I3)                                                                            |
+| Title            | yes      | `font-weight-strong`; wraps, never truncated. With details it is the disclosure button (`aria-expanded`), and the whole text block is its 44px target (decision J1)                                            |
+| Estimate         | yes      | `EstimateRange`: right of the title from 640px, under it below                                                                                                                                                 |
+| Meta line        | optional | 13px muted, wraps: "Saving…" while pending (decision F3), `PlaceTag`s, `Markers`, then "3 subtasks", or `SubtaskProgress` "1/3" with completion (Luki 6, decision F4)                                          |
+| "…" menu         | yes      | Add subtask (tasks only), Edit, Places…; Important, Urgent; Move up, Move down; Delete in `color-text-danger` (R02.1, P2, decision G3); a `Tooltip` repeats its name, "More actions for “title”" (decision N4) |
+| Places popover   | optional | `PlacePicker` in a `Popover` aligned to the end of "…" (decision G3, decision H7)                                                                                                                              |
+| Row error        | optional | 13px `color-text-danger`, `role="alert"`, under the title after a rollback (spec E01)                                                                                                                          |
+| Expanded content | optional | Description (primary text, `layout-text-measure`), the subtasks indented by `task-row-indent`, "Add subtask"                                                                                                   |
 
-Row height at least `task-row-min-height`, padding `task-row-padding-y` / `space-inset`, rows divided by 1px `color-border-divider` (tokens, R02.1). An expanded task sits on `color-surface-raised`; rows inside it hover with `color-surface-raised-hover`.
+A one-line row is 68px: the text block is at least a 44px target (`min-h-touch`) between `task-row-padding-y` above and below, so `task-row-min-height` (64px) is only a floor (T10, decision N8). Sides `space-inset`, rows divided by 1px `color-border-divider` (tokens, R02.1). An expanded task sits on `color-surface-raised`; rows inside it hover with `color-surface-raised-hover`.
 
 ## 5. Variants
 

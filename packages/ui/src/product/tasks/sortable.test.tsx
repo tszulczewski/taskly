@@ -202,4 +202,15 @@ describe("DragHandle", () => {
     fireEvent.keyDown(handle, { key: "Enter" });
     expect(onKeyDown).toHaveBeenCalledOnce();
   });
+
+  it("captions itself with its name on focus (decision N4)", async () => {
+    render(<DragHandle label="Move “Seal the bath”" />);
+    const handle = screen.getByRole("button", { name: "Move “Seal the bath”" });
+    await act(async () => {
+      handle.focus();
+    });
+    expect(document.querySelector('[data-slot="tooltip"]')?.textContent).toBe(
+      "Move “Seal the bath”",
+    );
+  });
 });

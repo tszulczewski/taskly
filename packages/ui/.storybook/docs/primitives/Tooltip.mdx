@@ -16,6 +16,7 @@ Shows the name of an icon button to mouse and keyboard users, so an icon is neve
 ## 2. When to use
 
 - On every icon-only button: the drag handle, the “…” menu, the plus for adding (Luki 7: icons only where they replace a known gesture).
+- `TaskRow`'s “…” and `DragHandle` have it (decision N4, after the agent test of 2026-10-23).
 
 ## 3. When not to use
 
@@ -85,7 +86,22 @@ None. `side` (default `top`) places the bubble.
 </Tooltip>
 ```
 
-In Taskly the menu trigger is both: `<Tooltip><MenuTrigger asChild><Button …/></MenuTrigger></Tooltip>`.
+In Taskly the menu trigger is both. `Tooltip` reads its text from its direct child's `aria-label`, and that child is `MenuTrigger`, so the label goes on `MenuTrigger` as well as on the `Button` (without it the bubble is empty). See the With Menu story.
+
+```tsx
+<Menu>
+  <Tooltip>
+    <MenuTrigger asChild aria-label={`More actions for “${item.name}”`}>
+      <Button variant="ghost" size="icon" aria-label={`More actions for “${item.name}”`}>
+        <Ellipsis aria-hidden="true" />
+      </Button>
+    </MenuTrigger>
+  </Tooltip>
+  <MenuContent>…</MenuContent>
+</Menu>
+```
+
+<Story of={Stories.WithMenu} />
 
 ## 12. Do and don't
 

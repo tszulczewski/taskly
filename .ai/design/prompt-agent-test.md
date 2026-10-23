@@ -17,7 +17,7 @@ Celem nie jest sam ekran, tylko sprawdzenie, czy design system wystarcza.
 - Design system: packages/ui/src/styles/tokens.css, packages/ui/src/, packages/ui/.storybook, .ai/docs/design-system.md, AGENTS.md
 - Co ma być na ekranie: lista zakupów, przycisk dodawania, możliwość odhaczenia, poprawienia i usunięcia pozycji.
 - Gdzie zapisać ekran: packages/ui/.storybook/docs/product/shopping/Screens.stories.tsx (tytuł `Product/Shopping/Screens`). Ekran składasz w pliku story z komponentów eksportowanych z `@taskly/ui`; nic nie dodajesz w packages/ui/src/.
-- Język interfejsu: taki jak w projekcie (sprawdź AGENTS.md)
+- Język interfejsu: taki jak w projekcie (sprawdź .ai/docs/design-system.md › Content: produkt po polsku, story najpierw po angielsku)
 
 # Zasady
 

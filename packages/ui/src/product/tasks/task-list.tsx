@@ -100,13 +100,14 @@ export function TaskList({
   if (status === "loading") {
     return (
       <Surface data-slot="task-list" aria-busy="true">
+        {/* The same box as a row's text (a 44px target between the row's padding), so the list
+            does not move when the rows arrive; two meta-sized bars fit inside it (decision N8). */}
         {skeletonRows.map((row) => (
-          <div
-            key={row}
-            className="flex min-h-row flex-col justify-center gap-inline border-t border-divider px-inset py-row-y first:border-t-0"
-          >
-            <Skeleton className="w-2/3" />
-            <Skeleton className="w-1/3" />
+          <div key={row} className="border-t border-divider px-inset py-row-y first:border-t-0">
+            <div className="flex min-h-touch flex-col justify-center gap-inline text-meta">
+              <Skeleton className="w-2/3" />
+              <Skeleton className="w-1/3" />
+            </div>
           </div>
         ))}
         <span role="status" className="sr-only">
