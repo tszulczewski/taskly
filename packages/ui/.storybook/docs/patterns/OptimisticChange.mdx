@@ -9,15 +9,16 @@ How a change feels instant without lying: the list shows it at once, marks it as
 
 ## Rules
 
-| Rule                                                                                                                      | Source                        |
-| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| An add shows a temporary row at the end at once; an edit patches the row; a delete removes it.                            | spec E01, Optimistic UI       |
-| A row the server has not confirmed is pending: muted title, "Saving…", and its actions disabled.                          | spec E01, decision F3         |
-| No request is ever sent with a temporary id.                                                                              | spec E01                      |
-| On a refusal the list goes back to what it was and the message appears where the change was made: on the form or the row. | spec E01 ("toast-free")       |
-| Forms wait for the confirmation before clearing or closing, so a refused change keeps what was typed.                     | decision F2                   |
-| A confirmed new row is briefly highlighted; nothing else flashes or moves.                                                | spec E01, decision F1, Luki 8 |
-| Each change is one transaction on the server: nothing is half-saved.                                                      | spec E01, Edge cases          |
+| Rule                                                                                                                                                                                                                 | Source                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| An add shows a temporary row at once, at the end (of the open items, when the list has done ones); a tick, a move and a marker show at once too.                                                                     | spec E01, Optimistic UI, decision 2026-10-21  |
+| An edit and a delete wait for the server: the form or the dialog stays, busy, until it answers, and the row changes or goes on that answer (spec E01's "an edit patches the row; a delete removes it" happens then). | decision F2, Inline edit, Delete confirmation |
+| A row the server has not confirmed is pending: muted title, "Saving…", and its actions disabled.                                                                                                                     | spec E01, decision F3                         |
+| No request is ever sent with a temporary id.                                                                                                                                                                         | spec E01                                      |
+| On a refusal the list goes back to what it was and the message appears where the change was made: on the form or the row.                                                                                            | spec E01 ("toast-free")                       |
+| Forms wait for the confirmation before clearing or closing, so a refused change keeps what was typed.                                                                                                                | decision F2                                   |
+| A confirmed new row is briefly highlighted; nothing else flashes or moves.                                                                                                                                           | spec E01, decision F1, Luki 8                 |
+| Each change is one transaction on the server: nothing is half-saved.                                                                                                                                                 | spec E01, Edge cases                          |
 
 ## States
 

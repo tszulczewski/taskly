@@ -18,6 +18,7 @@ Lets the user mark one thing as done or chosen with a single press, and see at a
 ## 2. When to use
 
 - Completing and reopening a task or subtask from its row (backlog E03-S01, R02.1, R02.2).
+- Marking an item of a list that is not tasks as done, such as a bought item on the quick shopping list (E04), with a visible `Label` holding the item's name (decisions N5, N6; Patterns › List).
 - Choosing several places for a task in `PlacePicker` (E02-S03). The "Important" / "Urgent" markers in the row menu are menu checkbox items (`MenuCheckboxItem`, decision G3).
 
 ## 3. When not to use
@@ -70,7 +71,7 @@ None. There is no indeterminate ("some subtasks done") state: progress is writte
 
 - A visible `Label` is the thing itself, not an instruction: "Paint the bathroom ceiling", not "Mark as done" (glossary, Luki 5).
 - A box named only by `aria-label`, beside a title that is already visible, is named like an icon button: the action and the object, “Complete “Paint the bathroom ceiling”” (`TaskCheckbox`, decision J9). The two rules do not conflict: one is a visible label, the other an accessible name.
-- Long labels wrap next to the box; align the first line with the box.
+- Long labels wrap next to the box. In a list row the text block is centred against the 44px target while it fits in it (one line, or a title with a second line); longer text grows downwards and the box stays at the top of the row, level with the top 44px of the text rather than with its first line. A row does not grow to line the box up with the first line (decision U1).
 - Polish labels: "Zeskrobać starą farbę".
 
 <Unstyled>
