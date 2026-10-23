@@ -14,9 +14,9 @@ Celem nie jest sam ekran, tylko sprawdzenie, czy design system wystarcza.
 - Co agent oddaje: story ekranu (`Product/Shopping/Screens`, na osobnej gałęzi), mapę stanów (który stan pokazuje która story) i **listę każdego miejsca, w którym zgadywał**, z informacją, czego szukał i gdzie.
 - Czego agent nie robi: nowych komponentów, wariantów ani tokenów; brakujące rzeczy wpisuje do swojej listy zamiast je dodawać.
 - Po teście: każde miejsce zgadywania uzupełniam w dokumentacji albo wpisuję do „What is missing”.
-- Design system: packages/ui/src/styles/tokens.css, packages/ui/src/, packages/ui/.storybook,.ai/docs/design-system.md, AGENTS.md
+- Design system: packages/ui/src/styles/tokens.css, packages/ui/src/, packages/ui/.storybook, .ai/docs/design-system.md, AGENTS.md
 - Co ma być na ekranie: lista zakupów, przycisk dodawania, możliwość odhaczenia, poprawienia i usunięcia pozycji.
-- Gdzie zapisać ekran: packages/ui/src/screens/ShoppingListScreen.tsx
+- Gdzie zapisać ekran: packages/ui/.storybook/docs/product/shopping/Screens.stories.tsx (tytuł `Product/Shopping/Screens`). Ekran składasz w pliku story z komponentów eksportowanych z `@taskly/ui`; nic nie dodajesz w packages/ui/src/.
 - Język interfejsu: taki jak w projekcie (sprawdź AGENTS.md)
 
 # Zasady
