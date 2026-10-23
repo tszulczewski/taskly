@@ -16,7 +16,7 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 4. Strony, które uczą      | zakończony i sprawdzony; L1–L4 rozstrzygnięte i wdrożone                      | 2026-10-23 |
 | 5. Sprawdzenie i raport    | sprawdzenie zrobione; M1–M5 przyjęte, M1–M3 wdrożone; test agentem czeka      | 2026-10-23 |
 
-**Następny krok:** test agentem w nowej sesji (opis ekranu w sekcji „Etap 5: test agentem”), potem uzupełnienie dokumentacji o miejsca, w których agent zgadywał. Osobno, na polecenie product ownera: gałąź `chore/vitest-audit` (M4).
+**Następny krok:** test agentem w nowej sesji z promptem `.ai/design/prompt-agent-test.md` (2026-10-23), potem uzupełnienie dokumentacji o miejsca, w których agent zgadywał. M4 zrobione: PR #28 scalony; design system scalony w PR #30.
 
 ## Etap 2: różnice względem shadcn (2026-10-22, przed partią 1)
 
