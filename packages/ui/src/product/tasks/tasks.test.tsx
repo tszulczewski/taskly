@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompleteTaskDialog } from "./complete-task-dialog";
 import { DeleteTaskDialog } from "./delete-task-dialog";
@@ -229,6 +230,18 @@ describe("TaskList", () => {
     expect(screen.getByRole("status").parentElement?.getAttribute("aria-busy")).toBe("true");
   });
 
+  it("keeps the columns before the title empty in the skeleton, so the bars line up (O3)", () => {
+    const columns = (props: Partial<TaskListProps>) => {
+      cleanup();
+      renderList({ status: "loading", ...props });
+      const row = screen.getByRole("status").parentElement?.firstElementChild;
+      return row?.querySelectorAll('span[aria-hidden="true"]').length;
+    };
+    // The arrow column (from 640px) is always there; the handle and the checkbox when turned on.
+    expect(columns({})).toBe(1);
+    expect(columns({ onMove: vi.fn(), onToggleComplete: vi.fn() })).toBe(3);
+  });
+
   it("offers Try again when the list failed to load", () => {
     const { onRetry } = renderList({ status: "error", retrying: false });
     expect(screen.getByText("Could not load your tasks.")).toBeTruthy();
@@ -422,6 +435,36 @@ describe("TaskList", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole("list", { name: "Tasks" })),
+    );
+  });
+
+  it("puts focus on the empty state after the last task was deleted (O4)", async () => {
+    function App() {
+      const [tasks, setTasks] = useState([sealBath]);
+      return (
+        <TaskList
+          status="ready"
+          tasks={tasks}
+          validate={noErrors}
+          onRetry={vi.fn()}
+          onEdit={vi.fn(ok)}
+          onAddSubtask={vi.fn(ok)}
+          onDelete={async () => {
+            setTasks([]);
+            return true;
+          }}
+        />
+      );
+    }
+    render(<App />);
+    openMenu("Seal the bath");
+    await choose("Delete");
+    await submitForm("Delete task");
+    expect(screen.getByText("No tasks yet.")).toBeTruthy();
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText("No tasks yet.").closest('[data-slot="surface"]'),
+      ),
     );
   });
 });

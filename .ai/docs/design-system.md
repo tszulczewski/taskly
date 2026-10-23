@@ -140,9 +140,9 @@ Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-rin
 - First load → static `Skeleton`; a running button → `Button loading` with "Saving…".
 - Many items → rows on one `Surface` divided by a line; a total → one line (`FutureExpenses`), never tiles; never a board, cards per item or a many-column table.
 - Several choices → `Checkbox` per option; one of 2–5 → `RadioGroup`; completing a task → `TaskCheckbox`; an item of another list done → `Checkbox` + visible `Label`, done text in a `span` (N5, N6); a marker → `MenuCheckboxItem`.
-- A list that is not tasks → the recipe in Patterns › List; adding by name alone → the recipe in Patterns › Quick capture (N1, N3). Never `TaskList`, `TaskRow` or `QuickAdd` with parts that do not apply. It jumps instead of sliding (N9); everything done needs no message (N10).
+- A list that is not tasks → the recipe in Patterns › List; adding by name alone → the recipe in Patterns › Quick capture (N1, N3). Never `TaskList`, `TaskRow` or `QuickAdd` with parts that do not apply. It jumps instead of sliding (N9); everything done needs no message (N10); a done item keeps Edit and Delete (O5). Changing an item that has only a name → the recipe in Patterns › Inline edit (O1); deleting it → the recipe in Patterns › Delete confirmation (O2); after deleting the last item focus goes to the empty state (O4).
 - An icon-only button → `Tooltip` around it; around a menu button the `aria-label` goes on `MenuTrigger` too (N4).
-- Loading rows → skeleton rows as high as real rows, one bar per line (N8).
+- Loading rows → skeleton rows as high as real rows, one bar per line, starting where the text starts (N8, O3).
 
 ## What to avoid
 
@@ -177,6 +177,6 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
 | D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11 decisions | `packages/ui/POSTEP.md` |
+| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

@@ -9,14 +9,51 @@ How Taskly deletes: it asks once, names what will be lost, and only then deletes
 
 ## Rules
 
-| Rule                                                                                                   | Source                  |
-| ------------------------------------------------------------------------------------------------------ | ----------------------- |
-| Ask before every delete; the question names the item and what goes with it ("and its 3 subtasks").     | spec E01, Delete        |
-| The confirming button is a verb and the object ("Delete task"), in the danger style; never "OK".       | task rules, P3          |
-| Focus starts on Cancel; Escape cancels; focus is trapped in the dialog.                                | WAI-ARIA APG, spec E01  |
-| Cancel returns focus to the "…" that opened it; after a delete focus goes to the list.                 | spec E01, decision F6   |
-| While deleting, the dialog stays and cannot be closed; a failure is shown inside it.                   | ConfirmDialog (stage 2) |
-| Delete lives in the "…" menu, after a separator, in `color-text-danger`; never a lone icon in the row. | R02.1, P2, P3           |
+| Rule                                                                                                                                     | Source                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Ask before every delete; the question names the item and what goes with it ("and its 3 subtasks").                                       | spec E01, Delete           |
+| The confirming button is a verb and the object ("Delete task"), in the danger style; never "OK".                                         | task rules, P3             |
+| Focus starts on Cancel; Escape cancels; focus is trapped in the dialog.                                                                  | WAI-ARIA APG, spec E01     |
+| Cancel returns focus to the "…" that opened it; after a delete focus goes to the list, or to the empty state when the last item is gone. | spec E01, decisions F6, O4 |
+| While deleting, the dialog stays and cannot be closed; a failure is shown inside it.                                                     | ConfirmDialog (stage 2)    |
+| Delete lives in the "…" menu, after a separator, in `color-text-danger`; never a lone icon in the row.                                   | R02.1, P2, P3              |
+
+## A list that is not tasks
+
+`DeleteTaskDialog` names a task and its subtasks. For an item of another list (the quick shopping list, E04), use `ConfirmDialog` with the same rules until a shared delete dialog is built with the E04 spec, together with the list row (decisions N1, O2). The list keeps the item being deleted, whether the request is running, and its error.
+
+| Part     | How                                                                                                                                                              | Source            |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Question | `title` names the item: "Delete “Glue”?"                                                                                                                         | spec E01, Content |
+| Buttons  | `confirmLabel="Delete item"`, `pendingLabel="Deleting…"`; Cancel                                                                                                 | Content, P3       |
+| Running  | `pending` while the request runs: the dialog cannot be closed                                                                                                    | ConfirmDialog     |
+| Failure  | `error`: "Could not delete the item. Try again." inside the dialog; it stays open                                                                                | spec E01          |
+| Focus    | the menu item stops the menu's own close focus; on close, focus goes to "…" after Cancel, to the list after a delete, and to the empty state after the last item | decisions F6, O4  |
+
+```tsx
+{
+  deleting ? (
+    <ConfirmDialog
+      open
+      onOpenChange={() => close(false)}
+      title={`Delete “${deleting.name}”?`}
+      confirmLabel="Delete item"
+      pendingLabel="Deleting…"
+      onConfirm={() => void confirmDelete(deleting)}
+      pending={pending}
+      error={error}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        // The row and its "…" may be gone already, and after the last item the list too.
+        const targets = [deleted.current ? null : menuTrigger.current, listRef.current];
+        (targets.find((target) => target?.isConnected) ?? emptyRef.current)?.focus();
+      }}
+    />
+  ) : null;
+}
+```
+
+The list and the empty state are both focusable (`tabIndex={-1}`, `outline-none focus-visible:focus-ring`), as in `TaskList` (decision O4).
 
 ## States
 

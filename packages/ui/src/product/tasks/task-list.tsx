@@ -70,6 +70,7 @@ export function TaskList({
   const [deleting, setDeleting] = useState<TaskItem | null>(null);
   const [completing, setCompleting] = useState<{ task: TaskItem; open: number } | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const emptyRef = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
   const deleted = useRef(false);
   // The row whose checkbox was used; it moves, so focus is put back on its checkbox.
@@ -101,10 +102,19 @@ export function TaskList({
     return (
       <Surface data-slot="task-list" aria-busy="true">
         {/* The same box as a row's text (a 44px target between the row's padding), so the list
-            does not move when the rows arrive; two meta-sized bars fit inside it (decision N8). */}
+            does not move when the rows arrive; two meta-sized bars fit inside it (decision N8).
+            The columns before the title stay empty, so the bars start where titles start (O3). */}
         {skeletonRows.map((row) => (
-          <div key={row} className="border-t border-divider px-inset py-row-y first:border-t-0">
-            <div className="flex min-h-touch flex-col justify-center gap-inline text-meta">
+          <div
+            key={row}
+            className="flex gap-group border-t border-divider px-inset py-row-y first:border-t-0"
+          >
+            {onMove ? (
+              <span aria-hidden="true" className="hidden w-touch shrink-0 wide:block" />
+            ) : null}
+            <span aria-hidden="true" className="hidden w-touch shrink-0 wide:block" />
+            {onToggleComplete ? <span aria-hidden="true" className="w-touch shrink-0" /> : null}
+            <div className="flex min-h-touch min-w-0 flex-1 flex-col justify-center gap-inline text-meta">
               <Skeleton className="w-2/3" />
               <Skeleton className="w-1/3" />
             </div>
@@ -131,7 +141,13 @@ export function TaskList({
 
   if (tasks.length === 0) {
     return (
-      <Surface data-slot="task-list">
+      // Focusable so focus has a place to go after the last task was deleted (O4).
+      <Surface
+        ref={emptyRef}
+        tabIndex={-1}
+        data-slot="task-list"
+        className="outline-none focus-visible:focus-ring"
+      >
         <EmptyState title={t.emptyTitle}>{t.emptyBody}</EmptyState>
       </Surface>
     );
@@ -207,7 +223,10 @@ export function TaskList({
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          (deleted.current ? listRef.current : menuTrigger.current)?.focus();
+          // The row (and its "…") may already be gone, and after the last task the list too:
+          // focus goes to the first of these still on the page, never to the page (O4).
+          const targets = [deleted.current ? null : menuTrigger.current, listRef.current];
+          (targets.find((target) => target?.isConnected) ?? emptyRef.current)?.focus();
         }}
         text={text}
       />
