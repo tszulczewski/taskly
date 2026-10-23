@@ -104,6 +104,8 @@ There are no small or large sizes: every control is 44px high at every width (K1
 | 768px  | Buttons take the width of their label; a button pair sits on one line with `space-group` between them.                       | T7              |
 | 1440px | As at 768px; the column is capped at `layout-content-max-width`, so buttons never stretch across the screen.                 | P01, R01.5      |
 
+A busy label is longer ("Add" → "Adding…"), so a button beside a field grows for that moment and the field narrows. That is on purpose: the label says what is happening (B2, decision O6).
+
 <Unstyled>
   <Story of={Stories.LongLabelNarrow} />
 </Unstyled>

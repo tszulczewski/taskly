@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { TaskList, type TaskListProps } from "../../../../src";
 import { tokenPx } from "../../../../src/lib/token-px";
@@ -69,6 +70,25 @@ export const Loading: Story = {
   },
 };
 
+/** The skeleton keeps the columns before the title empty, so its bars start where titles start (O3). */
+export const LoadingLinesUp: Story = {
+  args: { tasks: progressTasks, onMove: fn(), onToggleComplete: fn() },
+  render: (args) => (
+    <div className="flex flex-col gap-between-groups">
+      <TaskList {...args} status="loading" />
+      <TaskList {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const bar = canvasElement.querySelector<HTMLElement>('[data-slot="skeleton"]');
+    const title = canvasElement.querySelector<HTMLElement>('[data-slot="task-title"]');
+    await expect(bar?.getBoundingClientRect().left).toBeCloseTo(
+      title?.getBoundingClientRect().left ?? Number.NaN,
+      0,
+    );
+  },
+};
+
 export const LoadFailed: Story = {
   args: { status: "error" },
   play: async ({ args, canvasElement }) => {
@@ -118,6 +138,33 @@ export const DeleteConfirmed: Story = {
     await expect(args.onDelete).toHaveBeenCalledWith("seal");
     // The row is gone (in the app), so focus goes to the list (decision F6).
     await waitFor(() => expect(canvas.getByRole("list", { name: "Tasks" })).toHaveFocus());
+  },
+};
+
+/** After the last task is deleted the empty state takes focus, never the page (O4). */
+export const DeleteLast: Story = {
+  args: { tasks: [sealBath] },
+  render: function Render(args) {
+    const [tasks, setTasks] = useState(args.tasks);
+    return (
+      <TaskList
+        {...args}
+        tasks={tasks}
+        onDelete={async (id) => {
+          setTasks((list) => list.filter((task) => task.id !== id));
+          return true;
+        }}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "More actions for “Seal the bath”" }));
+    await userEvent.click(body.getByRole("menuitem", { name: "Delete" }));
+    await userEvent.click(await body.findByRole("button", { name: "Delete task" }));
+    const empty = (await canvas.findByText("No tasks yet.")).closest('[data-slot="surface"]');
+    await waitFor(() => expect(empty).toHaveFocus());
   },
 };
 

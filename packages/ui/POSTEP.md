@@ -830,4 +830,17 @@ Bez zmian w systemie; po decyzji dopisać do tabeli „Quick shopping list: what
 - Czy lista pokazuje licznik („2 z 5 kupione”).
 - Nazwa listy dla czytnika ekranu i polski komunikat odrzuconej zmiany („It is back as it was”; drugi przebieg: „Wróciło do poprzedniego stanu.”). Polskiej wersji tego zdania nie ma też dla zadań: komunikaty o odrzuconej zmianie (`taskMessages.changeFailed`, `moveFailed` w `.storybook/blocks/task-data.ts`) istnieją tylko po angielsku.
 
-Rozstrzygnięcie: (do uzupełnienia)
+Rozstrzygnięcie (2026-10-23): wszystkie A, O1–O7 i C w wariantach rekomendowanych.
+
+### Etap 7: wdrożenie decyzji O (2026-10-23)
+
+- **A:** How to choose › Tabs and separate pages („one item per screen”); E04 Later (wstęp, Screens and stories: przepisy gotowe, ekranu nie ma, gałęzie testów) i What is missing (wiersz E04, zdanie w Later); Quick capture (N7 otwarte do speku E04); Contributing, punkt 6 (nowy obszar w `storySort` z pierwszym komponentem); prompt testu: język, funkcje `play` bez asercji, brak wpisu w `storySort` nie jest luką.
+- **O1:** Patterns › Inline edit, sekcja „An item with only a name” (tabela części, przykład kodu).
+- **O2:** Patterns › Delete confirmation, sekcja „A list that is not tasks” (tabela części, przykład kodu z fokusem z O4).
+- **O3:** `TaskList`: wiersz skeletonu ma te same puste kolumny co wiersz (strzałka od 640px zawsze, uchwyt przy `onMove`, checkbox przy `onToggleComplete`), więc paski zaczynają się tam, gdzie tytuły. Test jednostkowy (liczba kolumn) i story Task list › Loading Lines Up (lewa krawędź paska = lewa krawędź tytułu); na starym kodzie story pada (sprawdzone). Reguła w Skeleton § 8, Patterns › List › Loading, plik dla agentów.
+- **O4:** `TaskList`: pusty stan jest fokusowalny (`tabIndex={-1}`), a po zamknięciu dialogu usuwania fokus idzie do pierwszego z „…” (po Cancel) i listy, który jest jeszcze na stronie, a jeśli żadnego nie ma, do pustego stanu. Błąd potwierdzony: po usunięciu ostatniego zadania fokus trafiał na `body`. Test regresji (jednostkowy) i story Task list › Delete Last; oba padają na starym kodzie (sprawdzone). Reguła w Delete confirmation, Usage and accessibility, Task list, plik dla agentów.
+- **O5:** Patterns › List › Actions: zrobiona rzecz zachowuje Edit i Delete (I3).
+- **O6:** Button › Responsive i Quick capture: przycisk z etykietą „Adding…” jest na chwilę szerszy, a pole węższe; to świadome (B2).
+- **O7:** prompt testu: poza briefem wolno użyć nazw materiałów ze story zadań i speku E01.
+- **C:** E04 Later, tabela pytań z kolumnami obu testów i nowymi wierszami (licznik, nazwa listy i pusty stan, polski komunikat odrzuconej zmiany).
+- Legenda źródeł (Start here, plik dla agentów): dopisane O1–O7.

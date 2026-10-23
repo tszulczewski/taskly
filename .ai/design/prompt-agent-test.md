@@ -7,10 +7,10 @@ Celem nie jest sam ekran, tylko sprawdzenie, czy design system wystarcza.
 
 - Potrzeba użytkownika: właściciel zapomina drobne zakupy, które nie należą do żadnego dużego zadania (zamek do drzwi, klej, nawóz do trawy), a kupuje je „przy okazji”, będąc na mieście. Chce dopisać rzecz w kilka sekund i odhaczyć ją w sklepie, jedną ręką na telefonie (brief, Evidence).
 - Ekran: jedna lista zakupów właściciela, pod tym samym paskiem górnym co lista zadań. Dodawanie samą nazwą. Odhaczenie oznacza „kupione”. Rzecz można poprawić i usunąć.
-- Szerokości: 320 px (główna), 768 i 1440 px. Oba motywy. Teksty po angielsku i story po polsku.
+- Szerokości: 320 px (główna), 768 i 1440 px. Oba motywy. Teksty po angielsku, plus story z polskim tekstem (design-system.md › Content).
 - Stany do pokazania: ładowanie, pusto (pierwsze wejście), błąd ładowania, dodawanie w toku, dodawanie nieudane, poprawianie nazwy, usuwanie, wszystko kupione, dużo pozycji, długie nazwy.
 - Poza zakresem: udostępnianie i role (N02), ceny i kwoty, powiązanie rzeczy z zadaniem, AI.
-- Dane w przykładach: tylko z briefu i specyfikacji (np. „Door lock”, „Glue”, „Grass fertilizer”), bez wymyślonych liczb.
+- Dane w przykładach: tylko z briefu i specyfikacji (np. „Door lock”, „Glue”, „Grass fertilizer”), bez wymyślonych liczb. Poza briefem wolno użyć nazw materiałów, które już są w story zadań (`packages/ui/.storybook/blocks/task-data.ts`) i w specu E01 (decyzja O7).
 - Co agent oddaje: story ekranu (`Product/Shopping/Screens`, na osobnej gałęzi), mapę stanów (który stan pokazuje która story) i **listę każdego miejsca, w którym zgadywał**, z informacją, czego szukał i gdzie.
 - Czego agent nie robi: nowych komponentów, wariantów ani tokenów; brakujące rzeczy wpisuje do swojej listy zamiast je dodawać.
 - Po teście: każde miejsce zgadywania uzupełniam w dokumentacji albo wpisuję do „What is missing”.
@@ -27,7 +27,9 @@ Celem nie jest sam ekran, tylko sprawdzenie, czy design system wystarcza.
    komponentu wielokrotnego użytku. Jeśli czegoś brakuje, nie wymyślaj tego
    po cichu: zapisz to jako lukę i użyj najbliższego istniejącego rozwiązania.
 4. W tym teście nie dodawaj testów, eksportów ani wpisów w konfiguracji.
-   Wystarczy ekran i jego przykład w Storybooku.
+   Wystarczy ekran i jego przykład w Storybooku. Funkcji `play` wolno używać,
+   żeby dojść do stanu (wpisać, kliknąć, poczekać), bez asercji. Brak wpisu
+   nowego obszaru w `storySort` nie jest luką.
 
 # Krok 1. Zanim napiszesz kod
 

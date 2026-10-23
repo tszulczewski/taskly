@@ -21,11 +21,11 @@ Shows every task of the renovation on one calm surface, with subtasks under thei
 
 ## 3. When not to use
 
-| Situation                   | Use instead        | Source   |
-| --------------------------- | ------------------ | -------- |
-| Columns by status (a board) | one list           | A01.2    |
-| A table of amounts          | one amount per row | A04      |
-| The shopping list           | not in version 1   | N02, P03 |
+| Situation                   | Use instead                   | Source  |
+| --------------------------- | ----------------------------- | ------- |
+| Columns by status (a board) | one list                      | A01.2   |
+| A table of amounts          | one amount per row            | A04     |
+| The shopping list (E04)     | the recipe in Patterns › List | N1, P03 |
 
 ## 4. Anatomy
 
@@ -46,7 +46,7 @@ None. What it shows depends on `status` and `tasks`. `onMove`, `onToggleMarker` 
 
 ## 6. States
 
-No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Task row](?path=/story/product-tasks-task-row--states), [Skeleton](?path=/story/primitives-skeleton--states) (decision M1). Its own focus state is the list taking focus after a delete ([Delete Confirmed](?path=/story/product-tasks-task-list--delete-confirmed)).
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Task row](?path=/story/product-tasks-task-row--states), [Skeleton](?path=/story/primitives-skeleton--states) (decision M1). Its own focus state is the list taking focus after a delete ([Delete Confirmed](?path=/story/product-tasks-task-list--delete-confirmed)), or the empty state after the last one ([Delete Last](?path=/story/product-tasks-task-list--delete-last)).
 
 | State              | What the user sees                                                  | Story                       | Source                    |
 | ------------------ | ------------------------------------------------------------------- | --------------------------- | ------------------------- |
@@ -60,6 +60,8 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 | Long text          | Long titles wrap; amounts stay in their column.                     | Long Text                   | —                         |
 | Asking to delete   | The dialog names the task and its subtasks; Cancel returns focus.   | Delete With Subtasks        | spec E01, Delete          |
 | Deleted            | Focus moves to the list (decision F6).                              | Delete Confirmed            | WCAG 2.4.3                |
+| Deleted the last   | Focus moves to the empty state, never the page.                     | Delete Last                 | WCAG 2.4.3, decision O4   |
+| Loading, lined up  | Skeleton bars start where titles start.                             | Loading Lines Up            | decision O3               |
 | Organized (E02)    | Handles, place tags, markers; "…" with places, markers, moves.      | Organized                   | E02, decisions G1–G3      |
 | With completion    | Checkboxes; completed rows after the open ones, muted.              | With Completion             | E03, decision 2026-10-21  |
 | Asking to complete | A task with open subtasks: the question first.                      | Complete With Open Subtasks | R09, decision I2          |
@@ -79,7 +81,7 @@ No-results does not exist yet: there are no filters in E01 (P03; see Patterns / 
 
 - A list named "Tasks"; each subtask list is named "Subtasks of “…”", so a screen reader announces the nesting and the count.
 - Loading is announced once by the status text; the skeleton is hidden (WCAG 4.1.3).
-- After a delete the list itself takes focus (`tabindex="-1"`), because the row and its "…" are gone; after Cancel focus returns to "…" (spec E01: "returns focus to the trigger").
+- After a delete the list itself takes focus (`tabindex="-1"`), because the row and its "…" are gone; after Cancel focus returns to "…" (spec E01: "returns focus to the trigger"). After the last task is deleted the empty state takes focus instead (`tabindex="-1"`, decision O4).
 - The page scrolls; the list never gets its own scroll area.
 - With `onMove` the list (and each task's subtasks) is one sortable group; moves are announced by title (see Drag handle). Pending rows never move, so no temporary id reaches the server. Completed rows never move either (decision 2026-10-21).
 - With `onToggleComplete` the list receives tasks already sorted by the server (open, then completed). When a row changes place it slides there over `motion-duration-base` (instant with reduced motion) and focus stays on its checkbox; the dialog's Cancel returns focus there too.

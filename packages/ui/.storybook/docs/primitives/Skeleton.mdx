@@ -62,6 +62,7 @@ One state: shown. It never pulses or shimmers (Luki 8, tokens rule 12, R02.12). 
 - Only the status text: "Loading tasks…" / "Wczytywanie zadań…" (Luki 5).
 - Draw bars in the shape of the real rows: one bar per line of text, the first one longer.
 - A skeleton row is as high as a real row, so the list does not move when the rows arrive: the bars sit in the same 44px text block (`min-h-touch`) between the row's padding. Two bars fit in it at the meta size (`text-meta` on their box). Covered by the Task list › Loading test (decision N8).
+- Bars start where the row's text starts: the columns before it (the drag handle and the arrow from 640px, the checkbox) stay empty, `w-touch` each with the row's `space-group` gap. Covered by the Task list › Loading Lines Up test (decision O3).
 
 <Unstyled>
   <Story of={Stories.Polish} />

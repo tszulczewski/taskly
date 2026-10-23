@@ -4,7 +4,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # E04 Later (parked)
 
-Backlog E04 (#14), priority low, risk low. The owner parked these items for version 2 (D13); nothing in this epic is designed or scheduled, and nothing in version 1 should look ready for them (R02.8, P03). This page exists so that every epic has one (decision L4); the full list also lives in [What is missing › Later](?path=/docs/design-system-what-is-missing--docs).
+Backlog E04 (#14), priority low, risk low. The owner parked these items for version 2 (D13); nothing in this epic is scheduled or has a screen, and nothing in version 1 should look ready for them (R02.8, P03). The quick shopping list is the one item whose parts are ready, as recipes (below). This page exists so that every epic has one (decision L4); the full list also lives in [What is missing › Later](?path=/docs/design-system-what-is-missing--docs).
 
 ## Flow
 
@@ -12,7 +12,7 @@ None. The epic has no stories, no spec and no screens.
 
 ## Screens and stories
 
-None. No component, pattern or screen story belongs to E04.
+No screen and no component yet. The quick shopping list will be built from recipes that are ready: a list that is not tasks ([Patterns › List](?path=/docs/patterns-list--docs), decisions N1, N2, N5, N6, O5), adding by name alone ([Patterns › Quick capture](?path=/docs/patterns-quick-capture--docs), N3), changing an item that has only a name ([Patterns › Inline edit](?path=/docs/patterns-inline-edit--docs), O1) and deleting it ([Patterns › Delete confirmation](?path=/docs/patterns-delete-confirmation--docs), O2). Two design-system agent tests built the screen as an exercise, on branches that are not merged (`design/shopping-screen-agent-test`, `design/shopping-screen-agent-test-2`).
 
 ## Parked items
 
@@ -28,20 +28,23 @@ None. No component, pattern or screen story belongs to E04.
 
 The "What it would need from the system" column is a proposal: a note for whoever starts the item, not a design and not a decision.
 
-## Quick shopping list: what the agent test left open
+## Quick shopping list: what the agent tests left open
 
-The design-system agent test (2026-10-23, `.ai/runs/2026-10-23-shopping-screen-agent-test.md`) built this screen as an exercise, on a branch that is not merged. These questions belong to the product, not to the system; answer them in the E04 spec before the screen is built.
+Two design-system agent tests (2026-10-23, `.ai/runs/2026-10-23-shopping-screen-agent-test.md` and `.ai/runs/2026-10-23-shopping-screen-agent-test-2.md`, the second after decisions N1–N11) built this screen as an exercise, on branches that are not merged. These questions belong to the product, not to the system; answer them in the E04 spec before the screen is built. Where both tests assumed the same, the next agent will assume it too.
 
-| Question                                                                                                               | What the test assumed                                                          |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| The screen's name and the words for it: shopping list, one thing on it, bought (not in the glossary)                   | "Shopping list" / "Lista zakupów", "item" / "rzecz", "bought" by the check box |
-| How bought items leave the list: one by one, all at once, or by themselves after a while                               | one by one with Delete                                                         |
-| The longest name and its message                                                                                       | only "Enter a name."                                                           |
-| What a list with everything bought says                                                                                | nothing beyond the rows                                                        |
-| Whether the owner reorders items                                                                                       | no: open in the order added, bought after them                                 |
-| Navigation between the task list and the shopping list on a phone (bottom bar, P07, R02.11, decision E1)               | none shown                                                                     |
-| Where the add field sits on a phone for one-handed use: on top, at the bottom, pinned above the keyboard (decision N7) | on top, like the task list                                                     |
-| Example data beyond the three items in the brief (door lock, glue, grass fertilizer)                                   | materials named in the brief and spec E01                                      |
+| Question                                                                                                               | First test assumed                                                             | Second test assumed                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| The screen's name and the words for it: shopping list, one thing on it, bought (not in the glossary)                   | "Shopping list" / "Lista zakupów", "item" / "rzecz", "bought" by the check box | the same                                                                                             |
+| How bought items leave the list: one by one, all at once, or by themselves after a while                               | one by one with Delete                                                         | the same                                                                                             |
+| Whether the list shows a count ("2 of 5 bought")                                                                       | —                                                                              | no count                                                                                             |
+| The longest name and its message                                                                                       | only "Enter a name."                                                           | the same                                                                                             |
+| What a list with everything bought says                                                                                | nothing beyond the rows                                                        | decided: no message (decision N10)                                                                   |
+| Whether the owner reorders items                                                                                       | no: open in the order added, bought after them                                 | not considered (the List recipe does not mention it)                                                 |
+| Navigation between the task list and the shopping list on a phone (bottom bar, P07, R02.11, decision E1)               | none shown                                                                     | none shown                                                                                           |
+| Where the add field sits on a phone for one-handed use: on top, at the bottom, pinned above the keyboard (decision N7) | on top, like the task list                                                     | the same                                                                                             |
+| The list's name for screen readers and the empty-state text                                                            | —                                                                              | "Things to buy" / "Rzeczy do kupienia"; "Nothing to buy yet." "Add the first thing you need to buy." |
+| The Polish message for a refused change ("It is back as it was"); none exists for tasks either                         | —                                                                              | "Wróciło do poprzedniego stanu."                                                                     |
+| Example data beyond the three items in the brief (door lock, glue, grass fertilizer)                                   | materials named in the brief and spec E01                                      | materials named in the task stories (decision O7 allows it)                                          |
 
 ## Decisions that shape it
 

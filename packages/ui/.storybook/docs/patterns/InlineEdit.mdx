@@ -19,6 +19,53 @@ How an existing item is changed: the row becomes its form, in place and prefille
 | Validation and messages follow the Form pattern.                                             | Patterns / Form       |
 | One form per row; the rest of the list stays usable.                                         | Q2                    |
 
+## An item with only a name
+
+`TaskForm` always has the title, the description and the estimate. For a list whose items have only a name (the quick shopping list, E04), build the edit from primitives until a shared form is built with the E04 spec, together with the list row (decisions N1, O1). The rules above still apply: the row becomes the form in place, focus goes to the field, Escape cancels except while saving, the form closes only after the server confirmed, and focus returns to the row's "…".
+
+| Part    | How                                                                                              | Source                 |
+| ------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
+| Box     | in place of the row's line, `bg-raised p-inset`, as `TaskRow` does                               | Q2, decision O1        |
+| Field   | `FormField label="Name"` around `Input` with `autoFocus`; "Enter a name." when it is empty       | Patterns / Form, O1    |
+| Buttons | Save (`primary`, "Saving…" while pending) and Cancel, in `flex flex-col gap-group wide:flex-row` | Content, `TaskForm`    |
+| Refusal | `Alert` above the field, "Could not save the item. Try again."; the typed name stays             | decision F2, Form      |
+| Name    | the form's `aria-label` names the item: "Edit “Glue”"                                            | WCAG 4.1.2, `TaskForm` |
+
+```tsx
+const form = useForm<"name">({
+  initialValues: { name: item.name },
+  validate: ({ name }) => ({ name: name.trim() === "" ? "Enter a name." : undefined }),
+  onSubmit: save, // resolves { ok: true } after the server confirmed; the row then closes the form
+  unexpectedError: "Something went wrong. Try again.",
+});
+
+<div className="bg-raised p-inset">
+  <form
+    {...form.formProps}
+    aria-label={`Edit “${item.name}”`}
+    className="flex flex-col gap-between-groups"
+    onKeyDown={(event) => {
+      if (event.key === "Escape" && !form.pending) cancel();
+    }}
+  >
+    {form.formError ? <Alert title={form.formError} /> : null}
+    <FormField label="Name" error={form.errors.name}>
+      {(control) => <Input {...control} {...form.field("name")} autoFocus />}
+    </FormField>
+    <div className="flex flex-col gap-group wide:flex-row">
+      <Button type="submit" variant="primary" loading={form.pending}>
+        {form.pending ? "Saving…" : "Save"}
+      </Button>
+      <Button disabled={form.pending} onClick={cancel}>
+        Cancel
+      </Button>
+    </div>
+  </form>
+</div>;
+```
+
+`cancel` and a confirmed save close the form and put focus back on the row's "…" (decision F6).
+
 ## States
 
 | State     | Story     |
