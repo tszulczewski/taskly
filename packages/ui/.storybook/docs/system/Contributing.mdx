@@ -34,7 +34,7 @@ Sources: P1, standards §5.
 ## What a new component needs
 
 1. **A page with the 13 sections**, in this order: What it is for, When to use, When not to use, Anatomy, Variants, States, Behaviour and accessibility, Content, Responsive, API, Code, Do and don't, Related. Every rule names its source or says "proposal".
-2. **A state matrix**: one story per state the component can be in (default, hover, focus, pressed, disabled, loading, error, empty, long text), shown in both themes.
+2. **A state matrix**: one story per state the component can be in (default, hover, focus, pressed, disabled, loading, error, empty, long text), shown in both themes. Hover, focus and pressed are frozen in a matrix only when the component has its own look for them; a component built only from other components links to their matrices instead (decision M1).
 3. **Realistic data**: renovation tasks, places and amounts from the specs, never lorem ipsum; a "Polish" story when it has text, to check lengths.
 4. **Interaction tests** in `play` for keyboard use, focus and announcements; axe must pass in both themes.
 5. **Unit tests** next to the code, 100% coverage, without network or database.

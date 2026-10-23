@@ -123,7 +123,22 @@ export const Playground: Story = {
   },
 };
 
-export const Collapsed: Story = {};
+export const Collapsed: Story = {
+  play: async ({ canvasElement }) => {
+    const title = within(canvasElement).getByRole("button", { name: paintCeiling.title });
+    title.focus();
+    await expect(title).toHaveFocus();
+    // The focus layer reaches space-inline past the text on both sides (decision M3).
+    const layer = getComputedStyle(title, "::after");
+    const probe = canvasElement.appendChild(document.createElement("div"));
+    probe.style.width = "var(--space-inline)";
+    const reach = `-${getComputedStyle(probe).width}`;
+    probe.remove();
+    await expect(layer.left).toBe(reach);
+    await expect(layer.right).toBe(reach);
+    await expect(layer.outlineStyle).toBe("solid");
+  },
+};
 
 export const NoEstimateNoDescription: Story = { args: { task: sealBath } };
 

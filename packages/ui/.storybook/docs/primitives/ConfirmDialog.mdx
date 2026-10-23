@@ -54,14 +54,14 @@ The content changes too (with or without subtasks, with or without a description
 
 ## 6. States
 
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states) (decision M1).
+
 | State   | Looks like                                                                                  | Source           |
 | ------- | ------------------------------------------------------------------------------------------- | ---------------- |
 | Open    | Scrim and panel; focus on Cancel.                                                           | WAI-ARIA APG     |
 | Pending | Confirm shows the spinner and "Deleting…"; Cancel is disabled; Escape does nothing.         | B2, sign-in spec |
 | Failed  | The error appears above the buttons; the dialog stays open so the user can retry or cancel. | spec E01         |
 | Closed  | Nothing; focus is back on the trigger.                                                      | spec E01         |
-
-Hover, focus, pressed and disabled are the buttons' own states (see Button).
 
 <Story of={Stories.Pending} />
 

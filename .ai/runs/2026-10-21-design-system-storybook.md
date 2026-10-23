@@ -143,6 +143,19 @@ Stage 3, batch 1: sign-in and app shell (2026-10-22):
   - L1: Contributing rules sourced "task, stage 4" and "decision L1". L2: date and time formats are a decision in Content and What is missing. L3: language from the browser on first visit, no switch in version 1 (What is missing, moved from open questions to app work). L4: new page `Design system/Epics/E04 Later` (`epics/E04Later.mdx`), added to `storySort` and linked from What is missing. Agent summary `.ai/docs/design-system.md` and the Start here source legend updated.
   - Verification: format:check, check:tokens, lint, typecheck clean; build-storybook succeeds; 122 `?path=` links resolve in `index.json`; the 4 changed pages render with GFM tables at 1440 and 320 px without horizontal scroll.
   - Not run: `npm test` and `test:storybook` (no component or story code changed; only the menu order in `preview.tsx`).
+- Commit `439ba0a` (L1–L4) pushed to `origin/feat/design-system-foundations` on the owner's request (2026-10-23).
+- Stage 5 (2026-10-23): verification and report.
+  - Clean: typecheck, lint, format:check, check:tokens (one documented allow: `--breakpoint-wide`), `npm test` 250 at 100%, `test:storybook` 894 (a11y error, no rule disabled).
+  - axe on all 72 MDX docs pages in both themes (built Storybook, axe-core injected): only landmark findings from the docs container and pages showing several full screens (proposal M2).
+  - 48 screen stories × 320/768/1440 × 2 themes: no horizontal scroll, no error display, theme correct. Keyboard: list Tab order, row menu (Enter, arrows, Escape returns focus), delete dialog (focus trap, Escape returns focus). Portalled menu and dialog use the active theme's token. Reduced motion zeroes durations.
+  - 40/40 component pages have 13 sections; 27/40 have a frozen state matrix story (proposal M1). Row title focus ring sits tight on the text (M3).
+  - Failed: `npm run audit` (`next` 16.4.0 critical, separate approved upgrade; `@vitest/browser` moderate, M4).
+  - Agent test prepared in POSTEP.md (quick shopping list, E04; M5), not run.
+  - Not checked: screen reader, Firefox/Safari, touch devices, 200% text, forced colours, `test:integration`.
+  - Repeated the `pkill -f` self-kill with `kill $(pgrep -f …)`; lesson extended.
+- Stage 5 decisions (2026-10-23): the owner accepted M1–M5 as recommended.
+  - M1: section 6 of 13 composite pages links to the state matrices of their parts; Contributing rule. M2: Usage and accessibility › Known exceptions. M3: row title focus layer widened by `space-inline` (`task-row.tsx`), regression play test in TaskRow › Collapsed (verified failing without the fix). M4: vitest bump deferred to `chore/vitest-audit` on command. M5: shopping list confirmed for the agent test.
+  - Verification: format:check, check:tokens, lint, typecheck clean; `npm test` 250 at 100%; `test:storybook` 894; build-storybook succeeds; 164 links resolve; ring measured at 320 and 1440 px (touches but does not overlap the checkbox and "…" targets).
 
 ## Lessons recorded (links into .ai/lessons.md)
 

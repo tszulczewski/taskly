@@ -46,6 +46,8 @@ None. What it shows depends on `status` and `tasks`. `onMove`, `onToggleMarker` 
 
 ## 6. States
 
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Task row](?path=/story/product-tasks-task-row--states), [Skeleton](?path=/story/primitives-skeleton--states) (decision M1). Its own focus state is the list taking focus after a delete ([Delete Confirmed](?path=/story/product-tasks-task-list--delete-confirmed)).
+
 | State              | What the user sees                                                  | Story                       | Source                    |
 | ------------------ | ------------------------------------------------------------------- | --------------------------- | ------------------------- |
 | Loading            | Three static skeleton rows.                                         | Loading                     | spec E01, Luki 8          |

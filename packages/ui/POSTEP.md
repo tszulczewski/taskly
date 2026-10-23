@@ -14,9 +14,9 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 2. Komponenty bazowe       | zakończony: partie 1–3 (K1–K5, B1–B9, C1–C10, D1–D10 rozstrzygnięte)          | 2026-10-22 |
 | 3. Produkt, wzorce, ekrany | zakończony: partie 1–4 (E1–E12, F1–F14, G1–G6, H1–H10, I1–I4, J1–J10 rozstrzygnięte) | 2026-10-22 |
 | 4. Strony, które uczą      | zakończony i sprawdzony; L1–L4 rozstrzygnięte i wdrożone                      | 2026-10-23 |
-| 5. Sprawdzenie i raport    | nie rozpoczęty                                                                | —          |
+| 5. Sprawdzenie i raport    | sprawdzenie zrobione; M1–M5 przyjęte, M1–M3 wdrożone; test agentem czeka      | 2026-10-23 |
 
-**Następny krok:** po „dalej” etap 5: sprawdzenie i raport.
+**Następny krok:** test agentem w nowej sesji (opis ekranu w sekcji „Etap 5: test agentem”), potem uzupełnienie dokumentacji o miejsca, w których agent zgadywał. Osobno, na polecenie product ownera: gałąź `chore/vitest-audit` (M4).
 
 ## Etap 2: różnice względem shadcn (2026-10-22, przed partią 1)
 
@@ -689,3 +689,58 @@ Strony pisane w poprzedniej sesji, sprawdzone i domknięte w tej (sesja przerwa�
 - Legenda źródeł w Start here i w pliku dla agentów obejmuje L1–L4.
 - Sprawdzenie: `format:check`, `check:tokens`, `lint`, `typecheck` bez błędów; `build-storybook` sukces; 122 linki `?path=` wskazują istniejące wpisy w `index.json`; 4 zmienione strony renderują tabele GFM na 1440 i 320 px bez przewijania w poziomie (zrzut strony E04 obejrzany).
 - Nie uruchamiane: `npm test` i `test:storybook` (bez zmian w komponentach i stories; w `preview.tsx` zmieniona tylko kolejność menu). Kod aplikacji bez zmian, bez nowych zależności.
+
+## Etap 5: test agentem (przygotowany 2026-10-23, do wykonania w nowej sesji)
+
+Ekran spoza Storybooka, wybrany z backlogu: **szybka lista zakupów na telefonie** (E04, „Later”; brief: Scope › Later, D01, A04). To jedyny ekran z backlogu, którego Storybook nie pokazuje; S1–S8 z wersji 1 już są. Test to ćwiczenie dokumentacji, nie decyzja o zakresie: wynik nie trafia do produktu bez decyzji product ownera (D13).
+
+**Opis ekranu dla agenta testowego:**
+
+- Potrzeba użytkownika: właściciel zapomina drobne zakupy, które nie należą do żadnego dużego zadania (zamek do drzwi, klej, nawóz do trawy), a kupuje je „przy okazji”, będąc na mieście. Chce dopisać rzecz w kilka sekund i odhaczyć ją w sklepie, jedną ręką na telefonie (brief, Evidence).
+- Ekran: jedna lista zakupów właściciela, pod tym samym paskiem górnym co lista zadań. Dodawanie samą nazwą. Odhaczenie oznacza „kupione”. Rzecz można poprawić i usunąć.
+- Szerokości: 320 px (główna), 768 i 1440 px. Oba motywy. Teksty po angielsku i story po polsku.
+- Stany do pokazania: ładowanie, pusto (pierwsze wejście), błąd ładowania, dodawanie w toku, dodawanie nieudane, poprawianie nazwy, usuwanie, wszystko kupione, dużo pozycji, długie nazwy.
+- Poza zakresem: udostępnianie i role (N02), ceny i kwoty, powiązanie rzeczy z zadaniem, AI.
+- Dane w przykładach: tylko z briefu i specyfikacji (np. „Door lock”, „Glue”, „Grass fertilizer”), bez wymyślonych liczb.
+- Co agent oddaje: story ekranu (`Product/Shopping/Screens`, na osobnej gałęzi), mapę stanów (który stan pokazuje która story) i **listę każdego miejsca, w którym zgadywał**, z informacją, czego szukał i gdzie.
+- Czego agent nie robi: nowych komponentów, wariantów ani tokenów; brakujące rzeczy wpisuje do swojej listy zamiast je dodawać.
+- Po teście: każde miejsce zgadywania uzupełniam w dokumentacji albo wpisuję do „What is missing”.
+
+## Etap 5: sprawdzenie (2026-10-23)
+
+| Sprawdzenie | Wynik |
+| --- | --- |
+| `build-storybook` | sukces (po decyzjach L; od tego czasu bez zmian w Storybooku) |
+| `typecheck`, `lint`, `format:check` | bez błędów |
+| `check:tokens` | 0 wartości spoza tokenów; jedyny wyjątek opisany w kodzie: `--breakpoint-wide: 40rem` w `src/styles/theme.css:13` (`check-tokens-allow`, T7, F5) |
+| `test:storybook` (a11y `error`, żadna reguła nie wyłączona) | 894 testy (447 stories × 2 motywy), 0 naruszeń |
+| axe na stronach MDX (72 strony × 2 motywy, zbudowany Storybook) | bez naruszeń kontrastu, nazw i ARIA; tylko landmarki: `region` i `landmark-one-main` na każdej stronie (kontener dokumentacji Storybooka nie ma `main`), powtórzone `main`/`banner`/`landmark-unique` na 4 stronach z kilkoma pełnymi ekranami lub formularzami (App shell, Auth card, Tasks screens, Task form); propozycja M2 |
+| Szerokości | 48 stories ekranów × 320/768/1440 × 2 motywy = 288 przebiegów: bez przewijania w poziomie, bez ekranu błędu, motyw zgodny; zrzuty obejrzane: 1440 jasny, 768 jasny, 320 ciemny z dialogiem |
+| Klawiatura | lista zadań 1440 jasny: kolejność Tab motyw → Sign out → pole → Add → Details → (tytuł → „…”) w każdym wierszu; widoczny fokus na każdym elemencie; menu „…”: Enter otwiera z fokusem na pierwszej pozycji, strzałki, Escape zamyka i oddaje fokus; dialog usuwania 320 ciemny: `alertdialog` z nazwą zadania, fokus na „Cancel”, Tab zamknięty w dialogu, Escape oddaje fokus na „…” |
+| Nakładki i motyw | menu i dialog renderują się poza story (w `body`), tło = `--color-surface-raised` aktualnego motywu (jasny `#e8ece7`, ciemny `#232c28`) |
+| Ograniczony ruch | przy `prefers-reduced-motion: reduce` `--motion-duration-base` i `--spinner-duration` = 0s |
+| 13 sekcji | 40 z 40 stron komponentów (3 strony „Screens” to mapy stanów, nie komponenty) |
+| Macierz stanów | 27 z 40 komponentów ma story z zamrożonymi stanami; 13 złożonych pokazuje stany jako osobne stories (propozycja M1) |
+| `npm test` | 250 testów, progi 100% spełnione |
+| `npm run audit` | błąd: `next` 16.4.0 (krytyczna; aktualizacja do 16.4.2 zatwierdzona na osobnej gałęzi), `@vitest/browser` 5.0.4 (umiarkowana, zależność dev Storybooka); propozycja M4 |
+
+Nie sprawdzone: czytnik ekranu (NVDA, VoiceOver), Firefox i Safari (tylko Chromium), prawdziwe urządzenia dotykowe, powiększenie tekstu 200% i tryb wymuszonych kolorów, `test:integration` (kod aplikacji bez zmian, ekranów nie ma jeszcze w aplikacji), źródła reguł zdanie po zdaniu (sprawdzane wyrywkowo w etapie 4), test agentem (tylko przygotowany).
+
+**Liczby:** 72 strony dokumentacji (Design system 13, w tym 5 stron epików; Foundations 7; Primitives 18; Product 25, w tym 3 mapy stanów ekranów; Patterns 9); 40 komponentów (18 bazowych, 22 produktu); 447 stories (Design system 6, Foundations 27, Primitives 122, Product 240, Patterns 52), uruchamianych jako 894 testy w dwóch motywach; 192 testy interakcji (play function) w 54 plikach; 250 testów jednostkowych.
+
+### Etap 5: propozycje M1–M5 (wszystkie przyjęte przez product ownera 2026-10-23, w wariantach rekomendowanych)
+
+- **M1. Macierz stanów w złożonych komponentach.** 13 komponentów (ConfirmDialog, UnestimatedTasks, PlacePicker, AppShell, AuthCard, SignInForm, SignUpForm, SignUpClosed, CompleteTaskDialog, DeleteTaskDialog, QuickAdd, TaskForm, TaskList) nie ma story z zamrożonym najechaniem i fokusem. Stany danych i odpowiedzi API mają jako osobne stories z testami, a najechanie i fokus dziedziczą z prymitywów (Button, Input, Checkbox), które macierz mają. A: przyjąć jako opisany wyjątek i dopisać w sekcji 6 tych stron jedno zdanie z linkiem do macierzy prymitywu. B: dodać story „States” do każdego z 13.
+- **M2. Landmarki na stronach dokumentacji.** Opisać jako znany wyjątek w Usage and accessibility: kontener dokumentacji Storybooka nie ma `main`, a strony z kilkoma pełnymi ekranami powtarzają `main` i `banner`. Każda story osobno przechodzi axe w trybie `error`; ekran w aplikacji ma jeden `main`.
+- **M3. Pierścień fokusu na bloku tytułu wiersza (J1)** stoi 2px od tekstu (odsunięcie `focus-ring-offset`, blok bez wewnętrznego odstępu), więc wygląda ciasno przy pierwszej literze i przy „zł”. Propozycja: wewnętrzny odstęp `space-inline` (4px) w bloku z takim samym ujemnym marginesem, żeby układ się nie przesunął. Alternatywa: zostawić.
+- **M4. Audyt.** `next`: bez zmian tutaj, idzie osobną gałęzią (zatwierdzone). `@vitest/browser` 5.0.4 (zależność dev design systemu, GHSA-p458-7748-mcp3, serwer Vitest): podnieść do wersji z poprawką w osobnej zmianie (`npm audit fix`, bez `--force`), czy zostawić do aktualizacji Vitesta?
+- **M5. Ekran do testu agentem:** szybka lista zakupów (E04, wersja 2), opis wyżej. Potwierdzić, czy wybrać inny.
+
+Rozstrzygnięcie: M1 wariant A (opisany wyjątek); M2 opisać jako znany wyjątek; M3 poszerzyć warstwę fokusu o `space-inline`; M4 `vitest` osobną gałęzią `chore/vitest-audit` po design systemie, zakładaną na polecenie, `next` na swojej gałęzi; M5 lista zakupów zostaje ekranem testu.
+
+### Etap 5: wdrożenie decyzji M (2026-10-23)
+
+- **M1:** w sekcji 6 każdej z 13 stron (ConfirmDialog, UnestimatedTasks, PlacePicker, AppShell, AuthCard, SignInForm, SignUpForm, SignUpClosed, CompleteTaskDialog, DeleteTaskDialog, QuickAdd, TaskForm, TaskList) zdanie: brak własnego wyglądu najechania, fokusu i wciśnięcia, z linkami do macierzy części (Button, Input, Form field, Checkbox, Text action / Link, Collapsible, Password input, Surface, Skeleton, Theme toggle, Place tag, Place color picker, Task row); w TaskList dodatkowo własny fokus listy po usunięciu (story Delete Confirmed). W ConfirmDialog stare zdanie „(see Button)” zastąpione nowym. Contributing: macierz zamrożonych stanów tylko dla komponentu z własnym wyglądem interakcji (decision M1).
+- **M2:** Usage and accessibility › Known exceptions: landmarki na stronach dokumentacji (`region`, `landmark-one-main`; powtórzone `main`/`banner` na 4 stronach) oraz istniejący wyjątek T1 (`color-border-divider` poniżej 3 : 1, tylko dekoracja).
+- **M3:** `src/product/tasks/task-row.tsx`: warstwa fokusu tytułu `after:inset-y-0 after:-inset-x-inline` zamiast `after:inset-0`; pierścień stoi 6px od tekstu, cel dotyku urósł o 4px z każdej strony (w połowie odstępu `space-group`). Zmierzone na 320 i 1440 px: zewnętrzna krawędź pierścienia kończy się dokładnie na polu dotyku checkboxa i „…”, bez nachodzenia. Test regresji w story TaskRow › Collapsed (lewa i prawa krawędź warstwy = −`space-inline`); bez poprawki test się wywraca (sprawdzone). Strona TaskRow, tabela stanów: opis fokusu z odwołaniem do M3.
+- Sprawdzenie: `format:check`, `check:tokens`, `lint`, `typecheck` bez błędów; `npm test` 250 (100%); `test:storybook` 894; `build-storybook` sukces; 164 linki `?path=` wskazują istniejące wpisy; nowa sekcja Known exceptions i zdanie M1 (QuickAdd) widoczne w zbudowanym Storybooku, tabele GFM renderują się; zrzuty pierścienia na 320 i 1440 px obejrzane.

@@ -234,9 +234,10 @@ export function TaskRow({
 
   const titleClass = cn(
     "min-w-0 flex-1 text-left font-strong break-words",
-    // The whole text block (title, estimate, meta) is the title's 44px target (K1).
+    // The whole text block (title, estimate, meta) is the title's 44px target (K1). The layer
+    // reaches into half of the gap on each side so the ring clears the text (decision M3).
     hasDetails &&
-      "cursor-pointer outline-none after:absolute after:inset-0 after:rounded-control focus-visible:after:focus-ring",
+      "cursor-pointer outline-none after:absolute after:inset-y-0 after:-inset-x-inline after:rounded-control focus-visible:after:focus-ring",
     (task.pending || completed) && "text-muted",
     completed && "line-through",
   );
