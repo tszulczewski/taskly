@@ -78,7 +78,7 @@ export const Variants: Story = {
       />
       <StateRow
         title='padding="inset": the sign-in card'
-        cells={[{ state: "free content", node: <SignInCard /> }]}
+        cells={[{ state: "free content", node: <SignInCard />, wide: true }]}
       />
     </Stack>
   ),

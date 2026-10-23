@@ -19,6 +19,47 @@ How Taskly shows a collection, shown on the task list: one calm surface, a row p
 | Empty says why it is empty and the next step, in words; focus goes to the place where that step happens (quick add). | spec E01, Luki 5  |
 | Missing data in a row is said in words ("No estimate"), never left blank.                                            | spec E01, R10     |
 | The page scrolls; the list never gets its own scroll area.                                                           | WCAG 1.4.10       |
+| Everything completed: no message; the muted, struck-through rows say it (success needs no words).                    | P3, decision N10  |
+
+## A list that is not tasks
+
+Version 1 has only the task list; the quick shopping list (E04) will be the second. Until a shared row component exists (decision N1: it is built with the E04 spec), build such a list from primitives with `TaskRow`'s layout. Do not use `TaskList` or `TaskRow` for it: they always show an estimate ("No estimate") and the task menu.
+
+| Part        | How                                                                                                                                                                  | Source                           |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| List        | `Surface asChild` around a `ul` with `aria-label`, `tabIndex={-1}` and `outline-none focus-visible:focus-ring`, so focus has a place to go after a delete            | List rule 1, Delete confirmation |
+| Row         | `li` with `border-t border-divider first:border-t-0`; inside it `flex min-h-row items-start gap-group px-inset py-row-y hover:bg-raised`                             | decisions N1, N2                 |
+| Done        | `Checkbox` with an `id` and a visible `Label` holding the item's name; done = the name in a `span` with `text-muted line-through` inside the `Label`; regular weight | decisions N5, N6                 |
+| Text block  | `flex min-h-touch min-w-0 flex-1 flex-col justify-center`; while pending, a `text-meta text-muted` line "Saving…" under the name and the row's controls disabled     | Optimistic change, decision F3   |
+| Actions     | one "…" `Menu` inside a `Tooltip`, with the same `aria-label` on `MenuTrigger` and on the `Button`; Delete last, after a separator                                   | decision N4, Menu                |
+| Row message | under the name, past the checkbox column (a `w-touch` spacer), `role="alert"`, `text-meta text-danger`, `pb-row-y`                                                   | Optimistic change                |
+| Order       | open items first, done ones after them; an item unchecked goes back to the top. It jumps to its place; only `TaskList` slides rows                                   | decision 2026-10-21, N5, N9      |
+| Loading     | skeleton rows like the task list's: the same 44px block between the row padding, one bar per line of text                                                            | decision N8                      |
+
+```tsx
+<li className="border-t border-divider first:border-t-0">
+  <div className="flex min-h-row items-start gap-group px-inset py-row-y hover:bg-raised">
+    <Checkbox id={id} checked={item.done} disabled={item.pending} onCheckedChange={toggle} />
+    <div className="flex min-h-touch min-w-0 flex-1 flex-col justify-center">
+      <Label htmlFor={id}>
+        <span className={cn("break-words", item.done && "text-muted line-through")}>
+          {item.name}
+        </span>
+      </Label>
+    </div>
+    <Menu modal={false}>
+      <Tooltip>
+        <MenuTrigger asChild aria-label={`More actions for “${item.name}”`}>
+          <Button variant="ghost" size="icon" aria-label={`More actions for “${item.name}”`}>
+            <Ellipsis aria-hidden="true" />
+          </Button>
+        </MenuTrigger>
+      </Tooltip>
+      <MenuContent>…</MenuContent>
+    </Menu>
+  </div>
+</li>
+```
 
 ## Empty versus no results
 

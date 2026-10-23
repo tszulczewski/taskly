@@ -32,7 +32,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Password input | `PasswordInput` | The password on sign-in and sign-up. | Any value that is not secret; a “Repeat password” field. |
 | Textarea | `Textarea` | The optional task description. | A title, a name or an amount (Input); a description that is only shown. |
 | Form field | `FormField, Label` | Around every Input, PasswordInput and Textarea. | An error about the whole form (Alert); a rule for the whole screen (one sentence). |
-| Checkbox | `Checkbox, Label` | Several independent choices, such as the places of a task. | One choice of several (RadioGroup); an action (Button); completing a task (TaskCheckbox). |
+| Checkbox | `Checkbox, Label` | Several independent choices, such as the places of a task; an item of a list that is not tasks marked done, with a visible Label (N5). | One choice of several (RadioGroup); an action (Button); completing a task (TaskCheckbox). |
 | Radio group | `RadioGroup, RadioGroupItem, RadioGroupSegment` | The theme switch (segmented); one colour out of a few. | Several may be chosen (Checkbox); more than about 5 options. |
 | Surface | `Surface` | The task list, the future expenses line, the sign-in card. | Inside another Surface; one card per task; tiles with numbers. |
 | Alert | `Alert` | A failed sign-in or sign-out; a refused save above a form. | An error about one field (FormField); success; a notice that disappears (no toasts). |
@@ -108,6 +108,28 @@ Use the utility, never the raw value. Raw tokens (`--raw-*`) are only for `token
 
 Breakpoint: only `wide:` (640px). Numbers: `numeric` (tabular figures). The full lists, both themes and the contrast table are in Storybook, Foundations.
 
+Component tokens belong to the component named in their purpose (`.ai/design/tokeny.md`, layers). One exception: every list row uses the task-row geometry (`min-h-row`, `py-row-y`; decision N2); they get list-row names with the shared row component (N1).
+
+| Token | Utility | Purpose |
+| --- | --- | --- |
+| `task-row-min-height` | `min-h-row` | A list row's floor, 64px (Luki 6); a row with a 44px target is 68px (T10, N8). |
+| `task-row-padding-y` | `py-row-y`, `pb-row-y` | Every list row: 12px above and below its content (T10, N2). |
+| `task-row-indent` | `pl-row-indent` | Subtasks: 24px indent (R02.1, T10). |
+| `touch-target-min` | `size-touch`, `w-touch`, `min-h-touch` | 44px targets; `w-touch` also keeps an empty column the width of a target, so text lines up. |
+| `control-height` | `min-h-control` | Buttons, fields, menu items: 44px. |
+| `control-padding-x` | `px-control-x` | Sides of a text button. |
+| `field-padding-x`, `field-padding-y` | `px-field-x`, `py-field-y` | Inside a field frame and a menu item. |
+| `checkbox-size`, `checkbox-radius` | `size-checkbox`, `rounded-checkbox` | The 20px box inside `Checkbox`. |
+| `radio-dot-size` | `size-radio-dot` | The dot of a chosen radio. |
+| `place-dot-size` | `size-dot` | The place dot in `PlaceTag`. |
+| `icon-size`, `icon-stroke-width` | `size-icon`, `stroke-icon` | Lucide icons: 20px, 2px stroke. |
+| `opacity-disabled` | `disabled:opacity-disabled` | Disabled controls. |
+| `spinner-*` | `spinner` | The busy mark inside `Button loading`. |
+| `motion-duration-highlight` | `row-highlight` | A row just added fades from the raised tone (1200ms; none with reduced motion). |
+| `layout-text-measure` | `max-w-overlay` | Menus, popovers, tooltips: at most 65ch and the space beside the trigger. |
+
+Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-ring-field`, `collapsible-content`, `swatch-selected`. `h-lh` (one text line high, the `Skeleton` default) and `sr-only` are Tailwind's own and need no token.
+
 ## If … then use …
 
 - One main action of a form → `Button variant="primary"`; cancel, retry, a second action → `Button`; delete after a question → `Button variant="danger"`.
@@ -117,7 +139,10 @@ Breakpoint: only `wide:` (640px). Numbers: `numeric` (tabular figures). The full
 - One field wrong → `FormField` error; the form failed → `Alert` above it; an optimistic change refused → message in that row; a screen failed to load → `ErrorState`; one line failed → message in the line. Never a toast. Success → nothing; the result is the confirmation.
 - First load → static `Skeleton`; a running button → `Button loading` with "Saving…".
 - Many items → rows on one `Surface` divided by a line; a total → one line (`FutureExpenses`), never tiles; never a board, cards per item or a many-column table.
-- Several choices → `Checkbox` per option; one of 2–5 → `RadioGroup`; completing a task → `TaskCheckbox`; a marker → `MenuCheckboxItem`.
+- Several choices → `Checkbox` per option; one of 2–5 → `RadioGroup`; completing a task → `TaskCheckbox`; an item of another list done → `Checkbox` + visible `Label`, done text in a `span` (N5, N6); a marker → `MenuCheckboxItem`.
+- A list that is not tasks → the recipe in Patterns › List; adding by name alone → the recipe in Patterns › Quick capture (N1, N3). Never `TaskList`, `TaskRow` or `QuickAdd` with parts that do not apply. It jumps instead of sliding (N9); everything done needs no message (N10).
+- An icon-only button → `Tooltip` around it; around a menu button the `aria-label` goes on `MenuTrigger` too (N4).
+- Loading rows → skeleton rows as high as real rows, one bar per line (N8).
 
 ## What to avoid
 
@@ -152,6 +177,6 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
 | D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J, L1–L4 decisions | `packages/ui/POSTEP.md` |
+| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

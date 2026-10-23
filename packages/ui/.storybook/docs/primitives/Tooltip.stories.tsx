@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Ellipsis, GripVertical, Plus } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { Button, Tooltip } from "../../../src";
+import { Button, Menu, MenuContent, MenuItem, MenuTrigger, Tooltip } from "../../../src";
 import { withDocFrame } from "../../blocks/DocFrame";
 import { DoDont, Narrow } from "../../blocks/Primitives";
 
@@ -113,6 +113,45 @@ export const Polish: Story = {
   ),
   play: async () => {
     await userEvent.tab();
+  },
+};
+
+/** A menu button: the label sits on `MenuTrigger` too, because the tooltip reads its direct child. */
+export const WithMenu: Story = {
+  args: { children: more },
+  render: () => (
+    <div className="flex justify-center pt-section">
+      <Menu modal={false}>
+        <Tooltip>
+          <MenuTrigger asChild aria-label="More actions for “Seal the bath”">
+            <Button variant="ghost" size="icon" aria-label="More actions for “Seal the bath”">
+              <Ellipsis aria-hidden="true" />
+            </Button>
+          </MenuTrigger>
+        </Tooltip>
+        <MenuContent>
+          <MenuItem>Edit</MenuItem>
+        </MenuContent>
+      </Menu>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const button = body.getByRole("button", { name: "More actions for “Seal the bath”" });
+    await userEvent.tab();
+    await expect(button).toHaveFocus();
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.querySelector('[data-slot="tooltip"]')).toHaveTextContent(
+        "More actions for “Seal the bath”",
+      ),
+    );
+    await expect(button).not.toHaveAttribute("aria-describedby");
+    // It is still the menu button: Enter opens the menu, Escape closes it and returns focus.
+    await userEvent.keyboard("{Enter}");
+    await expect(await body.findByRole("menuitem", { name: "Edit" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(button).toHaveFocus());
+    await userEvent.keyboard("{Escape}");
   },
 };
 

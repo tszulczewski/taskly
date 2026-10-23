@@ -19,6 +19,36 @@ How a thought becomes a task before it is forgotten: type the title, press Enter
 | The new row scrolls into view; no scroll animation or highlight under reduced motion.                              | spec E01               |
 | Subtasks are captured the same way under their task; after each add the form closes and "Add subtask" takes focus. | spec E01, decision F7  |
 
+## A list whose items have only a name
+
+`QuickAdd` always offers "Details" with a description and an estimate. For a list whose items have only a name (the quick shopping list, E04), build the same form from primitives until a name-only quick add is built with the E04 spec (decision N3). The rules above still apply: Enter adds, a visible "Add", the field clears and keeps focus only after the server confirmed, a refusal keeps the text and says why above the field.
+
+```tsx
+const form = useForm<"name">({
+  initialValues: { name: "" },
+  validate: ({ name }) => ({ name: name.trim() === "" ? "Enter a name." : undefined }),
+  onSubmit: addItem,
+  unexpectedError: "Something went wrong. Try again.",
+  resetOnSuccess: true,
+});
+
+<form {...form.formProps} className="flex flex-col gap-group">
+  {form.formError ? <Alert title={form.formError} /> : null}
+  <FormField label="New item" error={form.errors.name}>
+    {(control) => (
+      <div className="flex gap-group">
+        <Input {...control} {...form.field("name")} />
+        <Button type="submit" variant="primary" loading={form.pending}>
+          {form.pending ? "Adding…" : "Add"}
+        </Button>
+      </div>
+    )}
+  </FormField>
+</form>;
+```
+
+The field stays above the list on every width in version 1; where it sits for one-handed use on a phone is decided with the E04 spec (decision N7).
+
 ## States
 
 | State            | Story            |

@@ -61,14 +61,15 @@ None. There is no indeterminate ("some subtasks done") state: progress is writte
 
 - **Keyboard:** Tab reaches it; Space toggles; Enter does nothing (WAI-ARIA APG, checkbox). Covered by the Playground test.
 - **Role and state:** `role="checkbox"` with `aria-checked="true|false"` (Radix). A screen reader says "Paint the bathroom ceiling, checkbox, checked".
-- **Name:** a `Label` with `htmlFor`; clicking the label toggles too. Covered by the WithLabel test. In a task row, `aria-label` repeats the title, e.g. "Complete Paint the bathroom ceiling" (proposal; settled with the TaskRow in stage 3).
+- **Name:** a `Label` with `htmlFor`; clicking the label toggles too. Covered by the WithLabel test. In a task row the title is already visible next to the box, so `TaskCheckbox` names it with `aria-label`: the action and the task, “Complete “Paint the bathroom ceiling”” (decision J9).
 - **Target size:** 44 × 44 px around a 20px box (T10, spec E01).
 - **Colour:** the check mark, not only the green fill, shows the state (WCAG 1.4.1); the box border has 6.94:1 / 6.31:1 on the list surface (WCAG 1.4.11).
 - **Motion:** the fill changes over `motion-duration-quick` (Luki 8), at once with reduced motion.
 
 ## 8. Content
 
-- The label is the thing that gets done, not an instruction: "Paint the bathroom ceiling", not "Mark as done" (glossary, Luki 5).
+- A visible `Label` is the thing itself, not an instruction: "Paint the bathroom ceiling", not "Mark as done" (glossary, Luki 5).
+- A box named only by `aria-label`, beside a title that is already visible, is named like an icon button: the action and the object, “Complete “Paint the bathroom ceiling”” (`TaskCheckbox`, decision J9). The two rules do not conflict: one is a visible label, the other an accessible name.
 - Long labels wrap next to the box; align the first line with the box.
 - Polish labels: "Zeskrobać starą farbę".
 
@@ -109,11 +110,20 @@ In Taskly: completing a task from its row.
 
 ```tsx
 <Checkbox
-  aria-label={`Complete ${task.title}`}
+  aria-label={`Complete “${task.title}”`}
   checked={task.completed}
   disabled={task.pending}
   onCheckedChange={(done) => setCompleted(task.id, done)}
 />
+```
+
+In a list that is not tasks: an item marked done, named by its visible label (decisions N5, N6). `Label` has no done look of its own, so the muted, struck-through text is a `span` inside it; the name keeps the regular weight.
+
+```tsx
+<Checkbox id={id} checked={item.done} onCheckedChange={toggle} />
+<Label htmlFor={id}>
+  <span className={cn("break-words", item.done && "text-muted line-through")}>{item.name}</span>
+</Label>
 ```
 
 ## 12. Do and don't
