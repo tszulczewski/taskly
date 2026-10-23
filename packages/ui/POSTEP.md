@@ -844,3 +844,44 @@ Rozstrzygnięcie (2026-10-23): wszystkie A, O1–O7 i C w wariantach rekomendowa
 - **O7:** prompt testu: poza briefem wolno użyć nazw materiałów ze story zadań i speku E01.
 - **C:** E04 Later, tabela pytań z kolumnami obu testów i nowymi wierszami (licznik, nazwa listy i pusty stan, polski komunikat odrzuconej zmiany).
 - Legenda źródeł (Start here, plik dla agentów): dopisane O1–O7.
+
+## Etap 8: trzeci test agentem (2026-10-23)
+
+Test z `.ai/design/prompt-agent-test.md` powtórzony w nowej sesji po wdrożeniu O1–O7, bez wglądu w dwa pierwsze przebiegi: 26 stories `Product/Shopping/Screens` (oba motywy, axe bez naruszeń) i strona z mapą stanów na gałęzi `design/shopping-screen-agent-test-3` (af84092), niezmergowanej. Log z tabelą 62 decyzji i listą 18 luk: `.ai/runs/2026-10-23-shopping-screen-agent-test-3.md` (na tej gałęzi).
+
+- **Decyzje:** 62, w tym REGUŁA 34, PRZYKŁAD 14, ZGADUJĘ 14 (drugi przebieg: 31 / 19 / 12, pierwszy: 29 / 4 / 19). Wartości spoza tokenów: 0 (jedyna klasa poza tokenami to ułamek `w-2/3`).
+- **Co zadziałało:** przepisy O1–O5 (poprawianie, usuwanie, skeleton, fokus po ostatniej rzeczy, akcje kupionej rzeczy) agent zastosował bez zgadywania.
+- **Nowe rodzaje luk:** sprzeczności między stronami (Optimistic change a Inline edit / Delete confirmation; reguła Checkboxa o pierwszej linii a przepis List), zasady istniejące tylko w kodzie `TaskList` (fokus po odhaczeniu, podświetlenie nowego wiersza, miejsce nowej rzeczy), skeleton wiersza z jedną linią.
+
+### Etap 8: poprawki dokumentacji (A, bez nowych decyzji)
+
+Luki 6–10, 13, 15–17 z logu testu: zapisanie tego, co już robią kod i przykłady.
+
+- **Miejsce nowej rzeczy, fokus po odhaczeniu, podświetlenie nowego wiersza** (luki 8–10): Patterns › List, tabela „A list that is not tasks” (wiersz New item, Order).
+- **Co działa od razu, a co czeka** (luka 13): Optimistic change mówił „an edit patches the row; a delete removes it”, a Inline edit i Delete confirmation, że formularz i dialog czekają na serwer. Rozdzielone: dodanie, odhaczenie, przesunięcie i znaczniki od razu; edycja i usuwanie po odpowiedzi serwera (wtedy spec E01 „patches / removes”).
+- **Wiersz w trakcie zapisu** (luka 15): przepis mówił „the row's controls disabled”, `TaskRow` wyłącza checkbox i pozycje menu „…”, a samo menu się otwiera. Przepis dopasowany do `TaskRow`.
+- **Nagłówek strony i odstępy** (luki 6, 7): App shell (`h1`, `text-heading font-strong`, nazwa listy) i Spacing and layout › Relations (nagłówek, linia pod nim, formularz i lista co `space-between-groups`).
+- **Checkbox w tabelach komponentów** (luka 16): Start here i strona Checkbox › When to use z wierszem o rzeczy z listy innej niż zadania (N5).
+- **E04 Later** (luka 17): link do logu drugiego testu, którego nie ma na `main`; teraz wskazuje gałęzie.
+
+### Etap 8: propozycje U1–U4 (B, do decyzji product ownera)
+
+- **U1. Pole wyboru a pierwsza linia długiej nazwy** (luka 14). Checkbox › Content: „align the first line with the box”; przepis List i `TaskRow` centrują blok tekstu względem celu 44 px, więc przy dłuższym tekście pole jest niżej niż pierwsza linia. Zmierzone (Product/Tasks/Screens › Progress Desktop): wiersz bez linii meta 0 px różnicy, każdy wiersz z linią meta 9,4 px; na telefonie każdy wiersz zadania (szacunek pod tytułem) około 11 px. **A:** tekst od góry z odstępem (44 px − linia) / 2 (nowy token komponentu); wiersze z linią meta na komputerze 68 → ok. 76 px, każdy wiersz zadania na telefonie 68 → ok. 79 px (z meta 86 → ok. 98 px). **B:** bez zmian w kodzie; reguła Checkboxa opisuje to, co jest: blok tekstu wyśrodkowany względem celu, póki się w nim mieści, dłuższy rośnie w dół, a pole zostaje u góry.
+- **U2. Skeleton wiersza z jedną linią** (luka 3): jeden pasek w rozmiarze tekstu podstawowego (`h-lh`), `w-2/3`, trzy wiersze; Skeleton § 8 i Patterns › List.
+- **U3. Szerokości ułamkowe** (luka 12): `w-2/3`, `w-1/3` to proporcje, nie wartości projektowe; `check:tokens` już je przepuszcza. Zapisać w zasadach (Start here, plik dla agentów, Skeleton).
+- **U4. Status tabeli w E04 Later** (luka 18): do speku E04 założenie, w którym zgodziły się wszystkie testy, obowiązuje; gdzie się różnią albo któryś nie odpowiedział, pytanie zostaje otwarte.
+
+### Etap 8: pytania produktowe do tabeli E04 Later (C)
+
+Luki 2, 4, 5, 11: nawigacja między listami, dodawanie przed wczytaniem listy, limit nazwy, słownictwo i teksty. Do tabeli dopisana kolumna trzeciego testu i dwa wiersze: dodawanie przed wczytaniem (albo po błędzie) i teksty pozostałych stanów (dodanie nieudane, ładowanie, błąd ładowania).
+
+Rozstrzygnięcie (2026-10-23): A, U2–U4 i C w wariantach rekomendowanych. U1: właściciel wybrał najpierw A; przy wdrożeniu test pokazał, że na telefonie rośnie każdy wiersz zadania (wcześniej podałem tylko wiersze z linią meta), więc pytanie wróciło z tymi liczbami i właściciel wybrał **B**.
+
+### Etap 8: wdrożenie (2026-10-23)
+
+- **A:** Patterns › List (Text block, New item, Order), Optimistic change (dwie reguły zamiast jednej), App shell (`h1`), Spacing and layout › Relations, Start here i Checkbox (N5), E04 Later (gałęzie testów), plik dla agentów.
+- **U1 (B):** Checkbox › Content; Patterns › List › Text block; plik dla agentów. Kod bez zmian (próba A cofnięta przed commitem).
+- **U2:** Skeleton § 8, Patterns › List › Loading, plik dla agentów.
+- **U3:** Start here (krok 3), Skeleton § 8, plik dla agentów.
+- **U4 i C:** E04 Later (zdanie o założeniach, kolumna trzeciego testu, dwa nowe wiersze).
+- Legenda źródeł (Start here, plik dla agentów): dopisane U1–U4.

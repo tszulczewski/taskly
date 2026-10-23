@@ -15,7 +15,7 @@ Source: `.ai/design/reference.md`.
 
 ## Rules that are checked
 
-- **Tokens only.** No hex/rgb/hsl outside `packages/ui/src/styles/tokens.css`, no Tailwind palette or numeric classes (`text-gray-500`, `p-4`, `text-sm`, `rounded-lg`, `shadow-*`: they do not compile), no arbitrary values (`p-[13px]`). `npm run check:tokens` fails on them.
+- **Tokens only.** No hex/rgb/hsl outside `packages/ui/src/styles/tokens.css`, no Tailwind palette or numeric classes (`text-gray-500`, `p-4`, `text-sm`, `rounded-lg`, `shadow-*`: they do not compile), no arbitrary values (`p-[13px]`). `npm run check:tokens` fails on them. Fractions (`w-2/3`) are proportions, not values: allowed, used for skeleton bars (U3).
 - **Layering.** Primitives in `packages/ui/src/components/ui/` (added with `npx shadcn@latest add`, then rewritten to tokens); product components in `packages/ui/src/product/<epic>/` are presentational: props in, callbacks out, amounts arrive formatted; no `fetch`, no `@taskly/core`. The app wraps them with TanStack Query and the shared Zod schema (standards §5, decision P1).
 - **Accessibility.** Every story runs in both themes with axe failing on any violation (`npm run test:storybook`). Keyboard works everywhere, focus is always visible, targets are at least 44 × 44 px.
 - **Tests.** 100% unit coverage (`npm test`); interaction tests in story `play` functions.
@@ -140,9 +140,11 @@ Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-rin
 - First load → static `Skeleton`; a running button → `Button loading` with "Saving…".
 - Many items → rows on one `Surface` divided by a line; a total → one line (`FutureExpenses`), never tiles; never a board, cards per item or a many-column table.
 - Several choices → `Checkbox` per option; one of 2–5 → `RadioGroup`; completing a task → `TaskCheckbox`; an item of another list done → `Checkbox` + visible `Label`, done text in a `span` (N5, N6); a marker → `MenuCheckboxItem`.
-- A list that is not tasks → the recipe in Patterns › List; adding by name alone → the recipe in Patterns › Quick capture (N1, N3). Never `TaskList`, `TaskRow` or `QuickAdd` with parts that do not apply. It jumps instead of sliding (N9); everything done needs no message (N10); a done item keeps Edit and Delete (O5). Changing an item that has only a name → the recipe in Patterns › Inline edit (O1); deleting it → the recipe in Patterns › Delete confirmation (O2); after deleting the last item focus goes to the empty state (O4).
+- A list that is not tasks → the recipe in Patterns › List; adding by name alone → the recipe in Patterns › Quick capture (N1, N3). Never `TaskList`, `TaskRow` or `QuickAdd` with parts that do not apply. It jumps instead of sliding (N9); everything done needs no message (N10); a done item keeps Edit and Delete (O5). Changing an item that has only a name → the recipe in Patterns › Inline edit (O1); deleting it → the recipe in Patterns › Delete confirmation (O2); after deleting the last item focus goes to the empty state (O4). A new item goes after the open ones and is highlighted once confirmed; after a tick focus stays on the moved row's checkbox; a pending row disables its checkbox and the items of its "…" (Patterns › List). A long name grows downwards and the checkbox stays at the top of the row (U1).
 - An icon-only button → `Tooltip` around it; around a menu button the `aria-label` goes on `MenuTrigger` too (N4).
-- Loading rows → skeleton rows as high as real rows, one bar per line, starting where the text starts (N8, O3).
+- Loading rows → skeleton rows as high as real rows, one bar per line, starting where the text starts (N8, O3); a row with only a name gets one body-size bar, `w-2/3`, three rows (U2).
+- A page → one `h1` (`text-heading font-strong`, the list's name) inside `AppShell`; the heading, the line under it, the add form and the list are `gap-between-groups` apart (Spacing and layout, App shell).
+- What shows at once → an add, a tick, a move, a marker (pending, rolled back with a message in the row); an edit and a delete wait for the server in their form or dialog (Optimistic change).
 
 ## What to avoid
 
@@ -177,6 +179,6 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
 | D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7 decisions | `packages/ui/POSTEP.md` |
+| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

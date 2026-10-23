@@ -14,6 +14,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-23 — Before proposing a change to row geometry, measure it at 320px too: below 640px a task row always has two lines (the estimate sits under the title), so a fix described with desktop numbers ("rows with a meta line grow to 76px") changed every phone row (68 → 79px). U1 was approved on the desktop numbers and had to be asked again; give the owner the numbers for every width before they choose.
+- 2026-10-23 — Stopping a server started with `npx http-server …` in the background: killing the `npm exec` PID leaves the `http-server` child running and holding the port, so the next start fails silently and the old process serves the files. Find and kill the process whose command is `http-server` (`ps -eo pid,args | grep '[h]ttp-server'`), in a separate call.
 - 2026-10-23 — Focus after a dialog closes: the element you meant to focus may already be unmounted (the deleted row's "…", or the whole list after its last item, replaced by the empty state), and `.focus()` on a detached node silently leaves focus on `body`. Pick the first target that `isConnected`, with a focusable fallback (`tabIndex={-1}`) that is always rendered in that state; test the last-item case with a stateful wrapper that really removes the item (decision O4, `TaskList`).
 - 2026-10-23 — Primitives such as `Surface` set `data-slot` after spreading props, so a `data-slot` passed to them is overwritten (only with `asChild` does the child's attribute win). Query a rendered `Surface` by `[data-slot="surface"]` or by role, not by the slot you passed.
 
