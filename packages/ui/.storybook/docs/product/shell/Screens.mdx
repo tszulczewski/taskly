@@ -1,0 +1,19 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Screens.stories";
+
+<Meta of={Stories} />
+
+# App shell screens
+
+Screen S4: the signed-in frame. The theme switch in these stories drives Storybook's theme, as the app sets `data-theme` on the root (rule 9). The list content is a placeholder until the E01 batch.
+
+## State map
+
+| State            | Story                 | Width  |
+| ---------------- | --------------------- | ------ |
+| Signed in        | Desktop               | 1440px |
+| Signed in        | Tablet                | 768px  |
+| Signed in, phone | Phone                 | 320px  |
+| Sign-out failed  | Sign Out Failed Phone | 320px  |
+
+<Story of={Stories.Phone} />

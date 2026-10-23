@@ -1,0 +1,157 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./TaskRow.stories";
+
+<Meta of={Stories} />
+
+# Task row
+
+`import { TaskRow } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows one task or subtask as a single calm line: what to do and what it may cost. Everything else (description, subtasks, adding a subtask) opens in place, so the owner can scan many small tasks and choose the next one.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- Every task and subtask on the task list; `TaskList` renders the rows (spec E01, R02.1).
+
+## 3. When not to use
+
+| Situation                          | Use instead                | Source       |
+| ---------------------------------- | -------------------------- | ------------ |
+| A card per task                    | rows on one `Surface`      | R02.1, A01.3 |
+| Task details in a drawer or window | the row's expanded content | R02.6, Q2    |
+| A table with many amount columns   | one amount per row         | A04, R02.5   |
+
+## 4. Anatomy
+
+| Part             | Required | Notes                                                                                                                                                                                           |
+| ---------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Handle           | optional | `DragHandle` at the start, from 640px, when the row gets `move` (E02-S01, decision G2)                                                                                                          |
+| Arrow            | optional | From 640px: the chevron before the checkbox; it only repeats the title for the pointer (`aria-hidden`, not a tab stop). Always on tasks, on subtasks only with a description (decisions F5, J1) |
+| Checkbox         | optional | `TaskCheckbox` after the arrow (from 640px) or first in the row, when the row gets `onToggleComplete` (E03-S01, R02.1, decision I3)                                                             |
+| Title            | yes      | `font-weight-strong`; wraps, never truncated. With details it is the disclosure button (`aria-expanded`), and the whole text block is its 44px target (decision J1)                             |
+| Estimate         | yes      | `EstimateRange`: right of the title from 640px, under it below                                                                                                                                  |
+| Meta line        | optional | 13px muted, wraps: "Saving…" while pending (decision F3), `PlaceTag`s, `Markers`, then "3 subtasks", or `SubtaskProgress` "1/3" with completion (Luki 6, decision F4)                           |
+| "…" menu         | yes      | Add subtask (tasks only), Edit, Places…; Important, Urgent; Move up, Move down; Delete in `color-text-danger` (R02.1, P2, decision G3)                                                          |
+| Places popover   | optional | `PlacePicker` in a `Popover` aligned to the end of "…" (decision G3, decision H7)                                                                                                               |
+| Row error        | optional | 13px `color-text-danger`, `role="alert"`, under the title after a rollback (spec E01)                                                                                                           |
+| Expanded content | optional | Description (primary text, `layout-text-measure`), the subtasks indented by `task-row-indent`, "Add subtask"                                                                                    |
+
+Row height at least `task-row-min-height`, padding `task-row-padding-y` / `space-inset`, rows divided by 1px `color-border-divider` (tokens, R02.1). An expanded task sits on `color-surface-raised`; rows inside it hover with `color-surface-raised-hover`.
+
+## 5. Variants
+
+| Variant                     | Choose it when                                    | Source   |
+| --------------------------- | ------------------------------------------------- | -------- |
+| Task (with `onAddSubtask`)  | A top-level task: arrow, "Add subtask".           | spec E01 |
+| Subtask (no `onAddSubtask`) | Inside a task: no "Add subtask" (one level only). | spec E01 |
+
+<Unstyled>
+  <Story of={Stories.Subtask} />
+</Unstyled>
+
+With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its handle, the subtask order and the extra menu items; each can be turned on alone. With `onToggleComplete` (E03) it gets the checkbox and "1/3".
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State            | What the user sees                                                                                                                                                    | Story                                                                   | Source                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------- |
+| Collapsed        | Title, estimate, "N subtasks".                                                                                                                                        | Collapsed                                                               | Luki 6, decision 2026-10-22 |
+| Hover            | `color-surface-raised` behind the line.                                                                                                                               | (pointer)                                                               | tokens                      |
+| Focus            | Focus ring on the title (when it opens details), the checkbox or "…". The title's ring surrounds the whole text block, `space-inline` clear of the text on each side. | (keyboard), [Collapsed](?path=/story/product-tasks-task-row--collapsed) | T6, J1, decision M3         |
+| Expanded         | Raised surface; description, subtasks, "Add subtask".                                                                                                                 | Playground                                                              | Q2, R02.9                   |
+| Menu open        | Add subtask, Edit, Delete.                                                                                                                                            | Menu                                                                    | R02.1, P2                   |
+| Menu with E02    | Places…, Important / Urgent (checked), Move up / Move down (off at the ends).                                                                                         | Menu With Order Markers Places                                          | decision G3                 |
+| Places, markers  | Place tags and the marker words in the meta line.                                                                                                                     | Places And Markers                                                      | Luki 4, Luki 6              |
+| Places open      | The place picker beside "…".                                                                                                                                          | Places Popover                                                          | decision G3                 |
+| Picked up        | The row lifts on `color-surface-raised` above the others.                                                                                                             | Picked Up                                                               | Luki 8, K2                  |
+| Editing          | `TaskForm` in place of the line.                                                                                                                                      | Editing                                                                 | spec E01                    |
+| Adding a subtask | `QuickAdd` "New subtask" under the subtasks.                                                                                                                          | Adding Subtask                                                          | spec E01                    |
+| Pending          | Muted title, "Saving…", menu items disabled.                                                                                                                          | Pending                                                                 | spec E01, Optimistic UI     |
+| Change failed    | The message under the title in `color-text-danger`.                                                                                                                   | Change Failed                                                           | spec E01                    |
+| Just added       | Scrolled into view, raised tone fading over `motion-duration-highlight` (decision F1).                                                                                | Highlighted                                                             | spec E01, After an add      |
+| Long text        | The title wraps; the amount keeps its place.                                                                                                                          | Long Text                                                               | —                           |
+| With completion  | The checkbox after the arrow; "1/3" in the meta line.                                                                                                                 | With Completion                                                         | decision I3                 |
+| Completed        | Box checked; title muted and struck through; amount, places, markers muted (amount not struck through); no handle.                                                    | Completed                                                               | R02.2, decision I3          |
+| Completed menu   | Edit, Places…, Important / Urgent, Delete; no Add subtask, no Move up / Move down.                                                                                    | Completed Menu                                                          | decision I3                 |
+
+## 7. Behaviour and accessibility
+
+- **Order:** handle (from 640px) → checkbox → title (when it opens details) → "…" → (expanded) subtasks → "Add subtask". The arrow is not a tab stop.
+- **Completing:** the checkbox completes or reopens the row at once; a task with open subtasks asks first (`CompleteTaskDialog`). The list moves the row and keeps focus on its checkbox (see Patterns / Complete and reopen).
+- **Moving:** by the handle (mouse, keyboard), a long press on the row (touch), or Move up / Move down in "…"; a subtask moves only among its task's subtasks (decisions G1, G2). See Drag handle and Patterns / Reorder.
+- **Markers:** checkbox items in "…", announced as checked or not; the change shows at once (Optimistic change).
+- **Places:** "Places…" opens the picker beside "…" with focus inside; Escape returns focus to "…".
+- **Title:** a disclosure button ("Paint the bathroom ceiling, collapsed"); Enter or Space toggles. A click or tap anywhere on the title, estimate or meta line does the same; from 640px so does the arrow (decision J1). One control per row, so a screen reader hears the task once. The content opens over `motion-duration-base` (Luki 8).
+- **Menu:** `Menu` with `modal={false}`; arrow keys move, Escape closes and returns focus to "…". Edit and Add subtask move focus into their form; Delete hands over to the list's dialog.
+- **After Edit / Cancel:** focus returns to "…" (decision F6). After "Add subtask" Cancel: back to "Add subtask".
+- **Pending:** actions are disabled so no request is sent with a temporary id (spec E01). "Saving…" says why (decision F3).
+- **Highlight:** `scrollIntoView` with smooth scrolling; no scroll animation and no highlight under `prefers-reduced-motion: reduce` (spec E01).
+- **Targets:** checkbox, arrow and "…" are 44 × 44 px; the title's target is the whole text block, at least 44px high (K1).
+
+## 8. Content
+
+- Menu: "Add subtask", "Edit", "Delete" (spec E01); "Places…", "Important", "Urgent", "Move up", "Move down" (decision G3). Meta: "1 subtask" / "3 subtasks".
+- No estimate: "No estimate" (spec E01).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+  <Story of={Stories.PolishCompleted} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                                                                                                | Source      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| 320px  | No arrow: the title opens the row, so it keeps about 150px next to the checkbox (decision J1); the estimate goes under it (decision F8); "…" keeps 44px; no handle (G2). | WCAG 1.4.10 |
+| 768px  | Estimate right of the title, right-aligned; the handle from 640px.                                                                                                       | R02.5, G2   |
+| 1440px | Same as 768px, in the 980px column.                                                                                                                                      | P01         |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`TaskItem` arrives ready to show: `estimate` formatted, `min` / `max` as the form shows them (P1).
+
+## 11. Code
+
+`TaskList` renders rows; a row on its own is only for tests and stories.
+
+```tsx
+<ul aria-label="Tasks">
+  {tasks.map((task) => (
+    <TaskRow
+      key={task.id}
+      task={task}
+      validate={validateTaskForm}
+      onEdit={edit}
+      onAddSubtask={addSubtask}
+      onRequestDelete={askToDelete}
+    />
+  ))}
+</ul>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Parts:** `EstimateRange`, `TaskForm`, `QuickAdd`, `Menu`, `Collapsible`, `DragHandle`, `Markers`, `PlaceTag`, `PlacePicker`, `Popover`, `TaskCheckbox`, `SubtaskProgress`. **Used in:** `TaskList`.
+- **Patterns:** List, Details in row, Inline edit, Optimistic change, Reorder, Complete and reopen.

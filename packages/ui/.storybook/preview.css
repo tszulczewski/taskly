@@ -1,0 +1,48 @@
+/* Storybook preview: the package stylesheet plus documentation-only helpers. */
+@import "../src/styles/index.css";
+
+@source "./";
+
+/* Docs only: space between previews wrapped in <Unstyled> and the surrounding prose. */
+.sb-unstyled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+  margin-block: var(--space-between-groups);
+}
+
+/*
+ * Docs only: Storybook keeps code spans on one line and lets tables grow, so a docs page scrolled
+ * sideways at 320px. Inline code wraps; a table or code block still too wide scrolls on its own.
+ */
+.sbdocs.sbdocs-content table {
+  display: block;
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+.sbdocs.sbdocs-content :not(pre) > code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.sbdocs.sbdocs-content pre {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+/* Docs only: the 320px column used by "narrow screen" examples on component pages. */
+.doc-narrow {
+  inline-size: 100%;
+  max-inline-size: 320px;
+}
+
+/*
+ * Docs only: frozen states. `data-preview-state="hover focus-visible active"` on an element turns on
+ * the same declarations as the real pseudo-class, so a state matrix can show every state at once.
+ * The overrides exist only in Storybook's stylesheet; the package and the app never see them.
+ */
+@custom-variant hover (&:hover, &[data-preview-state~="hover"]);
+@custom-variant focus-visible (&:focus-visible, &[data-preview-state~="focus-visible"]);
+@custom-variant active (&:active, &[data-preview-state~="active"]);
+@custom-variant field-focus (&:has(input:focus-visible), &:has(input[data-preview-state~="focus-visible"]));

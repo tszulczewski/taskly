@@ -1,0 +1,128 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Checkbox.stories";
+
+<Meta of={Stories} />
+
+# Checkbox
+
+`import { Checkbox, Label } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the user mark one thing as done or chosen with a single press, and see at a glance which things are.
+
+<Unstyled>
+  <Story of={Stories.WithLabel} />
+</Unstyled>
+
+## 2. When to use
+
+- Completing and reopening a task or subtask from its row (backlog E03-S01, R02.1, R02.2).
+- Choosing several places for a task in `PlacePicker` (E02-S03). The "Important" / "Urgent" markers in the row menu are menu checkbox items (`MenuCheckboxItem`, decision G3).
+
+## 3. When not to use
+
+| Situation                                                        | Use instead                      | Source       |
+| ---------------------------------------------------------------- | -------------------------------- | ------------ |
+| One choice out of several (one colour for a place)               | `RadioGroup`                     | WAI-ARIA APG |
+| A setting that applies at once and is not part of a list (theme) | `RadioGroup variant="segmented"` | P4, Luki 2   |
+| An action ("Delete task")                                        | `Button`                         | —            |
+
+## 4. Anatomy
+
+| Part       | Required     | Notes                                                                                             |
+| ---------- | ------------ | ------------------------------------------------------------------------------------------------- |
+| Target     | yes          | 44 × 44 px, transparent, holds the box (T10, K1)                                                  |
+| Box        | yes          | `checkbox-size` 20px, `checkbox-radius` 6px, 1px `color-border-control` (R02.1, T1, T8, T10)      |
+| Check mark | when checked | Lucide `Check` in `color-text-on-action` on `color-action-primary` (tokens: on-action "znacznik") |
+| Label      | yes          | `Label htmlFor`, or `aria-label` when the row's title already sits next to it                     |
+
+## 5. Variants
+
+None. There is no indeterminate ("some subtasks done") state: progress is written as "1/3" in the row (Luki 6), so the box is only checked or not.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State          | Looks like                                                                                                                                         | Source                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Not checked    | Empty box on the list surface.                                                                                                                     | R02.1                         |
+| Checked        | Green box with a check mark; this is "completed" (the only other use of the accent).                                                               | R02.3, tokens rule 2          |
+| Hover          | Empty box: `color-surface-raised`. Checked: `color-action-primary-hover`.                                                                          | proposal C1, token 2026-10-22 |
+| Focus          | 2px outline around the box, 2px offset.                                                                                                            | R02 code, T6, K3              |
+| Pressed        | Same as hover.                                                                                                                                     | K4                            |
+| Disabled       | `opacity-disabled`. A pending task row disables it until the server confirms the task; the row is dimmed as a whole, which explains it (spec E01). | K3, spec E01                  |
+| Loading, error | Do not apply: completing is optimistic and rolls back with an error in the row (spec E01, Optimistic change pattern).                              | spec E01                      |
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** Tab reaches it; Space toggles; Enter does nothing (WAI-ARIA APG, checkbox). Covered by the Playground test.
+- **Role and state:** `role="checkbox"` with `aria-checked="true|false"` (Radix). A screen reader says "Paint the bathroom ceiling, checkbox, checked".
+- **Name:** a `Label` with `htmlFor`; clicking the label toggles too. Covered by the WithLabel test. In a task row, `aria-label` repeats the title, e.g. "Complete Paint the bathroom ceiling" (proposal; settled with the TaskRow in stage 3).
+- **Target size:** 44 × 44 px around a 20px box (T10, spec E01).
+- **Colour:** the check mark, not only the green fill, shows the state (WCAG 1.4.1); the box border has 6.94:1 / 6.31:1 on the list surface (WCAG 1.4.11).
+- **Motion:** the fill changes over `motion-duration-quick` (Luki 8), at once with reduced motion.
+
+## 8. Content
+
+- The label is the thing that gets done, not an instruction: "Paint the bathroom ceiling", not "Mark as done" (glossary, Luki 5).
+- Long labels wrap next to the box; align the first line with the box.
+- Polish labels: "Zeskrobać starą farbę".
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                    | Source           |
+| ------ | -------------------------------------------- | ---------------- |
+| 320px  | Same 44px target; the label wraps beside it. | T10, WCAG 1.4.10 |
+| 768px  | Same.                                        | K1               |
+| 1440px | Same.                                        | K1               |
+
+<Unstyled>
+  <Story of={Stories.LongLabelNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`checked`, `defaultChecked` and `onCheckedChange` use plain booleans. Other props go to the Radix root (`id`, `name`, `value`, `disabled`, `required`).
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<div className="flex items-center">
+  <Checkbox id="primer" />
+  <Label htmlFor="primer">Buy primer</Label>
+</div>
+```
+
+In Taskly: completing a task from its row.
+
+```tsx
+<Checkbox
+  aria-label={`Complete ${task.title}`}
+  checked={task.completed}
+  disabled={task.pending}
+  onCheckedChange={(done) => setCompleted(task.id, done)}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `RadioGroup` (exactly one choice).
+- **Patterns:** Complete and reopen, Optimistic change, Reorder (completed tasks cannot be dragged).

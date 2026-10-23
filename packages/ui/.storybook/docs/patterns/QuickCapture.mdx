@@ -1,0 +1,35 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./QuickCapture.stories";
+
+<Meta of={Stories} />
+
+# Quick capture
+
+How a thought becomes a task before it is forgotten: type the title, press Enter, type the next one. The owners asked for a "simple and quick tool", not "a million details" (A03). Built from `QuickAdd` and the list.
+
+## Rules
+
+| Rule                                                                                                               | Source                 |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Only the title is required; description and estimate wait under "Details".                                         | spec E01, R10, A03     |
+| Enter in the title adds; there is always a visible "Add" button too (no keyboard-only paths).                      | spec E01, A05          |
+| The new task appears at the end at once (pending), then is confirmed and briefly highlighted.                      | spec E01, decision F1  |
+| After the add the field is empty and keeps focus for the next task.                                                | spec E01, After an add |
+| The field clears only after the server confirmed; a refused add keeps the text and says why.                       | decision F2, spec E01  |
+| The new row scrolls into view; no scroll animation or highlight under reduced motion.                              | spec E01               |
+| Subtasks are captured the same way under their task; after each add the form closes and "Add subtask" takes focus. | spec E01, decision F7  |
+
+## States
+
+| State            | Story            |
+| ---------------- | ---------------- |
+| Ready            | Ready            |
+| Several in a row | Several In A Row |
+| With details     | With Details     |
+| Refused          | Refused          |
+
+Pending and rolled-back rows: Optimistic change.
+
+<Unstyled>
+  <Story of={Stories.Ready} />
+</Unstyled>

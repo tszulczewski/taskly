@@ -1,0 +1,117 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./FutureExpenses.stories";
+
+<Meta of={Stories} />
+
+# Future expenses
+
+`import { FutureExpenses } from "@taskly/ui";`
+
+## 1. What it is for
+
+The one summary of version 1 (D19): what the open main tasks may still cost, as one min–max range in a single line, so the owner knows what is ahead without a dashboard (R08, P04, R02.7).
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- Once, on the task list screen, under the list's name and above quick add (decision I1).
+
+## 3. When not to use
+
+| Situation                     | Use instead                | Source     |
+| ----------------------------- | -------------------------- | ---------- |
+| Tiles with several numbers    | this one line              | R02.7, P12 |
+| Spent, budget, costs per room | not in version 1           | D17, D18   |
+| One task's estimate           | `EstimateRange` in its row | spec E01   |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                                                                                                                               |
+| ----------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Surface     | yes      | `Surface` with `space-inset`: `color-surface-list`, `radius-surface`, the same in every state (tokens: the sum line)                                                                |
+| Label       | yes      | "Future expenses", muted, in the same `role="status"` line as the amount                                                                                                            |
+| Amount      | yes      | The range as the server formats it ("12 000–15 000 zł", tokens rule 5), `text-heading`, `font-weight-strong`, tabular figures; "No estimates yet" in muted text when nothing counts |
+| Unestimated | optional | `UnestimatedTasks` under it, only when an open main task has no estimate (Luki 9, R10)                                                                                              |
+
+Who counts: open main tasks with an estimate; subtasks never (R06, R08). The app computes the range on the server (standards §6); the component only shows it (P1).
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State            | What the user sees                                                    | Story         | Source             |
+| ---------------- | --------------------------------------------------------------------- | ------------- | ------------------ |
+| Ready            | Label and range; the unestimated line when needed.                    | Playground    | R08, Luki 9        |
+| All estimated    | Label and range only.                                                 | All Estimated | R08                |
+| No estimates yet | "No estimates yet" (also when every task is completed).               | No Estimates  | R10, decision J2   |
+| Loading          | A skeleton line; screen readers hear "Loading future expenses…".      | Loading       | Empty/Error states |
+| Load failed      | The message in `color-text-danger` with "Try again" in the same line. | Load Failed   | Error state        |
+| Trying again     | "Trying again…", disabled.                                            | States        | Error state        |
+| Long amounts     | The range wraps as a whole after the label.                           | Long Amounts  | —                  |
+
+After a change the range updates at once with the list (Optimistic change); there is no separate pending state.
+
+## 7. Behaviour and accessibility
+
+- The line is a polite `role="status"`: a new total is read once after completing, reopening or adding an estimate.
+- When the last task without an estimate gets one, its list disappears; focus moves to this line (`tabIndex={-1}`), so it is not lost (decision J4).
+- The range is text, never colour alone; the dash is read as "to" by screen readers.
+
+## 8. Content
+
+- "Future expenses" (glossary, D18); the amount as "12 000–15 000 zł" with non-breaking spaces (tokens rule 5); "No estimates yet" (decision J2).
+- Polish: "Przyszłe wydatki", "Brak szacunków" (decision J9).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                                                                   | Source      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 320px  | The amount goes under the label when it does not fit; a very long range breaks after the dash, never inside a number (non-breaking spaces). | WCAG 1.4.10 |
+| 768px  | One line.                                                                                                                                   | P04         |
+| 1440px | Same as 768px, in the 980px column.                                                                                                         | P01         |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<FutureExpenses
+  status={summary.status}
+  total={summary.data?.total ?? null}
+  unestimated={summary.data?.unestimated ?? []}
+  onRetry={() => void summary.refetch()}
+  retrying={summary.isRefetching}
+  validate={validateEstimate}
+  onAddEstimate={addEstimate}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Parts:** `UnestimatedTasks`, `Skeleton`, `TextAction`. **Changes with:** `TaskCheckbox`, `TaskForm` (estimates).
+- **Patterns:** Complete and reopen, Optimistic change.

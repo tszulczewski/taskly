@@ -1,0 +1,99 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./AppShell.stories";
+
+<Meta of={Stories} />
+
+# App shell
+
+`import { AppHeader, AppShell } from "@taskly/ui";`
+
+## 1. What it is for
+
+Frames every signed-in page with a quiet top bar and one centred column, so the list is the only thing that asks for attention.
+
+<Story of={Stories.Playground} />
+
+## 2. When to use
+
+- Every signed-in page (`/` and later screens), around the page content.
+
+## 3. When not to use
+
+| Situation                             | Use instead | Source           |
+| ------------------------------------- | ----------- | ---------------- |
+| Sign-in and sign-up                   | `AuthCard`  | sign-in spec     |
+| A side bar or panels next to the list | not used    | Q2, R01.5, A01.3 |
+
+## 4. Anatomy
+
+| Part           | Required | Notes                                                                                         |
+| -------------- | -------- | --------------------------------------------------------------------------------------------- |
+| Top bar        | yes      | `<header>` with a 1px `color-border-divider` line under it (tokens: "line under the top bar") |
+| App name       | yes      | "Taskly", strong body text                                                                    |
+| Theme toggle   | yes      | `ThemeToggle`                                                                                 |
+| Sign out       | yes      | Ghost `Button`; busy until the app has left the page                                          |
+| Sign-out error | optional | `Alert` under the bar: "Could not sign out. Try again." (decision E7)                         |
+| Column         | yes      | `<main>`, at most `layout-content-max-width` 980px, page gutter, `space-page-top` (P01)       |
+
+No bottom navigation on phones in version 1: it would have one item, because version 1 has one screen (P07; owner decision E1).
+
+## 5. Variants
+
+None. `AppHeader` is exported on its own for pages that need only the bar.
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Theme toggle](?path=/story/product-app-shell-theme-toggle--states) (decision M1).
+
+| State           | What the user sees                                                    | Story           | Source           |
+| --------------- | --------------------------------------------------------------------- | --------------- | ---------------- |
+| Signed in       | Bar and column.                                                       | Playground      | spec AppHeader   |
+| Signing out     | "Sign out" shows the spinner, `aria-busy`.                            | Playground      | spec             |
+| Sign-out failed | Alert under the bar; the button works again; nothing claims sign-out. | Sign Out Failed | spec, Edge cases |
+
+<Story of={Stories.SignOutFailed} />
+
+## 7. Behaviour and accessibility
+
+- Landmarks: `banner` (the bar) and `main`. The page heading is the `h1` inside `main`, not the app name.
+- Tab order: theme toggle → Sign out → page content.
+- The sign-out failure is announced (`role="alert"`). Covered by the Sign Out Failed test.
+
+## 8. Content
+
+"Sign out" / "Wyloguj się"; failure: "Could not sign out. Try again." (spec).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                              | Source     |
+| ------ | ------------------------------------------------------ | ---------- |
+| 320px  | Name, theme icons, "Sign out" in one row; gutter 16px. | R02.11, T7 |
+| 768px  | Theme words appear; gutter 24px.                       | T7         |
+| 1440px | Bar content and column at most 980px, centred.         | P01, R01.5 |
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`onSignOut` resolves `true` when the server confirmed; the app then clears the Query cache and goes to `/sign-in` (spec).
+
+## 11. Code
+
+```tsx
+<AppShell theme={theme} onThemeChange={setTheme} onSignOut={signOut}>
+  <h1 className="text-heading font-strong">{list.name}</h1>
+  <TaskList … />
+</AppShell>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Contains:** Theme toggle. **Screens:** App shell / Screens.

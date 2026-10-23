@@ -1,0 +1,147 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./TaskList.stories";
+
+<Meta of={Stories} />
+
+# Task list
+
+`import { TaskList } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows every task of the renovation on one calm surface, with subtasks under their task, so the owner sees what is left and what it may cost. It also covers the moments without a list: loading, a failed load and no tasks yet.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- The main screen `/`, under `QuickAdd` (spec E01; screen S5).
+
+## 3. When not to use
+
+| Situation                   | Use instead        | Source   |
+| --------------------------- | ------------------ | -------- |
+| Columns by status (a board) | one list           | A01.2    |
+| A table of amounts          | one amount per row | A04      |
+| The shopping list           | not in version 1   | N02, P03 |
+
+## 4. Anatomy
+
+| Part          | Required | Notes                                                                |
+| ------------- | -------- | -------------------------------------------------------------------- |
+| Surface       | yes      | One `Surface` as `<ul aria-label="Tasks">` (R02.1)                   |
+| Rows          | yes      | `TaskRow` per task, divided by 1px lines; subtasks nested in the row |
+| Loading       | state    | Three skeleton rows, `aria-busy`, a hidden "Loading tasks…" status   |
+| Error         | state    | `ErrorState`: "Could not load your tasks." and "Try again"           |
+| Empty         | state    | `EmptyState`: "No tasks yet. Add the first thing you need to do."    |
+| Delete dialog | yes      | One `DeleteTaskDialog` for the list                                  |
+| Order         | optional | With `onMove`: tasks move in the list, subtasks in their task (G1)   |
+| Completion    | optional | With `onToggleComplete`: checkboxes, one `CompleteTaskDialog` (E03)  |
+
+## 5. Variants
+
+None. What it shows depends on `status` and `tasks`. `onMove`, `onToggleMarker` and `places` turn on ordering, markers and places (E02); the app passes them together. `onToggleComplete` turns on completion (E03).
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Task row](?path=/story/product-tasks-task-row--states), [Skeleton](?path=/story/primitives-skeleton--states) (decision M1). Its own focus state is the list taking focus after a delete ([Delete Confirmed](?path=/story/product-tasks-task-list--delete-confirmed)).
+
+| State              | What the user sees                                                  | Story                       | Source                    |
+| ------------------ | ------------------------------------------------------------------- | --------------------------- | ------------------------- |
+| Loading            | Three static skeleton rows.                                         | Loading                     | spec E01, Luki 8          |
+| Load failed        | "Could not load your tasks." with "Try again".                      | Load Failed                 | spec E01                  |
+| Retrying           | "Trying again…" with a spinner.                                     | Retrying                    | C3                        |
+| Empty              | "No tasks yet." and the next step; the app puts focus in quick add. | Empty                       | spec E01                  |
+| Ready              | Rows with estimates and subtasks.                                   | Playground                  | spec E01                  |
+| Partial data       | Some tasks without an estimate or description.                      | Partial                     | R10                       |
+| Many               | 30 tasks; the page scrolls, the list does not.                      | Many                        | brief (low hundreds, Q02) |
+| Long text          | Long titles wrap; amounts stay in their column.                     | Long Text                   | —                         |
+| Asking to delete   | The dialog names the task and its subtasks; Cancel returns focus.   | Delete With Subtasks        | spec E01, Delete          |
+| Deleted            | Focus moves to the list (decision F6).                              | Delete Confirmed            | WCAG 2.4.3                |
+| Organized (E02)    | Handles, place tags, markers; "…" with places, markers, moves.      | Organized                   | E02, decisions G1–G3      |
+| With completion    | Checkboxes; completed rows after the open ones, muted.              | With Completion             | E03, decision 2026-10-21  |
+| Asking to complete | A task with open subtasks: the question first.                      | Complete With Open Subtasks | R09, decision I2          |
+
+No-results does not exist yet: there are no filters in E01 (P03; see Patterns / List).
+
+<Unstyled>
+  <Story of={Stories.Organized} />
+  <Story of={Stories.WithCompletion} />
+  <Story of={Stories.Loading} />
+  <Story of={Stories.LoadFailed} />
+  <Story of={Stories.Empty} />
+  <Story of={Stories.Partial} />
+</Unstyled>
+
+## 7. Behaviour and accessibility
+
+- A list named "Tasks"; each subtask list is named "Subtasks of “…”", so a screen reader announces the nesting and the count.
+- Loading is announced once by the status text; the skeleton is hidden (WCAG 4.1.3).
+- After a delete the list itself takes focus (`tabindex="-1"`), because the row and its "…" are gone; after Cancel focus returns to "…" (spec E01: "returns focus to the trigger").
+- The page scrolls; the list never gets its own scroll area.
+- With `onMove` the list (and each task's subtasks) is one sortable group; moves are announced by title (see Drag handle). Pending rows never move, so no temporary id reaches the server. Completed rows never move either (decision 2026-10-21).
+- With `onToggleComplete` the list receives tasks already sorted by the server (open, then completed). When a row changes place it slides there over `motion-duration-base` (instant with reduced motion) and focus stays on its checkbox; the dialog's Cancel returns focus there too.
+
+## 8. Content
+
+- "Loading tasks…", "Could not load your tasks.", "Try again", "No tasks yet.", "Add the first thing you need to do." (spec E01).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+  <Story of={Stories.PolishEmpty} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                    | Source      |
+| ------ | -------------------------------------------- | ----------- |
+| 320px  | Full column width; rows wrap (see Task row). | WCAG 1.4.10 |
+| 768px  | Full column width.                           | T7          |
+| 1440px | At most 980px, centred by the shell.         | P01, R01.5  |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+const tasks = useTasks(listId);
+
+<TaskList
+  status={tasks.isPending ? "loading" : tasks.isError ? "error" : "ready"}
+  tasks={tasks.data?.map(toTaskItem) ?? []}
+  onRetry={() => tasks.refetch()}
+  retrying={tasks.isRefetching}
+  validate={validateTaskForm}
+  onEdit={(id, values) => updateTask.mutateAsync({ id, ...values })}
+  onAddSubtask={(parentId, values) => createTask.mutateAsync({ ...values, parentId })}
+  onDelete={(id) =>
+    deleteTask.mutateAsync(id).then(
+      () => true,
+      () => false,
+    )
+  }
+  highlightId={lastAddedId}
+  onMove={(id, { afterId, beforeId }) => moveTask.mutate({ id, afterId, beforeId })}
+  onToggleMarker={(id, marker, on) => setMarker.mutate({ id, marker, on })}
+  places={placeOptions}
+/>;
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Parts:** `Surface`, `TaskRow`, `Skeleton`, `EmptyState`, `ErrorState`, `DeleteTaskDialog`, `CompleteTaskDialog`.
+- **Patterns:** List, Delete confirmation, Optimistic change, Reorder, Complete and reopen. **Screens:** Tasks / Screens (S5–S8).

@@ -1,0 +1,61 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Screens.stories";
+
+<Meta of={Stories} />
+
+# Task screens
+
+Screens S5 (the task list at `/`) and S6 (a task opened in place) of spec E01, S7 (order, markers and places on the list; backlog E02-S01…S03, no spec yet) and S8 (completion and future expenses; backlog E03-S01, E03-S02, no spec yet), full screen inside the app shell. The server is simulated (P1): changes are confirmed after a short delay, refused, or never answered. Open a story to see it at its width.
+
+## State map
+
+| Screen | State                                                | Story                        | Width  |
+| ------ | ---------------------------------------------------- | ---------------------------- | ------ |
+| S5     | Ready: tasks with and without estimates, subtasks    | List Desktop                 | 1440px |
+| S5     | Ready                                                | List Tablet                  | 768px  |
+| S5     | Ready                                                | List Phone                   | 320px  |
+| S5     | Loading (first load)                                 | Loading                      | 320px  |
+| S5     | Load failed → Try again → ready                      | Load Failed                  | 1440px |
+| S5     | Empty, focus in quick add                            | Empty                        | 320px  |
+| S5     | Adding: pending row → confirmed, highlighted         | Add Task                     | 1440px |
+| S5     | Adding, the server has not answered                  | Pending Add                  | 768px  |
+| S5     | Add refused: row rolled back, message on the form    | Add Failed                   | 320px  |
+| S5     | Editing in place                                     | Edit In Place                | 1440px |
+| S5     | Delete confirmation with subtasks                    | Confirm Delete               | 320px  |
+| S5     | Many tasks (30)                                      | Many Tasks                   | 1440px |
+| S5     | Polish text                                          | Polish Phone                 | 320px  |
+| S6     | Task opened: description, subtasks, Add subtask      | Task Opened Desktop          | 1440px |
+| S6     | Task opened, adding a subtask                        | Task Opened Phone            | 320px  |
+| S7     | Ready: handles, place tags, markers                  | Organized Desktop            | 1440px |
+| S7     | Ready                                                | Organized Tablet             | 768px  |
+| S7     | Ready, no handles (long press or menu)               | Organized Phone              | 320px  |
+| S7     | Reordered with the keyboard                          | Reorder With Keyboard        | 1440px |
+| S7     | Moved with Move up                                   | Move From Menu Phone         | 320px  |
+| S7     | Move refused: back in place, message in the row      | Move Failed                  | 768px  |
+| S7     | Marked urgent from the menu                          | Mark Urgent                  | 1440px |
+| S7     | Choosing places in the popover                       | Choose Places                | 1440px |
+| S7     | Creating a place, ticked for the task                | Create Place Phone           | 320px  |
+| S7     | Ten places: the limit message                        | Places At Limit              | 768px  |
+| S7     | Polish text                                          | Organized Polish Phone       | 320px  |
+| S8     | Ready: total, unestimated line, completed at the end | Progress Desktop             | 1440px |
+| S8     | Ready                                                | Progress Tablet              | 768px  |
+| S8     | Ready                                                | Progress Phone               | 320px  |
+| S8     | Future expenses loading                              | Expenses Loading             | 320px  |
+| S8     | Future expenses failed → Try again → ready           | Expenses Failed              | 1440px |
+| S8     | A task completed: moved to the end, total down       | Complete Task                | 1440px |
+| S8     | Asked before completing open subtasks                | Complete With Subtasks Phone | 320px  |
+| S8     | Adding an estimate from the total                    | Add Estimate Phone           | 320px  |
+| S8     | Completion refused: rolled back, message in the row  | Completion Failed            | 768px  |
+| S8     | Everything done: "No estimates yet"                  | All Done                     | 768px  |
+| S8     | With order, markers and places (E02 + E03)           | With Order And Places        | 1440px |
+| S8     | Polish text                                          | Progress Polish Phone        | 320px  |
+
+Per-component states (field errors, saving, delete failed, long text) are on the component pages; the rules behind them are on the pattern pages (List, Details in row, Quick capture, Inline edit, Delete confirmation, Optimistic change, Reorder, Complete and reopen).
+
+The page heading is the default list's name, "My renovation" (spec E01: `ensureDefaultList`).
+
+<Story of={Stories.ListDesktop} />
+
+<Story of={Stories.OrganizedDesktop} />
+
+<Story of={Stories.ProgressDesktop} />

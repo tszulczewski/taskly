@@ -5,3 +5,4 @@ package-lock.json
 *.md
 coverage
 .ai/design/reference
+storybook-static

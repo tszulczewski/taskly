@@ -1,0 +1,413 @@
+/**
+ * Every documented component, for the Components page. One sentence each comes from section 1 of
+ * the component's page; "when" and "when not" from its sections 2 and 3, where the sources are.
+ */
+export interface CatalogEntry {
+  name: string;
+  group: CatalogGroup;
+  /** The names to import from `@taskly/ui`. */
+  imports: string[];
+  /** The Storybook title of its docs page. */
+  title: string;
+  summary: string;
+  when: string;
+  whenNot: string;
+}
+
+export type CatalogGroup =
+  | "Primitives"
+  | "Product · App shell"
+  | "Product · Sign-in"
+  | "Product · Tasks"
+  | "Product · Places"
+  | "Product · Expenses";
+
+export const catalogGroups: CatalogGroup[] = [
+  "Primitives",
+  "Product · App shell",
+  "Product · Sign-in",
+  "Product · Tasks",
+  "Product · Places",
+  "Product · Expenses",
+];
+
+/** Storybook's id of a docs page, as `?path=/docs/<id>` links need it. */
+export const docsId = (title: string) =>
+  `${title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}--docs`;
+
+export const catalog: CatalogEntry[] = [
+  {
+    name: "Button",
+    group: "Primitives",
+    imports: ["Button"],
+    title: "Primitives/Button",
+    summary: "Starts one action and shows that it is running.",
+    when: "Submitting a form, confirming or cancelling, “Try again”; icon-only for a known gesture (…, +).",
+    whenNot:
+      "Going to another page (Link); a quiet action in a row (TextAction); several row actions (“…” menu).",
+  },
+  {
+    name: "Text action and link",
+    group: "Primitives",
+    imports: ["TextAction", "Link"],
+    title: "Primitives/Text action and link",
+    summary: "TextAction acts without a framed button; Link goes to another page.",
+    when: "“Add estimate”, “Add subtask”, a muted prompt for an empty value; Link for any navigation.",
+    whenNot:
+      "The main action of a form (Button primary); something that does not navigate, as a Link.",
+  },
+  {
+    name: "Input",
+    group: "Primitives",
+    imports: ["Input"],
+    title: "Primitives/Input",
+    summary: "One short value: a title, an e-mail, an amount in złoty.",
+    when: 'Task title, email, name, min and max (`inputMode="decimal"`, suffix “zł”).',
+    whenNot:
+      "A password (PasswordInput); several sentences (Textarea); a field without a visible label.",
+  },
+  {
+    name: "Password input",
+    group: "Primitives",
+    imports: ["PasswordInput"],
+    title: "Primitives/Password input",
+    summary: "A password, hidden, with one press to check it.",
+    when: "The password on sign-in and sign-up.",
+    whenNot: "Any value that is not secret; a “Repeat password” field.",
+  },
+  {
+    name: "Textarea",
+    group: "Primitives",
+    imports: ["Textarea"],
+    title: "Primitives/Textarea",
+    summary: "A few sentences about a task.",
+    when: "The optional task description.",
+    whenNot: "A title, a name or an amount (Input); a description that is only shown.",
+  },
+  {
+    name: "Form field",
+    group: "Primitives",
+    imports: ["FormField", "Label"],
+    title: "Primitives/Form field",
+    summary: "Label, hint and error around one control, read out together.",
+    when: "Around every Input, PasswordInput and Textarea.",
+    whenNot: "An error about the whole form (Alert); a rule for the whole screen (one sentence).",
+  },
+  {
+    name: "Checkbox",
+    group: "Primitives",
+    imports: ["Checkbox", "Label"],
+    title: "Primitives/Checkbox",
+    summary: "Marks one thing as chosen or done with one press.",
+    when: "Several independent choices, such as the places of a task.",
+    whenNot:
+      "One choice of several (RadioGroup); an action (Button); completing a task (TaskCheckbox).",
+  },
+  {
+    name: "Radio group",
+    group: "Primitives",
+    imports: ["RadioGroup", "RadioGroupItem", "RadioGroupSegment"],
+    title: "Primitives/Radio group",
+    summary: "Exactly one of a few options, all visible.",
+    when: "The theme switch (segmented); one colour out of a few.",
+    whenNot: "Several may be chosen (Checkbox); more than about 5 options.",
+  },
+  {
+    name: "Surface",
+    group: "Primitives",
+    imports: ["Surface"],
+    title: "Primitives/Surface",
+    summary: "The one calm panel that holds a screen's content.",
+    when: "The task list, the future expenses line, the sign-in card.",
+    whenNot: "Inside another Surface; one card per task; tiles with numbers.",
+  },
+  {
+    name: "Alert",
+    group: "Primitives",
+    imports: ["Alert"],
+    title: "Primitives/Alert",
+    summary: "Something failed for the whole form or screen, and what to do.",
+    when: "A failed sign-in or sign-out; a refused save above a form.",
+    whenNot: "An error about one field (FormField); success; a notice that disappears (no toasts).",
+  },
+  {
+    name: "Skeleton",
+    group: "Primitives",
+    imports: ["Skeleton"],
+    title: "Primitives/Skeleton",
+    summary: "The shape of content that is still loading, without movement.",
+    when: "The first load of the task list or the future expenses line.",
+    whenNot: "Waiting for a button (Button loading); a change already shown optimistically.",
+  },
+  {
+    name: "Collapsible",
+    group: "Primitives",
+    imports: ["Collapsible", "CollapsibleTrigger", "CollapsibleContent", "CollapsibleIndicator"],
+    title: "Primitives/Collapsible",
+    summary: "Opens rarely needed details in place.",
+    when: "Quick-add Details, a task row's details, “N tasks without an estimate”.",
+    whenNot: "Details in a drawer or window; switching views; a rule the user needs to act.",
+  },
+  {
+    name: "Confirm dialog",
+    group: "Primitives",
+    imports: ["ConfirmDialog"],
+    title: "Primitives/Confirm dialog",
+    summary: "Asks before something that cannot be undone, and says what changes.",
+    when: "Deleting (danger); completing a task with open subtasks (primary).",
+    whenNot: "An action undone in one tap; details or a form; reporting a failure.",
+  },
+  {
+    name: "Menu",
+    group: "Primitives",
+    imports: [
+      "Menu",
+      "MenuTrigger",
+      "MenuContent",
+      "MenuItem",
+      "MenuCheckboxItem",
+      "MenuSeparator",
+    ],
+    title: "Primitives/Menu",
+    summary: "A row's less frequent actions behind one “…” button.",
+    when: "The task row menu: Add subtask, Edit, Places…, markers, moves, Delete.",
+    whenNot: "The main action of a screen; one value of several (RadioGroup); navigation.",
+  },
+  {
+    name: "Popover",
+    group: "Primitives",
+    imports: ["Popover", "PopoverTrigger", "PopoverContent", "PopoverAnchor"],
+    title: "Primitives/Popover",
+    summary: "A few related choices next to the thing they change.",
+    when: "The place picker of a task row.",
+    whenNot: "A list of actions (Menu); a whole form (in the row); a question before deleting.",
+  },
+  {
+    name: "Tooltip",
+    group: "Primitives",
+    imports: ["Tooltip"],
+    title: "Primitives/Tooltip",
+    summary: "The name of an icon button, for mouse and keyboard.",
+    when: "Every icon-only button: handle, “…”, plus.",
+    whenNot: "A button with text; why something is disabled; anything the user needs to act.",
+  },
+  {
+    name: "Empty state",
+    group: "Primitives",
+    imports: ["EmptyState"],
+    title: "Primitives/Empty state",
+    summary: "Why a place is empty and what to do next.",
+    when: "No tasks yet; nothing to show in a region.",
+    whenNot: "Loading (Skeleton); a failed load (ErrorState); one missing value (muted text).",
+  },
+  {
+    name: "Error state",
+    group: "Primitives",
+    imports: ["ErrorState"],
+    title: "Primitives/Error state",
+    summary: "Content that failed to load, with one way to try again.",
+    when: "The task list failed to load.",
+    whenNot: "A field error; a failed save (inline Alert); the future expenses line (inline).",
+  },
+  {
+    name: "App shell",
+    group: "Product · App shell",
+    imports: ["AppShell", "AppHeader"],
+    title: "Product/App shell/App shell",
+    summary: "A quiet top bar and one centred column around every signed-in page.",
+    when: "Every signed-in page.",
+    whenNot: "Sign-in and sign-up (AuthCard); side bars or panels.",
+  },
+  {
+    name: "Theme toggle",
+    group: "Product · App shell",
+    imports: ["ThemeToggle"],
+    title: "Product/App shell/Theme toggle",
+    summary: "Dark (default) or Light, two positions.",
+    when: "Once, in the top bar.",
+    whenNot: "Following the operating system; any other on/off setting.",
+  },
+  {
+    name: "Auth card",
+    group: "Product · Sign-in",
+    imports: ["AuthCard"],
+    title: "Product/Sign-in/Auth card",
+    summary: "One calm, centred card for the sign-in and sign-up pages.",
+    when: "`/sign-in` and `/sign-up`.",
+    whenNot: "Signed-in pages (AppShell); a panel inside a page (Surface).",
+  },
+  {
+    name: "Sign-in form",
+    group: "Product · Sign-in",
+    imports: ["SignInForm"],
+    title: "Product/Sign-in/Sign-in form",
+    summary: "Email and password, with a plain message when it fails.",
+    when: "The `/sign-in` page, inside AuthCard.",
+    whenNot: "Creating the account; Google sign-in (after the MVP).",
+  },
+  {
+    name: "Sign-up form",
+    group: "Product · Sign-in",
+    imports: ["SignUpForm"],
+    title: "Product/Sign-in/Sign-up form",
+    summary: "Creates the owner's account in one step.",
+    when: "`/sign-up` while sign-up is open.",
+    whenNot: "Sign-up closed (SignUpClosed); inviting people (version 2).",
+  },
+  {
+    name: "Sign-up closed",
+    group: "Product · Sign-in",
+    imports: ["SignUpClosed"],
+    title: "Product/Sign-in/Sign-up closed",
+    summary: "Why an account cannot be created, and the way back.",
+    when: "`/sign-up` while sign-up is closed (the default).",
+    whenNot: "Sign-up is open; a failed request (Alert).",
+  },
+  {
+    name: "Quick add",
+    group: "Product · Tasks",
+    imports: ["QuickAdd"],
+    title: "Product/Tasks/Quick add",
+    summary: "Captures a task by its title alone; details later or under “Details”.",
+    when: "Above the list, the one way to add a task; under an expanded task for subtasks.",
+    whenNot: "Changing a task (TaskForm); a form in a modal; a subtask under a subtask.",
+  },
+  {
+    name: "Task list",
+    group: "Product · Tasks",
+    imports: ["TaskList"],
+    title: "Product/Tasks/Task list",
+    summary: "Every task on one surface, with loading, failed and empty states.",
+    when: "The main screen `/`, under quick add.",
+    whenNot: "Columns by status (a board); a table of amounts.",
+  },
+  {
+    name: "Task row",
+    group: "Product · Tasks",
+    imports: ["TaskRow"],
+    title: "Product/Tasks/Task row",
+    summary: "One task as a calm line; the title opens its details in place.",
+    when: "Every task and subtask; TaskList renders the rows.",
+    whenNot: "A card per task; details in a drawer; many amount columns.",
+  },
+  {
+    name: "Task form",
+    group: "Product · Tasks",
+    imports: ["TaskForm"],
+    title: "Product/Tasks/Task form",
+    summary: "Edits a task where it stands, then turns back into the row.",
+    when: "“Edit” in a row's menu; TaskRow renders it.",
+    whenNot: "Adding (QuickAdd); details in a drawer; deleting.",
+  },
+  {
+    name: "Estimate range",
+    group: "Product · Tasks",
+    imports: ["EstimateRange"],
+    title: "Product/Tasks/Estimate range",
+    summary: "What a task may cost, as a min–max range in złoty, in the same place on every row.",
+    when: "The right end of a task or subtask row.",
+    whenNot: "Typing an amount (Input); a real cost; the future expenses total.",
+  },
+  {
+    name: "Delete task dialog",
+    group: "Product · Tasks",
+    imports: ["DeleteTaskDialog"],
+    title: "Product/Tasks/Delete task dialog",
+    summary: "Asks once before deleting, naming the task and its subtasks.",
+    when: "“Delete” in a row's menu; TaskList opens it.",
+    whenNot: "Any other confirmation (ConfirmDialog); undo after the fact (there is none).",
+  },
+  {
+    name: "Drag handle",
+    group: "Product · Tasks",
+    imports: ["DragHandle", "SortableGroup"],
+    title: "Product/Tasks/Drag handle",
+    summary: "Moves a row by mouse or keyboard; only the moved row changes.",
+    when: "Rows of a list that can be reordered, from 640px.",
+    whenNot: "Below 640px (long press, Move up / down); pending or completed rows.",
+  },
+  {
+    name: "Markers",
+    group: "Product · Tasks",
+    imports: ["Markers"],
+    title: "Product/Tasks/Markers",
+    summary: "“Important” and “Urgent” as quiet words in the meta line.",
+    when: "The meta line of a row, after the places.",
+    whenNot: "Setting a marker (row menu); a place (PlaceTag); a warning (Alert).",
+  },
+  {
+    name: "Task checkbox",
+    group: "Product · Tasks",
+    imports: ["TaskCheckbox"],
+    title: "Product/Tasks/Task checkbox",
+    summary: "Completes or reopens one task in a single tap.",
+    when: "Every row once the list has completion.",
+    whenNot: "A choice in a form (Checkbox); markers; completing many tasks at once.",
+  },
+  {
+    name: "Subtask progress",
+    group: "Product · Tasks",
+    imports: ["SubtaskProgress"],
+    title: "Product/Tasks/Subtask progress",
+    summary: "“1/3” of a task's subtasks done, read out in words.",
+    when: "The meta line of a task with subtasks, with completion.",
+    whenNot: "A list without completion (“3 subtasks”); a bar or a percentage.",
+  },
+  {
+    name: "Complete task dialog",
+    group: "Product · Tasks",
+    imports: ["CompleteTaskDialog"],
+    title: "Product/Tasks/Complete task dialog",
+    summary: "Asks before completing a task that still has open subtasks.",
+    when: "Checking a task with at least one open subtask; TaskList opens it.",
+    whenNot: "A task without open subtasks, a subtask, reopening: act at once.",
+  },
+  {
+    name: "Place tag",
+    group: "Product · Places",
+    imports: ["PlaceTag"],
+    title: "Product/Places/Place tag",
+    summary: "A colour dot and the place's name.",
+    when: "The meta line of a row; next to a place in the picker.",
+    whenNot: "Choosing places (PlacePicker); markers; filtering (not in version 1).",
+  },
+  {
+    name: "Place picker",
+    group: "Product · Places",
+    imports: ["PlacePicker"],
+    title: "Product/Places/Place picker",
+    summary: "Puts a task in places; creates, renames, recolours and deletes them.",
+    when: "The popover that “Places…” in a row's menu opens.",
+    whenNot: "Showing places (PlaceTag); markers; a separate page to manage places.",
+  },
+  {
+    name: "Place color picker",
+    group: "Product · Places",
+    imports: ["PlaceColorPicker"],
+    title: "Product/Places/Place color picker",
+    summary: "One of the ten place colours; colours in use cannot be chosen.",
+    when: "Creating the seventh and later places; editing a place.",
+    whenNot: "The first six places (automatic); any colour outside the ten.",
+  },
+  {
+    name: "Future expenses",
+    group: "Product · Expenses",
+    imports: ["FutureExpenses"],
+    title: "Product/Expenses/Future expenses",
+    summary: "What the open main tasks may still cost, as one range in one line.",
+    when: "Once, under the list's name, above quick add.",
+    whenNot: "Tiles with several numbers; spent or budget (version 2); one task's estimate.",
+  },
+  {
+    name: "Unestimated tasks",
+    group: "Product · Expenses",
+    imports: ["UnestimatedTasks"],
+    title: "Product/Expenses/Unestimated tasks",
+    summary: "Which tasks the total leaves out, with “Add estimate” in place.",
+    when: "Under the future expenses total; FutureExpenses renders it.",
+    whenNot: "Changing an existing estimate (Edit); subtasks; a separate summary page.",
+  },
+];

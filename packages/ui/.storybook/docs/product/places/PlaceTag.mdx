@@ -1,0 +1,104 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./PlaceTag.stories";
+
+<Meta of={Stories} />
+
+# Place tag
+
+`import { PlaceTag } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows that a task belongs to a place, such as "Bathroom", so the owner can see at a glance where the work happens. A task can be in several places (D09).
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- In the meta line of a task or subtask row, before the markers (Luki 6).
+- Next to a checkbox or an "Edit" in `PlacePicker`.
+
+## 3. When not to use
+
+| Situation                   | Use instead                  | Source      |
+| --------------------------- | ---------------------------- | ----------- |
+| Choosing places for a task  | `PlacePicker`                | decision G3 |
+| Choosing a place's colour   | `PlaceColorPicker`           | decision G4 |
+| Marking a task as important | `Markers` (words, no colour) | D07, Luki 4 |
+| Filtering the list by place | not in version 1             | P03, P4     |
+
+## 4. Anatomy
+
+| Part | Required | Notes                                                                                          |
+| ---- | -------- | ---------------------------------------------------------------------------------------------- |
+| Dot  | yes      | `size-dot`, round, `color-place-1` … `color-place-10`; `aria-hidden`, so never the only signal |
+| Name | yes      | In the surrounding text colour and size (13px muted in the meta line); wraps, never truncated  |
+
+The gap between dot and name is `space-inline`; tags in a line are `space-group` apart.
+
+## 5. Variants
+
+None. The colour comes from the place (`color: 1–10`).
+
+<Unstyled>
+  <Story of={Stories.Colours} />
+</Unstyled>
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Static text: no hover, focus or error of its own. The row and the picker own those states.
+
+## 7. Behaviour and accessibility
+
+- Read out as the place name only; the dot is `aria-hidden` (WCAG 1.4.1, Luki 3).
+- Every place colour has at least 3:1 contrast on the surface in both themes (WCAG 1.4.11, Luki 3, `tokeny.md`).
+
+## 8. Content
+
+- The name as the owner typed it: at most 30 characters, unique in the list (decision G4).
+- Polish name for the concept: "miejsce" (Luki 5).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                         | Source      |
+| ------ | --------------------------------------------------------------------------------- | ----------- |
+| 320px  | Tags wrap to the next line of the meta line; a name never breaks the dot from it. | WCAG 1.4.10 |
+| 768px  | One line in most rows.                                                            | Luki 6      |
+| 1440px | Same as 768px.                                                                    | —           |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+{
+  task.places?.map((place) => <PlaceTag key={place.id} place={place} />);
+}
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Used in:** `TaskRow` (meta line), `PlacePicker`. **Confused with:** `Markers`.
+- **Patterns:** List.

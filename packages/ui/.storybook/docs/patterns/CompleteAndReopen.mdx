@@ -1,0 +1,49 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./CompleteAndReopen.stories";
+
+<Meta of={Stories} />
+
+# Complete and reopen
+
+How the owner marks work done and takes it back, shown on the task list with future expenses above it. Built from `TaskCheckbox`, `CompleteTaskDialog`, `SubtaskProgress`, `TaskRow`, `TaskList` and `FutureExpenses`.
+
+## Rules
+
+| Rule                                                                                                                                                                                         | Source                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| A completed task stays in the list: checkbox checked in the accent, title muted and struck through.                                                                                          | R02.2, decision 2026-10-21           |
+| Completed tasks are shown after the open ones, completed subtasks after their task's open subtasks, in plan order. Display order only.                                                       | decision 2026-10-21 (1, 2, 4)        |
+| A reopened task is shown first in the list; a reopened subtask first in its task.                                                                                                            | decision 2026-10-21 (3)              |
+| Completing a main task completes its subtasks; if any is open, the owner is asked first.                                                                                                     | R09, decision I2                     |
+| A subtask can be completed alone; completing every subtask does not complete the task.                                                                                                       | R11                                  |
+| Reopening a task does not reopen its subtasks.                                                                                                                                               | R11                                  |
+| A completed row keeps Edit, Places…, markers and Delete; it loses the handle, Move up / Move down and "Add subtask". Amount, places and markers are muted; the amount is not struck through. | decision I3, decision 2026-10-21 (5) |
+| Future expenses counts open main tasks with an estimate and changes with every completion, reopening and estimate.                                                                           | R08, R10, D19                        |
+| Every change shows at once; if the server refuses, the row goes back and says so in the row, and the total goes back with it.                                                                | Optimistic change                    |
+| The row slides to its new place over `motion-duration-base`; focus stays on its checkbox. With reduced motion it jumps.                                                                      | Luki 8, decision J7                  |
+
+## States
+
+| State                                    | Story                   |
+| ---------------------------------------- | ----------------------- |
+| In progress: done at the end, a total    | In Progress             |
+| A task completed: to the end, total down | Completed               |
+| Asked first: open subtasks               | Ask Before Subtasks     |
+| Question cancelled                       | Cancelled Question      |
+| A subtask completed (total unchanged)    | Subtask Completed       |
+| Reopened: first, total up                | Reopened                |
+| Reopened, subtasks stay completed        | Reopened Keeps Subtasks |
+| Change refused, rolled back              | Change Failed           |
+| An estimate added from the total         | Estimate Added          |
+
+<Unstyled>
+  <Story of={Stories.InProgress} />
+  <Story of={Stories.AskBeforeSubtasks} />
+  <Story of={Stories.ChangeFailed} />
+</Unstyled>
+
+## Why
+
+- The owner wants to see what is done, not lose it (R02.2): a muted row is enough to tell done from open, and it can be reopened in one tap.
+- Done work sinks so the open work stays at the top, in the order it will happen (Luki 10).
+- The question appears only where a tap would change more than one row and reopening would not bring it back (R09, R11).

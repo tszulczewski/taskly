@@ -1,0 +1,42 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./List.stories";
+
+<Meta of={Stories} />
+
+# List
+
+How Taskly shows a collection, shown on the task list: one calm surface, a row per item, and a clear answer for every moment without items. Built from `TaskList`, `TaskRow`, `Skeleton`, `EmptyState` and `ErrorState`.
+
+## Rules
+
+| Rule                                                                                                                 | Source            |
+| -------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| One `Surface`, rows divided by 1px lines; no card per item, no panel in a panel.                                     | R02.1, A01.3, A02 |
+| A row is one line: what it is on the left, the amount on the right, actions behind "…".                              | R02.1, R02.5, P2  |
+| First load: static skeleton rows in the shape of real rows and one "Loading…" status. Never a spinner over the page. | spec E01, Luki 8  |
+| Later loads keep the data on screen.                                                                                 | proposal C3       |
+| A failed load replaces the list with what failed and "Try again"; nothing else on the page breaks.                   | spec E01          |
+| Empty says why it is empty and the next step, in words; focus goes to the place where that step happens (quick add). | spec E01, Luki 5  |
+| Missing data in a row is said in words ("No estimate"), never left blank.                                            | spec E01, R10     |
+| The page scrolls; the list never gets its own scroll area.                                                           | WCAG 1.4.10       |
+
+## Empty versus no results
+
+**Empty** means nothing exists yet: "No tasks yet. Add the first thing you need to do." **No results** would mean items exist but a filter hides them. Version 1 has no filters (P03, P4), so there is no no-results state yet. When filters arrive, it must name the filter and offer to clear it, and never reuse the empty text (proposal).
+
+## States
+
+| State        | Story        |
+| ------------ | ------------ |
+| First load   | First Load   |
+| Load failed  | Load Failed  |
+| Empty        | Empty        |
+| Ready        | Ready        |
+| Partial data | Partial Data |
+| Many items   | Many         |
+
+<Unstyled>
+  <Story of={Stories.FirstLoad} />
+  <Story of={Stories.Empty} />
+  <Story of={Stories.PartialData} />
+</Unstyled>

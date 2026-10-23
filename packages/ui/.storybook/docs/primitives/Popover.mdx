@@ -1,0 +1,124 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Popover.stories";
+
+<Meta of={Stories} />
+
+# Popover
+
+`import { Popover, PopoverContent, PopoverTrigger } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows a few related choices next to the thing they change, without leaving the list.
+
+<Story of={Stories.Open} />
+
+## 2. When to use
+
+- Choosing the places of a task (several checkboxes, Luki 3, backlog E02) — the place picker in stage 3 builds on this.
+- Choosing a colour for a new place from the free colours (Luki 3).
+
+## 3. When not to use
+
+| Situation                    | Use instead              | Source       |
+| ---------------------------- | ------------------------ | ------------ |
+| A list of actions            | `Menu`                   | WAI-ARIA APG |
+| Task details or a whole form | `Collapsible` in the row | Q2, A01.3    |
+| A question before deleting   | `ConfirmDialog`          | spec E01     |
+| Naming an icon button        | `Tooltip`                | WAI-ARIA APG |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                                                                                                                        |
+| ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trigger | yes      | A `TextAction` or `Button`; gets `aria-expanded` and `aria-controls`                                                                         |
+| Panel   | yes      | Raised tone, 1px `color-border-control` edge, `radius-surface`, `space-inset`, `space-group` gaps (K2); `space-inline` from the trigger (D4) |
+| Name    | yes      | `aria-label` on the panel, usually repeating its visible heading                                                                             |
+| Content | yes      | A short heading and a few controls                                                                                                           |
+
+## 5. Variants
+
+None. `align` (default `start`) and `side` place the panel against the trigger.
+
+## 6. States
+
+<Story of={Stories.States} />
+
+| State                  | Looks like                         | Source |
+| ---------------------- | ---------------------------------- | ------ |
+| Closed                 | Only the trigger.                  | —      |
+| Open                   | Panel below the trigger; no scrim. | K2     |
+| Hover, focus, disabled | From the trigger and the controls. | —      |
+| Loading, error         | Do not apply.                      | —      |
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** the trigger opens it; focus moves into the panel; Tab moves through its controls; Escape closes and returns focus to the trigger (WAI-ARIA APG, dialog pattern, non-modal). Covered by the Playground test.
+- **Role:** `dialog` named by `aria-label`; the trigger has `aria-expanded`.
+- **Outside click** closes it; changes inside apply at once, so nothing is lost.
+- **Motion:** none (K2).
+
+## 8. Content
+
+- A short heading that says what is chosen: "Places for this task" / "Miejsca tego zadania".
+- Option names are the user's own (place names); keep them short.
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                                                 | Source          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 320px  | Keeps the page gutter free at the screen edges and is never wider than the space left (`max-w-overlay`); long names wrap. | D3, WCAG 1.4.10 |
+| 768px  | At most `layout-measure` wide.                                                                                            | —               |
+| 1440px | Same.                                                                                                                     | —               |
+
+<Story of={Stories.ManyItemsNarrow} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`Popover` takes `open`, `defaultOpen`, `onOpenChange` and `modal` (Radix).
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Popover>
+  <PopoverTrigger asChild>
+    <TextAction>Places</TextAction>
+  </PopoverTrigger>
+  <PopoverContent aria-label="Places for this task">…</PopoverContent>
+</Popover>
+```
+
+In Taskly: the place picker of a task row.
+
+```tsx
+<PopoverContent aria-label="Places for this task">
+  <p className="font-strong">Places for this task</p>
+  {places.map((place) => (
+    <div key={place.id} className="flex items-center">
+      <Checkbox
+        id={place.id}
+        checked={task.placeIds.includes(place.id)}
+        onCheckedChange={(on) => toggle(place.id, on)}
+      />
+      <Label htmlFor={place.id}>{place.name}</Label>
+    </div>
+  ))}
+</PopoverContent>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Menu` (actions), `Tooltip` (text only, no focus), `ConfirmDialog` (modal, with a scrim).
+- **Patterns:** Details in row (place picker).

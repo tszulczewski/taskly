@@ -1,0 +1,98 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./SignUpForm.stories";
+
+<Meta of={Stories} />
+
+# Sign-up form
+
+`import { SignUpForm } from "@taskly/ui";`
+
+## 1. What it is for
+
+Creates the owner's account in one step, so they can start the plan right away.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- `/sign-up` while sign-up is open (`ALLOW_SIGN_UP=true`, Q1), inside `AuthCard` titled "Create an account".
+
+## 3. When not to use
+
+| Situation                  | Use instead      | Source             |
+| -------------------------- | ---------------- | ------------------ |
+| Sign-up is closed          | `SignUpClosed`   | Q1                 |
+| Inviting someone to a list | not in version 1 | N02 (out of scope) |
+
+## 4. Anatomy
+
+| Part           | Required | Notes                                                                            |
+| -------------- | -------- | -------------------------------------------------------------------------------- |
+| Error          | optional | `Alert` above the fields                                                         |
+| Name           | yes      | `autocomplete="name"` (Q4)                                                       |
+| Email          | yes      | `type="email"`                                                                   |
+| Password       | yes      | `PasswordInput`, `autocomplete="new-password"`, hint "At least 10 characters"    |
+| Create account | yes      | Primary `Button`; "Creating account…" while sending                              |
+| Sign in        | yes      | `Link` to `/sign-in` for someone who already has an account (owner decision E11) |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Input](?path=/story/primitives-input--states), [Password input](?path=/story/primitives-password-input--states), [Form field](?path=/story/primitives-form-field--states), [Link](?path=/story/primitives-text-action-and-link--states) (decision M1).
+
+| State                                   | What the user sees                                                 | Story              | Source         |
+| --------------------------------------- | ------------------------------------------------------------------ | ------------------ | -------------- |
+| Empty                                   | Three labelled fields, the password hint.                          | Polish (texts)     | spec           |
+| Checked on leaving                      | "Use at least 10 characters." after leaving a short password.      | Playground         | pattern Form   |
+| Email already used                      | "Could not create the account."; nothing says the email exists.    | Email Already Used | spec, Messages |
+| Long name, 320px                        | The name scrolls inside the field; submit focuses the first error. | Long Name Narrow   | WCAG 1.4.10    |
+| Pending, no network, server field error | See the pattern Form, shown on this form.                          | Patterns / Form    | —              |
+
+## 7. Behaviour and accessibility
+
+As the sign-in form: validation on leaving a field and on submit, focus on the first error, `aria-describedby` for hint and error, `role="alert"` for the form error, no double submit. On success the app is signed in and goes to `/` (Q7).
+
+## 8. Content
+
+- Labels "Name", "Email", "Password"; hint "At least 10 characters"; button "Create account" (spec); link "Sign in" (E11).
+- Field messages come from `signUpInput`; these are examples (decision E3).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+As the sign-in form: one column, full-width button below 640px (decision E5).
+
+<Story of={Stories.LongNameNarrow} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<AuthCard title="Create an account">
+  <SignUpForm
+    validate={(values) => fieldErrorsOf(signUpInput, values)}
+    onSubmit={signUp}
+    signInHref="/sign-in"
+  />
+</AuthCard>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `SignInForm`.
+- **Patterns:** Form (all states are shown there on this form). **Screens:** Sign-in / Screens.

@@ -1,0 +1,46 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Components.stories";
+
+<Meta of={Stories} />
+
+# Components
+
+Every component of `@taskly/ui` with a small working preview, its group, one sentence and a link to its page. The page has the states, the rules with their sources, the API and the code. To choose between components, see [How to choose](?path=/docs/design-system-how-to-choose--docs); for one table with import, when and when not, see [Start here](?path=/docs/design-system-start-here--docs).
+
+Groups: **Primitives** are generic building blocks; **Product** components are built from them for one epic and are presentational (decision P1). The previews use the active theme from the toolbar.
+
+## Primitives
+
+<Unstyled>
+  <Story of={Stories.Primitives} />
+</Unstyled>
+
+## Product · App shell
+
+<Unstyled>
+  <Story of={Stories.AppShell} />
+</Unstyled>
+
+## Product · Sign-in
+
+<Unstyled>
+  <Story of={Stories.SignIn} />
+</Unstyled>
+
+## Product · Tasks
+
+<Unstyled>
+  <Story of={Stories.Tasks} />
+</Unstyled>
+
+## Product · Places
+
+<Unstyled>
+  <Story of={Stories.Places} />
+</Unstyled>
+
+## Product · Expenses
+
+<Unstyled>
+  <Story of={Stories.Expenses} />
+</Unstyled>

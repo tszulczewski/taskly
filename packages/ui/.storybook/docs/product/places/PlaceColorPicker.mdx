@@ -1,0 +1,111 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./PlaceColorPicker.stories";
+
+<Meta of={Stories} />
+
+# Place color picker
+
+`import { PlaceColorPicker } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the owner give a place one of the ten place colours, so places stay easy to tell apart in small dots. A colour another place uses cannot be chosen (Luki 3).
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- Creating the seventh and later places: the first six get their colours without asking (decision G4).
+- Editing a place: changing its colour (decision G6).
+
+## 3. When not to use
+
+| Situation                     | Use instead          | Source     |
+| ----------------------------- | -------------------- | ---------- |
+| Creating one of the first six | no choice: automatic | Luki 3, G4 |
+| Any colour outside the ten    | not offered          | Luki 3     |
+| Choosing the theme            | `ThemeToggle`        | Luki 2     |
+
+## 4. Anatomy
+
+| Part   | Required | Notes                                                                                                           |
+| ------ | -------- | --------------------------------------------------------------------------------------------------------------- |
+| Group  | yes      | A radio group named by `label` ("Colour"); the place form puts it in a `fieldset` with that legend              |
+| Swatch | yes      | A 44 × 44 px target (`size-touch`) around a `size-icon` dot in `color-place-N`; named in words ("Olive")        |
+| Chosen | yes      | An outline in `color-text-primary` around the dot (`swatch-selected`, `focus-ring-width` / `focus-ring-offset`) |
+| In use | optional | Disabled at `opacity-disabled`; the name says who uses it ("Blue, used by Bathroom")                            |
+
+## 5. Variants
+
+| Variant   | Choose it when                                     | Source      |
+| --------- | -------------------------------------------------- | ----------- |
+| New place | No `placeId`: every used colour is disabled.       | decision G4 |
+| Editing   | `placeId`: the place's own colour stays available. | decision G6 |
+
+<Unstyled>
+  <Story of={Stories.EditingAPlace} />
+</Unstyled>
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State    | What the user sees                                     | Story      | Source |
+| -------- | ------------------------------------------------------ | ---------- | ------ |
+| Chosen   | Outline around the dot; `aria-checked`.                | Playground | Luki 3 |
+| Focus    | Focus ring around the dot.                             | Playground | T6     |
+| In use   | Faded, not focusable, "used by …" in its name.         | States     | G4, G6 |
+| Only own | At ten places, editing offers only the place's colour. | States     | G5, G6 |
+
+## 7. Behaviour and accessibility
+
+- One Tab stop; arrow keys move to the next free colour and choose it (radio group, WCAG 2.1.1). Disabled colours are skipped.
+- The chosen colour is shown by an outline, not by colour alone, and each swatch is named in words (WCAG 1.4.1).
+- Every colour has at least 3:1 contrast on the surface in both themes (WCAG 1.4.11, `tokeny.md`).
+
+## 8. Content
+
+- Colour names are the token names: Blue, Ochre, Terracotta, Green, Violet, Pink, Olive, Plum, Teal, Slate (Luki 3, decision T4).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                     | Source      |
+| ------ | --------------------------------------------- | ----------- |
+| 320px  | Swatches wrap to two rows; targets stay 44px. | WCAG 1.4.10 |
+| 768px  | One row of ten in the popover.                | —           |
+| 1440px | Same as 768px.                                | —           |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+`PlacePicker` renders it; on its own only in stories and tests.
+
+```tsx
+<PlaceColorPicker value={color} onValueChange={setColor} places={places} label="Colour" />
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** Radix Radio Group, like `RadioGroup`. **Used in:** `PlacePicker`. **Shows:** the colours of `PlaceTag`.
+- **Patterns:** Form.

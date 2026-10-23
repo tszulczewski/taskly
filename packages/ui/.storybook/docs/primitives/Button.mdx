@@ -1,0 +1,153 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Button.stories";
+
+<Meta of={Stories} />
+
+# Button
+
+`import { Button } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the user start one action, such as saving a task, signing in or deleting, and see that the action is running.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- Submitting a form: "Sign in", "Create account", "Add" in quick add, "Save" in inline edit (sign-in spec, spec E01).
+- Confirming or cancelling in the delete confirmation: "Delete task" and "Cancel" (spec E01, P3).
+- Retrying after an error: "Try again" (spec E01).
+- An icon-only control for a known gesture: "…" (row menu), "+" (add), theme (Luki 7, tokens rule 11), with `size="icon"`.
+
+## 3. When not to use
+
+| Situation                                                                           | Use instead                           | Source               |
+| ----------------------------------------------------------------------------------- | ------------------------------------- | -------------------- |
+| Going to another page ("Create an account", "Go to sign in")                        | `Link`                                | WAI-ARIA APG (link)  |
+| A quiet action inside a row or list ("Add estimate", "3 tasks without an estimate") | `TextAction`                          | R02.3, R01.4, A01.3  |
+| An empty value the user can fill in                                                 | `TextAction tone="muted"`             | R01.4, tokens rule 6 |
+| Several actions on one row                                                          | one "…" icon button that opens a menu | R02.1, A01.3, P2     |
+
+## 4. Anatomy
+
+| Part      | Required                  | Notes                                                                                            |
+| --------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| Container | yes                       | `radius-control`, 1px border (transparent for primary and ghost), `control-height` 44px (K1)     |
+| Label     | yes, unless `size="icon"` | `font-size-body`, `font-weight-strong` (Luki 1, R02 code)                                        |
+| Icon      | optional                  | Lucide, `icon-size` 20px, 2px stroke; only for known gestures (Luki 7). Alone with `size="icon"` |
+| Spinner   | only while `loading`      | 14px ring in the text colour, before the label (R02 code, K3)                                    |
+
+## 5. Variants
+
+| Variant               | Choose it when                                                                           | Source                 |
+| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------- |
+| `primary`             | The one action that moves the user forward on this screen or form. At most one per form. | R02.3, tokens rule 2   |
+| `secondary` (default) | Any other action, including "Cancel" and "Try again".                                    | R02 code (`.btn`)      |
+| `danger`              | The button that confirms a deletion. Text in `color-text-danger`, no red fill.           | P3                     |
+| `ghost`               | Icon buttons and quiet header actions such as "Sign out". No border until hovered.       | R02 code (`.icon-btn`) |
+| `size="icon"`         | Icon only. 44 × 44 px target; `aria-label` is required by the type.                      | T10, F2, WCAG 4.1.2    |
+
+There are no small or large sizes: every control is 44px high at every width (K1, spec E01, sign-in spec).
+
+<Unstyled>
+  <Story of={Stories.IconButtons} />
+</Unstyled>
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+| State           | Looks like                                                                                                    | Source                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Default         | As in Variants.                                                                                               | —                            |
+| Hover           | Primary: `color-action-primary-hover`. Others: `color-surface-raised` background; ghost text becomes primary. | token 2026-10-22, R01.1      |
+| Focus           | 2px outline in `color-focus-ring`, 2px away from the edge; only for keyboard focus (`:focus-visible`).        | R02 code, T6, K3, WCAG 2.4.7 |
+| Pressed         | Same as hover; nothing moves or scales.                                                                       | K4                           |
+| Disabled        | `opacity-disabled` (0.55), not clickable.                                                                     | R02 code, K3                 |
+| Loading         | Spinner + a label that says what is happening ("Signing in…"); stays focusable, clicks are ignored.           | sign-in spec, K3             |
+| Selected, error | Do not apply to a button.                                                                                     | —                            |
+
+**How the user learns why a button is disabled.** Disable a button only while a request is running (then use `loading`, which says so) or when an action is pending on a just-added row (spec E01: the row is dimmed and its actions disabled until the server confirms it). Never disable a submit button to signal invalid input: let the user submit, then show field errors (sign-in spec, Form pattern). If an action is unavailable for a reason the user can change, show the reason as text next to the control, not in a tooltip (task rules: "What to avoid").
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** Tab reaches the button; Enter and Space activate it (WAI-ARIA APG, button). Covered by the Playground test.
+- **Focus order:** follows the DOM. In a form the primary button comes after the last field; "Cancel" follows "Save" (proposal: matches reading order).
+- **Role and name:** native `<button>`, `type="button"` by default so it never submits a form by accident; pass `type="submit"` for the form's main button. An icon button must have `aria-label`, and its icon `aria-hidden` (WCAG 4.1.2, 1.1.1).
+- **Loading:** `aria-busy="true"` and `aria-disabled="true"` instead of `disabled`, so focus stays on the button and screen readers read it as "Signing in…, dimmed / unavailable". The click is cancelled, so Enter in a field cannot submit twice (sign-in spec: no double submit). Covered by the LoadingIgnoresClicks test.
+- **Target size:** 44 × 44 px minimum for every button, including icon buttons (spec E01, sign-in spec, T10; above WCAG 2.5.8's 24px).
+- **Motion:** background colour changes over `motion-duration-quick`; the spinner stops under `prefers-reduced-motion` and the label still says what is happening (tokens rule 12, K3).
+
+## 8. Content
+
+- A verb and, where it helps, an object: "Add", "Save", "Delete task", "Try again", "Create account". Never "OK", "Yes" or "Submit" (Luki 5, task rules: delete confirmation).
+- Imperative, sentence case, no full stop, no all caps (Luki 5, tokens rule 4).
+- At most about 3 words; the longest planned labels are "Create account" and "Usuń zadanie". Long labels wrap onto a second line rather than being cut off (proposal: see LongLabelNarrow).
+- The loading label is the verb in the continuous form with an ellipsis: "Signing in…", "Logowanie…" (R02 code).
+- Polish labels are usually longer ("Zaloguj się" vs "Sign in"): never give a button a fixed width.
+- Numbers in a label use digits: "Delete 3 tasks" (Luki 5).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                                                    | Source          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 320px  | Same 44px height. The form's main button may take the full width (`className="w-full"`); labels wrap instead of overflowing. | K1, WCAG 1.4.10 |
+| 768px  | Buttons take the width of their label; a button pair sits on one line with `space-group` between them.                       | T7              |
+| 1440px | As at 768px; the column is capped at `layout-content-max-width`, so buttons never stretch across the screen.                 | P01, R01.5      |
+
+<Unstyled>
+  <Story of={Stories.LongLabelNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`Button` also accepts every native `<button>` attribute. `className` is for layout only (width, margins); colours, sizes and radius come from the variant.
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Button onClick={retry}>Try again</Button>
+```
+
+In Taskly: the sign-in form's main button.
+
+```tsx
+<form onSubmit={handleSubmit} noValidate>
+  {/* fields */}
+  <Button variant="primary" type="submit" loading={pending}>
+    {pending ? "Signing in…" : "Sign in"}
+  </Button>
+</form>
+```
+
+An icon button that opens the row menu:
+
+```tsx
+<Button variant="ghost" size="icon" aria-label="More actions">
+  <Ellipsis aria-hidden="true" />
+</Button>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `TextAction` (quiet action in a row), `Link` (navigation). See **How to choose**.
+- **Patterns:** Form (submit, loading), Delete confirmation (`danger` + `secondary`), Quick capture ("Add"), Inline edit ("Save" / "Cancel"), Error state ("Try again").

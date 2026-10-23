@@ -1,0 +1,91 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Usage and accessibility" />
+
+# Usage and accessibility
+
+The rules every screen keeps. Each names its source; the component pages show them in practice. Every story is tested in both themes with axe set to fail on any violation (`npm run test:storybook`).
+
+## Keyboard and focus
+
+| Rule                                                                                                                                                                                             | Source                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| Everything works with the keyboard alone; no action exists only as a shortcut or only as a drag.                                                                                                 | WCAG 2.1.1, 2.5.7, A05         |
+| Focus is always visible: a 2px `color-focus-ring` outline, offset from the control. Never remove it without a replacement.                                                                       | WCAG 2.4.7, T6, K3             |
+| Tab order follows the reading order. In a task row: handle (from 640px) → checkbox → title → "…".                                                                                                | WCAG 2.4.3, decision J1        |
+| One control per job: a task row has one disclosure (its title), so a screen reader hears the task once.                                                                                          | decision J1                    |
+| When the focused element disappears, focus moves to the next sensible place, never to the page: after Edit/Cancel back to "…"; after a delete to the list; after the last estimate to the total. | WCAG 2.4.3, decisions F6, J4   |
+| Dialogs trap focus, start on Cancel and return focus to what opened them. Escape closes them except while an action is running.                                                                  | WAI-ARIA APG, spec E01         |
+| Menus: arrow keys move, Escape closes and returns to "…". Popovers: focus inside, Escape returns to their anchor.                                                                                | WAI-ARIA APG, decision G3      |
+| Reordering by keyboard: Space or Enter on the handle, arrows, Space or Enter to drop, Escape to cancel; each step is announced.                                                                  | WCAG 2.1.1, 4.1.3, decision H6 |
+| Touch targets are at least 44 × 44 px (`size-touch`), also for icon buttons and checkboxes.                                                                                                      | T10, K1, WCAG 2.5.5            |
+
+## Forms and messages
+
+| Rule                                                                                                                                                                                 | Source                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| Every field has a visible label (`FormField`); a placeholder is an example, never the name. The quick-add title is the one field named by `aria-label`, with an example placeholder. | WCAG 3.3.2, R02.9                      |
+| Validate when the user leaves a field and when they submit; after a failed submit focus goes to the first error.                                                                     | the task's form rules, Patterns / Form |
+| Typed data stays after any error.                                                                                                                                                    | Patterns / Form                        |
+| A submit button shows "…ing" and cannot be pressed twice; success shows only after the server confirms.                                                                              | sign-in spec, B2                       |
+| An error says what happened and what to do, next to where it happened: field, form, row or line. Never a toast.                                                                      | spec E01, P4                           |
+| Errors are announced (`role="alert"`); a changed total is a polite status (`role="status"`).                                                                                         | WCAG 4.1.3, decision J4                |
+| Only the title is required to add a task; description and estimate come later.                                                                                                       | R02.9, A03, R10                        |
+| Only optional fields are marked, with the word "(optional)"; required ones are not marked.                                                                                           | K5                                     |
+| Fields on phones use 16px text so iOS does not zoom.                                                                                                                                 | Luki 1                                 |
+
+## Colour
+
+| Rule                                                                                                                           | Source                    |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------- |
+| Colour has two roles: the green accent means an action or "completed"; place colours appear only as dots next to a name.       | tokens rule 2, R01.2, Q3  |
+| Colour is never the only signal: a place dot always has its name, a completed task is also struck through, an error has words. | WCAG 1.4.1, tokens rule 3 |
+| Text contrast at least 4.5:1, controls and dots at least 3:1, in both themes (contrast table on Foundations / Color).          | WCAG 1.4.3, 1.4.11        |
+| Hierarchy comes from text colour (primary, muted), not from many sizes or weights: three sizes, two weights, no capitals.      | tokens rule 4, R01.3      |
+| No success, warning or info colours; danger only for errors and deleting.                                                      | P3                        |
+| Depth is tone and a 1px line, never a shadow, gradient or texture.                                                             | tokens rule 1, R01.1      |
+
+## Motion
+
+| Rule                                                                                                                                      | Source                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Motion only confirms what the user did: dragging and checking (150ms), opening a row and moving a completed row (200ms), always ease-out. | Luki 8, R02.12         |
+| With `prefers-reduced-motion: reduce` everything happens at once (the motion tokens become 0).                                            | Luki 8, tokens rule 12 |
+| Loading is static grey bars, no shimmer.                                                                                                  | Luki 8                 |
+| No decorative animation.                                                                                                                  | P13                    |
+
+## Layout at every width
+
+| Rule                                                                                                                                                                                                                   | Source                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| One column of content up to 980px (`layout-content-max-width`), no side bar, no panels.                                                                                                                                | tokens rule 7, P01, R01.5  |
+| Works at 320px without horizontal scrolling: text wraps, it is never cut; amounts keep their numbers whole (non-breaking spaces).                                                                                      | WCAG 1.4.10, tokens rule 5 |
+| From 640px (`wide:`) the estimate sits right of the title and the drag handle and arrow appear; below, the estimate goes under the title, the title opens the row, and rows move by long press or Move up / Move down. | decisions F8, G2, J1       |
+| Page gutter 16px on phones, 24px from 640px; 48px above the content on desktop.                                                                                                                                        | T7                         |
+| Spacing by meaning: inside an element `space-inline`, in a group `space-group`, between groups `space-between-groups`, inside a panel `space-inset`, between sections `space-section`.                                 | T7                         |
+| Check every screen at 320, 768 and 1440 px, in both themes.                                                                                                                                                            | this system's checks       |
+
+## Product rules the interface keeps
+
+| Rule                                                                                                                                                                         | Source                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| An estimate is a min–max range in złoty, written "1 200–1 500 zł"; both amounts or neither; min not above max.                                                               | R07, spec E01, tokens rule 5      |
+| A subtask's estimate never changes its task's estimate or any total.                                                                                                         | R06                               |
+| Future expenses: the sums of the minimums and of the maximums of open main tasks with an estimate; tasks without one are named under it.                                     | R08, R10, Luki 9                  |
+| Completing a task completes its subtasks (asked first when any is open); completing every subtask does not complete the task; reopening a task does not reopen its subtasks. | R09, R11, decision I2             |
+| Completed rows stay, muted, after the open ones; a reopened row goes first. Display order only.                                                                              | R02.2, decision 2026-10-21        |
+| Completed and unsaved rows cannot be moved; a subtask moves only within its task.                                                                                            | decision 2026-10-21, spec E01, G1 |
+| A change shows at once and rolls back with a message in the row if the server refuses.                                                                                       | spec E01 (Optimistic UI)          |
+| Deleting asks once, naming the task and its subtasks; there is no undo.                                                                                                      | spec E01                          |
+| A task can be in several places; at most 10 places, each with its own colour.                                                                                                | D09, decisions G4, G5             |
+| Amounts are shown as the server formats them; the components never compute money.                                                                                            | standards §6, P1                  |
+
+## Known exceptions
+
+Checks that report something on purpose. Anything not listed here is a defect.
+
+| Exception                                                                                                                                                                                        | Why it is accepted                                                                                                                                                            | Source                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| axe on a docs page reports `region` and `landmark-one-main`.                                                                                                                                     | The Storybook docs container has no `main`; it is the documentation's frame, not a product screen. Every story passes axe alone, in both themes, with violations set to fail. | decision M2, WCAG 1.3.1             |
+| axe on the App shell, Auth card, Tasks screens and Task form docs pages reports a repeated `main` or `banner` (`landmark-no-duplicate-main`, `landmark-no-duplicate-banner`, `landmark-unique`). | These pages show several full screens or forms at once to compare states. A screen in the app has one `main` and one `banner`; each of these stories passes axe alone.        | decision M2, WAI-ARIA APG landmarks |
+| `color-border-divider` is below 3 : 1 against the page.                                                                                                                                          | It is decorative only: it never carries meaning or marks a control. Edges of fields and checkboxes use `color-border-control` ([Color](?path=/docs/foundations-color--docs)). | T1, WCAG 1.4.11                     |

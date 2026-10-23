@@ -1,0 +1,97 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Markers.stories";
+
+<Meta of={Stories} />
+
+# Markers
+
+`import { Markers } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows that a task or subtask is important, urgent, or both, independently of each other (D07, E02-S02), without pulling the eye away from the order of the list.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- In the meta line of a task or subtask row, after the places (Luki 4, Luki 6). `TaskRow` renders it from `important` and `urgent`.
+
+## 3. When not to use
+
+| Situation                      | Use instead                                  | Source      |
+| ------------------------------ | -------------------------------------------- | ----------- |
+| Setting or clearing a marker   | "Important" / "Urgent" checkbox items in "…" | decision G3 |
+| A place                        | `PlaceTag`                                   | D09         |
+| An error or a warning          | `Alert`, a field error                       | P3          |
+| Sorting or filtering by marker | not in version 1                             | P03, P4     |
+
+## 4. Anatomy
+
+| Part      | Required | Notes                                                              |
+| --------- | -------- | ------------------------------------------------------------------ |
+| Important | optional | The word "Important", 13px, `color-text-muted`; no icon, no accent |
+| Urgent    | optional | The word "Urgent", same style, after "Important"                   |
+
+Words in the meta line are `space-group` apart (Luki 4).
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Static text; it renders nothing when neither marker is set. Setting a marker is optimistic: the word appears at once and goes back with a message in the row if the server refuses (Optimistic change pattern).
+
+## 7. Behaviour and accessibility
+
+- Plain words, read in row order after the places; never colour or an icon alone (WCAG 1.4.1, Luki 4).
+- In the "…" menu the two markers are checkbox items, so their state is announced ("Important, checked").
+
+## 8. Content
+
+- "Important", "Urgent"; Polish "Ważne", "Pilne" (Luki 4).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                   | Source      |
+| ------ | ----------------------------------------------------------- | ----------- |
+| 320px  | The meta line wraps; markers keep their order after places. | WCAG 1.4.10 |
+| 768px  | One line in most rows.                                      | Luki 6      |
+| 1440px | Same as 768px.                                              | —           |
+
+<Unstyled>
+  <Story of={Stories.InTheMetaLine} />
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<Markers important={task.important} urgent={task.urgent} />
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Used in:** `TaskRow` (meta line). **Set from:** the row's "…" menu. **Confused with:** `PlaceTag`.
+- **Patterns:** List, Optimistic change.

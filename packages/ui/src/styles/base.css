@@ -1,0 +1,128 @@
+/* Document defaults. Everything reads tokens; nothing here is product-specific. */
+@layer base {
+  html {
+    font-family: var(--font-family-base);
+    font-size: 100%;
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-body);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface-page);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+  }
+}
+
+/* Motion durations come from tokens only (Luki 8); the utilities pick them up. */
+@utility duration-quick {
+  transition-duration: var(--motion-duration-quick);
+}
+
+@utility duration-base {
+  transition-duration: var(--motion-duration-base);
+}
+
+/* Amounts line up in a column (P06, tokens rule 5). */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lucide icons draw with the token stroke (Luki 7). */
+@utility stroke-icon {
+  stroke-width: var(--icon-stroke-width);
+}
+
+/* Keyboard focus: 2px outline in the focus colour (R02 code, T6, K3). Fields use offset 0. */
+@utility focus-ring {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@utility focus-ring-field {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset-field);
+}
+
+/* Disabled controls (R02 code, K3). WCAG 1.4.3 exempts inactive components from contrast. */
+@utility opacity-disabled {
+  opacity: var(--opacity-disabled);
+}
+
+/* Busy indicator inside a button (R02 code .spin, K3); still under reduced motion. */
+@utility spinner {
+  inline-size: var(--spinner-size);
+  block-size: var(--spinner-size);
+  flex: none;
+  border: var(--spinner-stroke) solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-turn var(--spinner-duration) linear infinite;
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A field frame (input with suffix or toggle) shows focus when its text input has keyboard focus. */
+@custom-variant field-focus (&:has(input:focus-visible));
+
+/* Collapsible content opens and closes over motion-duration-base (Luki 8); 0ms with reduced motion. */
+/* Menus, popovers and tooltips: never wider than the text measure, nor than the space Radix
+   measures beside the trigger, which already leaves the page gutter free at the screen edges
+   (collisionPadding, D3), so on a 320px screen long labels wrap (WCAG 1.4.10). */
+@utility max-w-overlay {
+  max-width: min(var(--layout-text-measure), var(--radix-popper-available-width));
+}
+
+@utility collapsible-content {
+  overflow: hidden;
+
+  &[data-state="open"] {
+    animation: collapsible-open var(--motion-duration-base) var(--motion-easing);
+  }
+
+  &[data-state="closed"] {
+    animation: collapsible-close var(--motion-duration-base) var(--motion-easing);
+  }
+}
+
+/* A row that was just added fades from the raised tone to none (spec E01, "briefly highlighted").
+   Under reduced motion the duration is 0, so there is no highlight at all. */
+@utility row-highlight {
+  animation: row-highlight var(--motion-duration-highlight) var(--motion-easing);
+}
+
+@keyframes row-highlight {
+  from {
+    background-color: var(--color-surface-raised);
+  }
+}
+
+@keyframes collapsible-open {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes collapsible-close {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* The chosen place colour: a ring in the text colour around the swatch, so the choice is not
+   shown by colour alone (Luki 3, decision G4). Same width and gap as the focus ring (K3). */
+@utility swatch-selected {
+  outline: var(--focus-ring-width) solid var(--color-text-primary);
+  outline-offset: var(--focus-ring-offset);
+}

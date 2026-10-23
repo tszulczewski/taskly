@@ -1,0 +1,120 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Alert.stories";
+
+<Meta of={Stories} />
+
+# Alert
+
+`import { Alert } from "@taskly/ui";`
+
+## 1. What it is for
+
+Tells the user at once that something failed for the whole form or screen, and what they can do about it.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- A failed sign-in or sign-up, above the form: "Wrong email or password." (sign-in spec: errors above the form, `role="alert"`).
+- A failed sign-out in the header: "Could not sign out. Try again." (sign-in spec).
+- A request that failed for the screen, with "Try again" (spec E01: error states; the ErrorState component in batch 3 uses Alert for the list).
+
+## 3. When not to use
+
+| Situation                       | Use instead                              | Source                                                       |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| An error about one field        | `FormField error`                        | spec E01, WCAG 3.3.1                                         |
+| A rolled-back change in one row | the inline error in that row             | spec E01 ("toast-free inline error")                         |
+| Success ("Task added")          | nothing: the new row is the confirmation | P3 (no success colour), spec E01 (new row scrolls into view) |
+| A short notice that disappears  | nothing: Taskly has no toasts            | P4, spec E01                                                 |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                                                                    |
+| ------- | -------- | ---------------------------------------------------------------------------------------- |
+| Panel   | yes      | `color-surface-raised`, `radius-surface`, `space-inset` padding (P3, R02 code `.banner`) |
+| Title   | yes      | What happened, `font-weight-strong`, `color-text-danger` (P3, C7)                        |
+| Message | optional | What to do, in `color-text-primary` (C7)                                                 |
+| Action  | optional | One `Button`, usually "Try again"                                                        |
+
+The title is `color-text-danger`: 5.90:1 (dark) and 4.78:1 (light) on the raised surface; the message is `color-text-primary`: 12.21:1 and 13.83:1 (P3, C7, tokeny.md contrast table). No icon: the words carry the meaning (Luki 7).
+
+## 5. Variants
+
+None. There is only the error alert: success, warning and info colours are not part of version 1 (P3, tokens rule 2).
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+The alert itself is static; hover, focus, pressed, disabled and selected do not apply. Its action has the Button states; while retrying, the action shows `loading`.
+
+## 7. Behaviour and accessibility
+
+- `role="alert"`: screen readers read it as soon as it appears, without moving focus (WAI-ARIA, alert role; sign-in spec). Covered by the AnnouncedWhenShown test.
+- Render it only when there is an error; do not keep an empty alert on the page.
+- Focus is not moved to the alert. After a failed submit, focus goes to the first invalid field if there is one (sign-in spec); otherwise it stays where it was.
+- The action is a normal Button: Tab reaches it.
+
+## 8. Content
+
+- Title: what happened, one short sentence: "Could not load your tasks." Message: what to do: "Check your connection; nothing you entered was lost." When both fit in one sentence, use only the title: "Could not sign out. Try again." (sign-in spec, Luki 5, C7).
+- Never blame the user, never show codes or technical words (A05).
+- Say what was kept when it helps: "Your text is still in the field." (spec E01: input is kept).
+- Polish: "Nie udało się wczytać zadań." / "Spróbuj ponownie".
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                               | Source      |
+| ------ | ------------------------------------------------------- | ----------- |
+| 320px  | Full width; text wraps; the action sits under the text. | WCAG 1.4.10 |
+| 768px  | Width of the form or column.                            | —           |
+| 1440px | Same; capped by the content column.                     | P01         |
+
+<Unstyled>
+  <Story of={Stories.LongTextNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+Minimal:
+
+```tsx
+{
+  signOutFailed ? <Alert title="Could not sign out. Try again." /> : null;
+}
+```
+
+In Taskly: a failed sign-in above the form.
+
+```tsx
+{
+  error ? <Alert title={error} /> : null;
+}
+<form onSubmit={handleSubmit} noValidate>
+  …
+</form>;
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `FormField` error (one field), a toast (not used), `Surface` (neutral panel).
+- **Patterns:** Form (server error, no network), Error state, App shell (sign-out failure).

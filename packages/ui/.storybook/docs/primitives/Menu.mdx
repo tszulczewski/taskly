@@ -1,0 +1,136 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Menu.stories";
+
+<Meta of={Stories} />
+
+# Menu
+
+`import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@taskly/ui";`
+
+## 1. What it is for
+
+Puts a row's less frequent actions behind one “…” button, so the row shows only the task.
+
+<Story of={Stories.Open} />
+
+## 2. When to use
+
+- The “…” menu at the end of a task row: "Add subtask", "Edit", "Delete" (spec E01, row actions; Luki 7: the “…” menu icon).
+- Toggling the "Important" and "Urgent" markers of a task (Luki 4, backlog E02) with checkbox items.
+
+## 3. When not to use
+
+| Situation                                       | Use instead            | Source       |
+| ----------------------------------------------- | ---------------------- | ------------ |
+| The main action of a screen                     | a visible `Button`     | R02.9, A05   |
+| Choosing one value from several (theme, colour) | `RadioGroup`           | WAI-ARIA APG |
+| Showing information or a few fields             | `Popover`              | WAI-ARIA APG |
+| Site navigation                                 | links in the app shell | WAI-ARIA APG |
+
+## 4. Anatomy
+
+| Part          | Required | Notes                                                                                                                             |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Trigger       | yes      | `Button variant="ghost" size="icon"` with Lucide `Ellipsis` and `aria-label="More actions"` (Luki 7)                              |
+| Panel         | yes      | Raised tone, 1px `color-border-control` edge, `radius-surface`, `space-inline` padding (K2); `space-inline` from the trigger (D4) |
+| Item          | yes      | 44px high (`control-height`), `field-padding-x` sides; text only, no icons (Luki 7)                                               |
+| Checkbox item | optional | Check mark at the start when on; `aria-checked`                                                                                   |
+| Separator     | optional | 1px `color-border-divider`; groups the destructive item apart                                                                     |
+
+## 5. Variants
+
+| Item variant       | Choose it when                                                  | Source       |
+| ------------------ | --------------------------------------------------------------- | ------------ |
+| `tone="default"`   | Any ordinary action.                                            | spec E01     |
+| `tone="danger"`    | The action deletes something; place it last, after a separator. | P3, spec E01 |
+| `MenuCheckboxItem` | An on/off property of the task ("Important").                   | Luki 4       |
+
+## 6. States
+
+<Story of={Stories.States} />
+
+| State       | Looks like                                                                                                          | Source       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Highlighted | `color-surface-raised-hover` under the item (mouse or arrow keys): one tone above the panel in dark, white in light | R02 code, D1 |
+| Focus       | 2px focus outline inside the item when reached by keyboard                                                          | K3           |
+| Checked     | Check mark at the start                                                                                             | WCAG 1.4.1   |
+| Disabled    | `opacity-disabled`; skipped by arrow keys. Actions on a pending row are disabled.                                   | K3, spec E01 |
+| Danger      | Text in `color-text-danger`                                                                                         | P3           |
+| Loading     | Does not apply: the menu closes and the row shows the result.                                                       | spec E01     |
+
+## 7. Behaviour and accessibility
+
+- **Keyboard:** Enter, Space or ArrowDown on the trigger opens the menu with focus on the first item; arrow keys move; typing a letter jumps to an item; Enter selects and closes; Escape closes and returns focus to the trigger (WAI-ARIA APG, menu button). Covered by the Playground test.
+- **Roles:** `menu`, `menuitem`, `menuitemcheckbox`; the trigger has `aria-haspopup="menu"` and `aria-expanded` (Radix).
+- **Name:** the icon trigger always has `aria-label`; Tooltip shows the same text on hover.
+- **Target size:** items are 44px high (K1).
+- **Motion:** none; the menu appears at once (K2).
+
+## 8. Content
+
+- Item labels are a verb and an object, in sentence case: "Add subtask", "Edit", "Delete" / "Dodaj podzadanie", "Edytuj", "Usuń" (spec E01, Luki 5).
+- Checkbox items are the marker names: "Important", "Urgent" / "Ważne", "Pilne" (Luki 4).
+- At most about six items; "Delete" is always last.
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                                                                                                                            | Source          |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 320px  | The panel aligns to the trigger's end, keeps the page gutter free at the screen edges and is never wider than the space left (`max-w-overlay`), so long labels wrap. | D3, WCAG 1.4.10 |
+| 768px  | Same; at most `layout-measure` wide.                                                                                                                                 | —               |
+| 1440px | Same.                                                                                                                                                                | —               |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+`Menu` takes `open`, `defaultOpen`, `onOpenChange` and `modal`; `MenuContent` takes `align` (default `end`) and `side`; `MenuCheckboxItem` takes `checked` and `onCheckedChange` (Radix).
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Menu>
+  <MenuTrigger asChild>
+    <Button variant="ghost" size="icon" aria-label="More actions">
+      <Ellipsis aria-hidden="true" />
+    </Button>
+  </MenuTrigger>
+  <MenuContent>
+    <MenuItem onSelect={edit}>Edit</MenuItem>
+  </MenuContent>
+</Menu>
+```
+
+In Taskly: the task row menu.
+
+```tsx
+<MenuContent>
+  <MenuItem disabled={task.pending} onSelect={addSubtask}>
+    Add subtask
+  </MenuItem>
+  <MenuItem disabled={task.pending} onSelect={edit}>
+    Edit
+  </MenuItem>
+  <MenuSeparator />
+  <MenuItem tone="danger" disabled={task.pending} onSelect={() => setConfirmOpen(true)}>
+    Delete
+  </MenuItem>
+</MenuContent>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Popover` (content, not a list of actions), `RadioGroup` (one value).
+- **Patterns:** Details in row, List.

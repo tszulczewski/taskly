@@ -1,0 +1,46 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Epics/E03 Completion and future expenses" />
+
+# E03 Completion and future expenses
+
+Backlog E03 (#13): E03-S01 complete and reopen tasks and subtasks (#20), E03-S02 see future expenses as one min–max range (#21). No spec yet; the design decisions below (I1–I4, J1–J10, POSTEP.md) are the input for its UI/UX. Screen S8.
+
+## Flow
+
+1. Under the heading, one line: "Future expenses 1 380–1 750 zł", the sums of the minimums and the maximums of open main tasks with an estimate. Below it, folded, "2 tasks without an estimate" with "They are not counted in future expenses until they have an estimate."
+2. The owner ticks a task's checkbox. Without open subtasks it is completed at once: muted, struck through, and it moves (200 ms) to the end, after the open tasks. The total changes and is read once.
+3. With open subtasks, a question first: "Complete “Paint the bathroom ceiling” and its 2 open subtasks?" with "Reopening the task later does not reopen its subtasks." and "Complete task" / "Cancel".
+4. Unticking reopens the task: it goes first in the list; its subtasks stay as they were. Completing every subtask does not complete the task.
+5. "Add estimate" next to an unestimated task opens a small form (both amounts required); after the last one, focus moves to the total.
+6. A refused change goes back with a message in the row; a failed total shows "Could not load future expenses." with "Try again" in the line, and the list keeps working.
+
+## Screens and stories
+
+| Screen | State                                   | Story                                                                                                                                                                                                                                            |
+| ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S8     | Ready at 1440, 768 and 320 px           | [Desktop](?path=/story/product-tasks-screens--progress-desktop), [Tablet](?path=/story/product-tasks-screens--progress-tablet), [Phone](?path=/story/product-tasks-screens--progress-phone)                                                      |
+| S8     | The total loading; failed               | [Expenses Loading](?path=/story/product-tasks-screens--expenses-loading), [Expenses Failed](?path=/story/product-tasks-screens--expenses-failed)                                                                                                 |
+| S8     | Completing; with open subtasks; refused | [Complete Task](?path=/story/product-tasks-screens--complete-task), [Complete With Subtasks Phone](?path=/story/product-tasks-screens--complete-with-subtasks-phone), [Completion Failed](?path=/story/product-tasks-screens--completion-failed) |
+| S8     | Adding an estimate; everything done     | [Add Estimate Phone](?path=/story/product-tasks-screens--add-estimate-phone), [All Done](?path=/story/product-tasks-screens--all-done)                                                                                                           |
+| S8     | With order and places; Polish text      | [With Order And Places](?path=/story/product-tasks-screens--with-order-and-places), [Progress Polish Phone](?path=/story/product-tasks-screens--progress-polish-phone)                                                                           |
+
+Pattern: [Complete and reopen](?path=/docs/patterns-complete-and-reopen--docs).
+
+## Components
+
+`TaskCheckbox`, `SubtaskProgress`, `CompleteTaskDialog` (`src/product/tasks/`); `FutureExpenses`, `UnestimatedTasks` (`src/product/expenses/`); built on `Checkbox` styles, `ConfirmDialog` (`confirmVariant="primary"`), `Collapsible`, `Surface`, `FormField`, `Skeleton`.
+
+## Decisions that shape it
+
+- One line, not tiles of numbers; no spent, budget or completed-expenses figure in version 1 (R02.7, P04, D18, D19).
+- A subtask's estimate is never counted (R06); a task without an estimate is named, not counted as zero (R10, J9).
+- Completed rows stay, muted, after the open ones; a reopened row goes first; display order only (R02.2, decision 2026-10-21).
+- Completing asks only when open subtasks would change too; the button is primary, not danger (I2, J3).
+- No total yet: "No estimates yet" (J2); the total is a polite status (J4); its error stays in the line (J6).
+
+## Remaining product work
+
+- Write the E03 spec, taking I1–I4, J1–J10 and the completed-task order decision; define how the server computes the total (R08) and returns it formatted.
+- Fix `formatPlnRange` first (decision F11): the total uses the same format as a task's estimate.
+- In the app: completion is optimistic with rollback; the total is refetched after every change that affects it.

@@ -1,0 +1,84 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./ThemeToggle.stories";
+
+<Meta of={Stories} />
+
+# Theme toggle
+
+`import { ThemeToggle } from "@taskly/ui";`
+
+## 1. What it is for
+
+Lets the owner switch between the dark theme (default) and the light one, for a bright room or a sunny site.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- In the top bar, once (Luki 2: a switch in the app, two positions).
+
+## 3. When not to use
+
+| Situation                      | Use instead                     | Source                     |
+| ------------------------------ | ------------------------------- | -------------------------- |
+| Following the operating system | not offered: no "System" option | Q1, Luki 2, tokens rule 14 |
+| An on/off setting              | `Checkbox` (no Switch in v1)    | P4                         |
+
+## 4. Anatomy
+
+`RadioGroup variant="segmented"` named "Theme" with two segments: Lucide `Moon` + "Dark", `Sun` + "Light" (Luki 7: the theme switch is one of the gestures that get an icon).
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Selected, hover, focus, pressed as in Radio group (segmented). Disabled, loading and error do not apply: the change is local and instant.
+
+## 7. Behaviour and accessibility
+
+- Tab enters on the selected theme; arrow keys move and select (WAI-ARIA APG). Covered by the Playground test.
+- The app stores the choice and sets `data-theme` on the root element, so menus and dialogs in portals follow it (rule 9). In Storybook the switch drives the toolbar theme: see Drives The Theme.
+- Below 640px the words are visually hidden but stay the segments' names.
+
+<Story of={Stories.DrivesTheTheme} />
+
+## 8. Content
+
+"Theme": "Dark", "Light" / "Motyw": "Ciemny", "Jasny" (Luki 2).
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width   | Behaviour                  | Source              |
+| ------- | -------------------------- | ------------------- |
+| 320px   | Icons only, 44px segments. | R02.11, decision E8 |
+| ≥ 640px | Icon and word.             | Luki 2              |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<ThemeToggle value={theme} onValueChange={setTheme} />
+```
+
+## 12. Do and don't
+
+Do show both positions at once. Don't add a third "System" position (Q1, Luki 2).
+
+## 13. Related
+
+- **Built on:** Radio group (segmented). **Used in:** App shell.

@@ -1,0 +1,120 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./TaskForm.stories";
+
+<Meta of={Stories} />
+
+# Task form
+
+`import { TaskForm } from "@taskly/ui";`
+
+## 1. What it is for
+
+Changes a task or subtask where it stands: the row turns into this form, prefilled, and turns back after Save or Cancel. The list and its order stay in view.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- "Edit" in a row's "…" menu, for tasks and subtasks (spec E01, Edit). `TaskRow` renders it; the app does not place it by hand.
+
+## 3. When not to use
+
+| Situation                | Use instead         | Source    |
+| ------------------------ | ------------------- | --------- |
+| Adding a task or subtask | `QuickAdd`          | spec E01  |
+| Details in a drawer      | the form in the row | R02.6, Q2 |
+| Deleting                 | `DeleteTaskDialog`  | spec E01  |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                              |
+| ----------- | -------- | ---------------------------------------------------------------------------------- |
+| Error       | optional | `Alert` above the fields when saving failed; what was typed stays                  |
+| Title       | yes      | Focused when the form opens                                                        |
+| Description | optional | `Textarea`, "(optional)"                                                           |
+| Estimate    | optional | A group "Estimate (optional)" with Min and Max, suffix "zł", `inputmode="decimal"` |
+| Save        | yes      | Primary; "Saving…" with a spinner while sending                                    |
+| Cancel      | yes      | Secondary; Escape does the same                                                    |
+
+The form sits on `color-surface-raised` in place of the row (tokens: raised for an open row).
+
+## 5. Variants
+
+None. The same form edits tasks and subtasks (spec E01: "the same fields").
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Input](?path=/story/primitives-input--states), [Form field](?path=/story/primitives-form-field--states) (decision M1).
+
+| State            | What the user sees                                                        | Story           | Source               |
+| ---------------- | ------------------------------------------------------------------------- | --------------- | -------------------- |
+| Prefilled        | The task's values; focus in Title.                                        | Playground      | spec E01, Edit       |
+| Estimate removed | Both amounts cleared, saved without an estimate.                          | Remove Estimate | spec E01, Edit       |
+| One amount only  | "Enter both amounts or neither" under the empty one.                      | One Amount Only | spec E01, Errors     |
+| Invalid amount   | "Enter an amount like 1 500,50" after leaving the field.                  | Invalid Amount  | spec E01, Edge cases |
+| Saving           | Spinner, "Saving…"; Cancel and Escape wait; a second Enter sends nothing. | Saving          | Form pattern         |
+| Save failed      | The message above the form; the values stay.                              | Save Failed     | spec E01, rollback   |
+| Cancelled        | The row is back; focus on its "…" button (decision F6).                   | Cancel          | spec E01             |
+| Long text        | A long title and description wrap inside the fields.                      | Long Text       | —                    |
+
+Loading, empty and many items do not apply: the form edits one task that is already loaded.
+
+<Unstyled>
+  <Story of={Stories.OneAmountOnly} />
+</Unstyled>
+
+## 7. Behaviour and accessibility
+
+- The form is named `Edit “{title}”` (`aria-label`), so a screen reader hears what is being edited.
+- Focus moves to Title when the form opens; after Save or Cancel it returns to the row's "…" button (decision F6). Covered by the TaskList unit tests.
+- The form waits for the server before closing; while it waits Cancel and Escape do nothing, so the result is never unknown (decision F2).
+- Errors are linked with `aria-describedby`; the first invalid field takes focus.
+
+## 8. Content
+
+- Buttons: "Save", "Cancel". Labels as in Quick add.
+- Messages as in Quick add (spec E01; title message an example, decision E3).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                      | Source      |
+| ------ | -------------------------------------------------------------- | ----------- |
+| 320px  | One column; Save and Cancel stacked, full width (decision E5). | decision E5 |
+| 768px  | Save and Cancel side by side, as wide as their text.           | decision E5 |
+| 1440px | Same as 768px.                                                 | —           |
+
+<Unstyled>
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<TaskForm
+  initialValues={{ title: "Seal the bath", description: "", min: "", max: "" }}
+  validate={validateTaskForm}
+  onSubmit={(values) => updateTask.mutateAsync({ id, ...values })}
+  onCancel={() => setEditing(false)}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Used in:** `TaskRow`. **Confused with:** `QuickAdd` (adds and clears).
+- **Patterns:** Inline edit, Form. **Screens:** Tasks / Screens.

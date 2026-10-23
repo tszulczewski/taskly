@@ -1,0 +1,99 @@
+/*
+ * Tailwind bridge: maps semantic and component tokens (tokens.css) to utility names.
+ *
+ * Tailwind's default theme is not imported, so its palette (bg-zinc-900, text-white), numeric
+ * spacing (p-4), type scale (text-sm), radii (rounded-lg) and shadows do not exist here. Only the
+ * utilities below compile. `inline reference` makes utilities read the token variables directly
+ * and emits no theme variables of its own.
+ */
+@theme inline reference {
+  --*: initial;
+
+  /* T7: 640px is where the page gutter grows. Media queries cannot read custom properties. */
+  --breakpoint-wide: 40rem; /* check-tokens-allow: mirrors --space-page-gutter switch (T7, F5) */
+
+  /* Colour: backgrounds */
+  --background-color-page: var(--color-surface-page);
+  --background-color-list: var(--color-surface-list);
+  --background-color-raised: var(--color-surface-raised);
+  --background-color-action: var(--color-action-primary);
+  --background-color-action-hover: var(--color-action-primary-hover);
+  --background-color-raised-hover: var(--color-surface-raised-hover);
+  --background-color-scrim: var(--color-scrim);
+  --background-color-place-1: var(--color-place-1);
+  --background-color-place-2: var(--color-place-2);
+  --background-color-place-3: var(--color-place-3);
+  --background-color-place-4: var(--color-place-4);
+  --background-color-place-5: var(--color-place-5);
+  --background-color-place-6: var(--color-place-6);
+  --background-color-place-7: var(--color-place-7);
+  --background-color-place-8: var(--color-place-8);
+  --background-color-place-9: var(--color-place-9);
+  --background-color-place-10: var(--color-place-10);
+
+  /* Colour: text */
+  --text-color-primary: var(--color-text-primary);
+  --text-color-muted: var(--color-text-muted);
+  --text-color-action: var(--color-action-primary);
+  --text-color-on-action: var(--color-text-on-action);
+  --text-color-danger: var(--color-text-danger);
+
+  /* Colour: lines, focus, native controls */
+  --border-color-divider: var(--color-border-divider);
+  --border-color-control: var(--color-border-control);
+  --border-color-action: var(--color-action-primary);
+  --border-color-action-hover: var(--color-action-primary-hover);
+  --border-color-danger: var(--color-text-danger); /* K3: same value as error text */
+  --outline-color-focus: var(--color-focus-ring);
+  --accent-color-action: var(--color-action-primary);
+
+  /* Typography */
+  --font-base: var(--font-family-base);
+  --text-meta: var(--font-size-meta);
+  --text-meta--line-height: var(--line-height-body);
+  --text-body: var(--font-size-body);
+  --text-body--line-height: var(--line-height-body);
+  --text-heading: var(--font-size-heading);
+  --text-heading--line-height: var(--line-height-heading);
+  --text-input-mobile: var(--input-font-size-mobile);
+  --text-input-mobile--line-height: var(--line-height-body);
+  --font-weight-regular: var(--font-weight-regular);
+  --font-weight-strong: var(--font-weight-strong);
+  --leading-body: var(--line-height-body);
+  --leading-heading: var(--line-height-heading);
+
+  /* Spacing (padding, margin, gap, inset) and component sizes */
+  --spacing-0: 0; /* zero is not a design value: min-w-0, inset-0, right-0 */
+  --spacing-inline: var(--space-inline);
+  --spacing-group: var(--space-group);
+  --spacing-between-groups: var(--space-between-groups);
+  --spacing-inset: var(--space-inset);
+  --spacing-section: var(--space-section);
+  --spacing-page-gutter: var(--space-page-gutter);
+  --spacing-page-top: var(--space-page-top);
+  --spacing-row-y: var(--task-row-padding-y);
+  --spacing-row-indent: var(--task-row-indent);
+  --spacing-row: var(--task-row-min-height);
+  --spacing-touch: var(--touch-target-min);
+  --spacing-checkbox: var(--checkbox-size);
+  --spacing-dot: var(--place-dot-size);
+  --spacing-icon: var(--icon-size);
+  --spacing-control: var(--control-height);
+  --spacing-control-x: var(--control-padding-x);
+  --spacing-field-x: var(--field-padding-x);
+  --spacing-field-y: var(--field-padding-y);
+  --spacing-radio-dot: var(--radio-dot-size);
+
+  /* Layout */
+  --max-width-content: var(--layout-content-max-width);
+  --max-width-measure: var(--layout-text-measure);
+
+  /* Shape */
+  --default-border-width: var(--border-width);
+  --radius-control: var(--radius-control);
+  --radius-surface: var(--radius-surface);
+  --radius-checkbox: var(--checkbox-radius);
+
+  /* Motion */
+  --ease-standard: var(--motion-easing);
+}

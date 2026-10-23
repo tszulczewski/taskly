@@ -1,0 +1,71 @@
+import { Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Color from "./Color.stories";
+
+<Meta of={Color} />
+
+# Color
+
+Taskly is calm and sparing with colour. Most of the screen is neutral tone; colour appears in only two roles (tokens rule 2, R01.2, R02.3):
+
+1. **One green accent** marks an action and the state “completed”: the primary button, a checked checkbox, the active navigation item, action text.
+2. **Place colours** appear only as an 8px dot next to the place name (Q3, Luki 3).
+
+There is no colour for success, warning or information, and no red for cost overrun (R02.3, decision P3 of 2026-10-21). Errors use `color-text-danger` as text, never as a filled surface.
+
+## Rules
+
+| Rule                                                                                                                            | Source                            |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Depth comes from surface tone and a 1px line; no shadows, gradients or textures.                                                | tokens rule 1, R01.1              |
+| Colour is never the only carrier of meaning: a place dot always stands next to the place name, and every status is also a word. | tokens rule 3, Luki 3, WCAG 1.4.1 |
+| The accent never fills a large surface such as a top bar or a section.                                                          | A01.1                             |
+| Components use semantic tokens (`color-text-muted`), never raw values (`neutral-400`) and never a literal colour.               | tokeny.md (layers)                |
+| `color-border-divider` is decorative only; edges of fields and checkboxes use `color-border-control`.                           | T1                                |
+| Text needs 4.5:1, interface elements 3:1, in both themes.                                                                       | WCAG 1.4.3, 1.4.11                |
+
+## Roles
+
+Each row shows the live value in both themes and the source comment from `tokens.css`.
+
+### Surfaces
+
+<Unstyled>
+  <Story of={Color.Surfaces} />
+</Unstyled>
+
+### Lines and focus
+
+<Unstyled>
+  <Story of={Color.Lines} />
+</Unstyled>
+
+### Text
+
+<Unstyled>
+  <Story of={Color.Text} />
+</Unstyled>
+
+### Action
+
+<Unstyled>
+  <Story of={Color.Action} />
+</Unstyled>
+
+## Places
+
+Ten fixed colours, not a free picker: more hues start to blur in small dots (Luki 3). The first six places get `place-1` to `place-6` in order; later places pick a colour no other place uses, and the owner can change it. Every colour reaches 3:1 on every surface of both themes (WCAG 1.4.11; light shades from T2–T4).
+
+<Unstyled>
+  <Story of={Color.PlacesDark} />
+  <Story of={Color.PlacesLight} />
+</Unstyled>
+
+## Contrast, measured
+
+Measured in the browser from the live CSS variables, every time this page renders, for every text and interface pair on the page, list and raised surfaces, plus the text and focus ring on a highlighted menu item (`color-surface-raised-hover`). A pair below its threshold is marked ✗ with a proposed fix; the only accepted exception is the decorative divider (T1).
+
+<Unstyled>
+  <Story of={Color.Contrast} />
+</Unstyled>
+
+After changing any colour in `tokens.css`, re-open this page and check every row.

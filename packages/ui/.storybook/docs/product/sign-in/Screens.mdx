@@ -1,0 +1,25 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Screens.stories";
+
+<Meta of={Stories} />
+
+# Sign-in screens
+
+Screens S1–S3 of the sign-in spec (prerequisite of E01), full screen. Open a story to see it at its width; the server answers are simulated (P1).
+
+## State map
+
+| Screen        | State                                          | Story                     | Width  |
+| ------------- | ---------------------------------------------- | ------------------------- | ------ |
+| S1 `/sign-in` | Default, sign-up closed                        | Sign In                   | 1440px |
+| S1 `/sign-in` | Default, sign-up open (link)                   | Sign In With Sign Up Open | 768px  |
+| S1 `/sign-in` | Wrong email or password                        | Sign In Failed            | 320px  |
+| S1 `/sign-in` | Missing fields, pending, rate limited, offline | Sign-in form stories      | —      |
+| S2 `/sign-up` | Open, empty                                    | Sign Up Open              | 1440px |
+| S2 `/sign-up` | Open, phone                                    | Sign Up Open Phone        | 320px  |
+| S2 `/sign-up` | Every form state                               | Patterns / Form           | —      |
+| S3 `/sign-up` | Closed                                         | Sign Up Is Closed         | 320px  |
+
+Redirects (signed-in visitor on `/sign-in`, signed-out visitor on `/`) happen on the server and have no screen.
+
+<Story of={Stories.SignInFailed} />

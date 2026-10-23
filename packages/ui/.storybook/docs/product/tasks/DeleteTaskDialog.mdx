@@ -1,0 +1,114 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./DeleteTaskDialog.stories";
+
+<Meta of={Stories} />
+
+# Delete task dialog
+
+`import { DeleteTaskDialog } from "@taskly/ui";`
+
+## 1. What it is for
+
+Asks once before a task is deleted for good, and says exactly what goes with it, so the owner never loses a task (and its subtasks) by a slip.
+
+<Story of={Stories.WithSubtasks} />
+
+## 2. When to use
+
+- "Delete" in a task or subtask row's menu; `TaskList` opens it (spec E01, Delete).
+
+## 3. When not to use
+
+| Situation                 | Use instead                       | Source     |
+| ------------------------- | --------------------------------- | ---------- |
+| Deleting the default list | not offered (the API refuses it)  | spec E01   |
+| Undo after the fact       | there is no undo (no soft delete) | spec E01   |
+| Any other confirmation    | `ConfirmDialog`                   | Primitives |
+
+## 4. Anatomy
+
+| Part     | Required | Notes                                                                    |
+| -------- | -------- | ------------------------------------------------------------------------ |
+| Question | yes      | `Delete “{title}” and its N subtasks?` or `Delete “{title}”?` (spec E01) |
+| Error    | optional | "Could not delete the task. Try again." inside the dialog                |
+| Delete   | yes      | "Delete task", danger button; "Deleting…" with a spinner                 |
+| Cancel   | yes      | Takes focus first                                                        |
+
+Built on `ConfirmDialog` (alert dialog, scrim, focus trap).
+
+## 5. Variants
+
+| Variant          | Choose it when                         | Source   |
+| ---------------- | -------------------------------------- | -------- |
+| With subtasks    | The task has subtasks: they are named. | spec E01 |
+| Without subtasks | A subtask, or a task without any.      | spec E01 |
+
+<Story of={Stories.WithoutSubtasks} />
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states) (decision M1).
+
+| State      | What the user sees                                          | Story         | Source        |
+| ---------- | ----------------------------------------------------------- | ------------- | ------------- |
+| Asking     | The question; focus on Cancel.                              | With Subtasks | spec E01, APG |
+| Deleting   | "Deleting…"; Cancel and Escape wait.                        | Deleting      | ConfirmDialog |
+| Failed     | The message inside; the dialog stays for a retry or Cancel. | Delete Failed | spec E01      |
+| Long title | The question wraps inside `layout-text-measure`.            | Long Title    | —             |
+
+Loading, empty and many items do not apply.
+
+<Story of={Stories.DeleteFailed} />
+
+## 7. Behaviour and accessibility
+
+- `alertdialog` named by the question; focus starts on Cancel and stays inside (WAI-ARIA APG, spec E01).
+- Escape or Cancel closes; focus returns to the row's "…". After a delete it goes to the list, because the row is gone (decision F6). The list sets this through `onCloseAutoFocus`.
+- No outside click closes it.
+
+## 8. Content
+
+- The question names the object; the button is a verb and the object: "Delete task", never "OK".
+- The count says "subtask" or "N subtasks"; Polish uses its own plural forms.
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                     | Source        |
+| ------ | ------------------------------------------------------------- | ------------- |
+| 320px  | Full width inside the page gutter; buttons stacked.           | decision E5   |
+| 768px  | At most `layout-text-measure`, centred; buttons side by side. | ConfirmDialog |
+| 1440px | Same as 768px.                                                | —             |
+
+<Story of={Stories.Narrow320} />
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<DeleteTaskDialog
+  task={taskToDelete}
+  onConfirm={(task) =>
+    deleteTask.mutateAsync(task.id).then(
+      () => true,
+      () => false,
+    )
+  }
+  onClose={() => setTaskToDelete(null)}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Built on:** `ConfirmDialog`. **Used in:** `TaskList`.
+- **Patterns:** Delete confirmation.

@@ -1,0 +1,18 @@
+/*
+ * Entry stylesheet of @taskly/ui (exported as "@taskly/ui/styles.css").
+ * Tailwind's default theme is deliberately not imported; see theme.css.
+ */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Instrument Sans, self-hosted (Q4, Luki 1): regular and strong weights, Latin and Latin Extended. */
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/600.css";
+
+@import "./tokens.css";
+@import "./theme.css";
+@import "./base.css";
+
+@source "../";

@@ -1,0 +1,116 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./Surface.stories";
+
+<Meta of={Stories} />
+
+# Surface
+
+`import { Surface } from "@taskly/ui";`
+
+## 1. What it is for
+
+Holds a screen's content on one calm panel, so the user sees one list instead of many boxes.
+
+<Unstyled>
+  <Story of={Stories.Variants} />
+</Unstyled>
+
+## 2. When to use
+
+- The task list: one continuous surface with rows inside (R02.1, tokens `color-surface-list`).
+- The line with the total of future expenses (tokens: `color-surface-list`, rule 9).
+- The sign-in and sign-up card (sign-in spec: "a centered card").
+
+## 3. When not to use
+
+| Situation                | Use instead                          | Source             |
+| ------------------------ | ------------------------------------ | ------------------ |
+| Inside another Surface   | rows separated by a 1px divider line | A02, A01.3, R02.6  |
+| One card per task        | rows in one Surface                  | R02.1, A01.2       |
+| A message about an error | `Alert`                              | P3                 |
+| Tiles with numbers       | one line of future expenses          | tokens rule 9, P04 |
+
+## 4. Anatomy
+
+| Part    | Required | Notes                                                                                                         |
+| ------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| Panel   | yes      | `color-surface-list`, 1px `color-border-divider`, `radius-surface` 12px, no shadow (R01.1, T8, tokens rule 1) |
+| Padding | optional | `space-inset` 16px with `padding="inset"` (T7)                                                                |
+| Content | yes      | Rows, a form or one line of text                                                                              |
+
+## 5. Variants
+
+| Variant                    | Choose it when                                           | Source     |
+| -------------------------- | -------------------------------------------------------- | ---------- |
+| `padding="none"` (default) | Rows run edge to edge and pad themselves (`px-inset`).   | R02.1      |
+| `padding="inset"`          | Free content: a form, the total line.                    | T7         |
+| `asChild`                  | The surface should be a `<ul>`, `<section>` or `<form>`. | WCAG 1.3.1 |
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+A surface has no interactive states (hover, focus, pressed, disabled, loading, selected, error do not apply). Rows inside it have their own: hovered, expanded and dragged rows use `color-surface-raised` (tokens; TaskRow in stage 3). Loading content inside it is shown with `Skeleton`.
+
+## 7. Behaviour and accessibility
+
+- Not focusable and has no role of its own. Use `asChild` to give it the right element: `<section aria-label="Sign in">` becomes a region landmark (WCAG 1.3.1). Covered by the SectionLandmark test.
+- The 1px divider line is decorative (1.38:1 / 1.39:1, T1): nothing depends on seeing it; rows are recognised by their content.
+
+## 8. Content
+
+- No heading inside the panel by default; the screen heading sits above it (Luki 1: 22px list name).
+- Amounts in the panel are tabular numbers ("1 200–1 500 zł", tokens rule 5).
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                               | Source     |
+| ------ | ----------------------------------------------------------------------- | ---------- |
+| 320px  | Full width of the column (page gutter 16px on each side).               | T7         |
+| 768px  | Full width of the column, gutter 24px.                                  | T7         |
+| 1440px | At most `layout-content-max-width` (980px), centred by the page column. | P01, R01.5 |
+
+<Unstyled>
+  <Story of={Stories.ManyRowsNarrow} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+Minimal:
+
+```tsx
+<Surface padding="inset">Future expenses: 12 000–15 000 zł</Surface>
+```
+
+In Taskly: the task list.
+
+```tsx
+<Surface asChild>
+  <ul aria-label="Tasks">
+    {tasks.map((task) => (
+      <TaskRow key={task.id} task={task} />
+    ))}
+  </ul>
+</Surface>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** a card (Taskly has no per-item cards), `Alert` (raised tone, for problems).
+- **Patterns:** List, Details in row, Form (sign-in card), future expenses line.

@@ -1,0 +1,87 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./AuthCard.stories";
+
+<Meta of={Stories} />
+
+# Auth card
+
+`import { AuthCard } from "@taskly/ui";`
+
+## 1. What it is for
+
+Gives the sign-in and sign-up pages one calm, centred card, so the only thing on screen is the form.
+
+<Story of={Stories.Playground} />
+
+## 2. When to use
+
+- `/sign-in` and `/sign-up` (sign-in spec: "a centered card, one column on phones").
+
+## 3. When not to use
+
+| Situation             | Use instead | Source |
+| --------------------- | ----------- | ------ |
+| Signed-in pages       | `AppShell`  | P01    |
+| A panel inside a page | `Surface`   | R02.1  |
+
+## 4. Anatomy
+
+| Part     | Required | Notes                                                                |
+| -------- | -------- | -------------------------------------------------------------------- |
+| App name | yes      | "Taskly", strong body text above the card                            |
+| Card     | yes      | `Surface padding="inset"` as `<main>`, at most `layout-text-measure` |
+| Heading  | yes      | `h1`, `font-size-heading` 22px, 600 (Luki 1)                         |
+| Content  | yes      | A form or `SignUpClosed`                                             |
+
+## 5. Variants
+
+None.
+
+## 6. States
+
+No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Surface](?path=/story/primitives-surface--states) (decision M1).
+
+Static frame; its content has the states.
+
+<Story of={Stories.ShortContent} />
+
+## 7. Behaviour and accessibility
+
+`<main>` landmark with one `h1`; the app name is plain text, not a second heading.
+
+## 8. Content
+
+Heading: "Sign in" or "Create an account".
+
+<Story of={Stories.Polish} />
+
+## 9. Responsive
+
+| Width  | Behaviour                                                      | Source          |
+| ------ | -------------------------------------------------------------- | --------------- |
+| 320px  | Card spans the column minus the 16px page gutter.              | T7              |
+| 768px  | Card at most `layout-text-measure` (65ch), centred.            | F1, decision E6 |
+| 1440px | Same; top-aligned at `space-page-top`, not centred vertically. | decision E6     |
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<AuthCard title="Sign in">
+  <SignInForm validate={validate} onSubmit={signIn} />
+</AuthCard>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Confused with:** `Surface` (the panel it is built on).
+- **Screens:** Sign-in / Screens.

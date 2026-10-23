@@ -1,0 +1,106 @@
+import { ArgTypes, Meta, Story, Unstyled } from "@storybook/addon-docs/blocks";
+import * as Stories from "./EstimateRange.stories";
+
+<Meta of={Stories} />
+
+# Estimate range
+
+`import { EstimateRange } from "@taskly/ui";`
+
+## 1. What it is for
+
+Shows what a task is expected to cost, as a min–max range in złoty, in the same place on every row, so the owner can compare tasks without opening them.
+
+<Unstyled>
+  <Story of={Stories.Playground} />
+</Unstyled>
+
+## 2. When to use
+
+- The right end of a task or subtask row (R02.5, spec E01).
+- Not the future expenses total: `FutureExpenses` shows its range larger, in one line of its own (P04).
+
+## 3. When not to use
+
+| Situation                      | Use instead                  | Source     |
+| ------------------------------ | ---------------------------- | ---------- |
+| Typing an amount               | `Input` with the suffix "zł" | spec E01   |
+| A spent (real) cost            | not in version 1             | D17, R02.8 |
+| A total shown as several tiles | one line of future expenses  | P04, R02.7 |
+
+## 4. Anatomy
+
+| Part        | Required | Notes                                                                                 |
+| ----------- | -------- | ------------------------------------------------------------------------------------- |
+| Range       | one of   | "1 200–1 500 zł": en dash, no spaces around it, one "zł" (tokens rule 5); never wraps |
+| No estimate | one of   | "No estimate" in `color-text-muted` (spec E01, R02.5)                                 |
+
+The value arrives formatted: the app formats grosze at the UI edge (standards §6, P1). The component never calculates.
+
+## 5. Variants
+
+None. The empty text can be translated with `emptyText`.
+
+## 6. States
+
+<Unstyled>
+  <Story of={Stories.States} />
+</Unstyled>
+
+Two states: an estimate, or none. Loading, error and interactive states belong to the row. Covered by the No Estimate test.
+
+## 7. Behaviour and accessibility
+
+- Plain text, read in row order after the title. No icon or colour carries meaning; "No estimate" is words (WCAG 1.4.1).
+- Tabular figures and the strong weight (Luki 1, tokens rule 5); amounts stay on one line (`white-space: nowrap`).
+
+## 8. Content
+
+- PLN only; grosze shown only when not zero ("62 500,50 zł").
+- Thousands grouped with a non-breaking space.
+
+<Unstyled>
+  <Story of={Stories.Polish} />
+</Unstyled>
+
+## 9. Responsive
+
+| Width  | Behaviour                                                       | Source      |
+| ------ | --------------------------------------------------------------- | ----------- |
+| 320px  | Under the title, left-aligned (the row has no room beside it).  | decision F8 |
+| 768px  | Right of the title, right-aligned, in one column down the list. | R02.5       |
+| 1440px | Same as 768px.                                                  | —           |
+
+<Unstyled>
+  <Story of={Stories.Column} />
+  <Story of={Stories.Narrow320} />
+</Unstyled>
+
+## 10. API
+
+<ArgTypes of={Stories} />
+
+## 11. Code
+
+```tsx
+<EstimateRange value={task.estimate} />
+```
+
+In Taskly: the app passes `formatPlnRange(min, max)` or `null`.
+
+```tsx
+<EstimateRange
+  value={task.estimate ? formatPlnRange(task.estimate.minGrosze, task.estimate.maxGrosze) : null}
+/>
+```
+
+## 12. Do and don't
+
+<Unstyled>
+  <Story of={Stories.DoAndDont} />
+</Unstyled>
+
+## 13. Related
+
+- **Used in:** `TaskRow`. **Confused with:** the future expenses line (E03, a sum).
+- **Patterns:** List.

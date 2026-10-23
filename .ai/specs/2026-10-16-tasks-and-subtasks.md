@@ -238,6 +238,7 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
 - **After an add.** The new task is appended at the end of the list. Its row scrolls into view and is briefly highlighted (no scroll animation or highlight under `prefers-reduced-motion: reduce`), and focus stays in the quick-add title field for the next capture. A new subtask is appended at the end of its parent's subtasks.
 - **Task row.**
   - The row shows the title, the estimate as `formatPlnRange` (or "No estimate" in muted text), the description (clamped to 2 lines and expandable), and its subtasks indented below.
+  - **Note (2026-10-22, design system decision F11, approved by the owner):** `formatPlnRange` in `packages/core/src/money.ts` currently returns "1200,00 zł – 1500,00 zł" (`pl-PL` groups thousands only from five digits, always two decimals, spaces around the dash). Tokens rule 5 and the design system (`EstimateRange`) require "1 200–1 500 zł": thousands grouped with a non-breaking space, grosze only when not zero, an en dash without spaces, one "zł". Fix `formatPlnRange` (with unit tests) as part of this spec's UI work (PR B).
   - Row actions are "Add subtask", "Edit" and "Delete".
   - A subtask row has the same fields and actions except "Add subtask".
 - **Edit:** the row switches in place to the same form, prefilled. Clearing both amounts removes the estimate.
