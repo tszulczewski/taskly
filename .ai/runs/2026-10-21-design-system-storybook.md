@@ -156,6 +156,7 @@ Stage 3, batch 1: sign-in and app shell (2026-10-22):
 - Stage 5 decisions (2026-10-23): the owner accepted M1–M5 as recommended.
   - M1: section 6 of 13 composite pages links to the state matrices of their parts; Contributing rule. M2: Usage and accessibility › Known exceptions. M3: row title focus layer widened by `space-inline` (`task-row.tsx`), regression play test in TaskRow › Collapsed (verified failing without the fix). M4: vitest bump deferred to `chore/vitest-audit` on command. M5: shopping list confirmed for the agent test.
   - Verification: format:check, check:tokens, lint, typecheck clean; `npm test` 250 at 100%; `test:storybook` 894; build-storybook succeeds; 164 links resolve; ring measured at 320 and 1440 px (touches but does not overlap the checkbox and "…" targets).
+- Rebase on `main` (2026-10-23) after #29 (`next` 16.4.2) and #28 (`vitest` 5.0.5): six commits replayed without conflicts. `@vitest/browser` and `@vitest/browser-playwright` in `packages/ui` raised to `^5.0.5`; the rebased lockfile still held 5.0.4 entries whose exact `vitest` peer blocked `npm install` (ERESOLVE), so the stale `@vitest/browser*`, `@vitest/ui`, `@vitest/pretty-format` and `@vitest/utils` entries were dropped and re-resolved. Lockfile diff: only those five packages 5.0.4 → 5.0.5; `npm ci --dry-run` passes; `npm audit` no longer lists Vitest.
 
 ## Lessons recorded (links into .ai/lessons.md)
 
