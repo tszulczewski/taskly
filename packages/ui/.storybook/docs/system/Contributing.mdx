@@ -8,14 +8,14 @@ How the system grows without drifting. Most screens need nothing new: check [Com
 
 ## Add nothing, a variant, or a component?
 
-| Situation                                                                               | Do                                                                                                  | Source                        |
-| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------- |
-| An existing component does the job, maybe with different text or children               | Use it as it is. No `className` override that changes its look.                                     | task rule 6                   |
-| The need appears on one screen only                                                     | Build it from primitives in that screen; do not add it to the system yet.                           | proposal                      |
-| The same need appears in at least two places                                            | Propose a component.                                                                                | proposal                      |
-| A component needs a different look for a different meaning (not for one screen's taste) | Propose a variant, with the meaning in its name (`danger`, `muted`), not the look (`red`, `small`). | proposal, Foundations / Color |
-| It is on the "Not built on purpose" list, or it belongs to version 2                    | Ask the product owner first.                                                                        | P4, D13                       |
-| It needs a value no token has                                                           | Propose a token (below) before writing the component.                                               | tokeny.md, task rule 3        |
+| Situation                                                                               | Do                                                                                                  | Source                           |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------- |
+| An existing component does the job, maybe with different text or children               | Use it as it is. No `className` override that changes its look.                                     | task rule 6                      |
+| The need appears on one screen only                                                     | Build it from primitives in that screen; do not add it to the system yet.                           | task, stage 4                    |
+| The same need appears in at least two places                                            | Propose a component.                                                                                | task, stage 4                    |
+| A component needs a different look for a different meaning (not for one screen's taste) | Propose a variant, with the meaning in its name (`danger`, `muted`), not the look (`red`, `small`). | decision L1, Foundations / Color |
+| It is on the "Not built on purpose" list, or it belongs to version 2                    | Ask the product owner first.                                                                        | P4, D13                          |
+| It needs a value no token has                                                           | Propose a token (below) before writing the component.                                               | tokeny.md, task rule 3           |
 
 A proposal says what the need is, where it appears, which sources support it, and what it costs (states, tests, docs). The product owner approves it; until then it is marked "proposal" in the docs.
 

@@ -69,6 +69,8 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 
 Not built on purpose (ask the product owner first): Avatar, Tabs, Toast, StatusBadge, Select, Switch, a general-purpose Dialog, a list with filters, bottom navigation on phones (decisions P4, E1).
 
+Growing the system: a need on one screen → build it from primitives there; the same need in at least two places → propose a component; a different look for a different meaning → a variant named by meaning (`danger`), not look (`red`) (task stage 4, decision L1).
+
 ## Semantic tokens
 
 Use the utility, never the raw value. Raw tokens (`--raw-*`) are only for `tokens.css`.
@@ -129,6 +131,7 @@ Breakpoint: only `wide:` (640px). Numbers: `numeric` (tabular figures). The full
 - Buttons are verbs, with the object when not obvious ("Delete task"); pending labels "Saving…"; icon-button names say action and object ("More actions for “Seal the bath”").
 - Errors say what happened and what to do, next to where it happened; empty states say why and the next step.
 - Money: integer grosze end to end, formatted by the server; an estimate is "1 200–1 500 zł" (non-breaking spaces, en dash without spaces, grosze only when not zero). `formatPlnRange` in `@taskly/core` does not do this yet (decision F11).
+- Dates and times are not shown in version 1; when they appear: "22 paź 2026", "14:30" / "22 Oct 2026", "2:30 pm" (decision L2). The language comes from the browser on the first visit, with no switch in version 1 (decision L3).
 
 ## Commands
 
@@ -149,6 +152,6 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
 | D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J decisions | `packages/ui/POSTEP.md` |
+| P1–P5, K1–K5, B–J, L1–L4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

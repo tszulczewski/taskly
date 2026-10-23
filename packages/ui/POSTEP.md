@@ -13,10 +13,10 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 1. Fundamenty              | zakończony; F1–F8 przyjęte                                                    | 2026-10-21 |
 | 2. Komponenty bazowe       | zakończony: partie 1–3 (K1–K5, B1–B9, C1–C10, D1–D10 rozstrzygnięte)          | 2026-10-22 |
 | 3. Produkt, wzorce, ekrany | zakończony: partie 1–4 (E1–E12, F1–F14, G1–G6, H1–H10, I1–I4, J1–J10 rozstrzygnięte) | 2026-10-22 |
-| 4. Strony, które uczą      | zakończony i sprawdzony; propozycje L1–L4 czekają na decyzję                  | 2026-10-22 |
+| 4. Strony, które uczą      | zakończony i sprawdzony; L1–L4 rozstrzygnięte i wdrożone                      | 2026-10-23 |
 | 5. Sprawdzenie i raport    | nie rozpoczęty                                                                | —          |
 
-**Następny krok:** decyzje L1–L4 (sekcja „Etap 4” na końcu pliku), potem po „dalej” etap 5: sprawdzenie i raport.
+**Następny krok:** po „dalej” etap 5: sprawdzenie i raport.
 
 ## Etap 2: różnice względem shadcn (2026-10-22, przed partią 1)
 
@@ -673,9 +673,19 @@ Strony pisane w poprzedniej sesji, sprawdzone i domknięte w tej (sesja przerwa�
 - Kod aplikacji bez zmian. Bez nowych zależności.
 - Nie sprawdzone: czytnik ekranu; pełne źródłowanie reguł stron etapu 4 sprawdziłem wyrywkowo (wyszukanie „proposal” i przegląd tabel), nie zdanie po zdaniu.
 
-### Etap 4: propozycje L1–L4 (do decyzji product ownera)
+### Etap 4: propozycje L1–L4 (wszystkie przyjęte przez product ownera 2026-10-23)
 
 - **L1. Reguły w Contributing** (oznaczone „proposal”): potrzeba na jednym ekranie → nic nie dodajemy do systemu; ta sama potrzeba w co najmniej dwóch miejscach → komponent; inny wygląd dla innego znaczenia → wariant nazwany znaczeniem (`danger`), nie wyglądem (`red`). Pierwsze dwie pochodzą z treści zadania (etap 4). Przyjąć i zmienić źródło na „task, stage 4”?
 - **L2. Formaty dat i godzin** (Content, What is missing): wersja 1 nie pokazuje dat. Propozycja na później: „22 paź 2026”, „14:30” / „22 Oct 2026”, „2:30 pm”.
 - **L3. Wybór języka** (What is missing, otwarte pytania): w wersji 1 język z przeglądarki przy pierwszej wizycie, bez przełącznika. Dotyczy aplikacji, nie design systemu.
 - **L4. Strona epiku E04** („Later”, zaparkowany): zadanie mówi „jedna strona na każdy epik”, a E04 nie ma przepływu ani ekranów, więc jest opisany w What is missing › Later (version 2, backlog E04) zamiast osobnej strony. Zostawić tak, czy dodać krótką stronę `Design system/Epics/E04 Later` z tą samą treścią?
+
+### Etap 4: wdrożenie decyzji L (2026-10-23)
+
+- **L1:** reguły w Contributing mają źródła „task, stage 4” (jeden ekran → nic; co najmniej dwa miejsca → komponent) i „decision L1” (wariant nazwany znaczeniem); skrót reguły dopisany w `.ai/docs/design-system.md`.
+- **L2:** formaty dat i godzin w Content i What is missing jako „decision L2” (nadal: wersja 1 nie pokazuje dat); dopisane w pliku dla agentów.
+- **L3:** w What is missing wiersz w „Outside the design system” (język z przeglądarki przy pierwszej wizycie, bez przełącznika; aplikacja jeszcze tego nie robi); punkt usunięty z otwartych pytań; dopisane w pliku dla agentów.
+- **L4:** nowa strona `Design system/Epics/E04 Later` (`.storybook/docs/system/epics/E04Later.mdx`): brak przepływu i ekranów, tabela odłożonych pozycji ze źródłami; kolumna „What it would need from the system” oznaczona jako propozycja. Dodana do `storySort`, link z wiersza E04 w What is missing.
+- Legenda źródeł w Start here i w pliku dla agentów obejmuje L1–L4.
+- Sprawdzenie: `format:check`, `check:tokens`, `lint`, `typecheck` bez błędów; `build-storybook` sukces; 122 linki `?path=` wskazują istniejące wpisy w `index.json`; 4 zmienione strony renderują tabele GFM na 1440 i 320 px bez przewijania w poziomie (zrzut strony E04 obejrzany).
+- Nie uruchamiane: `npm test` i `test:storybook` (bez zmian w komponentach i stories; w `preview.tsx` zmieniona tylko kolejność menu). Kod aplikacji bez zmian, bez nowych zależności.

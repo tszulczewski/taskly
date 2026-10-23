@@ -139,6 +139,10 @@ Stage 3, batch 1: sign-in and app shell (2026-10-22):
   - Fixed: the Components page scrolled 1px sideways at 320px because the `AppHeader` preview sits in a 174px column; the preview now scrolls in its own focusable group (`role="region"` failed `landmark-banner-is-top-level`). Lesson recorded.
   - Not run: screen reader, app build (no app code changed), `test:integration`.
   - Proposals L1–L4 wait for the owner (see `packages/ui/POSTEP.md`).
+- Stage 4 decisions (2026-10-23, new session): the owner accepted L1–L4.
+  - L1: Contributing rules sourced "task, stage 4" and "decision L1". L2: date and time formats are a decision in Content and What is missing. L3: language from the browser on first visit, no switch in version 1 (What is missing, moved from open questions to app work). L4: new page `Design system/Epics/E04 Later` (`epics/E04Later.mdx`), added to `storySort` and linked from What is missing. Agent summary `.ai/docs/design-system.md` and the Start here source legend updated.
+  - Verification: format:check, check:tokens, lint, typecheck clean; build-storybook succeeds; 122 `?path=` links resolve in `index.json`; the 4 changed pages render with GFM tables at 1440 and 320 px without horizontal scroll.
+  - Not run: `npm test` and `test:storybook` (no component or story code changed; only the menu order in `preview.tsx`).
 
 ## Lessons recorded (links into .ai/lessons.md)
 

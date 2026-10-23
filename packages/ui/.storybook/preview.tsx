@@ -89,6 +89,7 @@ const preview: Preview = {
               "E01 Tasks and subtasks",
               "E02 Order, markers and places",
               "E03 Completion and future expenses",
+              "E04 Later",
             ],
           ],
           "Foundations",
