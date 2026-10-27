@@ -6,3 +6,5 @@ package-lock.json
 coverage
 .ai/design/reference
 storybook-static
+# Discovery prototypes are generated revisions with SHA-256 manifests; formatting would break them
+.ai/prototypes/

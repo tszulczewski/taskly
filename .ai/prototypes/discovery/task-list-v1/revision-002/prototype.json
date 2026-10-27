@@ -1,0 +1,94 @@
+{
+  "format": "discovery-prototype-v1",
+  "skill": "om-mockup-prototype",
+  "slug": "task-list-v1",
+  "revision": 2,
+  "revisionPath": ".ai/prototypes/discovery/task-list-v1/revision-002",
+  "previousRevision": ".ai/prototypes/discovery/task-list-v1/revision-001",
+  "brief": ".ai/specs/product-brief.md",
+  "flow": "Key flows: Future state, focused on adding tasks with an estimate and their subtasks (dodanie zadań z szacunkiem i podzadań)",
+  "panelReport": ".ai/specs/research/walkthroughs/2026-10-27-dodanie-zadan-z-szacunkiem-i-podzadan-session-001/report.md",
+  "verification": "passed",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "55abf1ff7d033d334579551a2896a470cb37cd04bcb84d39fc2cba79bc601a27"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f0cfeb6b42fba00fa8d9ca686033c1d75dd89a4e86b274934abbac11c944b14e"
+    },
+    {
+      "path": "evidence/01-entry.png",
+      "sha256": "1e4a79e63dd1bc45b7c049e4e119c4d3a7b9bd7f66e92a7eeba2561ffb7f7f31"
+    },
+    {
+      "path": "evidence/02-quick-add-filled.png",
+      "sha256": "9295f13a2456d440cd6b01f160d63f1361f472acca87436ed0f3fa572c0d8a6a"
+    },
+    {
+      "path": "evidence/03-validation-error.png",
+      "sha256": "3a76ad42c4712b4d07a34454d4f0ad7025e73ecab23825eee9756b7bbb5165ab"
+    },
+    {
+      "path": "evidence/04-description-open.png",
+      "sha256": "8e8d67b5a8d188c80477d2dc6e8551bcf29ddc7bf7d23d8a8085c26115735881"
+    },
+    {
+      "path": "evidence/05-estimate-form-from-summary.png",
+      "sha256": "c73134865dd09fb0e9105ba929606a6bc3d302752005a68e6ee47840cd2554c0"
+    },
+    {
+      "path": "evidence/06-estimate-saved.png",
+      "sha256": "68d54b6e18765f76081e8e72441cc90f19693f9ada05334830a01e413c055cae"
+    },
+    {
+      "path": "evidence/07-subtask-form.png",
+      "sha256": "de9b31ea3833519235c1b73e607694b10dbc84aa57fd7a066df3b29781880270"
+    },
+    {
+      "path": "evidence/08-subtasks-reference.png",
+      "sha256": "be395c4af6a496876cbcd100084705536814661c33b7702facf33d2a4c4985c6"
+    },
+    {
+      "path": "evidence/09-edit-form-collapsed.png",
+      "sha256": "e03ba2a27aa22ee334a3bb48ba38f04572274833a00b1241b844de760cd8909a"
+    },
+    {
+      "path": "evidence/10-edit-subtask.png",
+      "sha256": "68ed51feba9128ad9811c0cd771f64906ae690cf20816459d50fd31a318914b8"
+    },
+    {
+      "path": "evidence/11-save-failure.png",
+      "sha256": "8a9cbe3fd6c198a69d8dd8539c17b07305abdc56cb9719843e9d671af4ffe29e"
+    },
+    {
+      "path": "evidence/12-load-failure.png",
+      "sha256": "272a3559b2dd6764d1a50373af9495cd07b866fea84bb3a7f792d5c83376bfbd"
+    },
+    {
+      "path": "evidence/13-empty.png",
+      "sha256": "b861f2170e062525bcc42861c995021a846a1eba3c4e8633e23eed892589b504"
+    },
+    {
+      "path": "evidence/14-about.png",
+      "sha256": "a73b223bf567c0851b85dddb81b73eef78648b56ace4d9b4ece663d43fc4b412"
+    },
+    {
+      "path": "evidence/15-unknown-link.png",
+      "sha256": "cc22b6af080fdf95c067041f114d480af6ba0b8a12bab6a757bca42f37cb8362"
+    },
+    {
+      "path": "evidence/16-keyboard-focus.png",
+      "sha256": "5ad1a2294823fcc18f429d7e3aa4b660bfb91ed26f69eac6551923392c78fcc1"
+    },
+    {
+      "path": "evidence/17-narrow-360.png",
+      "sha256": "8116a2578325b4a14224cb197c6ef28a7c0cd5f05f2d6954b5da42ee7218e79a"
+    },
+    {
+      "path": "evidence/18-narrow-subtask-form.png",
+      "sha256": "b3e2fec44a46d712edc33194bff5ce2d434dc8b95c02c147fbfd3285a4cdc6da"
+    }
+  ]
+}
