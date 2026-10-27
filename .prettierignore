@@ -8,3 +8,6 @@ coverage
 storybook-static
 # Discovery prototypes are generated revisions with SHA-256 manifests; formatting would break them
 .ai/prototypes/
+
+# Installed skills (open-mercato/skills, hashed in skills-lock.json) and the lesson review engine, kept as upstream ships them
+.agents/skills/
