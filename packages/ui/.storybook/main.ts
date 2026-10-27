@@ -2,6 +2,10 @@ import type { StorybookConfig } from "@storybook/react-vite";
 import tailwindcss from "@tailwindcss/vite";
 import remarkGfm from "remark-gfm";
 import { mergeConfig } from "vite";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const publicDir = fileURLToPath(new URL("./public", import.meta.url));
 
 const config: StorybookConfig = {
   stories: [
@@ -20,7 +24,8 @@ const config: StorybookConfig = {
     "@storybook/addon-vitest",
   ],
   framework: { name: "@storybook/react-vite", options: {} },
-  staticDirs: ["./public"],
+  // `public` holds only git-ignored copies of prototypes, so it is missing on a fresh checkout (CI).
+  staticDirs: existsSync(publicDir) ? [publicDir] : [],
   core: { disableTelemetry: true, disableWhatsNewNotifications: true },
   features: {
     sidebarOnboardingChecklist: false,
