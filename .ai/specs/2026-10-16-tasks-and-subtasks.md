@@ -232,16 +232,17 @@ All of these are new routes, so no existing contract changes. Once shipped, they
 
 ## 📝 UI/UX
 
-There is one screen, at `/`, for a signed-in user. A signed-out user is redirected to the sign-in page from the auth spec. The layout is mobile-first, with touch targets of at least 44 px.
+There is one screen, at `/`, for a signed-in user. A signed-out user is redirected to the sign-in page from the auth spec. The layout is mobile-first, with touch targets of at least 44 px below 640 px and 36 px from 640 px (design-system decision V1, 2026-10-26).
 
 - **Quick add.** At the top is a title field with an "Add" button; Enter submits. A "Details" disclosure reveals the description and the min / max fields (`inputmode="decimal"`, suffix "zł"). Only the title is required.
 - **After an add.** The new task is appended at the end of the list. Its row scrolls into view and is briefly highlighted (no scroll animation or highlight under `prefers-reduced-motion: reduce`), and focus stays in the quick-add title field for the next capture. A new subtask is appended at the end of its parent's subtasks.
 - **Task row.**
-  - The row shows the title, the estimate as `formatPlnRange` (or "No estimate" in muted text), the description (clamped to 2 lines and expandable), and its subtasks indented below.
+  - The row shows the title, the estimate as `formatPlnRange` (or "No estimate" in muted text) and, for a task with subtasks, "N subtasks" on a second line. Opening the row (its title) shows the description and the indented subtasks, each with its own estimate, plus "Add subtask". The description is shown only in the opened row (design system `TaskRow`; owner, 2026-10-26, prototype map L07).
   - **Note (2026-10-22, design system decision F11, approved by the owner):** `formatPlnRange` in `packages/core/src/money.ts` currently returns "1200,00 zł – 1500,00 zł" (`pl-PL` groups thousands only from five digits, always two decimals, spaces around the dash). Tokens rule 5 and the design system (`EstimateRange`) require "1 200–1 500 zł": thousands grouped with a non-breaking space, grosze only when not zero, an en dash without spaces, one "zł". Fix `formatPlnRange` (with unit tests) as part of this spec's UI work (PR B).
-  - Row actions are "Add subtask", "Edit" and "Delete".
+  - Row actions are in the row's "…" menu: "Add subtask", "Edit" and "Delete" (L07).
   - A subtask row has the same fields and actions except "Add subtask".
 - **Edit:** the row switches in place to the same form, prefilled. Clearing both amounts removes the estimate.
+- **Task deleted elsewhere (404 on an edit save or on adding a subtask):** the form shows "This task was deleted. The list has been refreshed.", the list is refetched and the row disappears; focus moves to the list. The server answers 404 both for a deleted task and for one the user cannot access, so the message must not claim more than that (owner, 2026-10-27, prototype map L15, states s06.8 and s07.6).
 - **Delete:** a confirm dialog. For a task with subtasks it reads "Delete '{title}' and its N subtasks?". Deletion is irreversible (there is no soft delete).
 - **Validation:**
   - The form parses amounts with `parsePlnToGrosze` and validates with the same `createTaskInput` / `updateTaskInput` before sending.
@@ -249,13 +250,18 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
   - Messages: "Enter an amount like 1 500,50", "Min must not exceed max", "Enter both amounts or neither".
 - **States:**
   - **Loading:** a skeleton.
-  - **Empty:** "No tasks yet. Add the first thing you need to do." with focus in the title field.
+  - **Empty:** "No tasks yet. Start with one task. Only the title is required." with focus in the title field (owner, 2026-10-26, prototype map L22).
   - **Error:** a message with "Try again" (refetch).
+  - **Page did not open** (the server page fails before any list exists, e.g. `ensureDefaultList` errors): the app shell stays, with a working "Sign out" and theme toggle, the heading "My renovation", and an error state "Could not open your tasks." with "Try again". There is no quick add and no list (owner, 2026-10-27, prototype map L13 and DS04, state s04.21).
   - Shared loading, empty and error components go in `packages/ui/src/components/` (standards §5).
 - **Optimistic updates:**
-  - Add inserts a temporary row at the end. Edit patches the row, and delete removes it.
+  - Only add is optimistic: it inserts a temporary row at the end. Edit and delete wait for the server: the edit form shows "Saving…" and the row changes only after the server confirms; the delete dialog shows "Deleting…" and the row goes after the server confirms (design system "Optimistic change"; owner, 2026-10-26, prototype map L08).
   - A temporary row is pending until the server returns its real id: it renders dimmed, and its Edit, Delete and Add subtask actions are disabled, so no request is ever sent with a temporary id.
-  - On error the cache rolls back and a toast-free inline error is shown on the form or row.
+  - On error the cache rolls back and a toast-free inline error is shown; typed text is kept (design system texts, L14):
+    - add refused: the temporary row goes and "Could not add the task. Try again." appears above the form;
+    - add refused with 409: the form shows the server's `error.message` instead (e.g. "Please try again"). `ConflictError` messages are fixed, user-facing texts with no row data, so this is safe to show (owner, 2026-10-27, state s04.12);
+    - edit refused: the form stays open with "Could not save the task. Try again.";
+    - delete refused: the dialog stays open with "Could not delete the task. Try again.".
   - `onSettled` invalidates `queryKeys.tasks(listId)`.
 - **Accessibility:**
   - Labelled inputs, with errors linked through `aria-describedby`.
@@ -271,8 +277,9 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
 | Amount over 10 000 000 PLN | Field error. |
 | Subtask added under a subtask (crafted request) | 409 "Subtasks cannot have subtasks". The UI never offers it. |
 | Parent in another list (crafted request) | 404, and the composite FK also rejects it. |
-| Parent deleted while a subtask is being added (two tabs) | If the add locks the parent first, the delete waits and then cascades the new subtask. If the delete commits first, the add gets 404. The next refetch shows the consistent state. |
-| Two quick adds racing | The `lists` row lock serializes them, so they get distinct positions. If the unique sibling index ever fires, the result is 409 "Please try again", not a 500. |
+| Parent deleted while a subtask is being added (two tabs) | If the add locks the parent first, the delete waits and then cascades the new subtask. If the delete commits first, the add gets 404: the form shows "This task was deleted. The list has been refreshed." and the refetch shows the consistent state (see UI/UX). |
+| Task deleted in another tab while it is being edited | The save gets 404 and the UI behaves as in the previous row. |
+| Two quick adds racing | The `lists` row lock serializes them, so they get distinct positions. If the unique sibling index ever fires, the result is 409 "Please try again", not a 500. The quick-add form shows that server message and keeps the typed text. |
 | Editor adds a task while the owner deletes its list (API only; no editors exist in v1) | The delete locks every membership before touching the list (see Lock protocol). If the editor already holds their membership lock, deletion waits for the add to commit and then cascades it. If deletion wins first, the add gets 404. Neither ordering produces `40P01` or a 500. |
 | First visit races in two tabs | `ensureDefaultList` returns the same list (unique index plus `ON CONFLICT`). |
 | Task id of another user's list, or a malformed id | 404, which does not reveal whether it exists. |
@@ -318,6 +325,7 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
   - New tasks append at the end, scroll into view and keep focus in quick-add.
   - Pending optimistic rows have their actions disabled.
   - `ensureDefaultList` reads first and writes only on a miss.
+- **Clickable prototype decisions (owner, 2026-10-26 and 2026-10-27; `prototypes/konta-i-role/mapa-ekranow.md`, `prototypes/task-list-v1/`):** the description is shown only in the opened row and actions sit in "…" (L07); only add is optimistic (L08); the "page did not open" state (L13); design-system error texts (L14); the deleted-task message (L15); the empty-state text (L22); a 409 on add shows the server's message. All of these are in UI/UX above.
 
 ## 📋 Phasing
 
@@ -353,12 +361,12 @@ Each step ends with `npm test` at 100% coverage and leaves the app working.
    - the agent-browser test creates its user with the `createUser` test helper from `.ai/specs/2026-10-16-sign-in-pages.md` (backed by `createPasswordUser`, not the sign-up endpoint), then signs in through Better Auth's HTTP endpoint. Run with `ALLOW_SIGN_UP=false` to prove task flows work with registration closed; clean up uniquely named fixture users and their lists afterward.
    - the server page with `ensureDefaultList` inside `<Suspense>`. The session lookup and the redirect live in a unit-tested helper in `packages/app/lib/`, so `page.tsx` stays logic-free glue (it is excluded from coverage). Page guards explicitly disable session refresh, as specified in the sign-in prerequisite. Extend the renewal integration test from step 7: age a session past the one-day renewal interval, open `/` as a full document request without `RSC: 1`, verify the guard leaves database expiry unchanged, then let the screen call `GET …/tasks` and assert both the advanced database expiry and renewed browser cookie. This catches page renders consuming renewal before the API call.
    - `TaskListScreen`, `TaskForm`, `TaskItem`, the hooks with optimistic updates and response-schema validation through `apiCall`, and the shared loading/empty/error components
-   - jsdom component tests: the add, edit, delete, rollback and field-error paths, including malformed responses never entering the cache; a pending row has its actions disabled until confirmed; after an add, the new row is scrolled into view and focus stays in quick-add
+   - jsdom component tests: the add, edit, delete, rollback and field-error paths, including malformed responses never entering the cache; a pending row has its actions disabled until confirmed; after an add, the new row is scrolled into view and focus stays in quick-add; edit and delete change the row only after the server confirms; a 409 on add shows the server's message; a 404 on an edit save shows the deleted-task message and refetches the list; the "page did not open" state keeps "Sign out" working
    - an agent-browser integration test for #15 AC1–AC4 (add 1500–2000 shown in PLN; 12,50 → shown as 12,50 zł; no estimate saved; min > max refused)
    - **End of PR B** (closes #15).
 
 ### Phase 2 — Subtasks
 
 9. **`createTask` with `parentId`** (PR C) (add the field to `createTaskInput`; same list, top-level parent `FOR KEY SHARE`, 409 on depth), and `listTasks` nesting. A concurrency test deletes the parent while a subtask is added and expects either a cascade or a 404, never a 500. Integration tests for #16 AC2/AC3: adding or editing a subtask leaves the parent's estimate unchanged. AC4: a subtask on another user's task → 404.
-10. **UI for subtasks:** "Add subtask", the indented rows, and subtask edit/delete. The delete dialog counts subtasks. Component tests, plus an agent-browser test for #16 AC1–AC3.
+10. **UI for subtasks:** "Add subtask", the indented rows, and subtask edit/delete. The delete dialog counts subtasks. Component tests (including a 404 on adding a subtask: the deleted-task message and a refetch), plus an agent-browser test for #16 AC1–AC3.
 11. **Finish:** run the full gate (`format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`), record lessons, and move this spec to `.ai/specs/implemented/` (`git mv`). **End of PR C** (closes #16). Every PR runs the full gate before it opens; only PR C moves the spec.

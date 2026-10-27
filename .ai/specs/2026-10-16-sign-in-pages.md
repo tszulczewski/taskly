@@ -35,7 +35,7 @@ Decisions applied (owner, 2026-10-16):
 | --- | --- |
 | Q1 | Sign-up is **off by default**. `ALLOW_SIGN_UP=true` turns it on, through Better Auth's built-in `emailAndPassword.disableSignUp`. |
 | Q2 | No email verification and no reset email in version 1. A server-side script sets a new password. |
-| Q3 | English UI. Amounts keep Polish formatting. |
+| Q3 | English UI. Amounts keep Polish formatting. **Changed 2026-10-27 (owner, prototype map L04):** the product's target language is Polish, with a language switch later. The texts in this spec stay English for now, as in the design system and the prototype (DS06: English only for now). Translation and the switch need their own spec. |
 | Q4 | Sign-up asks for a **name**. |
 | Q5 | Sessions last **30 days** and are renewed while used. |
 
@@ -157,15 +157,15 @@ There are no new Taskly routes. The existing Better Auth endpoints under `/api/a
 | `POST /api/auth/sign-in/email` | `{ email, password }` (no `rememberMe`, Q8) | 200; persistent session cookie set | 401 invalid email or password; 429 |
 | `POST /api/auth/sign-out` | — | 200; cookie cleared. The session row is deleted unless that database write fails, which Better Auth only logs (Q9). Also 200 when the request carries no session or an expired one. | 429, network or other error → show failed-sign-out state and allow retry |
 
-`authCall` maps these error codes to UI messages in one table. Raw server messages are never shown. A 429 response has no `code`, so it is mapped by status.
+`authCall` maps these error codes to UI messages in one table. Raw server messages are never shown. A 429 response has no `code`, so it is mapped by status. The wait comes from Better Auth's `X-Retry-After` response header (whole seconds until the window resets); `authCall` reads it only as a positive integer and otherwise falls back to the generic rate-limit message.
 
 The Better Auth endpoint paths and response shapes are owned by the library. A Better Auth major upgrade must re-run the auth integration tests (they pin the paths).
 
 ## 📝 UI/UX
 
-Both auth screens use a centered card, one column on phones, and touch targets of at least 44 px.
+Both auth screens use a centered card (at most 400 px wide), one column on phones, and touch targets of at least 44 px below 640 px and 36 px from 640 px (design-system decisions V1, V2, 2026-10-26).
 
-- **Show-password toggle (Q10):** every password field has an eye button inside the field (`aria-label="Show password"`, `aria-pressed`, at least 44 px). It switches the input between `password` and `text`, starts hidden, and returns to hidden on submit.
+- **Show-password toggle (Q10):** every password field has an eye button inside the field (`aria-label="Show password"`, `aria-pressed`, a touch target as above). It switches the input between `password` and `text`, starts hidden, and returns to hidden on submit.
 - **`/sign-in`:**
   - Fields: email (`autocomplete="email"`) and password (`autocomplete="current-password"`).
   - A "Sign in" button. A "Create an account" link appears only while sign-up is open. There is no "Remember me" checkbox (Q8).
@@ -182,13 +182,13 @@ Both auth screens use a centered card, one column on phones, and touch targets o
 | Situation | Message |
 | --- | --- |
 | Wrong email or password | "Email or password is incorrect." |
-| Rate limited | "Too many attempts. Wait a few seconds and try again." |
+| Rate limited | "Too many attempts. Try again in N seconds." ("in 1 second" for 1), with N from `X-Retry-After`. The text is fixed when the answer arrives, not a live countdown. Without a usable header: "Too many attempts. Wait a few seconds and try again." (owner, 2026-10-27) |
 | Email already used, at sign-up | "Could not create the account." It does not confirm the email exists. With sign-up closed by default, the residual risk is small. |
 | Server rejects sign-up input (`INVALID_SIGN_UP_INPUT`) | "Check your details and try again." |
 | Sign-out fails | "Could not sign out. Try again." |
 | Network or other error | "Something went wrong. Try again." |
 
-- **Field errors** come from `signUpInput` / `signInInput` and appear under each field (`aria-describedby`).
+- **Field errors** come from `signUpInput` / `signInInput` and appear under each field (`aria-describedby`). A name over 100 characters gets "Use at most 100 characters." and a password over 128 characters gets "Use at most 128 characters." (owner, 2026-10-27).
 - **While submitting**, the button is disabled and shows a spinner, so a double submit cannot spend two rate-limit attempts.
 - **Accessibility:** labelled inputs, `role="alert"` on the error area, and focus moves to the first invalid field.
 
@@ -206,7 +206,7 @@ Both auth screens use a centered card, one column on phones, and touch targets o
 | Sign-out succeeds but deleting the session row fails | Better Auth logs the error and still returns 200 with a cleared cookie (Q9). The row, and any copy of the cookie, stays valid until it expires. Accepted for a single owner; the reset script (Phase B) signs out every session. |
 | A session older than one day opens `/` through a full document request | The guard reads without renewal. The next authenticated API read renews the database expiry and browser cookie together. |
 | The owner forgets to switch `ALLOW_SIGN_UP` off | Strangers could sign up. Their data is isolated by list membership, but they use VPS resources. Mitigation: the deploy runbook step, plus a warning logged once when auth first initializes (the first auth request) while sign-up is open (Q11). |
-| Brute force against the owner's password | 3 attempts per 10 s per client IP (Better Auth default for `/sign-in*`). Apache **appends** the real client address to `X-Forwarded-For`. Better Auth walks the list from the right, skips trusted proxies, and uses the first untrusted address, so a forged prefix does not change the bucket. Verified by the planned integration test that emulates Apache (see step 8). The vhost must keep mod_proxy's default appending (`ProxyAddHeaders On`). |
+| Brute force against the owner's password | 3 attempts per 10 s per client IP (Better Auth default for `/sign-in*`); the form says how many seconds to wait (`X-Retry-After`). Apache **appends** the real client address to `X-Forwarded-For`. Better Auth walks the list from the right, skips trusted proxies, and uses the first untrusted address, so a forged prefix does not change the bucket. Verified by the planned integration test that emulates Apache (see step 8). The vhost must keep mod_proxy's default appending (`ProxyAddHeaders On`). |
 | Rate-limit counters after a restart | They are in memory and reset, which is acceptable for one process (the existing comment in `auth.ts`). |
 | Forgotten password | The owner runs the reset script (Runbook). All their sessions are signed out. Before Phase B ships there is no reset path; the data stays in the database until it does (Q15). |
 | Password replacement or session deletion fails during reset | Both database changes roll back. The command exits nonzero and prints no success message; the owner can correct the problem and retry. |
@@ -269,7 +269,7 @@ Each step ends with `npm test` at 100% coverage and leaves the app working.
    - Log a `console.warn` (allowed by the ESLint `no-console` config) the first time `getAuth()` is created while sign-up is open. Because `getAuth()` is lazy, this happens on the first auth request, not at process start (Q11).
    - Unit tests: the env parsing (`true` / `false` / missing / invalid), and the options passed to `betterAuth` (mocked) for both flag values.
 2. **Shared schemas and server validation.** Add `signUpInput` and `signInInput` in `schemas.ts`, and the Better Auth sign-up hook that applies the shared schema and forwards normalized fields. Unit tests cover the password boundaries (9 / 10 / 128 / 129 characters), name trimming and boundaries (empty / whitespace-only / 1 / 100 / 101 characters), invalid email, unrelated hook paths and 400 `INVALID_SIGN_UP_INPUT` rather than an unhandled schema error. Keep the HTTP router and library security checks in place.
-3. **`authCall` and the error-message table** in `api-client.ts`. Unit tests use a stubbed `fetch`: success, each mapped code, 429 without a code, a non-JSON response, a network error, and a sign-in body with no `rememberMe` field.
+3. **`authCall` and the error-message table** in `api-client.ts`. Unit tests use a stubbed `fetch`: success, each mapped code, 429 without a code (with `X-Retry-After` 1 and 7, and with the header missing, `0`, negative or not a number → the generic text), a non-JSON response, a network error, and a sign-in body with no `rememberMe` field.
 4. **Session guard.** Add the optional `disableRefresh` argument to `getSessionUser`, preserving renewing behavior for existing API callers. Add `lib/session.ts` with `requireSessionUser` and `redirectIfSignedIn`; both use non-renewing reads. Unit tests mock `headers`, `redirect` and Better Auth, verifying that page guards pass `disableRefresh: true` and default API reads can still renew.
 5. **Forms and header.** `SignInForm`, `SignUpForm`, `SignUpClosed`, `SignOutButton` and `AppHeader`. If the tasks spec has not done so yet, run `npx shadcn@latest init` in `packages/ui` and add Button, Input and Label, plus a `PasswordInput` with the show-password toggle (Q10). jsdom tests cover validation, a disabled button while pending, each error message, successful redirects to `/`, and the toggle (switches type and `aria-pressed`, resets to hidden on submit). Sign-out tests require cache clearing, navigation and refresh only on success; failure shows the sign-out error, leaves the cache and route intact, and re-enables retry. A successful retry then completes sign-out.
 6. **Pages.**
@@ -292,7 +292,7 @@ Each step ends with `npm test` at 100% coverage and leaves the app working.
    - **HTTP tests:**
      - with sign-up off, a direct POST returns 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED`;
      - with sign-up on, direct requests with empty, whitespace-only or 101-character names return 400 `INVALID_SIGN_UP_INPUT` and create no user/account; a padded valid name is stored trimmed;
-     - 4 rapid wrong sign-ins from one tail → 429;
+     - 4 rapid wrong sign-ins from one tail → 429 with an `X-Retry-After` of 1–10 seconds;
      - `forged-1, 198.51.100.7` and `forged-2, 198.51.100.7` share a bucket, while a different tail does not;
      - a cookie used after sign-out → no session;
      - sign-out with no session cookie, or with an expired session, → 200 (Q9);

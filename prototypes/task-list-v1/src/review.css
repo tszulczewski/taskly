@@ -1,0 +1,367 @@
+/*
+ * Review chrome: the page around the screens (title, review bar, screen notes) and the classes the
+ * review engine's own buttons and panel expect (.btn, .segmented, .input, …). Not product UI.
+ * Everything reads Taskly tokens; there are no new colours, sizes or spacings here.
+ */
+
+.doc {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-page);
+  min-block-size: 100dvh;
+}
+
+.doc-head {
+  padding: var(--space-between-groups) var(--space-page-gutter) 0;
+}
+
+.doc-head h1 {
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-strong);
+}
+
+.doc-head p {
+  color: var(--color-text-muted);
+  max-inline-size: var(--layout-text-measure);
+}
+
+/* DESIGN-SYSTEM GAP (report: G-REVIEW-BAR): the design system has no toolbar for tools that are
+   not the product. The bar is a plain flex row on the raised tone, separated by a divider. */
+.doc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-group) var(--space-between-groups);
+  padding: var(--space-group) var(--space-page-gutter);
+  background-color: var(--color-surface-raised);
+  border-block-end: 1px solid var(--color-border-divider);
+  font-size: var(--font-size-meta);
+}
+
+.review-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.review-label strong {
+  font-weight: var(--font-weight-strong);
+  font-size: var(--font-size-body);
+}
+
+.review-label span,
+.review-clock {
+  color: var(--color-text-muted);
+}
+
+.screen-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-inline);
+}
+
+.screen-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch-target-min);
+  padding-inline: var(--space-group);
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.screen-nav a:hover {
+  background-color: var(--color-surface-raised-hover);
+}
+
+.screen-nav a:focus-visible,
+.btn:focus-visible,
+.segmented button:focus-visible,
+.input:focus-visible,
+.anno-composer textarea:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.screen-nav a[aria-current="page"] {
+  font-weight: var(--font-weight-strong);
+  background-color: var(--color-surface-list);
+}
+
+.review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-group) var(--space-between-groups);
+}
+
+.screen {
+  margin-block-start: var(--space-section);
+}
+
+.screen-meta {
+  padding-inline: var(--space-page-gutter);
+  padding-block-end: var(--space-group);
+}
+
+.screen-meta h2 {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-strong);
+}
+
+.screen-meta p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-meta);
+  max-inline-size: var(--layout-text-measure);
+}
+
+.frame {
+  border-block: 1px solid var(--color-border-divider);
+}
+
+.notes {
+  padding: var(--space-group) var(--space-page-gutter);
+  font-size: var(--font-size-meta);
+  color: var(--color-text-muted);
+}
+
+/* The review engine's controls (buttons, mode switch, name field, notice). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-inline);
+  min-block-size: var(--control-height);
+  padding-inline: var(--control-padding-x);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-meta);
+  cursor: pointer;
+}
+
+.btn:hover {
+  background-color: var(--color-surface-raised-hover);
+}
+
+.btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.btn-primary {
+  border-color: transparent;
+  background-color: var(--color-action-primary);
+  color: var(--color-text-on-action);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-action-primary-hover);
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.segmented button {
+  min-block-size: var(--control-height);
+  padding-inline: var(--control-padding-x);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-meta);
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  background-color: var(--color-action-primary);
+  color: var(--color-text-on-action);
+}
+
+.proto-toolbar {
+  flex-wrap: wrap;
+  gap: var(--space-group);
+}
+
+.input {
+  min-block-size: var(--control-height);
+  padding: var(--field-padding-y) var(--field-padding-x);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-page);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-group);
+}
+
+.t-card-title {
+  font-weight: var(--font-weight-strong);
+  flex: 1;
+}
+
+.t-overline,
+.t-hint {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-muted);
+}
+
+.badge {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-muted);
+}
+
+/* DESIGN-SYSTEM GAP (report: G-REVIEW-TOAST): Taskly has no toasts on purpose (P4). The review
+   engine's short notices ("Thread re-anchored.") use this box; they belong to review, not product. */
+.toast {
+  padding: var(--space-group) var(--space-inset);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-surface);
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-meta);
+}
+
+/* The engine focuses each screen's heading on arrival (tabindex="-1"); that is not keyboard focus. */
+.frame :is(h1, h2)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* Phones: each group of the review bar is one row that scrolls sideways, so the bar does not push
+   the screen under the fold. 40rem is the design system's only breakpoint (`wide:`, 640px). */
+@media (width < 40rem) {
+  .doc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .screen-nav,
+  .review-controls,
+  .proto-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-inline-size: 100%;
+    /* Contains absolutely positioned children (ThemeToggle's sr-only labels), which would
+       otherwise widen the whole page instead of scrolling with the row. */
+    position: relative;
+  }
+
+  .screen-nav > *,
+  .review-controls > *,
+  .proto-toolbar > * {
+    flex: none;
+  }
+
+  .proto-toolbar {
+    margin-inline-start: 0;
+  }
+}
+
+/* Room under the last screen for the engine's fixed "← Back" button. */
+body.proto-focus .doc {
+  padding-block-end: calc(var(--control-height) + var(--space-section));
+}
+
+/* Review bar parts added in stage 2: labelled selects, the state guide line, the scenario panel. */
+.review-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-inline);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.review-field .input {
+  max-inline-size: 100%;
+  font-size: var(--font-size-meta);
+}
+
+.review-check {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-group);
+}
+
+.review-field-label {
+  font-weight: var(--font-weight-strong);
+}
+
+.review-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-group);
+}
+
+.review-guide,
+.review-note {
+  color: var(--color-text-muted);
+  max-inline-size: var(--layout-text-measure);
+}
+
+.review-guide strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+}
+
+.review-scenarios {
+  inline-size: 100%;
+}
+
+.review-scenarios summary {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch-target-min);
+  font-weight: var(--font-weight-strong);
+  cursor: pointer;
+}
+
+.review-scenarios summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.review-scenario-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-group) var(--space-between-groups);
+  padding-block: var(--space-group);
+}
+
+/* Each screen's note (stories, what is simulated, what is open). The engine hides notes in
+   presentation mode, its default; the prompt wants them next to every screen, so they stay. */
+body.proto-focus .notes {
+  display: flex;
+}
+
+.notes {
+  flex-direction: column;
+  gap: var(--space-inline);
+  display: flex;
+}
+
+.notes .note {
+  max-inline-size: var(--layout-text-measure);
+}
+
+.notes strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+}
