@@ -15,6 +15,7 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 3. Produkt, wzorce, ekrany | zakończony: partie 1–4 (E1–E12, F1–F14, G1–G6, H1–H10, I1–I4, J1–J10 rozstrzygnięte) | 2026-10-22 |
 | 4. Strony, które uczą      | zakończony i sprawdzony; L1–L4 rozstrzygnięte i wdrożone                      | 2026-10-23 |
 | 5. Sprawdzenie i raport    | sprawdzenie zrobione; M1–M5 przyjęte, M1–M3 wdrożone; test agentem czeka      | 2026-10-23 |
+| 9. Rozmiary po przeglądzie prototypu | V1–V2 przyjęte i wdrożone (K1 → wariant B od 640 px; karta 400 px) | 2026-10-26 |
 
 **Następny krok:** test agentem w nowej sesji z promptem `.ai/design/prompt-agent-test.md` (2026-10-23), potem uzupełnienie dokumentacji o miejsca, w których agent zgadywał. M4 zrobione: PR #28 scalony; design system scalony w PR #30.
 
@@ -885,3 +886,33 @@ Rozstrzygnięcie (2026-10-23): A, U2–U4 i C w wariantach rekomendowanych. U1: 
 - **U3:** Start here (krok 3), Skeleton § 8, plik dla agentów.
 - **U4 i C:** E04 Later (zdanie o założeniach, kolumna trzeciego testu, dwa nowe wiersze).
 - Legenda źródeł (Start here, plik dla agentów): dopisane U1–U4.
+
+## Etap 9: rozmiary po przeglądzie prototypu (2026-10-26)
+
+Uwagi z komentarzy w klikalnym prototypie E01 (`prototypes/task-list-v1/`, eksport Markdown): karta logowania „zbyt szeroka”, pola „bardzo wysokie i szerokie”, „bardzo duże przyciski”, wiersz zadania „karykaturalnie za duże pola”. Zmierzone przy 1440 px: karta 649 px (65ch), pole 42 px, przycisk 44 px, wiersz 68 px.
+
+### Decyzje V1–V2 (przyjęte przez product ownera 2026-10-26, z liczbami dla 320/768/1440)
+
+- **V1. K1 wariant B.** Od 640 px `touch-target-min` (a z nim `control-height`) 36 px, `task-row-padding-y` 8 px, `task-row-min-height` 52 px; poniżej 640 px bez zmian (44 px, wiersz 68 px). Pola, przyciski, przyciski z ikoną, checkboxy, segmenty motywu i pozycje menu mają od 640 px 36 px; wiersz z jedną linią 68 → 52 px, z linią meta 69 → ok. 57 px. 36 px spełnia WCAG 2.5.8 (24 px). Zdanie o 44 px w specach logowania i E01 doprecyzowane.
+- **V2. Karta logowania 400 px.** Nowy token komponentu `auth-card-max-width` (25rem, utility `max-w-auth-card`) w `AuthCard` zamiast `layout-text-measure`.
+- Kolumna treści zostaje 980 px (pytanie zadane razem z V1/V2).
+
+### Etap 9: wdrożenie
+
+- `tokens.css` (blok `@media (min-width: 640px)` dla V1, token V2), `theme.css`, `AuthCard`, lista tokenów komponentów w `blocks/tokens.ts`.
+- Dokumentacja: strony Storybooka podające 44 px albo 68 px jako stałe (Button, Input, PasswordInput, Checkbox, RadioGroup, Menu, TextAction, Skeleton, List, TaskRow, TaskCheckbox, QuickAdd, SignInForm, AuthCard, DragHandle, PlacePicker, PlaceColorPicker, Icons, Spacing and layout, Usage and accessibility), komentarze w kodzie, `.ai/docs/design-system.md`, legenda źródeł (V1–V2).
+- Specyfikacje: `2026-10-16-sign-in-pages.md` (UI/UX: karta, cele dotyku, przycisk oka), `2026-10-16-tasks-and-subtasks.md` (UI/UX: cele dotyku).
+
+### Decyzja V3 (przyjęta przez product ownera 2026-10-26)
+
+- **V3. Łagodniejsze obramowanie kontrolek.** Uwaga z prototypu: obramowania pól „bardzo surowe”. `color-border-control` miał jasność tekstu pomocniczego (5,3–7,6 : 1 przy progu 3 : 1). Nowa surowa `neutral-500` `#748079`, jedna dla obu motywów: ciemny 4,08 na liście / 4,48 na stronie / 3,49 na wyniesionej, jasny 4,11 / 3,72 / 3,44. Dotyczy pól, textarea, checkboxów i radio, przycisków secondary i danger, przełącznika motywu oraz krawędzi menu, popoverów, tooltipów i okien. Rozmiary bez zmian.
+- Wdrożenie: `tokens.css` (surowa `neutral-500`, `color-border-control` w obu motywach), `.ai/design/tokeny.md` (tabela surowych, T1, tabela kontrastu), legenda źródeł (V1–V3). Tabela kontrastu w Storybooku (Foundations › Color) liczy się z tokenów sama.
+
+### Decyzja V4 (przyjęta przez product ownera 2026-10-26)
+
+- **V4. Podzadania bez zmian.** Uwaga z prototypu: „podzadania powinny się jakoś wyróżniać”. Porównane w Storybooku (tymczasowa historia, zrzuty w `prototypes/task-list-v1/evidence/subtasks-*.png`): A dziś (wcięcie 24 px), B lżejszy tytuł (400), C linia w kolorze separatora, D = B + C, E = B + linia w `color-border-control`. Wybrane A: wygląd podzadań zostaje. Najczytelniejsza okazała się wersja z checkboxem i uchwytem (E02–E03), więc prototyp E01 dostał te kontrolki. Tymczasowa historia usunięta po decyzji.
+
+### Etap 9: poprawka narożników wierszy (błąd, 2026-10-26)
+
+- Uwaga z prototypu: po najechaniu na pierwsze i ostatnie zadanie podświetlenie ma ostre narożniki (90°) w zaokrąglonej liście. Dotyczy też otwartego wiersza, formularza edycji i przeciąganego wiersza.
+- Poprawka w `TaskRow`: tony wiersza (hover, otwarty, edycja, przeciągany) zaokrąglają się z `radius-surface` przy górze pierwszego i dole ostatniego zadania oraz w prawym dolnym rogu ostatniego podzadania ostatniego zadania. Lista nie dostaje `overflow-hidden`, bo ucięłaby wiersz przeciągany poza jej krawędź. Bez nowych tokenów. Test regresji w `tasks.test.tsx`.

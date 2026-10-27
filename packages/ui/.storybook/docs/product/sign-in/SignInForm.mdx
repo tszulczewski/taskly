@@ -54,15 +54,15 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 Each state is a story with a play function that reaches it.
 
-| State                   | What the user sees                                                 | Story          | Source              |
-| ----------------------- | ------------------------------------------------------------------ | -------------- | ------------------- |
-| Empty                   | Two labelled fields and "Sign in".                                 | Sign Up Closed | sign-in spec        |
-| Missing fields          | Messages under both fields; focus on Email.                        | Missing Fields | spec, Accessibility |
-| Pending                 | Spinner, "Signing in…"; a second click or Enter sends nothing.     | Pending        | spec, UI/UX         |
-| Wrong email or password | "Email or password is incorrect." above the form; the email stays. | Wrong Password | spec, Messages      |
-| Rate limited            | "Too many attempts. Wait a few seconds and try again."             | Rate Limited   | spec, Messages      |
-| No network              | "Something went wrong. Try again."                                 | Offline        | spec, Messages      |
-| Signed in               | The button stays busy until the app has gone to `/` (decision E4). | Playground     | Q7                  |
+| State                   | What the user sees                                                                                                                                              | Story          | Source              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------- |
+| Empty                   | Two labelled fields and "Sign in".                                                                                                                              | Sign Up Closed | sign-in spec        |
+| Missing fields          | Messages under both fields; focus on Email.                                                                                                                     | Missing Fields | spec, Accessibility |
+| Pending                 | Spinner, "Signing in…"; a second click or Enter sends nothing.                                                                                                  | Pending        | spec, UI/UX         |
+| Wrong email or password | "Email or password is incorrect." above the form; the email stays.                                                                                              | Wrong Password | spec, Messages      |
+| Rate limited            | "Too many attempts. Try again in 7 seconds." The wait comes from the `X-Retry-After` header; without it, "Too many attempts. Wait a few seconds and try again." | Rate Limited   | spec, Messages      |
+| No network              | "Something went wrong. Try again."                                                                                                                              | Offline        | spec, Messages      |
+| Signed in               | The button stays busy until the app has gone to `/` (decision E4).                                                                                              | Playground     | Q7                  |
 
 Loading, many items and partial data do not apply: the form loads no data.
 
@@ -75,7 +75,7 @@ Loading, many items and partial data do not apply: the form loads no data.
 - **Errors:** field messages are linked with `aria-describedby`; the form error is announced (`role="alert"`, WCAG 4.1.3).
 - **Double submit:** blocked while sending, so a second attempt is not spent against the rate limit (spec, UI/UX). Covered by the Pending test.
 - **Password:** hidden again on submit (Q10).
-- **Targets:** fields, buttons and the eye button are 44px (K1).
+- **Targets:** fields, buttons and the eye button are 44px on phones, 36px from 640px (K1, V1).
 
 ## 8. Content
 
@@ -90,7 +90,7 @@ Loading, many items and partial data do not apply: the form loads no data.
 | Width  | Behaviour                                                                                 | Source                        |
 | ------ | ----------------------------------------------------------------------------------------- | ----------------------------- |
 | 320px  | One column; the button spans the card (decision E5); long emails scroll inside the field. | spec ("one column on phones") |
-| 768px  | Card at most `layout-text-measure`; button as wide as its text.                           | F1, decision E5               |
+| 768px  | Card at most `auth-card-max-width` (400px); button as wide as its text.                   | V2, decision E5               |
 | 1440px | Same as 768px.                                                                            | —                             |
 
 <Story of={Stories.Narrow320} />

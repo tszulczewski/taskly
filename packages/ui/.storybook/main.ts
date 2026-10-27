@@ -20,6 +20,7 @@ const config: StorybookConfig = {
     "@storybook/addon-vitest",
   ],
   framework: { name: "@storybook/react-vite", options: {} },
+  staticDirs: ["./public"],
   core: { disableTelemetry: true, disableWhatsNewNotifications: true },
   features: {
     sidebarOnboardingChecklist: false,

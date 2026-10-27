@@ -77,6 +77,8 @@ function* walk(dir) {
   for (const entry of readdirSync(dir)) {
     if (entry === "node_modules" || entry === "storybook-static") continue;
     const full = path.join(dir, entry);
+    // Static files Storybook serves as they are (git-ignored prototype builds), not system code.
+    if (full === path.join(root, ".storybook/public")) continue;
     if (statSync(full).isDirectory()) yield* walk(full);
     else if (extensions.has(path.extname(entry))) yield full;
   }

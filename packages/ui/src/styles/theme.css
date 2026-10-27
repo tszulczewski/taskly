@@ -87,6 +87,7 @@
   /* Layout */
   --max-width-content: var(--layout-content-max-width);
   --max-width-measure: var(--layout-text-measure);
+  --max-width-auth-card: var(--auth-card-max-width);
 
   /* Shape */
   --default-border-width: var(--border-width);

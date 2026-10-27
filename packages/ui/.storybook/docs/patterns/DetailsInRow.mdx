@@ -21,7 +21,7 @@ How a task's details are shown: they open in place, under the row, instead of in
 
 ## Not found or no access
 
-The server answers "not found" both when a task was deleted elsewhere and when the user has no access to it, so the screen cannot tell them apart and must not try (standards: non-member → `NotFoundError`). The form shows one message and the app refetches the list, which removes the row (spec E01, Edge cases). The message text is a proposal.
+The server answers "not found" both when a task was deleted elsewhere and when the user has no access to it, so the screen cannot tell them apart and must not try (standards: non-member → `NotFoundError`). The form shows "This task was deleted. The list has been refreshed." and the app refetches the list, which removes the row (spec E01, UI/UX and Edge cases; text approved by the owner on 2026-10-27).
 
 ## States
 

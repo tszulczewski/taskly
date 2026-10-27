@@ -42,15 +42,15 @@ Lets the user start one action, such as saving a task, signing in or deleting, a
 
 ## 5. Variants
 
-| Variant               | Choose it when                                                                           | Source                 |
-| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------- |
-| `primary`             | The one action that moves the user forward on this screen or form. At most one per form. | R02.3, tokens rule 2   |
-| `secondary` (default) | Any other action, including "Cancel" and "Try again".                                    | R02 code (`.btn`)      |
-| `danger`              | The button that confirms a deletion. Text in `color-text-danger`, no red fill.           | P3                     |
-| `ghost`               | Icon buttons and quiet header actions such as "Sign out". No border until hovered.       | R02 code (`.icon-btn`) |
-| `size="icon"`         | Icon only. 44 × 44 px target; `aria-label` is required by the type.                      | T10, F2, WCAG 4.1.2    |
+| Variant               | Choose it when                                                                              | Source                 |
+| --------------------- | ------------------------------------------------------------------------------------------- | ---------------------- |
+| `primary`             | The one action that moves the user forward on this screen or form. At most one per form.    | R02.3, tokens rule 2   |
+| `secondary` (default) | Any other action, including "Cancel" and "Try again".                                       | R02 code (`.btn`)      |
+| `danger`              | The button that confirms a deletion. Text in `color-text-danger`, no red fill.              | P3                     |
+| `ghost`               | Icon buttons and quiet header actions such as "Sign out". No border until hovered.          | R02 code (`.icon-btn`) |
+| `size="icon"`         | Icon only. 44 × 44 px (36 × 36 px from 640px) target; `aria-label` is required by the type. | T10, F2, WCAG 4.1.2    |
 
-There are no small or large sizes: every control is 44px high at every width (K1, spec E01, sign-in spec).
+There are no small or large sizes: every control is 44px high on phones and 36px high from 640px (K1 variant B, decision V1; spec E01, sign-in spec).
 
 <Unstyled>
   <Story of={Stories.IconButtons} />
@@ -80,7 +80,7 @@ There are no small or large sizes: every control is 44px high at every width (K1
 - **Focus order:** follows the DOM. In a form the primary button comes after the last field; "Cancel" follows "Save" (proposal: matches reading order).
 - **Role and name:** native `<button>`, `type="button"` by default so it never submits a form by accident; pass `type="submit"` for the form's main button. An icon button must have `aria-label`, and its icon `aria-hidden` (WCAG 4.1.2, 1.1.1).
 - **Loading:** `aria-busy="true"` and `aria-disabled="true"` instead of `disabled`, so focus stays on the button and screen readers read it as "Signing in…, dimmed / unavailable". The click is cancelled, so Enter in a field cannot submit twice (sign-in spec: no double submit). Covered by the LoadingIgnoresClicks test.
-- **Target size:** 44 × 44 px minimum for every button, including icon buttons (spec E01, sign-in spec, T10; above WCAG 2.5.8's 24px).
+- **Target size:** 44 × 44 px (36 × 36 px from 640px) minimum for every button, including icon buttons (spec E01, sign-in spec, T10; above WCAG 2.5.8's 24px).
 - **Motion:** background colour changes over `motion-duration-quick`; the spinner stops under `prefers-reduced-motion` and the label still says what is happening (tokens rule 12, K3).
 
 ## 8. Content

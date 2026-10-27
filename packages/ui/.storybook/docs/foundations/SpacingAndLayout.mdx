@@ -34,12 +34,12 @@ One content column, centred, at most `layout-content-max-width` (980px). No fixe
 
 The stories **Column 320**, **Column 768** and **Column 1440** in the sidebar render the column at those widths.
 
-| Rule                                                                                                                                                   | Source                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| Touch targets are at least 44 × 44px on phones (`touch-target-min`).                                                                                   | T10, Apple HIG; above WCAG 2.5.8 (24px) |
-| A one-line list row is 68px: a 44px target with 12px above and below; `task-row-min-height` (64px) is only a floor. Every list row uses this geometry. | Luki 6, T10, decisions N2, N8           |
-| Subtasks are indented by 24px per level.                                                                                                               | R02.1, T10                              |
-| No horizontal scrolling at 320px.                                                                                                                      | WCAG 1.4.10                             |
+| Rule                                                                                                                                                                                                                                       | Source                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| Touch targets are at least 44 × 44px on phones and 36 × 36px from 640px (`touch-target-min`, V1).                                                                                                                                          | T10, Apple HIG; above WCAG 2.5.8 (24px) |
+| A one-line list row is 68px on phones (a 44px target with 12px above and below) and 52px from 640px (36px with 8px above and below, V1); `task-row-min-height` (64px, 52px from 640px) is only a floor. Every list row uses this geometry. | Luki 6, T10, decisions N2, N8           |
+| Subtasks are indented by 24px per level.                                                                                                                                                                                                   | R02.1, T10                              |
+| No horizontal scrolling at 320px.                                                                                                                                                                                                          | WCAG 1.4.10                             |
 
 ## Tokens
 

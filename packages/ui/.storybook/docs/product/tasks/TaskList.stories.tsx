@@ -58,7 +58,7 @@ export const Loading: Story = {
   args: { status: "loading" },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole("status")).toHaveTextContent("Loading tasks…");
-    // A skeleton row is as high as a one-line row: a 44px target between 12px paddings (N8).
+    // A skeleton row is as high as a one-line row: one target between the row paddings (N8).
     const row = 2 * tokenPx("--task-row-padding-y") + tokenPx("--touch-target-min");
     const rows = canvasElement.querySelectorAll<HTMLElement>('[aria-busy="true"] > div');
     await expect(rows).toHaveLength(3);

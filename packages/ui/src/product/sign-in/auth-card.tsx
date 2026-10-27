@@ -17,7 +17,7 @@ export function AuthCard({ title, appName = "Taskly", children }: AuthCardProps)
     >
       <p className="font-strong">{appName}</p>
       <Surface asChild padding="inset">
-        <main className="flex w-full max-w-measure flex-col gap-between-groups">
+        <main className="flex w-full max-w-auth-card flex-col gap-between-groups">
           <h1 className="text-heading font-strong">{title}</h1>
           {children}
         </main>

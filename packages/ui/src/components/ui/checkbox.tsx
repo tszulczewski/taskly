@@ -16,7 +16,7 @@ export interface CheckboxProps extends Omit<
 
 /**
  * A yes/no choice, e.g. marking a task complete. The visible box is 20px; the clickable area is
- * 44 × 44 px (T10, K1). Name it with a Label (`htmlFor`) or `aria-label`.
+ * 44 × 44 px on phones, 36 × 36 px from 640px (T10, K1, V1). Name it with a Label (`htmlFor`) or `aria-label`.
  */
 export function Checkbox({ className, onCheckedChange, ...props }: CheckboxProps) {
   return (

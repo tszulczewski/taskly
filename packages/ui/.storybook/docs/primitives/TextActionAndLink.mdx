@@ -76,7 +76,7 @@ A disabled text action is rare: when an action is unavailable, prefer not showin
 - **Keyboard:** TextAction is a native `<button>` (Enter and Space). Link is a native `<a href>` (Enter). Covered by the Playground and LinkNavigates tests (WAI-ARIA APG).
 - **Role:** button vs link follows what happens, not how it looks: `TextAction` never navigates and `Link` never runs an action (WAI-ARIA APG).
 - **Name:** the visible text is the accessible name. Do not add a different `aria-label` (WCAG 2.5.3).
-- **Target size:** TextAction is at least 44px high (`touch-target-min`, spec E01). A Link inside a sentence follows the line height; WCAG 2.5.8 exempts inline links.
+- **Target size:** TextAction is at least one target high (`touch-target-min`: 44px on phones, 36px from 640px; spec E01, V1). A Link inside a sentence follows the line height; WCAG 2.5.8 exempts inline links.
 - **Colour:** action text has 6.70:1 (dark) and 6.35:1 (light) on the list surface; muted text 6.94:1 and 6.31:1 (tokeny.md contrast table, WCAG 1.4.3).
 - `asChild` on `Link` styles the app's router link (`next/link`) without a nested `<a>`.
 

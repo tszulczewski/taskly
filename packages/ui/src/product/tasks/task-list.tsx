@@ -101,8 +101,10 @@ export function TaskList({
   if (status === "loading") {
     return (
       <Surface data-slot="task-list" aria-busy="true">
-        {/* The same box as a row's text (a 44px target between the row's padding), so the list
-            does not move when the rows arrive; two meta-sized bars fit inside it (decision N8).
+        {/* The same box as a row's text (one target high between the row's padding), so the list
+            does not move when the rows arrive (decision N8): two meta-sized bars on phones, where
+            the estimate goes under the title, and one from 640px, where a 36px block holds one line
+            (V1).
             The columns before the title stay empty, so the bars start where titles start (O3). */}
         {skeletonRows.map((row) => (
           <div
@@ -116,7 +118,7 @@ export function TaskList({
             {onToggleComplete ? <span aria-hidden="true" className="w-touch shrink-0" /> : null}
             <div className="flex min-h-touch min-w-0 flex-1 flex-col justify-center gap-inline text-meta">
               <Skeleton className="w-2/3" />
-              <Skeleton className="w-1/3" />
+              <Skeleton className="w-1/3 wide:hidden" />
             </div>
           </div>
         ))}

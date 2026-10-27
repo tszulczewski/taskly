@@ -73,7 +73,7 @@ The label, hint and error are not part of `Input`; `FormField` adds them.
 - **Name:** always from a visible `<label>` (FormField) or, only where the design has no visible label, `aria-label` (WCAG 1.3.1, 3.3.2).
 - **Description:** FormField links the hint and error with `aria-describedby`; a suffix is appended to the same list, so "zł" is read with the field. Covered by the AmountKeepsUnit test.
 - **Invalid:** `aria-invalid="true"` together with a text message; colour is never the only signal (WCAG 1.4.1, 3.3.1).
-- **Size:** the frame is 44px high, which is also the click target (spec E01, sign-in spec).
+- **Size:** the frame is 44px high (36px from 640px), which is also the click target (spec E01, sign-in spec).
 - **Zoom on phones:** 16px text below 640px prevents iOS from zooming into the field (Luki 1).
 - **Contrast:** the frame border has 6.94:1 (dark) and 6.31:1 (light) on the list surface (T1, WCAG 1.4.11).
 
@@ -91,11 +91,11 @@ The label, hint and error are not part of `Input`; `FormField` adds them.
 
 ## 9. Responsive
 
-| Width  | Behaviour                                                          | Source     |
-| ------ | ------------------------------------------------------------------ | ---------- |
-| 320px  | Full width of the column, 16px text, 44px high.                    | Luki 1, K1 |
-| 768px  | Full width of its form column; 15px text from 640px.               | Luki 1, F5 |
-| 1440px | Same as 768px; the column is capped at `layout-content-max-width`. | P01        |
+| Width  | Behaviour                                                          | Source         |
+| ------ | ------------------------------------------------------------------ | -------------- |
+| 320px  | Full width of the column, 16px text, 44px high.                    | Luki 1, K1     |
+| 768px  | Full width of its form column; 15px text and 36px high from 640px. | Luki 1, F5, V1 |
+| 1440px | Same as 768px; the column is capped at `layout-content-max-width`. | P01            |
 
 <Unstyled>
   <Story of={Stories.LongTextNarrow} />

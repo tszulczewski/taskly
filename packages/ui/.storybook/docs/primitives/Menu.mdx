@@ -33,7 +33,7 @@ Puts a row's less frequent actions behind one “…” button, so the row shows
 | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Trigger       | yes      | `Button variant="ghost" size="icon"` with Lucide `Ellipsis` and `aria-label="More actions"` (Luki 7)                              |
 | Panel         | yes      | Raised tone, 1px `color-border-control` edge, `radius-surface`, `space-inline` padding (K2); `space-inline` from the trigger (D4) |
-| Item          | yes      | 44px high (`control-height`), `field-padding-x` sides; text only, no icons (Luki 7)                                               |
+| Item          | yes      | `control-height` high (44px, 36px from 640px), `field-padding-x` sides; text only, no icons (Luki 7)                              |
 | Checkbox item | optional | Check mark at the start when on; `aria-checked`                                                                                   |
 | Separator     | optional | 1px `color-border-divider`; groups the destructive item apart                                                                     |
 
@@ -63,7 +63,7 @@ Puts a row's less frequent actions behind one “…” button, so the row shows
 - **Keyboard:** Enter, Space or ArrowDown on the trigger opens the menu with focus on the first item; arrow keys move; typing a letter jumps to an item; Enter selects and closes; Escape closes and returns focus to the trigger (WAI-ARIA APG, menu button). Covered by the Playground test.
 - **Roles:** `menu`, `menuitem`, `menuitemcheckbox`; the trigger has `aria-haspopup="menu"` and `aria-expanded` (Radix).
 - **Name:** the icon trigger always has `aria-label`; Tooltip shows the same text on hover.
-- **Target size:** items are 44px high (K1).
+- **Target size:** items are 44px high on phones, 36px from 640px (K1, V1).
 - **Motion:** none; the menu appears at once (K2).
 
 ## 8. Content
