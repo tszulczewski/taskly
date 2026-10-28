@@ -33,7 +33,7 @@ Review of phases 1–2: `.ai/runs/2026-10-28-sign-in-phases-1-2-review.md` (requ
 - [x] 3.4 Review fix (major): `authCall` deadline covering headers and body; timeout → existing error state; hung response then retry; sign-out timeout keeps cache and route
 - [x] 3.5 Review fix (minor): sign-up-specific form skeleton matching the open form's geometry (320 px and desktop)
 - [x] 3.6 Review follow-up: find the cause of the one-off `npm test` failure (4 session-guard assertions) and of the default `test:integration` startup error (`code.charCodeAt is not a function`, Testcontainers path used by CI)
-- [ ] 3.7 Runbook (client IP, Apache check, owner account) in `AGENTS.md`, full gate, lessons
+- [x] 3.7 Runbook (client IP, Apache check, owner account) in `AGENTS.md`, full gate, lessons
 
 **Manual test:** `npm run build && npm run test:integration`; create the owner account following the Runbook.
 
