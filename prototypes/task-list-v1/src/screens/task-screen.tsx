@@ -17,6 +17,8 @@ import {
 } from "../../../../packages/ui/.storybook/blocks/TaskScreen";
 import {
   fromValues,
+  rollUp,
+  task,
   taskMessages,
   validateTask,
 } from "../../../../packages/ui/.storybook/blocks/task-data";
@@ -52,6 +54,17 @@ const titleOf = (list: TaskItem[], id: string): string => {
   return "";
 };
 
+/** The top-level task that holds subtask `id`, if it is one. */
+const parentOf = (list: TaskItem[], id: string) =>
+  list.find((item) => item.subtasks?.some((subtask) => subtask.id === id));
+
+/** A roll-up note lasts until the next change (spec E01, Roll-up messages; DS decision W1). */
+const withoutNotices = (list: TaskItem[]) =>
+  list.map((item) => (item.notice ? { ...item, notice: undefined } : item));
+
+/** The task's own typed figure, which the roll-up keeps but does not show (R15). */
+const ownEstimate = (item: TaskItem) => rollUp({ ...item, subtasks: [] }).estimate;
+
 let nextTask = 0;
 
 /** The empty state's wording decided in the screen map (L22); the design system's default differs. */
@@ -63,6 +76,16 @@ const goneMs = 3000;
 
 /** s04.12: the server's 409 message, which the form shows as it is (tasks spec, UI/UX). */
 const conflictText = "Please try again";
+
+/** s06.12: the server's 409 when the task got a subtask elsewhere (tasks spec, UI/UX "Edit"). */
+const hasSubtasksText = "A task with subtasks takes its estimate from them";
+
+/**
+ * The subtask another tab added for P09 "task got a subtask in another tab". Its name comes from
+ * the curtain rods' description in the map (s06 edits "Curtain rods"); it has no estimate, because
+ * the prototype invents no amounts.
+ */
+const elsewhereTitle = "Bathroom";
 
 /** s04.21 (L13; tasks spec, UI/UX "Page did not open"). */
 const pageErrorText = "Could not open your tasks.";
@@ -198,7 +221,7 @@ export function TaskScreen({
   }
 
   /** P09 applies once, to the first request it fits. */
-  const takeRace = (kind: "deleted" | "conflict") => {
+  const takeRace = (kind: "deleted" | "conflict" | "subtaskElsewhere") => {
     if (demo.scenarios.race !== kind) return false;
     demo.setScenario("race", "none");
     return true;
@@ -230,11 +253,15 @@ export function TaskScreen({
     const conflict = takeRace("conflict");
     nextTask += 1;
     const tempId = `temp-${nextTask}`;
+    // The first subtask hides a typed figure; the parent's row says so once it is saved (s07.9).
+    const parent = account.tasks.find((item) => item.id === parentId);
+    const startsSum =
+      parent !== undefined && (parent.subtasks ?? []).length === 0 && ownEstimate(parent) !== null;
     const pendingRow = { ...fromValues(tempId, values), pending: true };
     setTasks((list) =>
       parentId === null
-        ? [...list, pendingRow]
-        : mapTasks(list, (item) =>
+        ? [...withoutNotices(list), pendingRow]
+        : mapTasks(withoutNotices(list), (item) =>
             item.id === parentId
               ? { ...item, subtasks: [...(item.subtasks ?? []), pendingRow] }
               : item,
@@ -254,7 +281,12 @@ export function TaskScreen({
     }
     const id = `task-${nextTask}`;
     setTasks((list) =>
-      mapTasks(list, (item) => (item.id === tempId ? fromValues(id, values) : item)),
+      mapTasks(list, (item) => {
+        if (item.id === tempId) return fromValues(id, values);
+        if (startsSum && item.id === parentId)
+          return { ...item, notice: taskMessages.sumStarted(item.title) };
+        return item;
+      }),
     );
     setHighlightId(id);
     return { ok: true };
@@ -262,13 +294,41 @@ export function TaskScreen({
 
   const edit = async (id: string, values: TaskFormValues): Promise<SubmitResult<TaskField>> => {
     if (takeRace("deleted")) return gone(id);
+    const before = account.tasks.find((item) => item.id === id);
+    const withSubtasks = (before?.subtasks ?? []).length > 0;
+    // The form sends only changed fields, so only a changed estimate meets the 409 (s06.12).
+    const estimateChanged =
+      before !== undefined && (values.amount !== before.amount || values.upTo !== before.upTo);
+    if (before && !withSubtasks && estimateChanged && takeRace("subtaskElsewhere")) {
+      try {
+        await callApi(demo);
+      } catch {
+        return { ok: false };
+      }
+      // The list is refetched: the subtask from the other tab is there, so the form shows the sum.
+      nextTask += 1;
+      const elsewhere = task(`elsewhere-${nextTask}`, elsewhereTitle);
+      setTasks((list) =>
+        mapTasks(list, (item) => (item.id === id ? { ...item, subtasks: [elsewhere] } : item)),
+      );
+      return { ok: false, formError: hasSubtasksText };
+    }
     try {
       if (!(await change(demo))) return { ok: false, formError: taskMessages.saveFailed };
     } catch {
       return { ok: false };
     }
     setTasks((list) =>
-      mapTasks(list, (item) => (item.id === id ? fromValues(id, values, item) : item)),
+      mapTasks(withoutNotices(list), (item) => {
+        if (item.id !== id) return item;
+        // A task with subtasks keeps its own figure: its form shows the sum instead (R12, R15).
+        const keep = (item.subtasks ?? []).length > 0;
+        return fromValues(
+          id,
+          keep ? { ...values, amount: item.amount, upTo: item.upTo } : values,
+          item,
+        );
+      }),
     );
     return { ok: true };
   };
@@ -276,7 +336,21 @@ export function TaskScreen({
   const remove = async (id: string) => {
     try {
       const deleted = await change(demo);
-      if (deleted) setTasks(without(id));
+      if (deleted) {
+        setTasks((list) => {
+          const parentId = parentOf(list, id)?.id;
+          return mapTasks(withoutNotices(list), (item) => {
+            if (item.id === id) return null;
+            if (item.id !== parentId) return item;
+            const left = item.subtasks?.filter((subtask) => subtask.id !== id) ?? [];
+            // The last subtask brings the kept figure back, said in the row (s08.8, R15).
+            const own = ownEstimate(item);
+            return left.length === 0 && own !== null
+              ? { ...item, subtasks: left, notice: taskMessages.sumBack(item.title, own) }
+              : { ...item, subtasks: left };
+          });
+        });
+      }
       return deleted;
     } catch {
       return false;
@@ -291,7 +365,9 @@ export function TaskScreen({
     conflict = false,
   ) => {
     const before = account.tasks;
-    setTasks((list) => apply(mapTasks(list, (item) => ({ ...item, error: undefined }))));
+    setTasks((list) =>
+      apply(mapTasks(withoutNotices(list), (item) => ({ ...item, error: undefined }))),
+    );
     try {
       if ((await change(demo)) && !conflict) return;
     } catch {
@@ -375,7 +451,8 @@ export function TaskScreen({
               <TaskList
                 status={listStatus}
                 // Completed tasks show last; the stored order does not change (decision 2026-10-21).
-                tasks={forDisplay(account.tasks)}
+                // A task with subtasks shows their sum, as the server computes it on read (R12).
+                tasks={forDisplay(account.tasks.map(rollUp))}
                 onRetry={() => void retryList()}
                 retrying={retrying}
                 validate={validateTask}

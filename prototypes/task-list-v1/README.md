@@ -1,6 +1,6 @@
 # Prototyp klikalny: logowanie i zadania (E01)
 
-Klikalny prototyp zatwierdzonej mapy ekranów `prototypes/konta-i-role/mapa-ekranow.md` (ekrany s01–s08) i stanów s04.22–s04.29 (porządek i ukończenie, opisane teraz dla E02/E03 w `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md`). Ekrany są złożone z komponentów i tokenów design systemu (`packages/ui`), dane są fikcyjne, a serwer jest symulowany w pamięci strony. Prototyp nie jest częścią aplikacji ani design systemu: aplikacja go nie importuje, a wynik budowania nie trafia do gita.
+Klikalny prototyp zatwierdzonej mapy ekranów `prototypes/konta-i-role/mapa-ekranow.md` (ekrany s01–s08, z rozszerzeniem z 2026-10-28: suma podzadań i dokładna cena, R12–R18) i stanów s04.22–s04.29 (porządek i ukończenie, opisane teraz dla E02/E03 w `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md`). Ekrany są złożone z komponentów i tokenów design systemu (`packages/ui`), dane są fikcyjne, a serwer jest symulowany w pamięci strony. Prototyp nie jest częścią aplikacji ani design systemu: aplikacja go nie importuje, a wynik budowania nie trafia do gita.
 
 Postęp prac i decyzje: `POSTEP.md`. Zrzuty z przejść: `evidence/`.
 
@@ -64,7 +64,7 @@ Zegar demo ma stałe „teraz”: poniedziałek 2026-10-26, 10:00 CET. Wersja 1 
 | P06 | Odpowiedź na zmiany (dodaj, edytuj, usuń, przesuń, ukończ) | potwierdza / odmawia / nie odpowiada; opóźnienie 0 / 0,6 / 1,5 / 3 s (logowanie i rejestracja też czekają tyle) |
 | P07 | Wylogowanie | udane / nieudane / nieudane raz, potem udane |
 | P08 | Podmiana listy zalogowanego konta | lista K2 / pusta / 30 zadań z długimi tekstami |
-| P09 | Wyścigi (jednorazowo) | brak / zadanie usunięte w innej karcie (404 przy edycji lub podzadaniu) / konflikt pozycji (409 przy dodaniu lub przesunięciu) |
+| P09 | Wyścigi (jednorazowo) | brak / zadanie usunięte w innej karcie (404 przy edycji lub podzadaniu) / konflikt pozycji (409 przy dodaniu lub przesunięciu) / zadanie dostało podzadanie w innej karcie (409 przy zapisie kwoty, s06.12) |
 | P10 | — | wycofany (L01) |
 | P11 | Widok | „Open at 320 / 768 / 1440 px” (nowe okno); odczyt ograniczonego ruchu; tylko angielski |
 | P12 | Ładowanie strony | szybkie / wolne (szkielet, 2 s) / strona nie wstała (tylko lista) |
@@ -76,13 +76,15 @@ Przełączniki jednorazowe (P09, „raz” w P05 i P07, „wygasa” w P04) same
 - **Nic nie jest wysyłane ani zapisywane na serwerze.** Konta, sesja i zadania żyją w pamięci strony; odświeżenie przeglądarki zaczyna demo od nowa (komentarze zostają, bo leżą w `localStorage`).
 - **Logowanie i rejestracja** są symulowane: nie ma ciasteczka, Better Auth ani limitu prób liczonego w czasie (429 włącza P02 albo P03; czas oczekiwania w komunikacie jest stały, 8 s). Rejestracja nie wysyła maila.
 - **Przekierowania** serwera (gość na `/`, zalogowany na `/sign-in` i `/sign-up`, `/sign-up` przy zamkniętej rejestracji) są pokazane jako karta „Prototype · access gate” z przyciskami, nie jako prawdziwe przekierowanie.
+- **Suma podzadań** jest liczona w tej stronie (jak serwer przy odczycie); własna kwota zadania z podzadaniami jest trzymana i wraca po usunięciu ostatniego podzadania. Komunikaty o sumie pisze strona po potwierdzeniu, tak jak aplikacja. Podzadanie „z innej karty” (P09, s06.12) to „Bathroom” bez szacunku.
+- **Walidacja** to próbka design systemu (`validateTask`), z limitem opisu 2000 znaków ze specyfikacji.
 - **Kolejność** zmienia się tylko w tej stronie; nie ma kolumny `position` ani indeksowania ułamkowego. Ukończone zadania są pokazywane na końcu tak jak w design systemie.
 - **Odpowiedzi serwera** pochodzą wyłącznie z przełączników; nie ma prawdziwych wyścigów między kartami ani aktualizacji na żywo (SSE).
 - **s05–s08** otwierają się same: prototyp klika tytuł, „Add subtask” albo „…” i pozycję menu tak jak osoba.
 - **P11**: szerokości otwierają nowe okno, w którym demo zaczyna się od nowa; ograniczonego ruchu nie da się przełączyć ze strony (ustawienie systemu albo DevTools).
 - **Okno usuwania** jest modalne i zasłania pasek przeglądu; przy „nie odpowiada” nie da się go zamknąć inaczej niż Alt+Shift+R.
 - **Komentarzy nie da się przypiąć** do menu i okien (renderują się poza ramką ekranu).
-- **Poza prototypem** zostają s04.13 i s07.7 (cudza lista lub zadanie, L01): to testy API. Nie ma ról edytora i obserwatora (L19), przyszłych wydatków (L02), trybu offline (L17) ani odzyskiwania hasła (L16).
+- **Poza prototypem** zostają s04.13 i s07.7 (cudza lista lub zadanie, L01): to testy API. Nie ma ról edytora i obserwatora (L19), przyszłych wydatków (L02), trybu offline (L17) ani odzyskiwania hasła (L16). Zastąpione stany (s04.7, s05.3, s06.7, s07.1, s07.4) są w przewodniku wyłączone; „Add estimate” w wierszu i lista zadań bez szacunku (C4, C5) należą do E03.
 - Teksty komunikatów pochodzą ze specyfikacji, z mapy (decyzje L10, L11, L13, L15, L22) i z przykładów design systemu (L14). Odpowiedzi właściciela z 2026-10-27 (tekst 404, limity rejestracji, s04.21, 409 z tekstem serwera, czas oczekiwania przy 429) są już wpisane do specyfikacji.
 
 ## Pliki

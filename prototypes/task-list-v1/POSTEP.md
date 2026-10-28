@@ -262,6 +262,40 @@ Przełączniki: P06 (potwierdza / odmawia / nie odpowiada, opóźnienie) obejmie
 6. s04.22–s04.29 są w `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md` (wejście do specyfikacji E02-S01 i E03-S01); w mapie został odsyłacz, identyfikatory bez zmian.
 7. SI-Q3 zmienione (L04). #15 na GitHubie: AC1 i AC2 w formacie DS (L18), AC4 potwierdzone i nowe AC6 „obie kwoty albo żadna” (L03), edycja i usuwanie wyjęte z „Out of scope” (L09), sekcja „Changes”. W specyfikacji zadań poprawione też L07 (opis tylko w otwartym wierszu, akcje w „…”), L08 (optymistyczne tylko dodanie) i L22 (tekst pustego stanu).
 
+## Rozszerzenie 2026-10-28: suma podzadań i dokładna cena
+
+Krok 4 zadania z 2026-10-28 (log: `.ai/runs/2026-10-28-e01-subtask-rollup-alignment.md`). Mapa: sekcja „Rozszerzenie: suma podzadań i dokładna cena”, zatwierdzona przez właściciela 2026-10-28 („zatwierdzam”, L23 = A). Komponenty z PR #37 (`QuickAdd` w jednym wierszu, `TaskForm` z `summedEstimate`, `TaskRow` z licznikiem i komunikatem, `EstimateRange` z jedną kwotą).
+
+- **Ekran zadań** (`src/screens/task-screen.tsx`):
+  - lista pokazuje sumę podzadań, liczoną w stronie tak jak serwer przy odczycie (`rollUp` z `.storybook/blocks/task-data.ts`);
+  - pierwsze podzadanie zadania z wpisaną kwotą i usunięcie ostatniego podzadania wpisują komunikat do wiersza (s07.9, s07.10, s08.8); każda następna zmiana go czyści;
+  - edycja zadania z podzadaniami zachowuje jego własną kwotę (R15);
+  - P09 „zadanie dostało podzadanie w innej karcie”: 409 przy zapisie zmienionej kwoty, lista dostaje podzadanie „Bathroom” bez szacunku (s06.12);
+  - walidacja: próbka DS (`validateTask`); brakował w niej limit opisu 2000 znaków ze specyfikacji, bez którego s04.33 był nieosiągalny, więc dopisałem go w DS (PR #37, `bbe676a`, z historią „Description Too Long”).
+- **Dane K2** (L23 = A): opisy uchwytu TV i szafki RTV bez „Not included in the wall estimate”, opis ściany „Living room. Without the sockets”. „Decorative wall” pokazuje 700–1 400 zł i „3 subtasks without an estimate”; wpisane 350–660 zł wraca po usunięciu podzadań.
+- **Przewodnik po stanach**: 18 nowych stanów; zastąpione (s04.7, s05.3, s06.7, s07.1, s07.4) są w liście wyłączone z dopiskiem „replaced by …”, wskazówki dawnych stanów mówią „Amount” i „up to”.
+- **Notatki ekranów** s04–s08: kryteria po przepisaniu #15 i #16.
+- **Testy nawigacji**: 17 (było 13): suma i licznik (s04.34), dodanie podzadania do sumy (s07.11), błąd opisu otwiera przełącznik (s04.33), 409 (s06.12).
+
+### Przejście w agent-browser (2026-10-28, wynik budowania z `python3 -m http.server`)
+
+| Stan | Szerokość, motyw | Wynik | Zrzut |
+|---|---|---|---|
+| s04.34 | 1440, ciemny | „Decorative wall 700–1 400 zł”, „0/5 3 subtasks without an estimate”; szybkie dodawanie: tytuł 480 px, kwoty po 182 px, „Add” 63 px, wszystko na górze 373 px, wysokość 36 px | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-01-s04.34-1440-dark.png` |
+| s04.31 | 1440, ciemny | samo „Amount” 500 → nowy wiersz „500 zł”, fokus wraca do tytułu | — |
+| s04.32 | 1440, ciemny | 2000 i 1500 → „“Up to” must not be less than the amount.” pod „up to”, fokus tam | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-02-s04.32-1440-dark.png` |
+| s07.9 | 1440, ciemny | pierwsze podzadanie 300–400 zł pod „Pantry wall finish” → zadanie 300–400 zł i komunikat `role="status"` pod tytułem | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-03-s07.9-1440-dark.png` |
+| s08.8 | 1440, ciemny | usunięcie tego podzadania → 770–1 210 zł i „The estimate of “Pantry wall finish” is back to your amount: 770–1 210 zł.” | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-04-s08.8-1440-dark.png` |
+| s06.9 | 1440, ciemny | edycja „Decorative wall”: „Sum of subtasks: 700–1 400 zł”, „Change the amounts on the subtasks.”, bez pól kwot | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-05-s06.9-1440-dark.png` |
+| s06.12 | 1440, ciemny | kwota 900 i nowy tytuł → komunikat 409, „Sum of subtasks: no estimate yet”, tytuł zostaje; drugi zapis zapisuje tytuł, wiersz „No estimate” i „1 subtask without an estimate” | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-06-s06.12-1440-dark.png` |
+| s04.30 | 320, jasny | tytuł 288×44, „Amount” i „up to” obok siebie po 140×44, „Add” 63×44 pod nimi, „Description” niżej; bez poziomego przewijania (szerokość strony 320) | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-07-s04.30-320-light.png` |
+| s07.8 | 320, jasny | „New subtask”, kwoty, „Add”, „Description” i „Cancel”; bez poziomego przewijania | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-08-s07.8-320-light.png` |
+| s04.33 | 320, jasny | opis 2200 znaków wpisany z klawiatury, przełącznik zamknięty, Enter w tytule → przełącznik się otwiera, komunikat „Enter at most 2 000 characters.”, fokus w opisie (także przy 1440 i przy „Add”) | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-09-s04.33-320-light.png` |
+
+### DS08 wycofane
+
+Pierwsze przejście s04.33 wstawiło opis skryptem (setter `value` i zdarzenie `input`) i pokazało fokus w tytule; zgłosiłem to jako lukę DS08. Właściciel przyjął poprawkę w PR #37. Przed poprawką historia „Description Too Long” w Storybooku (Chromium, klik „Add” i Enter) i powtórzone przejście z tekstem wpisanym z klawiatury (1440 i 320 px) pokazały fokus w opisie: design system działa, błąd wywołało wstawianie skryptem. Poprawki nie było; zostały historia i limit w próbce walidacji (`bbe676a`).
+
 ## Pytania otwarte
 
 - brak

@@ -173,13 +173,61 @@ describe("prototype navigation", () => {
       ["s04.6", "s04"],
       ["s05.2", "s05"],
       ["s06.1", "s06"],
-      ["s07.1", "s07"],
+      ["s07.8", "s07"],
       ["s08.2", "s08"],
     ] as const) {
       goToState(state);
       expect(current()).toBe(screenId);
       expect(bar().getByRole("status")).toHaveTextContent(state);
     }
+  });
+
+  it("shows a task with subtasks with their sum and the unestimated count (s04.34)", async () => {
+    goToState("s04.34");
+    const s04 = section("s04");
+    expect(await s04.findByText(/^700–1\s400 zł$/)).toBeInTheDocument();
+    expect(s04.getByText("3 subtasks without an estimate")).toBeInTheDocument();
+  });
+
+  it("adds a subtask's amounts to its task's sum (s07.11)", async () => {
+    goToState("s07.11");
+    const s07 = section("s07");
+    const title = await s07.findByLabelText("New subtask");
+    const form = within(title.closest("form") as HTMLElement);
+    fireEvent.change(title, { target: { value: "Sockets" } });
+    fireEvent.change(form.getByLabelText("Amount"), { target: { value: "300" } });
+    fireEvent.change(form.getByLabelText(/^up to/), { target: { value: "400" } });
+    fireEvent.click(form.getByRole("button", { name: "Add" }));
+    expect(await s07.findByText(/^1\s000–1\s800 zł$/)).toBeInTheDocument();
+  });
+
+  it("opens a closed description that has an error (s04.33)", async () => {
+    goToState("s04.33");
+    const s04 = section("s04");
+    const title = await s04.findByLabelText("New task");
+    const form = within(title.closest("form") as HTMLElement);
+    fireEvent.change(title, { target: { value: "Sow the rest of the lawn again" } });
+    fireEvent.click(form.getByRole("button", { name: "Description" }));
+    fireEvent.change(form.getByLabelText(/^Description/), { target: { value: "x".repeat(2001) } });
+    fireEvent.click(form.getByRole("button", { name: "Description" }));
+    fireEvent.click(form.getByRole("button", { name: "Add" }));
+    expect(await form.findByText("Enter at most 2 000 characters.")).toBeInTheDocument();
+    expect(form.getByRole("button", { name: "Description" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("refuses an estimate save when the task got a subtask elsewhere (s06.12)", async () => {
+    goToState("s06.12");
+    const s06 = section("s06");
+    const form = within(await s06.findByRole("form", { name: "Edit “Curtain rods”" }));
+    fireEvent.change(form.getByLabelText("Amount"), { target: { value: "900" } });
+    fireEvent.click(form.getByRole("button", { name: "Save" }));
+    expect(
+      await form.findByText("A task with subtasks takes its estimate from them"),
+    ).toBeInTheDocument();
+    expect(await form.findByText("Sum of subtasks:")).toBeInTheDocument();
   });
 
   it("lands on sign-in with the expiry notice when the session expires (s01.11)", async () => {
