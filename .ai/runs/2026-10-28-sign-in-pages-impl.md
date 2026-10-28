@@ -32,6 +32,19 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
   - The subagent's smoke test on the standalone build and in agent-browser passed: the redirects work and the flag is read per request.
 - **Phase 2 check** (coordinator, `next dev`, sign-up open): `/` → 200 with a streamed `NEXT_REDIRECT;replace;/sign-in`; `/sign-in` shows "Create an account"; `/sign-up` shows the form.
 
+- **3.1** (subagent, `4139404`): `createPasswordUser` in `password-admin.ts`. It validates, hashes before the transaction, and runs `createUser` + `linkAccount` inside `runWithTransaction`.
+  - New direct dependency `@better-auth/core@1.7.7` (exact, matching better-auth's pin).
+  - Negative control: with `transaction: false` the no-orphan integration test fails.
+  - At this point 2 old tests in `test/app.integration.test.ts` were failing because of phases 1–2. I had skipped `test:integration` when closing phase 2 (lesson recorded).
+- **3.2** (subagent, `c8bfce1`): `startApp` with a port and extra env (sign-up off by default), plus `createUser`, `authRequest` and cookie helpers. HTTP suites run with sign-up off (port 3201) and on (port 3202), and the old browser smoke now opens `/sign-in`.
+  - Mutation check: without `disableRefresh` in `lib/session.ts`, the renewal regression fails at the full-HTML step.
+  - I stopped my own leftover standalone server on port 3101. Its process is named `next-server` (lesson recorded).
+- **3.3** (subagent, `642abbe`): agent-browser suites with sign-up open (port 3203) and closed (port 3204).
+  - The sign-out abort and retry uses `network route … --abort` / `network unroute`.
+  - Helpers wait for hydration before typing. Without that wait, keystrokes made before hydration were lost.
+  - 48/48 integration tests passed on three full runs.
+- **Parallel review:** another session is reviewing phases 1–2 (`.ai/runs/2026-10-28-sign-in-phases-1-2-review.md`, not part of this run). Its first finding is that `authCall` has no deadline. Owner decision (2026-10-28): wait for the review, fix its findings as extra phase-3 tasks, then do 3.4.
+
 ## Files changed
 
 - Phase 1: `packages/core/src/{env,auth,schemas,sign-up-hook}.ts` + tests, `.env.example`, `.ai/lessons.md`.
