@@ -17,7 +17,7 @@ Keeps rarely needed details out of the way and opens them in place, so the user 
 
 ## 2. When to use
 
-- Quick-add "Details": description, min and max (spec E01, R02.9).
+- Quick-add "Description": the optional description under the one-row form (spec E01, C1).
 - Expanding a task row to show its description and details in place (Q2, Luki 6, tokens rule 8) — the TaskRow in stage 3 builds on this.
 - "N tasks without an estimate" under the future expenses total, opening the list with "Add estimate" (Luki 9, P04).
 
@@ -44,7 +44,7 @@ None of its own; the trigger decides the look:
 
 | Trigger                         | Choose it when                                                                       | Source         |
 | ------------------------------- | ------------------------------------------------------------------------------------ | -------------- |
-| `TextAction` + indicator        | A labelled line: "Details", "3 tasks without an estimate".                           | R02.3, Luki 9  |
+| `TextAction` + indicator        | A labelled line: "Description", "3 tasks without an estimate".                       | R02.3, Luki 9  |
 | Indicator beside a text trigger | A task row: the title is the trigger, the arrow repeats it from 640px (decision J1). | Luki 6, Luki 7 |
 
 ## 6. States
@@ -63,7 +63,7 @@ None of its own; the trigger decides the look:
 ## 7. Behaviour and accessibility
 
 - **Keyboard:** the trigger is a button; Enter or Space opens and closes; focus stays on the trigger (WAI-ARIA APG, disclosure). Covered by the Playground test.
-- **ARIA:** `aria-expanded` on the trigger, `aria-controls` pointing to the content (Radix). A screen reader says "Details, button, collapsed".
+- **ARIA:** `aria-expanded` on the trigger, `aria-controls` pointing to the content (Radix). A screen reader says "Description, button, collapsed".
 - **Motion:** with `prefers-reduced-motion: reduce` the content appears at once (tokens rule 12).
 - **Focus:** opening does not move focus. In quick add, the user tabs into the new fields next (spec E01: focus stays in the title field after adding).
 
@@ -104,7 +104,7 @@ Minimal:
   <CollapsibleTrigger asChild>
     <TextAction>
       <CollapsibleIndicator />
-      Details
+      Description
     </TextAction>
   </CollapsibleTrigger>
   <CollapsibleContent>…</CollapsibleContent>

@@ -32,30 +32,37 @@ const sealBath: TaskItem = {
   title: "Seal the bath",
   description: null,
   estimate: null,
-  min: "",
-  max: "",
+  amount: "",
+  upTo: "",
 };
+/** A task with subtasks: its estimate is their sum, one of them has none (R12, R13). */
 const paint: TaskItem = {
   id: "paint",
   title: "Paint the ceiling",
   description: "Two coats, white matt.",
-  estimate: "1 200–1 500 zł",
-  min: "1 200",
-  max: "1 500",
+  estimate: "300–400 zł",
+  amount: "1 200",
+  upTo: "1 500",
+  unestimatedSubtasks: 1,
   subtasks: [
     {
       id: "plaster",
       title: "Plaster the cracks",
       description: "Above the window.",
       estimate: "300–400 zł",
-      min: "300",
-      max: "400",
+      amount: "300",
+      upTo: "400",
     },
     sealBath,
   ],
 };
 
-const values = (title: string): TaskFormValues => ({ title, description: "", min: "", max: "" });
+const values = (title: string): TaskFormValues => ({
+  title,
+  amount: "",
+  upTo: "",
+  description: "",
+});
 const field = (name: string | RegExp) => screen.getByRole("textbox", { name }) as HTMLInputElement;
 // jsdom drops the space before the "(optional)" marker in the accessible name.
 const description = /^Description/;
@@ -88,9 +95,11 @@ function renderList(props: Partial<TaskListProps> = {}) {
 }
 
 describe("EstimateRange", () => {
-  it("shows the range, or a muted note when there is none", () => {
+  it("shows the estimate, or a muted note when there is none", () => {
     const { rerender } = render(<EstimateRange value="1 200–1 500 zł" />);
     expect(screen.getByText("1 200–1 500 zł").className).toContain("numeric");
+    rerender(<EstimateRange value="500 zł" />);
+    expect(screen.getByText("500 zł").className).toContain("numeric");
     rerender(<EstimateRange value={null} emptyText="Brak szacunku" />);
     expect(screen.getByText("Brak szacunku").className).toContain("text-muted");
   });
@@ -103,6 +112,8 @@ describe("defaultTaskText", () => {
     expect(defaultTaskText.deleteTitle("Paint", 0)).toBe("Delete “Paint”?");
     expect(defaultTaskText.deleteTitle("Paint", 1)).toBe("Delete “Paint” and its subtask?");
     expect(defaultTaskText.deleteTitle("Paint", 3)).toBe("Delete “Paint” and its 3 subtasks?");
+    expect(defaultTaskText.unestimatedSubtasks(1)).toBe("1 subtask without an estimate");
+    expect(defaultTaskText.unestimatedSubtasks(2)).toBe("2 subtasks without an estimate");
   });
 });
 
@@ -118,36 +129,55 @@ describe("QuickAdd", () => {
     expect(document.activeElement).toBe(field("New task"));
   });
 
-  it("reveals description and estimate under Details", async () => {
+  it("shows the amounts beside the title and the description behind its toggle (C1)", async () => {
     const onSubmit = vi.fn(ok);
     render(<QuickAdd validate={noErrors} onSubmit={onSubmit} />);
+    expect(screen.getByRole("group", { name: /^Estimate/ })).toBeTruthy();
+    expect(field("Amount").getAttribute("inputmode")).toBe("decimal");
     expect(screen.queryByRole("textbox", { name: description })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    const toggle = screen.getByRole("button", { name: "Description" });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     fireEvent.change(field("New task"), { target: { value: "Tile the floor" } });
+    fireEvent.change(field("Amount"), { target: { value: "2 000" } });
+    fireEvent.change(field(/^up to/), { target: { value: "2 500" } });
     fireEvent.change(field(description), { target: { value: "Grey, 60×60" } });
-    fireEvent.change(field("Min"), { target: { value: "2 000" } });
-    fireEvent.change(field("Max"), { target: { value: "2 500" } });
-    expect(field("Min").getAttribute("inputmode")).toBe("decimal");
     await submitForm("Add");
     expect(onSubmit).toHaveBeenCalledWith({
       title: "Tile the floor",
+      amount: "2 000",
+      upTo: "2 500",
       description: "Grey, 60×60",
-      min: "2 000",
-      max: "2 500",
     });
+    // Ready for the next task: the description is closed again.
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(field("Amount").value).toBe("");
   });
 
-  it("keeps Details open while a field inside has an error", async () => {
+  it("keeps the description open after a refused add", async () => {
+    render(<QuickAdd validate={noErrors} onSubmit={async () => ({ ok: false })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Description" }));
+    fireEvent.change(field("New task"), { target: { value: "Tile the floor" } });
+    await submitForm("Add");
+    expect(field(description)).toBeTruthy();
+  });
+
+  it("puts an amount error under its field and opens a description with an error", async () => {
     render(
       <QuickAdd
-        validate={(form) => (form.max ? {} : { max: "Enter both amounts or neither" })}
+        validate={(form) => ({
+          ...(form.upTo === "" ? { upTo: "“Up to” must not be less than the amount." } : {}),
+          ...(form.description === "" ? { description: "Too long." } : {}),
+        })}
         onSubmit={ok}
       />,
     );
     await submitForm("Add");
-    expect(document.activeElement).toBe(field("Max"));
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(screen.getByText("Enter both amounts or neither")).toBeTruthy();
+    expect(document.activeElement).toBe(field(/^up to/));
+    expect(screen.getByText("“Up to” must not be less than the amount.")).toBeTruthy();
+    expect(screen.getByText("Too long.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Description" }));
+    expect(field(description)).toBeTruthy();
   });
 
   it("shows a failed add above the form and keeps the title", async () => {
@@ -181,7 +211,12 @@ describe("QuickAdd", () => {
 });
 
 describe("TaskForm", () => {
-  const initialValues = { title: "Paint the ceiling", description: "", min: "1 200", max: "1 500" };
+  const initialValues = {
+    title: "Paint the ceiling",
+    amount: "1 200",
+    upTo: "1 500",
+    description: "",
+  };
 
   it("opens prefilled with focus on the title and saves", async () => {
     const onSubmit = vi.fn(() => new Promise<never>(() => {}));
@@ -196,7 +231,8 @@ describe("TaskForm", () => {
     );
     expect(screen.getByRole("form", { name: "Edit “Paint the ceiling”" })).toBeTruthy();
     expect(document.activeElement).toBe(field("Title"));
-    expect(field("Min").value).toBe("1 200");
+    expect(field("Amount").value).toBe("1 200");
+    expect(screen.queryByRole("textbox", { name: description })).toBeNull();
     await submitForm("Save");
     expect(onSubmit).toHaveBeenCalledWith(initialValues);
     fireEvent.keyDown(field("Title"), { key: "Escape" });
@@ -220,6 +256,47 @@ describe("TaskForm", () => {
     expect(onCancel).toHaveBeenCalledTimes(2);
     await submitForm("Save");
     expect(screen.getByRole("alert").textContent).toContain("Could not save the task.");
+  });
+
+  it("opens with the description shown when the task has one", () => {
+    render(
+      <TaskForm
+        initialValues={{ ...initialValues, description: "Two coats." }}
+        validate={noErrors}
+        onSubmit={ok}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(field(description).value).toBe("Two coats.");
+  });
+
+  it("shows a task's sum instead of the amounts and sends them unchanged (R12)", async () => {
+    const onSubmit = vi.fn(ok);
+    const { rerender } = render(
+      <TaskForm
+        initialValues={initialValues}
+        validate={noErrors}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        summedEstimate="800–900 zł"
+      />,
+    );
+    expect(screen.queryByRole("textbox", { name: "Amount" })).toBeNull();
+    const sum = document.querySelector('[data-slot="summed-estimate"]');
+    expect(sum?.textContent).toContain("Sum of subtasks:800–900 zł");
+    expect(sum?.textContent).toContain("Change the amounts on the subtasks.");
+    await submitForm("Save");
+    expect(onSubmit).toHaveBeenCalledWith(initialValues);
+    rerender(
+      <TaskForm
+        initialValues={initialValues}
+        validate={noErrors}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        summedEstimate={null}
+      />,
+    );
+    expect(screen.getByText("no estimate yet")).toBeTruthy();
   });
 });
 
@@ -284,8 +361,10 @@ describe("TaskList", () => {
   it("shows a collapsed task and opens its details, subtasks and Add subtask", () => {
     renderList({ tasks: [paint, sealBath] });
     const list = screen.getByRole("list", { name: "Tasks" });
-    expect(within(list).getByText("1 200–1 500 zł")).toBeTruthy();
+    // The task shows its subtasks' sum and how many of them have none (R12, R13).
+    expect(within(list).getByText("300–400 zł")).toBeTruthy();
     expect(within(list).getByText("2 subtasks")).toBeTruthy();
+    expect(within(list).getByText("1 subtask without an estimate")).toBeTruthy();
     expect(within(list).getByText("No estimate")).toBeTruthy();
     expect(screen.queryByText("Two coats, white matt.")).toBeNull();
     // The title is the one disclosure control (decision J1).
@@ -389,6 +468,11 @@ describe("TaskList", () => {
     await choose("Edit");
     expect(field(description).value).toBe("Two coats, white matt.");
     expect(screen.getAllByText("Two coats, white matt.")).toHaveLength(1);
+    // A task with subtasks shows their sum, not its own amounts (R12).
+    expect(screen.queryByRole("textbox", { name: "Amount" })).toBeNull();
+    expect(document.querySelector('[data-slot="summed-estimate"]')?.textContent).toContain(
+      "300–400 zł",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "More actions for “Paint the ceiling”" }),
@@ -706,7 +790,7 @@ describe("TaskList completion", () => {
     });
     const title = screen.getByText("Paint the ceiling");
     expect(title.className).toContain("line-through");
-    expect(screen.getByText("1 200–1 500 zł").className).toContain("text-muted");
+    expect(screen.getByText("300–400 zł").className).toContain("text-muted");
     expect(screen.queryByRole("button", { name: "Move “Paint the ceiling”" })).toBeNull();
     expect(screen.getByText("1/2")).toBeTruthy();
     expect(screen.getByText("1 of 2 subtasks completed").className).toBe("sr-only");
@@ -721,6 +805,22 @@ describe("TaskList completion", () => {
     expect(screen.queryByRole("button", { name: "Add subtask" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Move “Plaster the cracks”" })).toBeNull();
     expect(screen.getByRole("button", { name: "Move “Seal the bath”" })).toBeTruthy();
+  });
+
+  it("shows a note about the task's sum in its row, read out as a status", () => {
+    const note = "The estimate of “Paint the ceiling” is now the sum of its subtasks.";
+    renderList({ tasks: [{ ...paint, notice: note }] });
+    const status = screen.getAllByRole("status").find((region) => region.textContent === note);
+    expect(status?.closest("li")?.dataset.moveId).toBe("paint");
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    // Subtasks get no note region of their own.
+    const subtasks = screen.getByRole("list", { name: "Subtasks of “Paint the ceiling”" });
+    expect(within(subtasks).queryAllByRole("status")).toHaveLength(0);
+  });
+
+  it("hides the count of subtasks without an estimate on a pending row", () => {
+    renderList({ tasks: [{ ...paint, pending: true }] });
+    expect(screen.queryByText("1 subtask without an estimate")).toBeNull();
   });
 
   it("keeps the subtask count without completion", () => {

@@ -9,7 +9,7 @@ import * as Stories from "./FutureExpenses.stories";
 
 ## 1. What it is for
 
-The one summary of version 1 (D19): what the open main tasks may still cost, as one min–max range in a single line, so the owner knows what is ahead without a dashboard (R08, P04, R02.7).
+The one summary of version 1 (D19): what the open main tasks may still cost, as one range in a single line, so the owner knows what is ahead without a dashboard (R17, P04, R02.7).
 
 <Unstyled>
   <Story of={Stories.Playground} />
@@ -36,7 +36,7 @@ The one summary of version 1 (D19): what the open main tasks may still cost, as 
 | Amount      | yes      | The range as the server formats it ("12 000–15 000 zł", tokens rule 5), `text-heading`, `font-weight-strong`, tabular figures; "No estimates yet" in muted text when nothing counts |
 | Unestimated | optional | `UnestimatedTasks` under it, only when an open main task has no estimate (Luki 9, R10)                                                                                              |
 
-Who counts: open main tasks with an estimate; subtasks never (R06, R08). The app computes the range on the server (standards §6); the component only shows it (P1).
+Who counts: open main tasks with an estimate, each once; a task with subtasks counts with the sum of its subtasks, so a subtask is never counted twice (R17, R12, R13). The app computes the range on the server (standards §6); the component only shows it (P1).
 
 ## 5. Variants
 
@@ -50,8 +50,8 @@ None.
 
 | State            | What the user sees                                                    | Story         | Source             |
 | ---------------- | --------------------------------------------------------------------- | ------------- | ------------------ |
-| Ready            | Label and range; the unestimated line when needed.                    | Playground    | R08, Luki 9        |
-| All estimated    | Label and range only.                                                 | All Estimated | R08                |
+| Ready            | Label and range; the unestimated line when needed.                    | Playground    | R17, Luki 9        |
+| All estimated    | Label and range only.                                                 | All Estimated | R17                |
 | No estimates yet | "No estimates yet" (also when every task is completed).               | No Estimates  | R10, decision J2   |
 | Loading          | A skeleton line; screen readers hear "Loading future expenses…".      | Loading       | Empty/Error states |
 | Load failed      | The message in `color-text-danger` with "Try again" in the same line. | Load Failed   | Error state        |

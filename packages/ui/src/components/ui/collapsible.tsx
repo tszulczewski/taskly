@@ -3,7 +3,7 @@ import { Collapsible as CollapsiblePrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 import { cn } from "../../lib/cn";
 
-/** Shows and hides a part of the screen in place, e.g. quick-add "Details" or an expanded row (Q2). */
+/** Shows and hides a part of the screen in place, e.g. the quick-add "Description" or an expanded row (Q2). */
 export function Collapsible(props: ComponentProps<typeof CollapsiblePrimitive.Root>) {
   return <CollapsiblePrimitive.Root {...props} data-slot="collapsible" />;
 }

@@ -25,6 +25,13 @@ export const NoEstimate: Story = {
   },
 };
 
+export const ExactPrice: Story = {
+  args: { value: "450 zł" },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText("450 zł")).toBeVisible();
+  },
+};
+
 export const States: Story = {
   render: () => (
     <Stack>
@@ -33,6 +40,7 @@ export const States: Story = {
         cells={[
           { state: "Range", node: <EstimateRange value={curtainRods.estimate} /> },
           { state: "Short range", node: <EstimateRange value={longTask.estimate} /> },
+          { state: "Exact price", node: <EstimateRange value="450 zł" /> },
           { state: "Long amounts, grosze", node: <EstimateRange value={wholeBathroom.estimate} /> },
           { state: "No estimate", node: <EstimateRange value={null} /> },
         ]}
@@ -46,6 +54,7 @@ export const Column: Story = {
     <div className="flex max-w-measure flex-col items-end gap-inline">
       <EstimateRange value={curtainRods.estimate} />
       <EstimateRange value={longTask.estimate} />
+      <EstimateRange value="450 zł" />
       <EstimateRange value={wholeBathroom.estimate} />
       <EstimateRange value={null} />
     </div>

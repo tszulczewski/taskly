@@ -1,8 +1,11 @@
 import type { FieldErrors, SubmitResult } from "../../lib/use-form";
 import type { Place } from "../places/types";
 
-export type TaskField = "title" | "description" | "min" | "max";
-/** What the task forms send: text as typed; the app parses amounts (`parsePlnToGrosze`). */
+export type TaskField = "title" | "amount" | "upTo" | "description";
+/**
+ * What the task forms send: text as typed. The app turns the two amounts into an estimate
+ * (`estimateFromAmounts`): one filled field is an exact price, both a range (R18).
+ */
 export type TaskFormValues = Record<TaskField, string>;
 export type TaskFieldErrors = FieldErrors<TaskField>;
 export type TaskSubmit = (values: TaskFormValues) => Promise<SubmitResult<TaskField>>;
@@ -12,11 +15,25 @@ export interface TaskItem {
   id: string;
   title: string;
   description: string | null;
-  /** The range as shown, e.g. "1 200–1 500 zł" (`formatPlnRange`); null when there is none. */
+  /**
+   * The estimate as shown (`formatPlnRange`): a range, "1 200–1 500 zł", or one amount, "500 zł",
+   * when it is an exact price (R18). For a task with subtasks it is their sum (R12). Null when
+   * there is none.
+   */
   estimate: string | null;
-  /** The amounts as the edit form shows them, e.g. "1 200"; empty when there is no estimate. */
-  min: string;
-  max: string;
+  /**
+   * The amounts as the edit form shows them, e.g. "1 200": an exact price in `amount` with `upTo`
+   * empty, a range in both; both empty when there is no estimate.
+   */
+  amount: string;
+  upTo: string;
+  /** Subtasks without an estimate, left out of the task's sum (R13); shown in the meta line. */
+  unestimatedSubtasks?: number;
+  /**
+   * A short note in the row after the server confirmed a change to it, e.g. that its estimate is
+   * now the sum of its subtasks (spec E01, Roll-up messages). The app clears it on the next change.
+   */
+  notice?: string;
   /** Not yet confirmed by the server: dimmed, with its actions disabled (spec E01). */
   pending?: boolean;
   /** Why the last change to this row failed after a rollback (spec E01: inline, no toast). */
@@ -32,6 +49,6 @@ export interface TaskItem {
   subtasks?: TaskItem[];
 }
 
-export const emptyTaskValues: TaskFormValues = { title: "", description: "", min: "", max: "" };
+export const emptyTaskValues: TaskFormValues = { title: "", amount: "", upTo: "", description: "" };
 
 export type Marker = "important" | "urgent";

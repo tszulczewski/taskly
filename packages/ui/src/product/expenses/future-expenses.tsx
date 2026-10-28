@@ -10,9 +10,9 @@ import { UnestimatedTasks, type UnestimatedTasksProps } from "./unestimated-task
 export interface FutureExpensesProps extends Omit<UnestimatedTasksProps, "tasks" | "onEmptied"> {
   /** loading: the first load. error: it failed (a message with "Try again"). */
   status: "loading" | "error" | "ready";
-  /** The range as shown, e.g. "12 000–15 000 zł"; null when no open task has an estimate. */
+  /** As shown, e.g. "12 000–15 000 zł" or one amount (R18); null when no open task has an estimate. */
   total: string | null;
-  /** Open main tasks without an estimate (R10). */
+  /** Open main tasks without an estimate (R10, R13). */
   unestimated: UnestimatedTasksProps["tasks"];
   onRetry: () => void;
   retrying?: boolean;
@@ -20,9 +20,9 @@ export interface FutureExpensesProps extends Omit<UnestimatedTasksProps, "tasks"
 
 /**
  * The one summary of version 1 (D19): what the open main tasks may still cost, as one min–max
- * range in a single line on its own surface (R08, R02.7, P04, `color-surface-list`), under the
- * list's name (decision I1). The app computes
- * the range on the server (standards §6). Tasks without an estimate are named under it (Luki 9).
+ * range in a single line on its own surface (R17, R02.7, P04, `color-surface-list`), under the
+ * list's name (decision I1). The app computes the range on the server, each task with subtasks
+ * counting their sum once (standards §6). Tasks without an estimate are named under it (Luki 9).
  */
 export function FutureExpenses({
   status,

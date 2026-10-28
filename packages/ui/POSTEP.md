@@ -916,3 +916,20 @@ Uwagi z komentarzy w klikalnym prototypie E01 (`prototypes/task-list-v1/`, ekspo
 
 - Uwaga z prototypu: po najechaniu na pierwsze i ostatnie zadanie podświetlenie ma ostre narożniki (90°) w zaokrąglonej liście. Dotyczy też otwartego wiersza, formularza edycji i przeciąganego wiersza.
 - Poprawka w `TaskRow`: tony wiersza (hover, otwarty, edycja, przeciągany) zaokrąglają się z `radius-surface` przy górze pierwszego i dole ostatniego zadania oraz w prawym dolnym rogu ostatniego podzadania ostatniego zadania. Lista nie dostaje `overflow-hidden`, bo ucięłaby wiersz przeciągany poza jej krawędź. Bez nowych tokenów. Test regresji w `tasks.test.tsx`.
+
+## Etap 10: kwoty po odświeżeniu briefu (2026-10-28)
+
+Odświeżenie briefu z 2026-10-27 (R12–R18, D22–D24, prototyp C1) zastępuje R06–R08, D15 i D16: szacunki podzadań sumują się w zadaniu, dokładną cenę wpisuje się raz („Amount” i „up to (optional)”), szybkie dodawanie pokazuje kwoty obok tytułu, a przyszłe wydatki liczą zadanie raz, z sumą podzadań. Spec E01 (rewizja 2026-10-28) i issues #15, #16, #20, #21 zaktualizowane wcześniej; log: `.ai/runs/2026-10-28-e01-subtask-rollup-alignment.md`.
+
+### Decyzje W1–W4 (przyjęte przez product ownera 2026-10-28)
+
+- **W1. Komunikaty o sumie** (w specu E01: Q1, umiejscowienie S4). Gdy pierwsze podzadanie zasłania wpisaną kwotę zadania i gdy ostatnie znika, w wierszu zadania pod tytułem pojawia się wyciszona linia `role="status"` (13 px). Treść pisze aplikacja; komponent tylko ją pokazuje (`TaskItem.notice`). Znika przy następnej zmianie.
+- **W2. Suma bez oznaczenia** (w specu E01: Q2). Wiersz zadania z podzadaniami pokazuje sumę tak samo jak wpisany szacunek; formularz edycji pokazuje „Sum of subtasks: …” jako tekst zamiast pól.
+- **W3. Zadanie wyceniane przez podzadania w „N tasks without an estimate”** (S2). Gdy żadne podzadanie nie ma szacunku, zamiast „Add estimate” jest wyciszony tekst „Add estimates to its N subtasks”, bez akcji; pełna obsługa w specu E03.
+- **W4. Przełącznik „Description”** (S3). Opis w szybkim dodawaniu i w edycji chowa się za wyciszonym `TextAction` ze strzałką (`Collapsible`), jak „Details” wcześniej; w specu „+ Description” zmienione na ten zapis.
+
+### Etap 10: wdrożenie
+
+- Kod: `types.ts` (`amount` / `upTo` zamiast `min` / `max`, `unestimatedSubtasks`, `notice`), nowy `task-fields.tsx` (`EstimateFields`, `DescriptionField`), `QuickAdd` w jednym wierszu od 640 px (tytuł, kwoty na 2/5 szerokości, „Add”; odstępy `h-lh` wyrównują pola pod legendą), `TaskForm` (`summedEstimate`), `TaskRow` (licznik podzadań bez szacunku, linia komunikatu), `UnestimatedTasks` (`subtasksWithoutEstimate`, fokus po zapisie pomija zadania bez przycisku), teksty.
+- Storybook: dane i ekran (`task-data.ts`: `rollUp`, R17 w przyszłych wydatkach, teksty polskie; `TaskScreen.tsx`: komunikaty W1), historie QuickAdd, TaskForm, TaskRow, EstimateRange (Exact Price), UnestimatedTasks (Priced Through Subtasks), wzorce, strony MDX komponentów, wzorców, epików E01 i E03 oraz zasad (Usage and accessibility, Start here, Content, How to choose), prymitywy (Collapsible, Input, FormField, Textarea).
+- `.ai/docs/design-system.md`: tabela komponentów, Content (pieniądze), legenda źródeł.

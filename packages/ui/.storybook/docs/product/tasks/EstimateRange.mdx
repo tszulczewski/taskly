@@ -9,7 +9,7 @@ import * as Stories from "./EstimateRange.stories";
 
 ## 1. What it is for
 
-Shows what a task is expected to cost, as a min–max range in złoty, in the same place on every row, so the owner can compare tasks without opening them.
+Shows what a task is expected to cost, as a range or one exact amount in złoty, in the same place on every row, so the owner can compare tasks without opening them. On a task with subtasks it is their sum (R12).
 
 <Unstyled>
   <Story of={Stories.Playground} />
@@ -33,9 +33,10 @@ Shows what a task is expected to cost, as a min–max range in złoty, in the sa
 | Part        | Required | Notes                                                                                 |
 | ----------- | -------- | ------------------------------------------------------------------------------------- |
 | Range       | one of   | "1 200–1 500 zł": en dash, no spaces around it, one "zł" (tokens rule 5); never wraps |
+| Exact price | one of   | "450 zł": one amount when min equals max (R18, D24)                                   |
 | No estimate | one of   | "No estimate" in `color-text-muted` (spec E01, R02.5)                                 |
 
-The value arrives formatted: the app formats grosze at the UI edge (standards §6, P1). The component never calculates.
+The value arrives formatted: the app formats grosze at the UI edge with `formatPlnRange`, which gives one amount when min equals max (standards §6, P1). The component never calculates, and a summed estimate looks the same as a typed one (decision W2).
 
 ## 5. Variants
 
@@ -47,7 +48,7 @@ None. The empty text can be translated with `emptyText`.
   <Story of={Stories.States} />
 </Unstyled>
 
-Two states: an estimate, or none. Loading, error and interactive states belong to the row. Covered by the No Estimate test.
+Three states: a range, an exact price, or none. Loading, error and interactive states belong to the row. Covered by the Exact Price and No Estimate tests.
 
 ## 7. Behaviour and accessibility
 

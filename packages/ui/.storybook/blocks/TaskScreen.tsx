@@ -23,6 +23,7 @@ import { placeMessages, placeNameRule } from "./place-data";
 import {
   fromValues,
   futureExpenses,
+  rollUp,
   taskMessages,
   validateEstimate,
   validateTask,
@@ -117,6 +118,14 @@ const mapTasks = (tasks: TaskItem[], change: (task: TaskItem) => TaskItem | null
     ];
   });
 
+/** The top-level task that holds subtask `id`, if it is one. */
+const parentOf = (tasks: TaskItem[], id: string) =>
+  tasks.find((item) => item.subtasks?.some((subtask) => subtask.id === id));
+
+/** A roll-up note lasts until the next change (spec E01, Roll-up messages). */
+const withoutNotices = (tasks: TaskItem[]) =>
+  tasks.map((item) => (item.notice ? { ...item, notice: undefined } : item));
+
 /**
  * Screens S5 and S7 as the app would wire them (spec E01, Optimistic UI), with the server
  * simulated (P1): an add shows a pending row at once, the new row is highlighted when confirmed,
@@ -145,7 +154,7 @@ export function TaskScreen({
   const [expensesStatus, setExpensesStatus] = useState(expenses ?? "ready");
   const [expensesRetrying, setExpensesRetrying] = useState(false);
   const nextId = useRef(0);
-  const shown = useMemo(() => forDisplay(tasks), [tasks]);
+  const shown = useMemo(() => forDisplay(tasks.map(rollUp)), [tasks]);
   const summary = useMemo(() => futureExpenses(tasks), [tasks]);
 
   const confirmed = async () => {
@@ -160,6 +169,12 @@ export function TaskScreen({
   ): Promise<SubmitResult<TaskField>> => {
     nextId.current += 1;
     const tempId = `temp-${nextId.current}`;
+    // The first subtask replaces the task's own estimate with the subtasks' sum (R12, R15).
+    const parent = tasks.find((item) => item.id === parentId);
+    const startsSum =
+      parent !== undefined &&
+      (parent.subtasks ?? []).every((subtask) => subtask.pending) &&
+      rollUp(parent).estimate !== null;
     const pendingRow = { ...fromValues(tempId, values), pending: true };
     const append = (list: TaskItem[]) =>
       parentId === null
@@ -169,14 +184,20 @@ export function TaskScreen({
               ? { ...item, subtasks: [...(item.subtasks ?? []), pendingRow] }
               : item,
           );
-    setTasks(append);
+    setTasks((list) => append(withoutNotices(list)));
     if (!(await confirmed())) {
       setTasks((list) => mapTasks(list, (item) => (item.id === tempId ? null : item)));
       return { ok: false, formError: taskMessages.addFailed };
     }
     const id = `new-${nextId.current}`;
     setTasks((list) =>
-      mapTasks(list, (item) => (item.id === tempId ? fromValues(id, values) : item)),
+      mapTasks(list, (item) => {
+        if (item.id === tempId) return fromValues(id, values);
+        if (startsSum && item.id === parentId) {
+          return { ...item, notice: taskMessages.sumStarted(item.title) };
+        }
+        return item;
+      }),
     );
     setHighlightId(id);
     return { ok: true };
@@ -185,14 +206,31 @@ export function TaskScreen({
   const edit = async (id: string, values: TaskFormValues): Promise<SubmitResult<TaskField>> => {
     if (!(await confirmed())) return { ok: false, formError: taskMessages.saveFailed };
     setTasks((list) =>
-      mapTasks(list, (item) => (item.id === id ? fromValues(id, values, item) : item)),
+      mapTasks(withoutNotices(list), (item) =>
+        item.id === id ? fromValues(id, values, item) : item,
+      ),
     );
     return { ok: true };
   };
 
   const remove = async (id: string) => {
     const ok = await confirmed();
-    if (ok) setTasks((list) => mapTasks(list, (item) => (item.id === id ? null : item)));
+    if (!ok) return ok;
+    setTasks((list) => {
+      const parentId = parentOf(list, id)?.id;
+      return mapTasks(withoutNotices(list), (item) => {
+        if (item.id === id) return null;
+        if (item.id !== parentId) return item;
+        // Deleting the last subtask brings the task's own estimate back (R15).
+        const after = rollUp({
+          ...item,
+          subtasks: item.subtasks?.filter((subtask) => subtask.id !== id),
+        });
+        return after.subtasks?.length === 0 && after.estimate !== null
+          ? { ...after, notice: taskMessages.sumBack(item.title, after.estimate) }
+          : after;
+      });
+    });
     return ok;
   };
 
@@ -203,7 +241,9 @@ export function TaskScreen({
     message: (title: string) => string,
   ) => {
     const before = tasks;
-    setTasks((list) => change(mapTasks(list, (item) => ({ ...item, error: undefined }))));
+    setTasks((list) =>
+      change(mapTasks(withoutNotices(list), (item) => ({ ...item, error: undefined }))),
+    );
     if (await confirmed()) return;
     const title = (function find(list: TaskItem[]): string {
       for (const item of list) {

@@ -32,14 +32,14 @@ Glossary (Luki 5): task → **zadanie**, subtask → **podzadanie**, future expe
 
 Say **what happened** and **what to do**, in that order, next to where it happened. Never blame the user, never show codes (spec E01, A05).
 
-| Situation            | Message                                                    | Where                   | Source       |
-| -------------------- | ---------------------------------------------------------- | ----------------------- | ------------ |
-| A field              | "Enter an amount like 1 500,50"; "Min must not exceed max" | under the field         | spec E01     |
-| Credentials          | "Email or password is incorrect."                          | above the form          | sign-in spec |
-| A refused change     | "Could not save “X”. It is back as it was."                | in the row              | decision H5  |
-| A failed load        | "Could not load your tasks." + "Try again"                 | in place of the content | spec E01     |
-| A failed delete      | "Could not delete the task. Try again."                    | inside the dialog       | spec E01     |
-| Something unexpected | "Something went wrong. Try again."                         | above the form          | sign-in spec |
+| Situation            | Message                                                                      | Where                   | Source       |
+| -------------------- | ---------------------------------------------------------------------------- | ----------------------- | ------------ |
+| A field              | "Enter an amount like 1 500,50"; "“Up to” must not be less than the amount." | under the field         | spec E01     |
+| Credentials          | "Email or password is incorrect."                                            | above the form          | sign-in spec |
+| A refused change     | "Could not save “X”. It is back as it was."                                  | in the row              | decision H5  |
+| A failed load        | "Could not load your tasks." + "Try again"                                   | in place of the content | spec E01     |
+| A failed delete      | "Could not delete the task. Try again."                                      | inside the dialog       | spec E01     |
+| Something unexpected | "Something went wrong. Try again."                                           | above the form          | sign-in spec |
 
 ## Empty states
 

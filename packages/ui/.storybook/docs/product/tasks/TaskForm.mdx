@@ -29,40 +29,53 @@ Changes a task or subtask where it stands: the row turns into this form, prefill
 
 ## 4. Anatomy
 
-| Part        | Required | Notes                                                                              |
-| ----------- | -------- | ---------------------------------------------------------------------------------- |
-| Error       | optional | `Alert` above the fields when saving failed; what was typed stays                  |
-| Title       | yes      | Focused when the form opens                                                        |
-| Description | optional | `Textarea`, "(optional)"                                                           |
-| Estimate    | optional | A group "Estimate (optional)" with Min and Max, suffix "zł", `inputmode="decimal"` |
-| Save        | yes      | Primary; "Saving…" with a spinner while sending                                    |
-| Cancel      | yes      | Secondary; Escape does the same                                                    |
+| Part           | Required | Notes                                                                                                       |
+| -------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| Error          | optional | `Alert` above the fields when saving failed; what was typed stays                                           |
+| Title          | yes      | Focused when the form opens                                                                                 |
+| Estimate       | optional | As in Quick add: "Amount" and "up to (optional)", suffix "zł", `inputmode="decimal"` (R18)                  |
+| Sum (subtasks) | instead  | A task with subtasks: "Sum of subtasks: 300–400 zł" and "Change the amounts on the subtasks." as text (R12) |
+| Description    | optional | Behind the "Description" toggle, open when the task has one                                                 |
+| Save           | yes      | Primary; "Saving…" with a spinner while sending                                                             |
+| Cancel         | yes      | Secondary; Escape does the same                                                                             |
 
 The form sits on `color-surface-raised` in place of the row (tokens: raised for an open row).
 
 ## 5. Variants
 
-None. The same form edits tasks and subtasks (spec E01: "the same fields").
+| Variant                | Choose it when                                                                                             | Source        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- | ------------- |
+| Amounts (default)      | A subtask, or a task without subtasks.                                                                     | spec E01      |
+| `summedEstimate` given | A task with subtasks: its estimate is their sum, so it is shown as text, not as fields; `null` means none. | R12, D22, R15 |
+
+Text, not disabled fields: a disabled field looks editable and screen readers skip it. The task's own figure is kept unchanged and comes back when its last subtask goes (R15).
+
+<Unstyled>
+  <Story of={Stories.SumOfSubtasks} />
+</Unstyled>
 
 ## 6. States
 
 No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Input](?path=/story/primitives-input--states), [Form field](?path=/story/primitives-form-field--states) (decision M1).
 
-| State            | What the user sees                                                        | Story           | Source               |
-| ---------------- | ------------------------------------------------------------------------- | --------------- | -------------------- |
-| Prefilled        | The task's values; focus in Title.                                        | Playground      | spec E01, Edit       |
-| Estimate removed | Both amounts cleared, saved without an estimate.                          | Remove Estimate | spec E01, Edit       |
-| One amount only  | "Enter both amounts or neither" under the empty one.                      | One Amount Only | spec E01, Errors     |
-| Invalid amount   | "Enter an amount like 1 500,50" after leaving the field.                  | Invalid Amount  | spec E01, Edge cases |
-| Saving           | Spinner, "Saving…"; Cancel and Escape wait; a second Enter sends nothing. | Saving          | Form pattern         |
-| Save failed      | The message above the form; the values stay.                              | Save Failed     | spec E01, rollback   |
-| Cancelled        | The row is back; focus on its "…" button (decision F6).                   | Cancel          | spec E01             |
-| Long text        | A long title and description wrap inside the fields.                      | Long Text       | —                    |
+| State                 | What the user sees                                                        | Story                 | Source               |
+| --------------------- | ------------------------------------------------------------------------- | --------------------- | -------------------- |
+| Prefilled             | The task's values; focus in Title.                                        | Playground            | spec E01, Edit       |
+| Estimate removed      | Both amounts cleared, saved without an estimate.                          | Remove Estimate       | spec E01, Edit       |
+| Exact price           | "up to" cleared; saved as one amount.                                     | Exact Price           | R18, D24             |
+| Up to below amount    | "“Up to” must not be less than the amount." under up to.                  | Up To Below Amount    | spec E01, Errors     |
+| Sum of subtasks       | "Sum of subtasks: 300–400 zł" and the hint, no amount fields.             | Sum Of Subtasks       | R12, D22             |
+| Sum without estimates | "Sum of subtasks: no estimate yet".                                       | Sum Without Estimates | R13                  |
+| Invalid amount        | "Enter an amount like 1 500,50" after leaving the field.                  | Invalid Amount        | spec E01, Edge cases |
+| Saving                | Spinner, "Saving…"; Cancel and Escape wait; a second Enter sends nothing. | Saving                | Form pattern         |
+| Save failed           | The message above the form; the values stay.                              | Save Failed           | spec E01, rollback   |
+| Cancelled             | The row is back; focus on its "…" button (decision F6).                   | Cancel                | spec E01             |
+| Long text             | A long title and description wrap inside the fields.                      | Long Text             | —                    |
 
 Loading, empty and many items do not apply: the form edits one task that is already loaded.
 
 <Unstyled>
-  <Story of={Stories.OneAmountOnly} />
+  <Story of={Stories.UpToBelowAmount} />
 </Unstyled>
 
 ## 7. Behaviour and accessibility
@@ -74,7 +87,7 @@ Loading, empty and many items do not apply: the form edits one task that is alre
 
 ## 8. Content
 
-- Buttons: "Save", "Cancel". Labels as in Quick add.
+- Buttons: "Save", "Cancel". Labels as in Quick add; the sum reads "Sum of subtasks:", "no estimate yet", "Change the amounts on the subtasks."
 - Messages as in Quick add (spec E01; title message an example, decision E3).
 
 <Unstyled>
@@ -101,10 +114,11 @@ Loading, empty and many items do not apply: the form edits one task that is alre
 
 ```tsx
 <TaskForm
-  initialValues={{ title: "Seal the bath", description: "", min: "", max: "" }}
+  initialValues={{ title: "Seal the bath", amount: "", upTo: "", description: "" }}
   validate={validateTaskForm}
   onSubmit={(values) => updateTask.mutateAsync({ id, ...values })}
   onCancel={() => setEditing(false)}
+  summedEstimate={task.subtasks.length > 0 ? task.estimate : undefined}
 />
 ```
 

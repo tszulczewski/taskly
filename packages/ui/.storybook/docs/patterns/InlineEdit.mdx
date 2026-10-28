@@ -9,15 +9,16 @@ How an existing item is changed: the row becomes its form, in place and prefille
 
 ## Rules
 
-| Rule                                                                                         | Source                |
-| -------------------------------------------------------------------------------------------- | --------------------- |
-| Edit opens from the row's "…" menu; the row switches in place to the same fields, prefilled. | spec E01, Edit; P2    |
-| Focus goes to the first field; after Save or Cancel it returns to the row's "…".             | decision F6           |
-| Escape cancels, except while saving.                                                         | decision F2           |
-| Clearing both amounts removes the estimate.                                                  | spec E01              |
-| The form closes only after the server confirmed; a refusal keeps the form and the values.    | decision F2, spec E01 |
-| Validation and messages follow the Form pattern.                                             | Patterns / Form       |
-| One form per row; the rest of the list stays usable.                                         | Q2                    |
+| Rule                                                                                           | Source                |
+| ---------------------------------------------------------------------------------------------- | --------------------- |
+| Edit opens from the row's "…" menu; the row switches in place to the same fields, prefilled.   | spec E01, Edit; P2    |
+| Focus goes to the first field; after Save or Cancel it returns to the row's "…".               | decision F6           |
+| Escape cancels, except while saving.                                                           | decision F2           |
+| Clearing both amounts removes the estimate; one amount is an exact price.                      | spec E01, R18         |
+| The form closes only after the server confirmed; a refusal keeps the form and the values.      | decision F2, spec E01 |
+| Validation and messages follow the Form pattern.                                               | Patterns / Form       |
+| One form per row; the rest of the list stays usable.                                           | Q2                    |
+| A task with subtasks shows "Sum of subtasks" as text; its amounts are changed on the subtasks. | R12, spec E01         |
 
 ## An item with only a name
 

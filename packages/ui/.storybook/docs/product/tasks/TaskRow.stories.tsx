@@ -176,6 +176,15 @@ export const ChangeFailed: Story = {
   args: { task: { ...sealBath, error: taskMessages.rolledBack } },
 };
 
+export const SumStarted: Story = {
+  args: {
+    task: {
+      ...paintCeiling,
+      notice: taskMessages.sumStarted(paintCeiling.title),
+    },
+  },
+};
+
 export const Highlighted: Story = { args: { task: curtainRods, highlightId: curtainRods.id } };
 
 export const Menu: Story = {
@@ -280,7 +289,22 @@ export const Editing: Story = {
       within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Edit" }),
     );
     await expect(canvas.getByLabelText("Title")).toHaveFocus();
-    await expect(canvas.getByLabelText("Min")).toHaveValue(pantry.min);
+    await expect(canvas.getByLabelText("Amount")).toHaveValue(pantry.amount);
+  },
+};
+
+export const EditingSum: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: `More actions for “${paintCeiling.title}”` }),
+    );
+    await userEvent.click(
+      within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Edit" }),
+    );
+    // Its estimate is the subtasks' sum, so the form shows it instead of the amounts (R12).
+    await expect(canvas.queryByLabelText("Amount")).toBeNull();
+    await expect(canvas.getByText(paintCeiling.estimate as string)).toBeVisible();
   },
 };
 
@@ -298,9 +322,9 @@ export const AddingSubtask: Story = {
     await userEvent.type(canvas.getByLabelText("New subtask"), "Buy sanitary silicone{Enter}");
     await expect(args.onAddSubtask).toHaveBeenCalledWith(sealBath.id, {
       title: "Buy sanitary silicone",
+      amount: "",
+      upTo: "",
       description: "",
-      min: "",
-      max: "",
     });
   },
 };

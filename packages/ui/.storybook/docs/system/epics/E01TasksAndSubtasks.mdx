@@ -4,16 +4,16 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # E01 Tasks and subtasks
 
-Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (#15), E01-S02 subtasks with their own estimate that changes nothing in the task (#16). Spec: `.ai/specs/2026-10-16-tasks-and-subtasks.md` (PR A: data and services; PR B: routes and the screen; PR C: subtasks). Screens S5 and S6.
+Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (#15), E01-S02 subtasks with their own estimate, and the task's estimate becomes their sum (#16; brief refresh 2026-10-27, R12–R18, D22–D24). Spec: `.ai/specs/2026-10-16-tasks-and-subtasks.md` (PR A: data and services; PR B: routes and the screen; PR C: subtasks). Screens S5 and S6.
 
 ## Flow
 
 1. The owner opens `/` and sees one list on one surface; while it loads, static grey rows.
-2. They type a title in quick add and press "Add" (or Enter). The row appears at once, muted with "Saving…", and is confirmed or rolled back with the message on the form; focus stays in quick add for the next task.
-3. "Details" in quick add opens the description and the estimate (min and max in złoty) for those who want them now; only the title is required.
+2. They type a title in quick add, and the amount beside it if they know it, and press "Add" (or Enter). The row appears at once, muted with "Saving…", and is confirmed or rolled back with the message on the form; focus goes back to the title for the next task (C1).
+3. The estimate is "Amount" and "up to (optional)": one amount is an exact price, both a range (R18, D24). Only the title is required; the description waits behind the "Description" toggle.
 4. Pressing a task's title opens the row in place: the description, the subtasks and "Add subtask". The estimate stays at the right of the title from 640px and goes under it on phones.
 5. "…" → "Edit" turns the row into the same form, filled in; Cancel or Save returns focus to "…".
-6. "…" → "Add subtask" opens a form under the task; the subtask's estimate never changes the task's estimate.
+6. "…" → "Add subtask" opens a form under the task. From the first subtask the task's estimate is the sum of its subtasks; the row counts "N subtasks without an estimate", a muted notice says the typed amount is kept, and the edit form shows the sum as text. When the last subtask goes, the typed amount comes back (R12, R13, R15; decision W1).
 7. "…" → "Delete" asks once, naming the task and how many subtasks go with it; there is no undo.
 
 ## Screens and stories
@@ -26,6 +26,7 @@ Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (
 | S5     | Editing in place; delete confirmation    | [Edit In Place](?path=/story/product-tasks-screens--edit-in-place), [Confirm Delete](?path=/story/product-tasks-screens--confirm-delete)                                               |
 | S5     | 30 tasks; Polish text                    | [Many Tasks](?path=/story/product-tasks-screens--many-tasks), [Polish Phone](?path=/story/product-tasks-screens--polish-phone)                                                         |
 | S6     | Task opened; adding a subtask on a phone | [Task Opened Desktop](?path=/story/product-tasks-screens--task-opened-desktop), [Task Opened Phone](?path=/story/product-tasks-screens--task-opened-phone)                             |
+| S6     | The estimate becomes the sum             | [Sum Started](?path=/story/product-tasks-task-row--sum-started), [Editing Sum](?path=/story/product-tasks-task-row--editing-sum)                                                       |
 
 The full state map is on [Tasks screens](?path=/docs/product-tasks-screens--docs). Patterns: [Quick capture](?path=/docs/patterns-quick-capture--docs), [Details in row](?path=/docs/patterns-details-in-row--docs), [Inline edit](?path=/docs/patterns-inline-edit--docs), [Optimistic change](?path=/docs/patterns-optimistic-change--docs), [Delete confirmation](?path=/docs/patterns-delete-confirmation--docs), [List](?path=/docs/patterns-list--docs), [Form](?path=/docs/patterns-form--docs).
 
@@ -38,11 +39,13 @@ The full state map is on [Tasks screens](?path=/docs/product-tasks-screens--docs
 - A list of rows, not cards or a board; one surface, rows divided by a line (R02.1, A01.2).
 - The description shows only when the row is open; row actions are in "…" (Luki 6, R02.1, P2).
 - The title is the row's one disclosure; the arrow from 640px is decorative (decision J1).
-- An estimate is "1 200–1 500 zł"; both amounts or neither; "No estimate" when empty (R07, tokens rule 5, F11).
+- An estimate is "1 200–1 500 zł", or "450 zł" for an exact price; "No estimate" when empty (R18, D24, tokens rule 5, F11).
+- A task with subtasks shows their sum, unmarked (R12, decision W2); its typed figure is kept (R15).
 - A change shows at once and rolls back with a message where it happened, never a toast (spec E01, P4).
 
 ## Remaining product work
 
 - Correct the spec's UI/UX to Luki 6 (description only in the open row, actions in "…"), decision P2.
-- Fix `formatPlnRange` to "1 200–1 500 zł" with unit tests, decision F11 (the spec has the note; PR B).
+- Fix `formatPlnRange` to "1 200–1 500 zł", and one amount when min equals max, with unit tests, decision F11 and R18 (the spec has the note; PR B).
+- Compute the sum on read with `rollUpEstimate` in `@taskly/core` (spec E01, PR C).
 - Build PR A–C; in the app, wrap these components with TanStack Query (optimistic updates and rollback) and the shared Zod schema.

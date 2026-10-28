@@ -14,6 +14,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-28 — Design-system ids are a shared namespace: before citing a new decision in Storybook, check the legend in Start here (Q1–Q5 are reference answers, S1–S8 are screens). Spec-local labels like "Q1"/"S2" clash; give DS decisions the next free POSTEP.md letter (W1–W4) and add it to both legends.
+- 2026-10-28 — Adding a field to quick add (amounts) makes every Storybook query by that label ambiguous on screens that also show an edit or estimate form; scope queries with `within(getByRole("form", { name }))` or the named list instead of renaming labels.
 - 2026-10-28 — When the brief supersedes a rule, the old rule also lives outside specs and issues: `.ai/docs/engineering-standards.md` §6 still said "subtask estimates are informational and never summed" (R06) after R12 replaced it, and `design-system.md` lists brief id ranges. Grep `.ai/docs/`, code TODOs and the design system for the superseded ids and their wording, not only the files the handoff names.
 
 - 2026-10-27 — `om-synthetic-users` on a prototype: a decision simulation that describes a product rule ("subtask figures do not add up into the task") primes the persona if it comes before the walk, and the persona then "discovers" the rule on screen. Ask the past-tense questions, walk, and only then run the decision simulations; never hint at a control ("Details can be clicked") in a step message. Also: `agent-browser screenshot` with a relative path does not write into the repo — pass absolute paths.

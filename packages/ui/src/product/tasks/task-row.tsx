@@ -232,9 +232,11 @@ export function TaskRow({
     </ul>
   );
 
+  const unestimatedSubtasks = task.unestimatedSubtasks ?? 0;
   const showMeta =
     task.pending ||
     subtasks.length > 0 ||
+    unestimatedSubtasks > 0 ||
     task.important ||
     task.urgent ||
     (task.places?.length ?? 0) > 0;
@@ -369,13 +371,14 @@ export function TaskRow({
             <TaskForm
               initialValues={{
                 title: task.title,
+                amount: task.amount,
+                upTo: task.upTo,
                 description: task.description ?? "",
-                min: task.min,
-                max: task.max,
               }}
               validate={validate}
               onSubmit={save}
               onCancel={closeEditing}
+              summedEstimate={subtasks.length > 0 ? task.estimate : undefined}
               text={text}
             />
           </div>
@@ -473,6 +476,9 @@ export function TaskRow({
                   ) : (
                     <span>{t.subtaskCount(subtasks.length)}</span>
                   )}
+                  {unestimatedSubtasks > 0 && !task.pending ? (
+                    <span>{t.unestimatedSubtasks(unestimatedSubtasks)}</span>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -512,6 +518,17 @@ export function TaskRow({
             </p>
           </UnderTitle>
         ) : null}
+        {/* Notes concern a task's sum, so only tasks get one. It is always rendered, so a note
+            that arrives is read out (a live region added together with its text may not be). */}
+        {isSubtask ? null : (
+          <div role="status">
+            {task.notice ? (
+              <UnderTitle columns={columns} className="pb-row-y">
+                <p className="max-w-measure text-meta text-muted">{task.notice}</p>
+              </UnderTitle>
+            ) : null}
+          </div>
+        )}
         <CollapsibleContent>
           {task.description !== null && !editing ? (
             <UnderTitle columns={columns} className="pb-row-y">

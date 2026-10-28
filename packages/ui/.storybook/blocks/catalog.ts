@@ -65,7 +65,7 @@ export const catalog: CatalogEntry[] = [
     imports: ["Input"],
     title: "Primitives/Input",
     summary: "One short value: a title, an e-mail, an amount in złoty.",
-    when: 'Task title, email, name, min and max (`inputMode="decimal"`, suffix “zł”).',
+    when: 'Task title, email, name, the estimate\'s “Amount” and “up to” (`inputMode="decimal"`, suffix “zł”).',
     whenNot:
       "A password (PasswordInput); several sentences (Textarea); a field without a visible label.",
   },
@@ -148,7 +148,7 @@ export const catalog: CatalogEntry[] = [
     imports: ["Collapsible", "CollapsibleTrigger", "CollapsibleContent", "CollapsibleIndicator"],
     title: "Primitives/Collapsible",
     summary: "Opens rarely needed details in place.",
-    when: "Quick-add Details, a task row's details, “N tasks without an estimate”.",
+    when: "Quick-add Description, a task row's details, “N tasks without an estimate”.",
     whenNot: "Details in a drawer or window; switching views; a rule the user needs to act.",
   },
   {
@@ -271,8 +271,8 @@ export const catalog: CatalogEntry[] = [
     group: "Product · Tasks",
     imports: ["QuickAdd"],
     title: "Product/Tasks/Quick add",
-    summary: "Captures a task by its title alone; details later or under “Details”.",
-    when: "Above the list, the one way to add a task; under an expanded task for subtasks.",
+    summary: "Captures a task in one row: title, amounts and Add; the description behind a toggle.",
+    when: "Above the list, the one way to add a task: title, amounts and Add in one row (C1); under an expanded task for subtasks.",
     whenNot: "Changing a task (TaskForm); a form in a modal; a subtask under a subtask.",
   },
   {
@@ -308,7 +308,7 @@ export const catalog: CatalogEntry[] = [
     imports: ["EstimateRange"],
     title: "Product/Tasks/Estimate range",
     summary: "What a task may cost, as a min–max range in złoty, in the same place on every row.",
-    when: "The right end of a task or subtask row.",
+    when: "The right end of a task or subtask row: a range, one exact amount, or a task's sum of subtasks (R12, R18).",
     whenNot: "Typing an amount (Input); a real cost; the future expenses total.",
   },
   {

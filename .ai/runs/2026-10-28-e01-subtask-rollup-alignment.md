@@ -55,6 +55,22 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
   - S3: the description toggle uses the DS collapsible text action ("Description" with its arrow); spec wording changed from "+ Description";
   - S4: roll-up messages (Q1) are a visible muted `role="status"` line in the parent's row, cleared by the app on its next change.
 - Spec E01 updated for S3 and S4 (UI/UX quick add, add subtask, roll-up messages, PR B/C precondition, step 8). Issue #15 AC7 still says "+ Description"; to be shown to the owner.
+- Branch `feat/ui-estimate-rollup` from `ddd3205` (commit of the spec S3/S4 wording and this log on `docs/discovery-subtask-rollup`).
+- Code (`packages/ui/src/product/`):
+  - `tasks/types.ts`: `amount` / `upTo` replace `min` / `max`; `TaskItem.unestimatedSubtasks`, `TaskItem.notice`.
+  - new `tasks/task-fields.tsx`: `EstimateFields` ("Estimate (optional)" group, "Amount", "up to (optional)") and `DescriptionField` (collapsible "Description" toggle, opened by an error).
+  - `QuickAdd`: one row from 640px (title, amounts at 2/5, Add), `h-lh` spacers align the fields under the legend; "Details" removed.
+  - `TaskForm`: `summedEstimate` shows "Sum of subtasks" as text instead of the amounts; description open when set.
+  - `TaskRow`: "N subtasks without an estimate" in the meta line; the roll-up notice line (`role="status"`).
+  - `EstimateRange`, `FutureExpenses`: doc comments (R17, R18).
+  - `UnestimatedTasks`: "Amount" / "up to"; `subtasksWithoutEstimate` shows the muted note instead of the button (S2); focus after a save skips tasks without a button.
+  - unit tests for each change (`tasks.test.tsx`, `expenses.test.tsx`).
+- Storybook: `task-data.ts` (`rollUp`, R17 totals, exact price formatting, new messages, Polish texts), `TaskScreen.tsx` (roll-up notices), stories (QuickAdd, TaskForm, TaskRow, EstimateRange Exact Price, UnestimatedTasks Priced Through Subtasks, patterns, Screens, FutureExpenses, Collapsible, FormField), MDX of the components, patterns, epics E01/E03, system pages and primitives; `catalog.ts`, `Catalog.tsx`.
+- The owner decisions of this step got design-system ids W1–W4 in `packages/ui/POSTEP.md` (Etap 10): W1 = roll-up notices (Q1/S4), W2 = no sum mark (Q2), W3 = subtask note (S2), W4 = Description toggle (S3). "Q" and "S" already name reference answers and screens in the Storybook legend.
+- `.ai/docs/design-system.md`: component table (Input, Collapsible, Quick add, Estimate range), Content (money: one amount, sum), source legend (D01–D24, R06–R18, W1–W4).
+- Left as history: the archived grey prototype and the built `task-list` prototype under `.storybook/public/prototypes/` (step 4 rebuilds the latter), earlier POSTEP.md stages.
+- QuickAdd measured in the built Storybook (With Estimate story, agent-browser): 320px stacked (title 256×44; Amount and up to 124×44 side by side; Add 63×44; Description under), 640px one row (title 266, amounts 111 each, Add 63; all top 84px, 36px high), 980px one row (title 470, amounts 179 each, Add 63; aligned). No horizontal scroll at any width. Screenshots: scratchpad `quickadd-320.png`, `quickadd-640.png`, `quickadd-980.png`.
+- Changed MDX pages opened in the built Storybook (13 pages); all render.
 
 ## Files changed
 
@@ -62,11 +78,14 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 - `.ai/specs/2026-10-16-tasks-and-subtasks.md`
 - `.ai/docs/engineering-standards.md` (§6 totals rule)
 - `.ai/specs/backlog.md`, `.ai/lessons.md`
-- GitHub issues #15, #16 (title and body), #20 (body)
+- GitHub issues #15, #16 (title and body), #20, #21 (body)
+- Step 3 (branch `feat/ui-estimate-rollup`, uncommitted): `packages/ui/src/product/{tasks,expenses}/…`, `packages/ui/src/components/ui/collapsible.tsx` (comment), `packages/ui/.storybook/**` (blocks, stories, MDX), `packages/ui/POSTEP.md`, `.ai/docs/design-system.md`, `.ai/lessons.md`, this log
 
 ## Verification (commands run and results)
 
 - `npx prettier --check` on the spec, the standards and this log: pass.
+- Step 3 gate (2026-10-28): `npm run format:check` pass; `npm run lint` 0 errors (1 existing warning in `.agents/skills/om-share-this-session`, unrelated); `npm run typecheck` pass; `npm test` 47 files, 262 tests, coverage 100% (803/803 statements, 600/600 branches, 329/329 functions, 717/717 lines); `npm run build` pass; `check:tokens` pass; `test:storybook` 120 files, 916 tests pass (both themes, axe); `build-storybook` pass.
+- First `test:storybook` run after the code change: 22 failures (11 stories × 2 themes) from old labels, totals and the now-ambiguous amount labels; fixed in the stories.
 
 ## Problems / open questions
 
@@ -74,4 +93,6 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 
 ## Lessons recorded (links into .ai/lessons.md)
 
-- none yet
+- 2026-10-28: grep docs, TODOs and the design system for superseded rule ids.
+- 2026-10-28: design-system ids are a shared namespace (W1–W4 instead of Q/S).
+- 2026-10-28: a new field in quick add makes Storybook label queries ambiguous; scope them.
