@@ -71,6 +71,11 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 - Left as history: the archived grey prototype and the built `task-list` prototype under `.storybook/public/prototypes/` (step 4 rebuilds the latter), earlier POSTEP.md stages.
 - QuickAdd measured in the built Storybook (With Estimate story, agent-browser): 320px stacked (title 256×44; Amount and up to 124×44 side by side; Add 63×44; Description under), 640px one row (title 266, amounts 111 each, Add 63; all top 84px, 36px high), 980px one row (title 470, amounts 179 each, Add 63; aligned). No horizontal scroll at any width. Screenshots: scratchpad `quickadd-320.png`, `quickadd-640.png`, `quickadd-980.png`.
 - Changed MDX pages opened in the built Storybook (13 pages); all render.
+- Owner accepted step 3 and the #15 AC7 wording ("akceptuje wszystko"):
+  - committed as `ea716ea` on `feat/ui-estimate-rollup`; pushed `docs/discovery-subtask-rollup` (`0c1194c`, `ddd3205`, so PR #36 carries steps 1–2) and the new branch;
+  - opened PR #37 (`feat/ui-estimate-rollup` → `docs/discovery-subtask-rollup`, stacked on #36);
+  - #15 AC7: "+ Description" → a collapsible "Description" toggle; previous body in the scratchpad (`issues-old/15-before-ac7.md`).
+- Next: step 4 (styled prototype `prototypes/task-list-v1/`) after the owner's go-ahead.
 
 ## Files changed
 
