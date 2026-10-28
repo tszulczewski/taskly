@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
-import { THEME_STORAGE_KEY } from "./use-theme";
+import { THEME_STORAGE_KEY } from "./theme-script";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -118,6 +119,34 @@ describe("AppShell (app) theme", () => {
     render(shell());
     expect(checked("Light")).toBe(true);
     expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  it("keeps the theme the script applied while hydrating", async () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, "light");
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(shell());
+    document.body.append(container);
+    document.documentElement.dataset.theme = "light";
+    // Every value the attribute held: each change records the value it replaced.
+    const held: (string | null)[] = [];
+    const observer = new MutationObserver((records) =>
+      held.push(...records.map((record) => record.oldValue)),
+    );
+    observer.observe(document.documentElement, {
+      attributeFilter: ["data-theme"],
+      attributeOldValue: true,
+    });
+
+    const root = await act(async () => hydrateRoot(container, shell()));
+    await act(async () => {});
+    held.push(...observer.takeRecords().map((record) => record.oldValue));
+    observer.disconnect();
+    held.push(document.documentElement.dataset.theme ?? null);
+
+    expect(checked("Light")).toBe(true);
+    expect(held.filter((theme) => theme !== "light")).toEqual([]);
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("applies and stores a new choice", () => {
