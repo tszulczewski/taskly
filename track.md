@@ -26,7 +26,7 @@ Legend: `[x]` done and committed, `[ ]` pending.
 ## Phase 3 — Phase A integration tests and finish (spec steps 7A, 8, 9)
 
 - [x] 3.1 `createPasswordUser` in `password-admin.ts` + its integration tests
-- [ ] 3.2 `test/helpers.ts` changes (env/port for `startApp`, `createUser`) + HTTP integration tests
+- [x] 3.2 `test/helpers.ts` changes (env/port for `startApp`, `createUser`) + HTTP integration tests
 - [ ] 3.3 agent-browser integration tests (sign up, sign out, aborted sign-out retry, sign in, closed sign-up)
 - [ ] 3.4 Runbook (client IP, Apache check, owner account) in `AGENTS.md`, full gate, lessons
 
