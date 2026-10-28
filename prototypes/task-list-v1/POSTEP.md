@@ -271,7 +271,7 @@ Krok 4 zadania z 2026-10-28 (log: `.ai/runs/2026-10-28-e01-subtask-rollup-alignm
   - pierwsze podzadanie zadania z wpisaną kwotą i usunięcie ostatniego podzadania wpisują komunikat do wiersza (s07.9, s07.10, s08.8); każda następna zmiana go czyści;
   - edycja zadania z podzadaniami zachowuje jego własną kwotę (R15);
   - P09 „zadanie dostało podzadanie w innej karcie”: 409 przy zapisie zmienionej kwoty, lista dostaje podzadanie „Bathroom” bez szacunku (s06.12);
-  - walidacja: próbka DS (`validateTask`) plus limit opisu 2000 znaków ze specyfikacji, bez którego s04.33 był nieosiągalny.
+  - walidacja: próbka DS (`validateTask`); brakował w niej limit opisu 2000 znaków ze specyfikacji, bez którego s04.33 był nieosiągalny, więc dopisałem go w DS (PR #37, `bbe676a`, z historią „Description Too Long”).
 - **Dane K2** (L23 = A): opisy uchwytu TV i szafki RTV bez „Not included in the wall estimate”, opis ściany „Living room. Without the sockets”. „Decorative wall” pokazuje 700–1 400 zł i „3 subtasks without an estimate”; wpisane 350–660 zł wraca po usunięciu podzadań.
 - **Przewodnik po stanach**: 18 nowych stanów; zastąpione (s04.7, s05.3, s06.7, s07.1, s07.4) są w liście wyłączone z dopiskiem „replaced by …”, wskazówki dawnych stanów mówią „Amount” i „up to”.
 - **Notatki ekranów** s04–s08: kryteria po przepisaniu #15 i #16.
@@ -290,12 +290,12 @@ Krok 4 zadania z 2026-10-28 (log: `.ai/runs/2026-10-28-e01-subtask-rollup-alignm
 | s06.12 | 1440, ciemny | kwota 900 i nowy tytuł → komunikat 409, „Sum of subtasks: no estimate yet”, tytuł zostaje; drugi zapis zapisuje tytuł, wiersz „No estimate” i „1 subtask without an estimate” | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-06-s06.12-1440-dark.png` |
 | s04.30 | 320, jasny | tytuł 288×44, „Amount” i „up to” obok siebie po 140×44, „Add” 63×44 pod nimi, „Description” niżej; bez poziomego przewijania (szerokość strony 320) | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-07-s04.30-320-light.png` |
 | s07.8 | 320, jasny | „New subtask”, kwoty, „Add”, „Description” i „Cancel”; bez poziomego przewijania | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-08-s07.8-320-light.png` |
-| s04.33 | 320, jasny | opis 2200 znaków, przełącznik zamknięty, Enter → przełącznik się otwiera, komunikat „Enter at most 2 000 characters.”; **fokus zostaje w tytule** (DS08) | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-09-s04.33-320-light.png` |
+| s04.33 | 320, jasny | opis 2200 znaków wpisany z klawiatury, przełącznik zamknięty, Enter w tytule → przełącznik się otwiera, komunikat „Enter at most 2 000 characters.”, fokus w opisie (także przy 1440 i przy „Add”) | `/var/www/taskly/prototypes/task-list-v1/evidence/rollup-09-s04.33-320-light.png` |
 
-### Luka w design systemie
+### DS08 wycofane
 
-- **DS08** — `QuickAdd` (i `TaskForm`): błąd opisu z walidacji w przeglądarce, przy zwiniętym „Description”, otwiera przełącznik, ale fokus zostaje w tytule zamiast w opisie (Chromium, agent-browser). Test jsdom tego samego przypadku przechodzi, a historia DS `ErrorInClosedDescription` sprawdza tylko błąd z serwera. Prawdopodobnie `useLayoutEffect` w `useForm` szuka pola w tym samym commicie, w którym `CollapsibleContent` (Radix `Presence`) jeszcze go nie zamontował. Do decyzji: poprawka w PR #37 z historią na ten przypadek.
+Pierwsze przejście s04.33 wstawiło opis skryptem (setter `value` i zdarzenie `input`) i pokazało fokus w tytule; zgłosiłem to jako lukę DS08. Właściciel przyjął poprawkę w PR #37. Przed poprawką historia „Description Too Long” w Storybooku (Chromium, klik „Add” i Enter) i powtórzone przejście z tekstem wpisanym z klawiatury (1440 i 320 px) pokazały fokus w opisie: design system działa, błąd wywołało wstawianie skryptem. Poprawki nie było; zostały historia i limit w próbce walidacji (`bbe676a`).
 
 ## Pytania otwarte
 
-- DS08 (wyżej): czy poprawić w PR #37.
+- brak

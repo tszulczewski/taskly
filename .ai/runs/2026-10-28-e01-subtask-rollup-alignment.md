@@ -90,6 +90,11 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
   - `README.md`, `POSTEP.md` (section "Rozszerzenie 2026-10-28" with the walk table).
 - agent-browser walk on the built prototype (screenshots in `prototypes/task-list-v1/evidence/rollup-01…09-*.png`, absolute paths in POSTEP.md): s04.34, s04.31, s04.32, s07.9, s08.8, s06.9, s06.12 at 1440 dark; s04.30, s07.8, s04.33 at 320 light. All as the map says, except focus in s04.33.
 - Found DS08: a client-side description error with the toggle closed opens it but leaves focus in the title in Chromium; a jsdom test of the same flow passes (temporary test, removed). Not fixed (prompt rule 8: no design-system changes from the prototype); asked the owner whether to fix it in PR #37.
+- Owner: "akceptuje wszystkie propozycje" (fix DS08 in PR #37; commit step 4 and open a stacked PR).
+  - Committed step 4 (`adaf3be`, after the rebase `70436ca`).
+  - DS08 on `feat/ui-estimate-rollup`: the new Storybook story "Description Too Long" (title, Description opened, 2 001 characters pasted, closed, Add or Enter) passed in Chromium before any fix. Re-walked the prototype with typed text at 1440 and 320 px: focus goes into the description. **DS08 was a false alarm**: the first walk set the textarea value from a script. Withdrawn in the map and POSTEP.md; the lesson recorded earlier was wrong and is replaced.
+  - Kept on PR #37 as regression coverage: the sample `validateTask` checks the spec's 2 000-character description limit, the story and its MDX row (`bbe676a`; gate: format, lint 0 errors, typecheck, `test:storybook` 918 pass, `build-storybook`).
+  - Prototype branch rebased on it; the prototype's local description check removed (the sample has it now); new s04.33 screenshot.
 
 ## Files changed
 
@@ -116,5 +121,5 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 - 2026-10-28: grep docs, TODOs and the design system for superseded rule ids.
 - 2026-10-28: design-system ids are a shared namespace (W1–W4 instead of Q/S).
 - 2026-10-28: a new field in quick add makes Storybook label queries ambiguous; scope them.
-- 2026-10-28: focus into a Radix collapsible can pass in jsdom and fail in Chromium.
+- 2026-10-28: type in agent-browser walks, do not set values by script (DS08 false alarm).
 - 2026-10-28: agent-browser at 320 px, the review engine's "← Back" button covers controls.

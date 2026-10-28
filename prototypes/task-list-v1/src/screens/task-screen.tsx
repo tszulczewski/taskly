@@ -54,17 +54,6 @@ const titleOf = (list: TaskItem[], id: string): string => {
   return "";
 };
 
-/**
- * The design system's sample validation plus the spec's 2 000-character description limit
- * (`taskFields`), which the sample leaves out; s04.33 needs it to be reachable.
- */
-const validate = (values: TaskFormValues) => ({
-  ...validateTask(values),
-  ...(values.description.trim().length > 2000
-    ? { description: taskMessages.descriptionTooLong }
-    : {}),
-});
-
 /** The top-level task that holds subtask `id`, if it is one. */
 const parentOf = (list: TaskItem[], id: string) =>
   list.find((item) => item.subtasks?.some((subtask) => subtask.id === id));
@@ -454,7 +443,7 @@ export function TaskScreen({
             <>
               {phase === "page" ? null : (
                 <QuickAdd
-                  validate={validate}
+                  validate={validateTask}
                   onSubmit={(values) => add(null, values)}
                   text={emptyText}
                 />
@@ -466,7 +455,7 @@ export function TaskScreen({
                 tasks={forDisplay(account.tasks.map(rollUp))}
                 onRetry={() => void retryList()}
                 retrying={retrying}
-                validate={validate}
+                validate={validateTask}
                 onEdit={edit}
                 onAddSubtask={(parentId, values) => add(parentId, values)}
                 onDelete={remove}

@@ -109,9 +109,9 @@ Odświeżenie briefu z 2026-10-27 zastępuje R06–R08, D15 i D16: szacunek zada
 - **P09** dostaje wartość „zadanie dostało podzadanie w innej karcie” (409 przy zapisie kwoty zadania, s06.12). Pozostałe nowe stany są osiągalne kliknięciem przy P06 „potwierdza”; „odmawia” i „nie odpowiada” działają jak w s04.11, s06.4, s07.5, s08.5.
 - **Dane K2:** kwoty bez zmian (L20). Po R12 „Decorative wall” pokazuje sumę uchwytu TV i szafki RTV, 700–1 400 zł, a wpisane 350–660 zł jest zachowane i wraca po usunięciu wszystkich podzadań (s08.8). Opisy „Not included in the wall estimate” i „Without the TV cabinet, the TV mount…” przestały być prawdziwe (L23): uchwyt i szafka są bez opisu, a opis ściany to „Living room. Without the sockets”.
 - Kwoty z kryteriów wpisuje się na żywo: #16-AC2 (zadanie 1 000–2 000 zł, podzadania 300–400 zł i 500 zł → 800–900 zł), #15-AC6 (jedna kwota).
-- **Design system:** wszystko jest w `QuickAdd`, `TaskForm` (`summedEstimate`), `TaskRow` (`unestimatedSubtasks`, `notice`) i `EstimateRange` (PR #37). Przy budowie prototypu wyszła luka **DS08** (sekcja 5).
+- **Design system:** wszystko jest w `QuickAdd`, `TaskForm` (`summedEstimate`), `TaskRow` (`unestimatedSubtasks`, `notice`) i `EstimateRange` (PR #37). Luka DS08 zgłoszona przy budowie prototypu okazała się błędem przejścia i jest wycofana (sekcja 5).
 - **Poza prototypem** (należą do E03, nie do mapy E01): „Add estimate” wprost w wierszu (C5), lista zadań bez szacunku w przyszłych wydatkach (C4), „0 of 1 subtask done” (C7).
-- **Liczby rozszerzenia:** 18 nowych stanów (s04: 6, s05: 1, s06: 4, s07: 4, s08: 3), 6 zastąpionych (s04.8 tylko w części). Prototyp pokazuje **96** stanów (83 − 5 zastąpionych w całości + 18 nowych). Luki: 1 nowa w specyfikacji (L23), 1 w design systemie (DS08, znaleziona przy budowie).
+- **Liczby rozszerzenia:** 18 nowych stanów (s04: 6, s05: 1, s06: 4, s07: 4, s08: 3), 6 zastąpionych (s04.8 tylko w części). Prototyp pokazuje **96** stanów (83 − 5 zastąpionych w całości + 18 nowych). Luki: 1 nowa w specyfikacji (L23), 0 w design systemie (DS08 wycofana).
 
 ### Role i dostęp
 
@@ -253,7 +253,7 @@ Nie rozstrzygam ich. Przy każdej jest pytanie do właściciela produktu.
 - **DS05** — `TaskList` i `TaskRow` nie mają widoku tylko do odczytu (bez szybkiego dodawania i „…”) dla roli `viewer` (dotyczy, jeśli w L19 odpowiesz „tak”).
 - **DS06** — Polskie teksty komponentów istnieją tylko w storybookach (`Polish…`); nie ma jednego słownika do aplikacji (dotyczy, jeśli w L04 wybierzesz polski albo język z przeglądarki).
 - **DS07** — Nie ma komponentu ani wzorca dla stanu offline PWA (dotyczy, jeśli w L17 odpowiesz „tak”).
-- **DS08** (2026-10-28, z budowy prototypu) — Błąd opisu z walidacji w przeglądarce przy zwiniętym „Description” otwiera przełącznik, ale fokus zostaje w tytule zamiast w opisie (s04.33, Chromium). Szczegóły: `prototypes/task-list-v1/POSTEP.md`, „Rozszerzenie 2026-10-28”.
+- ~~**DS08**~~ (2026-10-28) — **wycofana.** Fokus po błędzie opisu przy zwiniętym „Description” (s04.33) trafia do opisu; zgłoszenie wzięło się z wstawiania tekstu skryptem w przejściu. Szczegóły: `prototypes/task-list-v1/POSTEP.md`, „DS08 wycofane”.
 
 ## 6. Liczby
 

@@ -77,7 +77,7 @@ Przełączniki jednorazowe (P09, „raz” w P05 i P07, „wygasa” w P04) same
 - **Logowanie i rejestracja** są symulowane: nie ma ciasteczka, Better Auth ani limitu prób liczonego w czasie (429 włącza P02 albo P03; czas oczekiwania w komunikacie jest stały, 8 s). Rejestracja nie wysyła maila.
 - **Przekierowania** serwera (gość na `/`, zalogowany na `/sign-in` i `/sign-up`, `/sign-up` przy zamkniętej rejestracji) są pokazane jako karta „Prototype · access gate” z przyciskami, nie jako prawdziwe przekierowanie.
 - **Suma podzadań** jest liczona w tej stronie (jak serwer przy odczycie); własna kwota zadania z podzadaniami jest trzymana i wraca po usunięciu ostatniego podzadania. Komunikaty o sumie pisze strona po potwierdzeniu, tak jak aplikacja. Podzadanie „z innej karty” (P09, s06.12) to „Bathroom” bez szacunku.
-- **Walidacja** to próbka design systemu plus limit opisu 2000 znaków ze specyfikacji.
+- **Walidacja** to próbka design systemu (`validateTask`), z limitem opisu 2000 znaków ze specyfikacji.
 - **Kolejność** zmienia się tylko w tej stronie; nie ma kolumny `position` ani indeksowania ułamkowego. Ukończone zadania są pokazywane na końcu tak jak w design systemie.
 - **Odpowiedzi serwera** pochodzą wyłącznie z przełączników; nie ma prawdziwych wyścigów między kartami ani aktualizacji na żywo (SSE).
 - **s05–s08** otwierają się same: prototyp klika tytuł, „Add subtask” albo „…” i pozycję menu tak jak osoba.
