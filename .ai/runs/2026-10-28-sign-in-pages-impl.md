@@ -45,13 +45,28 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
   - 48/48 integration tests passed on three full runs.
 - **Parallel review:** another session is reviewing phases 1–2 (`.ai/runs/2026-10-28-sign-in-phases-1-2-review.md`, not part of this run). Its first finding is that `authCall` has no deadline. Owner decision (2026-10-28): wait for the review, fix its findings as extra phase-3 tasks, then do 3.4.
 
+- **3.4** (subagent, `b530306`): `AUTH_TIMEOUT_MS = 15_000`. One `AbortController` covers the headers and the error-body read; a timeout gives `ApiError(0, "timeout")` with the generic message. `apiCall` is unchanged: it has no callers yet, and a fixed 15 s would be wrong for the future AI estimate call.
+- **3.5** (subagent, `08d068b`): `AuthFormSkeleton` takes `variant: "sign-in" | "sign-up"`. Measured card height, fallback vs form, is equal at 320 px and 1280 px for sign-in with sign-up closed and for sign-up with sign-up open. Not covered: sign-in with sign-up open is 38 px taller; closed sign-up is about 289 px shorter.
+- **3.6** (subagent, `e4bda31`):
+  - The review's one-off failure in `session.test.ts` was the 3.2 subagent's mutation check on the shared tree, which removed `disableRefresh`. The Vitest 5 content cache from 18:30 proves it.
+  - The `code.charCodeAt` crash is Vitest 5.0.5 hiding any `globalSetup` error. `global-setup.ts` now rethrows with the cause chain and a plain-string stack.
+- **3.7** (subagent, `d7f152d`): client-IP note, Apache check and owner-account Runbook in `AGENTS.md`. Every test the spec requires for the Phase A PR is mapped to an existing test; no gaps.
+
 ## Files changed
 
 - Phase 1: `packages/core/src/{env,auth,schemas,sign-up-hook}.ts` + tests, `.env.example`, `.ai/lessons.md`.
+- Phase 2: `packages/app/lib/{api-client,session,form-errors}.ts`, `packages/app/components/{auth,shell}/*`, `packages/app/app/{layout,page}.tsx`, `packages/app/app/(auth)/*`, `eslint.config.mjs`, + tests.
+- Phase 3: `packages/core/src/password-admin.ts` (+ unit/integration tests), `packages/core/package.json` (`@better-auth/core`), `test/helpers.ts`, `test/global-setup.ts`, `test/{app,auth-http,auth-signup-open,auth-browser-open,auth-browser-closed}.integration.test.ts`, `packages/app/lib/api-client.ts` (deadline), `packages/app/components/auth/auth-form-skeleton.tsx`, `AGENTS.md`.
 
 ## Verification (commands run and results)
 
 - Phase 1: `format:check`, `lint` (one existing warning in `.agents/skills/…/prepare-share-bundle.mjs`), `typecheck`, `npm test` (49 files, 292 tests, 100% coverage) all pass.
+
+- Phase 3 full gate (3.7):
+  - `format:check`, `typecheck` and `build` pass; `lint` has the same single warning as before.
+  - `npm test`: 60 files, 398 tests, 100% coverage.
+  - `audit`: exit 0, with 4 moderate findings (esbuild under drizzle-kit).
+  - `test:integration` against the local Postgres via `TEST_DATABASE_URL` (no Docker): 9 files, 48 tests.
 
 ## Problems / open questions
 
