@@ -50,7 +50,7 @@ interface TextButtonProps extends ButtonBaseProps {
 }
 
 interface IconButtonProps extends ButtonBaseProps {
-  /** 44 × 44 px target with one 20 px icon. */
+  /** A `touch-target-min` square (44px on phones, 36px from 640px) with one 20 px icon. */
   size: "icon";
   /** An icon button has no visible text, so its name is required. */
   "aria-label": string;

@@ -11,7 +11,7 @@ export interface TaskCheckboxProps {
 }
 
 /**
- * Completes or reopens a task or subtask (E03-S01): the 20px box in a 44px target after the arrow
+ * Completes or reopens a task or subtask (E03-S01): the 20px box in a target after the arrow
  * (R02.1, T7, T10), checked in `color-action-primary` (R02.2, R02.3).
  */
 export function TaskCheckbox({ label, completed, onCompletedChange, disabled }: TaskCheckboxProps) {

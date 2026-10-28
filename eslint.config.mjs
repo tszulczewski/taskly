@@ -107,6 +107,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "**/storybook-static/**",
+    // Lesson materials and copied prototypes, not product code:
+    "packages/ui/.storybook/public/prototypes/**",
+    "lekcja-07/**",
   ]),
 ]);
 

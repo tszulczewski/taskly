@@ -1,0 +1,77 @@
+# Align E01, issues, backlog, design system and prototype with the 2026-10-27 brief refresh
+
+- **Date:** 2026-10-28
+- **Spec:** `.ai/specs/2026-10-16-tasks-and-subtasks.md` (E01), against `.ai/specs/product-brief.md` (R12–R18, D22–D24)
+- **Outcome:** in progress
+
+## Goal
+
+Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) and the styled prototype (`prototypes/task-list-v1/`) in line with the 2026-10-27 brief refresh: subtask estimates add up into their task (R12–R15, D22, D23), an exact price is typed once (R18, D24), quick add shows the amounts next to the title (C1), and future expenses counts the summed estimate once (R17). Step by step, with the owner's approval after each step. Implementation of E01 (step 5) only on the owner's explicit request.
+
+## Steps taken
+
+### Step 1 — spec E01 review (`om-spec-writing`, review of an existing spec)
+
+- Read `.ai/lessons.md`, `AGENTS.md`, the brief (R12–R18, D22–D24, superseded R06–R08/D15/D16, A02, H10–H16), both 2026-10-27 decision records, the three 2026-10-27 interview notes, the revision-002 README (C1–C7, A-P12–A-P17), spec E01 in full, the revision-002 run log with its "Update" section, issues #13, #15, #16, #20, #21.
+- Checked the code: `packages/core/src/tasks.ts` is still a stub; only migration `0000` exists (E01's `0001` is not written yet); `tasks.estimate_min_grosze` / `estimate_max_grosze` exist in `0000`; `formatPlnRange` still has the pre-F11 format.
+- Found an extra conflict outside the list: `.ai/docs/engineering-standards.md` §6 says subtask estimates "are informational and never summed" (R06), and `packages/core/src/summaryService.ts` still says "leaf tasks".
+- Change list presented to the owner. Owner's answers (2026-10-28): Q1 yes (status messages on the first subtask hiding a typed figure and on its return), Q2 no (no "sum" mark on the row), Q3 yes (update engineering-standards §6 now), Q4 yes (R14 as an AC of #20 plus a backlog note, in step 2). The list itself was accepted with these answers.
+- Rewrote spec E01 (revision 2026-10-28):
+  - roll-up computed on read by `rollUpEstimate`; no migration beyond the planned `0001`, the typed figure stays in `estimate_min/max_grosze` (R15);
+  - `TaskView` gets `unestimatedSubtasks`, `estimateViewSchema` (uncapped) for output; subtask mutations return the parent `TaskView`; DELETE returns the parent or `null`;
+  - 409 on an estimate PATCH of a task with subtasks; the edit form hides the amounts and shows "Sum of subtasks";
+  - exact price via `estimateFromAmounts` ("Amount" / "up to (optional)"); `formatPlnRange` returns one amount when min = max; "Enter both amounts or neither" removed;
+  - quick add per C1; roll-up status messages (Q1);
+  - new Edge Cases rows, concurrency section, tests in steps 2, 5, 8, 9, 10; #15/#16 AC numbering used by step 2.
+- Updated `.ai/docs/engineering-standards.md` §6 (Q3).
+- Fresh-context review of the spec (skill step 8): verdict "approve with minor changes", no Critical/High; lock reasoning confirmed (FOR UPDATE vs FOR KEY SHARE; no new deadlock cycle). Applied all seven Medium/Low findings:
+  - READ COMMITTED and "existence check after the lock; keep FOR UPDATE" stated in Roll-up under concurrency;
+  - step 9 concurrency tests ordered with a third connection holding a lock (`pg_locks` to see the wait);
+  - roll-up message triggers defined (`onMutate` snapshot; DELETE response), two-tab contradiction accepted in Edge Cases;
+  - HTTP table lists the 409s from the constraint translation;
+  - a refused PATCH also drops the title change; resaving sends the title; tested in step 10;
+  - R12's "materials as another subtask" needs no UI (stated);
+  - Phasing lists the rewritten ACs of #15/#16 and #20's R14 as a precondition of PR B/C (the drafts for step 2).
+
+- Owner accepted step 1 ("ok").
+
+### Step 2 — issues and backlog
+
+- Saved the previous bodies of #15, #16, #20, #21 (and titles, `.json`) in the session scratchpad (`issues-old/`).
+- Drafts shown to the owner and approved ("tak i commit"):
+  - #15: AC1/AC4 in "Amount" / "up to" terms; AC6 "both amounts or neither" replaced by the exact price (R18); new AC7, amounts beside the title (C1); Decisions in play D23, D24, R16, R18; "Changes (2026-10-28)".
+  - #16: retitled "… and the task's estimate becomes their sum"; Expected outcome, Out of scope, Open questions rewritten; AC2–AC4 roll-up (R12, R13, R15), old AC4 → AC5; Decisions in play D22, R12, R13, R15, R18; spec link.
+  - #20: new AC6 (R14), per Q4.
+- Applied with `gh issue edit --body-file` (and `--title` for #16); live bodies match the drafts (only a trailing newline differs).
+- `backlog.md`: E01-S02 title row updated; a "Decisions made after filing (2026-10-27, D22–D24)" note covering #15, #16, #20 and #21.
+- Committed steps 1–2 as `0c1194c` (owner: "tak i commit").
+- #21: draft shown and approved ("tak"): AC2 replaced (R17: the task counts once with its summed estimate), AC1 in the DS format, AC3 + R13, AC4 + R14, AC5 "No estimates yet" (as the DS `FutureExpenses` already shows) instead of "0–0 PLN", new AC7 (R18). Applied with `gh issue edit 21 --body-file`; live body matches.
+
+### Step 3 — design system (`packages/ui`, separate PR)
+
+- Plan shown and confirmed by the owner ("potwierdzam"), with:
+  - S1: branch `feat/ui-estimate-rollup` from `docs/discovery-subtask-rollup` (stacked PRs);
+  - S2: in `UnestimatedTasks`, a task whose subtasks all lack an estimate shows muted "Add estimates to its N subtasks" instead of "Add estimate" (no action; full handling in E03);
+  - S3: the description toggle uses the DS collapsible text action ("Description" with its arrow); spec wording changed from "+ Description";
+  - S4: roll-up messages (Q1) are a visible muted `role="status"` line in the parent's row, cleared by the app on its next change.
+- Spec E01 updated for S3 and S4 (UI/UX quick add, add subtask, roll-up messages, PR B/C precondition, step 8). Issue #15 AC7 still says "+ Description"; to be shown to the owner.
+
+## Files changed
+
+- `.ai/runs/2026-10-28-e01-subtask-rollup-alignment.md` (this log)
+- `.ai/specs/2026-10-16-tasks-and-subtasks.md`
+- `.ai/docs/engineering-standards.md` (§6 totals rule)
+- `.ai/specs/backlog.md`, `.ai/lessons.md`
+- GitHub issues #15, #16 (title and body), #20 (body)
+
+## Verification (commands run and results)
+
+- `npx prettier --check` on the spec, the standards and this log: pass.
+
+## Problems / open questions
+
+- see the spec's Open Questions once written
+
+## Lessons recorded (links into .ai/lessons.md)
+
+- none yet

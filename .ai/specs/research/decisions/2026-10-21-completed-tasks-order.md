@@ -22,3 +22,18 @@
 - Open: the error code and message for rejecting a move of a completed task (decide in the E02-S01 spec; the existing pattern is `ConflictError`).
 - Source: conversation of 2026-10-21; `.ai/design/reference.md` (R02.2, Luki pkt 10).
 - Status: active (owner accepted on 2026-10-21).
+
+## Screen states from the clickable prototype (moved here 2026-10-27)
+
+The owner asked the E01 prototype (`prototypes/task-list-v1/`) to show drag and completion too. On 2026-10-27 the owner moved these states out of the E01 screen map (`prototypes/konta-i-role/mapa-ekranow.md`, s04) to this file, as input for the E02-S01 (#17) and E03-S01 (#20) specs. The ids stay as they are, so the prototype's "Go to state" still finds them. Behaviour and texts come from the design system (`TaskScreen`, `taskMessages`, decisions G1–G3, I3, 2026-10-21).
+
+| State | What the user sees | Scenario control in the prototype |
+| --- | --- | --- |
+| s04.22 | Dragging: a handle from 640 px, a long press on a phone, the keyboard (Space, arrows, Escape) with screen-reader announcements | — |
+| s04.23 | "Move up" / "Move down" in "…"; focus stays on the row | — |
+| s04.24 | Move refused: the row goes back, and the row says "Could not move “…”. It is back where it was." | P06 refuses, P09 position conflict 409 |
+| s04.25 | Completed: the row is struck through and last in the list, focus on its checkbox; a subtask changes its parent's "1/3" | — |
+| s04.26 | Completing a task with open subtasks: dialog "Complete “…” and its N open subtasks?" | — |
+| s04.27 | Reopened: the row is first; its subtasks stay completed | — |
+| s04.28 | Completion or reopening refused: the row goes back, and the row says "Could not save “…”. It is back as it was." | P06 refuses |
+| s04.29 | A completed task cannot be moved: no handle, no "Move up / Move down" | — |

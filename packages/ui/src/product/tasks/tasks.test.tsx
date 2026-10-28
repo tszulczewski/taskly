@@ -255,6 +255,32 @@ describe("TaskList", () => {
     expect(screen.getByText("Add the first thing you need to do.")).toBeTruthy();
   });
 
+  it("rounds a row's tone at the list's corners, not only the list's border", () => {
+    renderList({ tasks: [paint, sealBath] });
+    const rows = screen.getByRole("list", { name: "Tasks" }).children;
+    const tones = (row: Element | null) =>
+      [row, row?.firstElementChild, row?.firstElementChild?.firstElementChild].map(
+        (element) => element?.className ?? "",
+      );
+    for (const row of [rows.item(0), rows.item(rows.length - 1)]) {
+      const [item, collapsible, line] = tones(row);
+      expect(item).toContain("first:rounded-t-surface");
+      expect(item).toContain("last:rounded-b-surface");
+      for (const tone of [collapsible, line]) {
+        expect(tone).toContain("group-first/row:rounded-t-surface");
+        expect(tone).toContain("group-last/row:rounded-b-surface");
+      }
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    const subtask = within(screen.getByRole("list", { name: /^Subtasks/ }))
+      .getAllByRole("listitem")
+      .at(-1)!;
+    expect(subtask.className).toContain("group/subtask");
+    expect(subtask.firstElementChild?.firstElementChild?.className).toContain(
+      "group-last/row:group-last/subtask:rounded-br-surface",
+    );
+  });
+
   it("shows a collapsed task and opens its details, subtasks and Add subtask", () => {
     renderList({ tasks: [paint, sealBath] });
     const list = screen.getByRole("list", { name: "Tasks" });

@@ -28,11 +28,11 @@ Completes or reopens one task or subtask in a single tap (E03-S01, D20, R11). A 
 
 ## 4. Anatomy
 
-| Part  | Required | Notes                                                                                     |
-| ----- | -------- | ----------------------------------------------------------------------------------------- |
-| Box   | yes      | `Checkbox`: 20px box (`size-checkbox`) in a 44 × 44 px target (`size-touch`), K1          |
-| Check | yes      | Checked in `color-action-primary`, the one accent (R02.2, R02.3)                          |
-| Name  | yes      | Not visible: `aria-label` `Complete “{title}”`; the title next to it is the visible label |
+| Part  | Required | Notes                                                                                                    |
+| ----- | -------- | -------------------------------------------------------------------------------------------------------- |
+| Box   | yes      | `Checkbox`: 20px box (`size-checkbox`) in a 44 × 44 px (36 × 36 px from 640px) target (`size-touch`), K1 |
+| Check | yes      | Checked in `color-action-primary`, the one accent (R02.2, R02.3)                                         |
+| Name  | yes      | Not visible: `aria-label` `Complete “{title}”`; the title next to it is the visible label                |
 
 In the row it sits after the arrow (from 640px) and before the title; below 640px it is first (R02.1, decisions I3, J1).
 
@@ -51,7 +51,7 @@ None.
 | Open      | Empty box with the control border.                                          | States      | tokens              |
 | Completed | Checked box in the accent; the row's title muted and struck through.        | States      | R02.2               |
 | Disabled  | While the row is not saved yet ("Saving…"), so no temporary id is sent.     | States      | spec E01            |
-| Focus     | Focus ring around the 44px target.                                          | (keyboard)  | T6                  |
+| Focus     | Focus ring around the target.                                               | (keyboard)  | T6                  |
 | Moving    | After a change the row slides to its new place over `motion-duration-base`. | In The List | decision 2026-10-21 |
 
 ## 7. Behaviour and accessibility
@@ -78,7 +78,7 @@ None.
 | Width  | Behaviour                                   | Source |
 | ------ | ------------------------------------------- | ------ |
 | 320px  | Same 44px target; the title wraps after it. | K1     |
-| 768px  | Same.                                       | —      |
+| 768px  | 36px target from 640px.                     | V1     |
 | 1440px | Same.                                       | —      |
 
 <Unstyled>

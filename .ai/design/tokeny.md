@@ -19,6 +19,7 @@
 | `neutral-150` | surowa | `#E8ECE7` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
 | `neutral-200` | surowa | `#D6DCD5` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
 | `neutral-400` | surowa | `#9CAAA3` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
+| `neutral-500` | surowa | `#748079` | V3, przyjęta 2026-10-26 (przegląd prototypu) | tylko w tym pliku | w komponentach |
 | `neutral-600` | surowa | `#55635C` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
 | `neutral-800` | surowa | `#2E3834` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
 | `neutral-850` | surowa | `#232C28` | Luki pkt 2 (kod R02) | tylko w tym pliku | w komponentach |
@@ -71,7 +72,7 @@
 | `color-surface-list` | znaczeniowa | `neutral-910` / `neutral-0` | R02.1 | jedna ciągła powierzchnia listy; linia sumy przyszłych wydatków | karta w karcie (A02), osobne panele (R02.6) |
 | `color-surface-raised` | znaczeniowa | `neutral-850` / `neutral-150` | R01.1 (ton zamiast cienia) | wiersz najechany, rozwinięty, przeciągany; paski ładowania (Luki pkt 8) | ramka panelu w panelu |
 | `color-border-divider` | znaczeniowa | `neutral-800` / `neutral-200` | R01.1, R02.1 | linia między wierszami, linia pod paskiem górnym | jedyna granica pola formularza lub checkboxa (kontrast 1,4:1) |
-| `color-border-control` | znaczeniowa | `neutral-400` / `neutral-600` | wynik sprawdzenia kontrastu; T1, przyjęta 2026-10-21 | obramowanie pól, niezaznaczonego checkboxa | linia między wierszami |
+| `color-border-control` | znaczeniowa | `neutral-500` / `neutral-500` | wynik sprawdzenia kontrastu; T1, przyjęta 2026-10-21; V3 (łagodniej, 2026-10-26) | obramowanie pól, niezaznaczonego checkboxa | linia między wierszami |
 | `color-text-primary` | znaczeniowa | `neutral-100` / `neutral-900` | R01.3 | tytuł zadania, kwota otwartego zadania, tekst | ukończone zadania |
 | `color-text-muted` | znaczeniowa | `neutral-400` / `neutral-600` | R01.3, R01.4, R02.2, Luki pkt 4 | druga linia wiersza, „Ważne”, „Pilne”, „1/3”, tekst zachęty w pustym polu, ukończone zadania, teksty pomocnicze | kwota otwartego zadania, przycisk główny |
 | `color-action-primary` | znaczeniowa | `green-400` / `green-700` | R02.3 | przycisk główny, zaznaczony checkbox, aktywna pozycja nawigacji, tekst działań („Dodaj szacunek”, „3 zadania bez szacunku”) | tło dużej powierzchni (A01.1), dekoracja, kropki miejsc |
@@ -138,7 +139,7 @@ Policzone 2026-10-21 wzorem WCAG 2.x. Progi: tekst 4,5:1, elementy interfejsu 3:
 | Para | Ciemny | Jasny | Wynik |
 |---|---|---|---|
 | `color-action-primary` (zaznaczony checkbox) na liście | 6,70 | 6,35 | spełnia |
-| `color-border-control` na liście / wyniesionej | 6,94 / 5,94 | 6,31 / 5,29 | spełnia |
+| `color-border-control` na liście / stronie / wyniesionej | 4,08 / 4,48 / 3,49 | 4,11 / 3,72 / 3,44 | spełnia (V3; przed V3 ok. 5,3–7,6) |
 | `color-focus-ring` na stronie | 7,37 | 5,74 | spełnia |
 | `color-border-divider` na liście / stronie | 1,38 / 1,52 | 1,39 / 1,26 | poniżej progu, przyjęte jako linia ozdobna (T1). Wiersze rozpoznaje się po treści; granice kontrolek używają `color-border-control` |
 

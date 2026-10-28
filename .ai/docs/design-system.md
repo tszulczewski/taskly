@@ -17,7 +17,7 @@ Source: `.ai/design/reference.md`.
 
 - **Tokens only.** No hex/rgb/hsl outside `packages/ui/src/styles/tokens.css`, no Tailwind palette or numeric classes (`text-gray-500`, `p-4`, `text-sm`, `rounded-lg`, `shadow-*`: they do not compile), no arbitrary values (`p-[13px]`). `npm run check:tokens` fails on them. Fractions (`w-2/3`) are proportions, not values: allowed, used for skeleton bars (U3).
 - **Layering.** Primitives in `packages/ui/src/components/ui/` (added with `npx shadcn@latest add`, then rewritten to tokens); product components in `packages/ui/src/product/<epic>/` are presentational: props in, callbacks out, amounts arrive formatted; no `fetch`, no `@taskly/core`. The app wraps them with TanStack Query and the shared Zod schema (standards §5, decision P1).
-- **Accessibility.** Every story runs in both themes with axe failing on any violation (`npm run test:storybook`). Keyboard works everywhere, focus is always visible, targets are at least 44 × 44 px.
+- **Accessibility.** Every story runs in both themes with axe failing on any violation (`npm run test:storybook`). Keyboard works everywhere, focus is always visible, targets are at least 44 × 44 px on phones and 36 × 36 px from 640px (V1).
 - **Tests.** 100% unit coverage (`npm test`); interaction tests in story `play` functions.
 
 ## Components
@@ -102,7 +102,8 @@ Use the utility, never the raw value. Raw tokens (`--raw-*`) are only for `token
 | `space-page-gutter`, `space-page-top` | `px-page-gutter`, `pt-page-top` | Page edges: 16px on phones, 24px from 640px; 48px above content. |
 | `radius-control`, `radius-surface` | `rounded-control`, `rounded-surface` | 8px controls, 12px surfaces. |
 | `layout-content-max-width`, `layout-text-measure` | `max-w-content`, `max-w-measure` | 980px column; 65ch for text. |
-| `touch-target-min`, `control-height` | `size-touch`, `min-h-touch`, `min-h-control` | 44px targets and controls at every width. |
+| `auth-card-max-width` | `max-w-auth-card` | The sign-in and sign-up card: at most 400px (V2). |
+| `touch-target-min`, `control-height` | `size-touch`, `min-h-touch`, `min-h-control` | 44px targets and controls on phones, 36px from 640px (K1 variant B, V1). |
 | `motion-duration-quick` / `base`, `motion-easing` | `duration-quick`, `duration-base`, `ease-standard` | 150 / 200 ms ease-out; 0 with reduced motion. |
 | `opacity-disabled` | `disabled:opacity-disabled` | Disabled controls. |
 
@@ -112,11 +113,11 @@ Component tokens belong to the component named in their purpose (`.ai/design/tok
 
 | Token | Utility | Purpose |
 | --- | --- | --- |
-| `task-row-min-height` | `min-h-row` | A list row's floor, 64px (Luki 6); a row with a 44px target is 68px (T10, N8). |
-| `task-row-padding-y` | `py-row-y`, `pb-row-y` | Every list row: 12px above and below its content (T10, N2). |
+| `task-row-min-height` | `min-h-row` | A list row's floor, 64px (Luki 6); a row with a 44px target is 68px (T10, N8). From 640px: floor 52px, row 8 + 36 + 8 = 52px (V1). |
+| `task-row-padding-y` | `py-row-y`, `pb-row-y` | Every list row: 12px above and below its content (T10, N2); 8px from 640px (V1). |
 | `task-row-indent` | `pl-row-indent` | Subtasks: 24px indent (R02.1, T10). |
-| `touch-target-min` | `size-touch`, `w-touch`, `min-h-touch` | 44px targets; `w-touch` also keeps an empty column the width of a target, so text lines up. |
-| `control-height` | `min-h-control` | Buttons, fields, menu items: 44px. |
+| `touch-target-min` | `size-touch`, `w-touch`, `min-h-touch` | 44px targets (36px from 640px); `w-touch` also keeps an empty column the width of a target, so text lines up. |
+| `control-height` | `min-h-control` | Buttons, fields, menu items: 44px; 36px from 640px. |
 | `control-padding-x` | `px-control-x` | Sides of a text button. |
 | `field-padding-x`, `field-padding-y` | `px-field-x`, `py-field-y` | Inside a field frame and a menu item. |
 | `checkbox-size`, `checkbox-radius` | `size-checkbox`, `rounded-checkbox` | The 20px box inside `Checkbox`. |
@@ -179,6 +180,6 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
 | D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4 decisions | `packages/ui/POSTEP.md` |
+| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

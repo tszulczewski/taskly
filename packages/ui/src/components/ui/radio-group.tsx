@@ -27,7 +27,7 @@ export function RadioGroup({ className, variant = "list", ...props }: RadioGroup
   );
 }
 
-/** A round option for `variant="list"`: 20px circle, 44 × 44 px target. Pair it with a Label. */
+/** A round option for `variant="list"`: 20px circle in a `touch-target-min` square. Pair it with a Label. */
 export function RadioGroupItem({
   className,
   ...props

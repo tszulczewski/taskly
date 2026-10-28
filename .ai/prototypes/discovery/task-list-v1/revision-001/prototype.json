@@ -1,0 +1,82 @@
+{
+  "format": "discovery-prototype-v1",
+  "skill": "om-mockup-prototype",
+  "slug": "task-list-v1",
+  "revision": 1,
+  "revisionPath": ".ai/prototypes/discovery/task-list-v1/revision-001",
+  "previousRevision": null,
+  "brief": ".ai/specs/product-brief.md",
+  "flow": "Key flows: Future state (task list, estimates, future expenses, subtasks, completion, reordering)",
+  "panelReport": null,
+  "verification": "passed",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "1ae6af74f9d7884b3cbd1652cfafdffdfc9e17507556bd122a001ebff1636fd1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7fa5f38874008c770bec90082d25b33f48a6c8192301312e38a8055250e8efd9"
+    },
+    {
+      "path": "evidence/01-entry.png",
+      "sha256": "467f9679f67fc0ecf566af778c089c91ebdd1b0bbfcd040cf702e95873169c7c"
+    },
+    {
+      "path": "evidence/02-complete-dialog.png",
+      "sha256": "8f96ef73cfffde5ac88dd83ea49ef433af6f7c2351312adc0cbe2dc11ada7d5f"
+    },
+    {
+      "path": "evidence/03-task-completed.png",
+      "sha256": "0afd929714bcfb318645a23b5dcce9750c9e82459b3da0c38c932dba3f6bd300"
+    },
+    {
+      "path": "evidence/04-subtasks.png",
+      "sha256": "bd0a7d920728bac1c607e373eb30c4283747427dff4371dc67edc029847e5c90"
+    },
+    {
+      "path": "evidence/05-reordered.png",
+      "sha256": "232f7c92770e8db3bef384eda07a45c063c017dbe7c324db51bb375d911956dc"
+    },
+    {
+      "path": "evidence/06-validation-error.png",
+      "sha256": "8293ad1984d3a5555592f7131cf6d47a7e85f66acb0d4e87f04a305f9aca9330"
+    },
+    {
+      "path": "evidence/07-edit-form.png",
+      "sha256": "fae84a0e370a88cf074617288be9c0bbf44913d6079281f9a2fc4a56d5952a10"
+    },
+    {
+      "path": "evidence/08-delete-dialog.png",
+      "sha256": "419c5d1d0692cf5b23e648d7739a052c29a5ffb1eba0372001ffb6933518af33"
+    },
+    {
+      "path": "evidence/09-save-failure.png",
+      "sha256": "19559c9f7404e260428a1af607742a38a71512ab16f0265e401d33df48419cbb"
+    },
+    {
+      "path": "evidence/10-load-failure.png",
+      "sha256": "cc9abad389c2a678988fae4bef2d65fecb0545309934ac712dfab4451fcbcf59"
+    },
+    {
+      "path": "evidence/11-empty.png",
+      "sha256": "71c216cacc138dcfbf78f101eabdea677c324c04d1ce55fc269dd524f4f5eebc"
+    },
+    {
+      "path": "evidence/12-about.png",
+      "sha256": "f7204ef1f9b37d166ffa8168d5b63e1c293282c68121bb4865ee978ebfbcac8d"
+    },
+    {
+      "path": "evidence/13-unknown-link.png",
+      "sha256": "e331c8a47d0c32ecf24d8593771fc65b7a9e8087f14284121acdcffbe0871c78"
+    },
+    {
+      "path": "evidence/14-narrow-360.png",
+      "sha256": "da798dd3680975f22a5ab9e6a3f88bf315cff9274c315e7db38eadf95af885b3"
+    },
+    {
+      "path": "evidence/15-keyboard-focus.png",
+      "sha256": "f7e9de41108015148e33db0076aa81c8c317e4d7f63f39b9cdb253ec90290ec6"
+    }
+  ]
+}

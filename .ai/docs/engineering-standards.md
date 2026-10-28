@@ -84,7 +84,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 ## 6. Data and money
 
 - **Money:** integer grosze everywhere (DB, Zod, API, state). Convert to PLN only at the display edge via one `formatPln(grosze)` helper. Never use floats for arithmetic. The AI's PLN numbers are converted with `Math.round(pln * 100)` at the boundary and Zod-checked (`min ≤ max`).
-- **Totals are computed server-side.** The client never supplies totals. Count **main tasks only** (tasks without a parent): a parent keeps its own estimate, and subtask estimates are informational and never summed (product brief R06, R08; owner decision 2026-10-16).
+- **Totals are computed server-side.** The client never supplies totals or sums. A task with subtasks takes its estimate from them: the sum of their minimums and of their maximums, computed by `rollUpEstimate` in `@taskly/core` and never stored; its own typed figure is kept but not counted (product brief R12–R15). Totals count **main tasks only** (tasks without a parent), each with that effective estimate, so a subtask is never counted twice (R17; owner decision 2026-10-28, replacing the 2026-10-16 rule that subtask estimates are never summed).
 - **Ordering:** `position` is a fractional-index string compared with `COLLATE "C"`. Never renumber siblings; one moved row = one `UPDATE`.
 - **Migrations:** generated with `drizzle-kit generate`, reviewed, committed. Never edit an applied migration. Destructive changes (drop/rename) get a note in the PR and the run log. Resetting a shared or production DB is never done silently.
 - **IDs:** UUID for domain rows; Better Auth tables keep its string ids.

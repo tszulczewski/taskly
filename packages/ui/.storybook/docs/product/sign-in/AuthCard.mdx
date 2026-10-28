@@ -26,12 +26,12 @@ Gives the sign-in and sign-up pages one calm, centred card, so the only thing on
 
 ## 4. Anatomy
 
-| Part     | Required | Notes                                                                |
-| -------- | -------- | -------------------------------------------------------------------- |
-| App name | yes      | "Taskly", strong body text above the card                            |
-| Card     | yes      | `Surface padding="inset"` as `<main>`, at most `layout-text-measure` |
-| Heading  | yes      | `h1`, `font-size-heading` 22px, 600 (Luki 1)                         |
-| Content  | yes      | A form or `SignUpClosed`                                             |
+| Part     | Required | Notes                                                                            |
+| -------- | -------- | -------------------------------------------------------------------------------- |
+| App name | yes      | "Taskly", strong body text above the card                                        |
+| Card     | yes      | `Surface padding="inset"` as `<main>`, at most `auth-card-max-width` (400px, V2) |
+| Heading  | yes      | `h1`, `font-size-heading` 22px, 600 (Luki 1)                                     |
+| Content  | yes      | A form or `SignUpClosed`                                                         |
 
 ## 5. Variants
 
@@ -60,7 +60,7 @@ Heading: "Sign in" or "Create an account".
 | Width  | Behaviour                                                      | Source          |
 | ------ | -------------------------------------------------------------- | --------------- |
 | 320px  | Card spans the column minus the 16px page gutter.              | T7              |
-| 768px  | Card at most `layout-text-measure` (65ch), centred.            | F1, decision E6 |
+| 768px  | Card at most `auth-card-max-width` (400px), centred.           | V2, decision E6 |
 | 1440px | Same; top-aligned at `space-page-top`, not centred vertically. | decision E6     |
 
 ## 10. API

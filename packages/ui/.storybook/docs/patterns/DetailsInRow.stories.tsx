@@ -32,7 +32,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** The app's message when the server answers 404: deleted elsewhere, or no access (spec E01). */
-const gone = "This task no longer exists. It may have been deleted in another tab.";
+const gone = "This task was deleted. The list has been refreshed.";
 
 export const Collapsed: Story = {};
 

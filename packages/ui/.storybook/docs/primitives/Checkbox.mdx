@@ -33,7 +33,7 @@ Lets the user mark one thing as done or chosen with a single press, and see at a
 
 | Part       | Required     | Notes                                                                                             |
 | ---------- | ------------ | ------------------------------------------------------------------------------------------------- |
-| Target     | yes          | 44 × 44 px, transparent, holds the box (T10, K1)                                                  |
+| Target     | yes          | 44 × 44 px (36 × 36 px from 640px), transparent, holds the box (T10, K1)                          |
 | Box        | yes          | `checkbox-size` 20px, `checkbox-radius` 6px, 1px `color-border-control` (R02.1, T1, T8, T10)      |
 | Check mark | when checked | Lucide `Check` in `color-text-on-action` on `color-action-primary` (tokens: on-action "znacznik") |
 | Label      | yes          | `Label htmlFor`, or `aria-label` when the row's title already sits next to it                     |
@@ -63,7 +63,7 @@ None. There is no indeterminate ("some subtasks done") state: progress is writte
 - **Keyboard:** Tab reaches it; Space toggles; Enter does nothing (WAI-ARIA APG, checkbox). Covered by the Playground test.
 - **Role and state:** `role="checkbox"` with `aria-checked="true|false"` (Radix). A screen reader says "Paint the bathroom ceiling, checkbox, checked".
 - **Name:** a `Label` with `htmlFor`; clicking the label toggles too. Covered by the WithLabel test. In a task row the title is already visible next to the box, so `TaskCheckbox` names it with `aria-label`: the action and the task, “Complete “Paint the bathroom ceiling”” (decision J9).
-- **Target size:** 44 × 44 px around a 20px box (T10, spec E01).
+- **Target size:** 44 × 44 px (36 × 36 px from 640px) around a 20px box (T10, spec E01).
 - **Colour:** the check mark, not only the green fill, shows the state (WCAG 1.4.1); the box border has 6.94:1 / 6.31:1 on the list surface (WCAG 1.4.11).
 - **Motion:** the fill changes over `motion-duration-quick` (Luki 8), at once with reduced motion.
 
@@ -71,7 +71,7 @@ None. There is no indeterminate ("some subtasks done") state: progress is writte
 
 - A visible `Label` is the thing itself, not an instruction: "Paint the bathroom ceiling", not "Mark as done" (glossary, Luki 5).
 - A box named only by `aria-label`, beside a title that is already visible, is named like an icon button: the action and the object, “Complete “Paint the bathroom ceiling”” (`TaskCheckbox`, decision J9). The two rules do not conflict: one is a visible label, the other an accessible name.
-- Long labels wrap next to the box. In a list row the text block is centred against the 44px target while it fits in it (one line, or a title with a second line); longer text grows downwards and the box stays at the top of the row, level with the top 44px of the text rather than with its first line. A row does not grow to line the box up with the first line (decision U1).
+- Long labels wrap next to the box. In a list row the text block is centred against the target while it fits in it (one line, or a title with a second line); longer text grows downwards and the box stays at the top of the row, level with the top of the text rather than with its first line. A row does not grow to line the box up with the first line (decision U1).
 - Polish labels: "Zeskrobać starą farbę".
 
 <Unstyled>
@@ -83,7 +83,7 @@ None. There is no indeterminate ("some subtasks done") state: progress is writte
 | Width  | Behaviour                                    | Source           |
 | ------ | -------------------------------------------- | ---------------- |
 | 320px  | Same 44px target; the label wraps beside it. | T10, WCAG 1.4.10 |
-| 768px  | Same.                                        | K1               |
+| 768px  | 36px target from 640px.                      | K1, V1           |
 | 1440px | Same.                                        | K1               |
 
 <Unstyled>

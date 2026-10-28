@@ -22,6 +22,7 @@
   --raw-neutral-150: #e8ece7;
   --raw-neutral-200: #d6dcd5;
   --raw-neutral-400: #9caaa3;
+  --raw-neutral-500: #748079; /* V3: control edges, both themes */
   --raw-neutral-600: #55635c;
   --raw-neutral-800: #2e3834;
   --raw-neutral-850: #232c28;
@@ -137,7 +138,7 @@
   --color-surface-raised: var(--raw-neutral-850); /* R01.1 (tone instead of shadow) */
   --color-surface-raised-hover: var(--raw-neutral-800); /* R02 code (.menu :hover); D1 */
   --color-border-divider: var(--raw-neutral-800); /* R01.1, R02.1; decorative only (T1) */
-  --color-border-control: var(--raw-neutral-400); /* T1 */
+  --color-border-control: var(--raw-neutral-500); /* T1, V3 */
   --color-text-primary: var(--raw-neutral-100); /* R01.3 */
   --color-text-muted: var(--raw-neutral-400); /* R01.3, R01.4, R02.2, Luki 4 */
   --color-action-primary: var(--raw-green-400); /* R02.3 */
@@ -166,7 +167,7 @@
   --color-surface-raised: var(--raw-neutral-150); /* R01.1 (tone instead of shadow) */
   --color-surface-raised-hover: var(--raw-neutral-0); /* D1; WCAG 1.4.3 */
   --color-border-divider: var(--raw-neutral-200); /* R01.1, R02.1; decorative only (T1) */
-  --color-border-control: var(--raw-neutral-600); /* T1 */
+  --color-border-control: var(--raw-neutral-500); /* T1, V3 */
   --color-text-primary: var(--raw-neutral-900); /* R01.3 */
   --color-text-muted: var(--raw-neutral-600); /* R01.3, R01.4, R02.2, Luki 4 */
   --color-action-primary: var(--raw-green-700); /* R02.3 */
@@ -189,17 +190,17 @@
 
 /* 3. Component tokens ---------------------------------------------------------------------- */
 :root {
-  --task-row-min-height: 4rem; /* Luki 6 (64px floor; a row with a 44px target is 68px: N8) */
-  --task-row-padding-y: var(--raw-space-12); /* T10 (12 + 44 + 12 = 68); every list row: N2 */
+  --task-row-min-height: 4rem; /* Luki 6 (64px floor; a row with a 44px target is 68px: N8); V1 */
+  --task-row-padding-y: var(--raw-space-12); /* T10 (12 + 44 + 12 = 68); every list row: N2; V1 */
   --task-row-indent: var(--raw-space-24); /* R02.1 (about 22px); T10 */
   --place-dot-size: 0.5rem; /* R02 code (9px); T10 */
   --checkbox-size: 1.25rem; /* R02.1; T10 */
   --checkbox-radius: var(--raw-radius-6); /* R02.1; T8 */
-  --touch-target-min: 2.75rem; /* Apple HIG, WCAG 2.5.5; T10 */
+  --touch-target-min: 2.75rem; /* Apple HIG, WCAG 2.5.5; T10; 44px below 640px (V1) */
   --input-font-size-mobile: var(--raw-size-16); /* Luki 1 */
   --icon-stroke-width: 2; /* Luki 7 (Lucide, 2px stroke) */
   --icon-size: 1.25rem; /* F2 (accepted 2026-10-21) */
-  --control-height: var(--touch-target-min); /* K1: 44px at every width (E01 and sign-in specs) */
+  --control-height: var(--touch-target-min); /* K1 variant B, V1: 44px; 36px from 640px */
   --control-padding-x: var(--raw-space-16); /* R02 code (.btn 14px) on the T7 scale; batch 1 */
   --field-padding-x: var(--raw-space-12); /* R02 code (input 10px) on the T7 scale; batch 1 */
   --field-padding-y: var(--raw-space-8); /* R02 code (input 8px); batch 1 */
@@ -211,6 +212,17 @@
   --spinner-stroke: 2px; /* R02 code (.spin); K3 */
   --spinner-duration: 700ms; /* R02.12, R02 code (.spin .7s); K3 */
   --radio-dot-size: 0.5rem; /* proposal C2 (batch 2): dot of a selected radio */
+  --auth-card-max-width: 25rem; /* V2: the sign-in card is 400px wide at most */
+}
+
+/* V1 (K1 variant B, 2026-10-26): from 640px, pointers are precise, so controls and targets are
+   36px (WCAG 2.5.8 asks for 24px) and a list row is 8 + 36 + 8 = 52px. Phones keep 44px. */
+@media (min-width: 640px) {
+  :root {
+    --touch-target-min: 2.25rem; /* V1 */
+    --task-row-min-height: 3.25rem; /* V1 */
+    --task-row-padding-y: var(--raw-space-8); /* V1 */
+  }
 }
 
 /* K3, tokens rule 12: with reduced motion the spinner stands still; its text carries the meaning. */

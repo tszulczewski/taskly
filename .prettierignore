@@ -6,3 +6,14 @@ package-lock.json
 coverage
 .ai/design/reference
 storybook-static
+
+# Review engine copied from lekcja-07/silnik-przegladu (not edited; comments.js is replaced by its export)
+prototypes/*/silnik/prototype.js
+prototypes/*/silnik/prototype.css
+prototypes/*/silnik/comments.js
+# Discovery prototypes are generated revisions with SHA-256 manifests; formatting would break them
+.ai/prototypes/
+
+# Installed skills (open-mercato/skills, hashed in skills-lock.json) and the lesson review engine, kept as upstream ships them
+.agents/skills/
+lekcja-07/silnik-przegladu/

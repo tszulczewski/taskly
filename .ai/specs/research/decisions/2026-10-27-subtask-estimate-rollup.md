@@ -1,0 +1,13 @@
+# Subtask estimates roll up into their task (proposed superseding of R06, D15, D16 and part of R08)
+
+- Date, owner: 2026-10-27, product owner.
+- Context: after the `[SYNTHETIC]` panel on prototype revision 001, the owner reports a test with real people. Panel report: `.ai/specs/research/walkthroughs/2026-10-27-dodanie-zadan-z-szacunkiem-i-podzadan-session-001/report.md`; prototype: `.ai/prototypes/discovery/task-list-v1/revision-002/`. The panel's main contradiction was that nobody would keep subtask costs in mind while typing the task's figure.
+- Decision (owner's answers of 2026-10-27, variant C "sumuj naprawdę"):
+  1. **Roll-up.** A task with subtasks has no estimate of its own. Its estimate is the sum of its subtasks' minimums to the sum of their maximums. A task without subtasks keeps its own typed estimate. Any extra cost, such as materials, is added as another subtask.
+  2. **Subtask without an estimate.** It is left out of the sum, and the task shows how many of its subtasks have no estimate (the subtask counterpart of R10). A task whose subtasks all lack an estimate has no estimate, so it is left out of future expenses and listed among the tasks without an estimate.
+  3. **Completed subtasks.** A completed subtask still counts in its task's estimate. Ticking subtasks does not change the task's figure. The whole task leaves future expenses only when the task itself is completed (R09).
+  4. **The task's own typed estimate is kept, not shown.** When a task with a typed estimate gets its first subtask, the typed figure stops being shown and counted, but it is kept. When the task's last subtask is deleted, the kept figure comes back as the task's estimate. A task that never had a typed figure goes back to "no estimate" (owner, 2026-10-27).
+- Supersedes, once written into the brief: R06; D15; D16 (its "not counted from subtasks" clause); R08 (its "subtask estimates are not counted" clause, since future expenses now uses the rolled-up estimate of each open main task). R02 is the earlier roll-up rule that D15 reversed. It stays superseded; this record replaces it.
+- Open: none.
+- Evidence: `[INTERVIEW]` `interviews/2026-10-27-prototype-test-person-1-via-owner.md` (tasks of unknown cost were split into subtasks) and `interviews/2026-10-27-prototype-test-person-2-via-owner.md` (estimates typed on subtasks only, and the sum mattered most). Both are second-hand, relayed by the owner. The `[SYNTHETIC]` panel finding (weight 4, spread ±0) is context only.
+- Status: decided by the owner on 2026-10-27, with the edge cases answered the same day; written into the product brief on 2026-10-27 as D22, D23, R12–R17 (superseding R06, R07, R08, D15, D16); specs and the design system not yet updated.

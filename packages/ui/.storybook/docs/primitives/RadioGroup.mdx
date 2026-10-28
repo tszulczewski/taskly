@@ -30,13 +30,13 @@ Lets the user pick exactly one of a few options while seeing all of them.
 
 ## 4. Anatomy
 
-| Part                | Required | Notes                                                                                              |
-| ------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| Group               | yes      | `role="radiogroup"`, named with `aria-label` or a visible heading (`aria-labelledby`)              |
-| Item (list)         | yes      | 44 × 44 px target with a 20px circle; selected: `color-action-primary` border and dot (T10, R02.3) |
-| Label (list)        | yes      | `Label htmlFor` next to each item                                                                  |
-| Segment (segmented) | yes      | 44px high; its children are the name (text, optionally an icon)                                    |
-| Frame (segmented)   | yes      | 1px `color-border-control`, `radius-control`                                                       |
+| Part                | Required | Notes                                                                                                                      |
+| ------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Group               | yes      | `role="radiogroup"`, named with `aria-label` or a visible heading (`aria-labelledby`)                                      |
+| Item (list)         | yes      | 44 × 44 px (36 × 36 px from 640px) target with a 20px circle; selected: `color-action-primary` border and dot (T10, R02.3) |
+| Label (list)        | yes      | `Label htmlFor` next to each item                                                                                          |
+| Segment (segmented) | yes      | 44px high (36px from 640px); its children are the name (text, optionally an icon)                                          |
+| Frame (segmented)   | yes      | 1px `color-border-control`, `radius-control`                                                                               |
 
 ## 5. Variants
 
@@ -66,7 +66,7 @@ Lets the user pick exactly one of a few options while seeing all of them.
 - **Keyboard:** Tab enters the group on the selected option; arrow keys move and select; Tab leaves the group (WAI-ARIA APG, radio group). Covered by the Playground and ThemeSwitchKeyboard tests.
 - **Roles:** `radiogroup` and `radio` with `aria-checked` (Radix).
 - **Name:** the group needs a name ("Theme", "Colour of the place"); each item gets its name from its Label or, in a segment, from its text. Icons in segments are `aria-hidden`.
-- **Target size:** 44 × 44 px per item and 44px-high segments; the segmented frame adds 1px each side (46px in total) (K1).
+- **Target size:** 44 × 44 px (36 × 36 px from 640px) per item and segments of the same height; the segmented frame adds 1px each side (46px in total, 38px from 640px) (K1, V1).
 - **Colour:** a selected segment differs by tone, text colour and weight (WCAG 1.4.1).
 
 ## 8. Content

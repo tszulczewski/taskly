@@ -203,6 +203,12 @@ export function TaskRow({
     action();
   };
 
+  // The list's corners are rounded; a row's tone (hover, open, editing) follows them on the first
+  // and last task, and on the last subtask of the last task. Clipping the list instead would cut a
+  // row dragged past its edge.
+  const edges = isSubtask
+    ? "group-last/row:group-last/subtask:rounded-br-surface"
+    : "group-first/row:rounded-t-surface group-last/row:rounded-b-surface";
   const movableSubtasks = subtasks.filter((subtask) => !subtask.pending && !subtask.completed);
   const subtasksDone = subtasks.filter((subtask) => subtask.completed).length;
   const subtaskIds = movableSubtasks.map((subtask) => subtask.id);
@@ -235,7 +241,7 @@ export function TaskRow({
 
   const titleClass = cn(
     "min-w-0 flex-1 text-left font-strong break-words",
-    // The whole text block (title, estimate, meta) is the title's 44px target (K1). The layer
+    // The whole text block (title, estimate, meta) is the title's target (K1). The layer
     // reaches into half of the gap on each side so the ring clears the text (decision M3).
     hasDetails &&
       "cursor-pointer outline-none after:absolute after:inset-y-0 after:-inset-x-inline after:rounded-control focus-visible:after:focus-ring",
@@ -347,17 +353,19 @@ export function TaskRow({
       }}
       className={cn(
         "border-t border-divider",
-        !isSubtask && "first:border-t-0",
+        isSubtask
+          ? "group/subtask"
+          : "group/row first:rounded-t-surface first:border-t-0 last:rounded-b-surface",
         isDragging ? "relative bg-raised" : "transition-transform duration-quick ease-standard",
       )}
     >
       <Collapsible
         open={expanded}
         onOpenChange={setExpanded}
-        className={cn(!isSubtask && "data-[state=open]:bg-raised")}
+        className={cn(!isSubtask && ["data-[state=open]:bg-raised", edges])}
       >
         {editing ? (
-          <div className="bg-raised p-inset">
+          <div className={cn("bg-raised p-inset", edges)}>
             <TaskForm
               initialValues={{
                 title: task.title,
@@ -379,6 +387,7 @@ export function TaskRow({
             className={cn(
               "flex min-h-row items-start gap-group px-inset py-row-y",
               isSubtask ? "hover:bg-raised-hover" : "hover:bg-raised",
+              edges,
               // A long press moves the row on touch screens; it must not select text (G2).
               movable && "select-none",
               highlighted && "row-highlight",

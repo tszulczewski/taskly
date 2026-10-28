@@ -1,0 +1,1 @@
+/om-synthetic-users .ai/prototypes/discovery/task-list-v1/revision-001/index.html --flow "dodanie zadań z szacunkiem i podzadań" --stance validate --panel 2 --runs 2

@@ -37,6 +37,7 @@ const componentTokens = new Set([
   "spinner-stroke",
   "spinner-duration",
   "radio-dot-size",
+  "auth-card-max-width",
 ]);
 
 const declaration = /^\s*--([\w-]+):\s*([^;]+);\s*(?:\/\*\s*(.*?)\s*\*\/)?\s*$/;

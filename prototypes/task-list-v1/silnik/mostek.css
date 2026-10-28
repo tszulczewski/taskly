@@ -1,0 +1,52 @@
+/* Mostek: names the review engine (prototype.css) uses, mapped to Taskly's semantic tokens
+   (packages/ui/src/styles/tokens.css). No new colours: every right-hand side is a token.
+   Both themes follow automatically, because the tokens change under [data-theme]. */
+:root {
+  --background: var(--color-surface-page);
+  --foreground: var(--color-text-primary);
+  --card: var(--color-surface-list);
+  --muted: var(--color-surface-raised);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border-divider);
+  --input: var(--color-border-control);
+  --ring: var(--color-focus-ring);
+  --primary: var(--color-action-primary);
+  --primary-foreground: var(--color-text-on-action);
+
+  --font-geist-sans: var(--font-family-base);
+  --font-geist-mono: var(--font-family-base);
+  --font-size-overline: var(--font-size-meta);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-surface);
+  --radius-xl: var(--radius-surface);
+
+  --primary-hover: var(--color-action-primary-hover);
+  --accent-indigo: var(--color-action-primary);
+  --accent-indigo-foreground: var(--color-text-on-action);
+
+  /* Taskly separates by tone, never by shadow (ShapeAndDepth, tokens rule 1). */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-xl: none;
+  --shadow-focus: 0 0 0 var(--focus-ring-width) var(--color-focus-ring);
+
+  /* DESIGN-SYSTEM GAP (report: G-REVIEW-STATUS): Taskly has no success or warning colours.
+     "Resolved" uses the action colour (the colour of "completed"); "unsaved" uses muted text. */
+  --status-success-icon: var(--color-action-primary);
+  --status-warning-icon: var(--color-text-muted);
+  --status-warning-border: var(--color-border-control);
+  --status-warning-bg: var(--color-surface-raised);
+  --status-warning-text: var(--color-text-primary);
+
+  /* Stacking order of the review layers; not a design token, the engine needs numbers. */
+  --z-index-sticky: 100;
+  --z-index-dropdown: 200;
+  --z-index-overlay: 300;
+  --z-index-modal: 400;
+  --z-index-toast: 500;
+  --z-index-top: 600;
+  --z-index-product-overlay: calc(var(--z-index-top) + 100);
+  --z-index-product-modal: calc(var(--z-index-product-overlay) + 1);
+}

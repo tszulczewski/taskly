@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taskly task list – discovery prototype</title>
+<style>
+  :root { color-scheme: light; --fg:#1a1a1a; --muted:#5c5c5c; --line:#b5b5b5; --soft:#f2f2f2; --bg:#fff; --danger:#8a1c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:inherit; }
+  :focus-visible { outline:3px solid #000; outline-offset:2px; }
+  .banner { background:var(--soft); border-bottom:1px solid var(--line); padding:8px 16px; font-size:14px; }
+  header.app { display:flex; flex-wrap:wrap; gap:8px 24px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); }
+  header.app .name { font-weight:700; font-size:18px; }
+  header.app nav ul { display:flex; gap:16px; list-style:none; margin:0; padding:0; }
+  header.app nav a[aria-current="page"] { font-weight:700; }
+  main { max-width:880px; margin:0 auto; padding:16px; }
+  section.screen[hidden] { display:none; }
+  h1 { font-size:24px; margin:8px 0 16px; }
+  h2 { font-size:18px; margin:0 0 8px; }
+  h1:focus { outline:none; }
+  h1:focus-visible { outline:3px solid #000; }
+  .box { border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 16px; }
+  .total { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin:0; }
+  .muted { color:var(--muted); }
+  button, .btn { font:inherit; min-height:44px; padding:6px 12px; border:1px solid #333; border-radius:6px; background:#fff; color:var(--fg); cursor:pointer; }
+  button.primary { background:#222; color:#fff; border-color:#222; font-weight:600; }
+  button.link { border:none; background:none; text-decoration:underline; padding:6px 4px; }
+  input[type=text], textarea { font:inherit; padding:8px; border:1px solid #333; border-radius:6px; width:100%; min-height:44px; }
+  textarea { min-height:72px; }
+  input[aria-invalid="true"], textarea[aria-invalid="true"] { border:2px solid var(--danger); }
+  .field { margin:0 0 12px; }
+  .field label, .legend { display:block; font-weight:600; margin-bottom:4px; }
+  .field-error { color:var(--danger); margin:4px 0 0; font-weight:600; }
+  .amounts { display:flex; flex-wrap:wrap; gap:12px; }
+  .amounts .field { flex:1 1 140px; }
+  .suffix { display:flex; align-items:center; gap:6px; }
+  fieldset { border:1px solid var(--line); border-radius:6px; margin:0 0 12px; padding:8px 12px; }
+  .checks { display:flex; flex-wrap:wrap; gap:4px 16px; }
+  .checks label { display:flex; align-items:center; gap:6px; min-height:44px; font-weight:400; }
+  input[type=checkbox] { width:22px; height:22px; margin:0; }
+  .quick { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+  .quick .field { flex:1 1 220px; margin:0; }
+  details.more { margin-top:8px; }
+  details.more summary { cursor:pointer; min-height:44px; display:flex; align-items:center; }
+  ul.tasks, ul.subtasks { list-style:none; margin:0; padding:0; }
+  li.task { border:1px solid var(--line); border-radius:6px; padding:8px 12px; margin:0 0 8px; }
+  ul.subtasks { margin:8px 0 0 34px; border-left:2px solid var(--line); padding-left:12px; }
+  ul.subtasks li { padding:6px 0; border-top:1px dashed var(--line); }
+  ul.subtasks li:first-child { border-top:none; }
+  .row { display:flex; gap:12px; align-items:flex-start; }
+  .row > input[type=checkbox] { margin-top:11px; flex:none; }
+  .body { flex:1 1 auto; min-width:0; }
+  .title { font-weight:600; overflow-wrap:anywhere; }
+  .meta { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:14px; color:var(--muted); }
+  .meta .est { color:var(--fg); font-weight:700; font-variant-numeric:tabular-nums; }
+  .meta .est.none { color:var(--muted); font-weight:400; }
+  .tag { border:1px solid var(--muted); border-radius:4px; padding:0 6px; color:var(--fg); }
+  .desc { margin:4px 0 0; overflow-wrap:anywhere; white-space:pre-line; }
+  .actions { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .done .title { text-decoration:line-through; color:var(--muted); }
+  .done .meta .est { color:var(--muted); }
+  .alert { border:2px solid var(--danger); border-radius:6px; padding:8px 12px; margin:0 0 16px; color:var(--danger); font-weight:600; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .alert:empty { display:none; }
+  .testpanel { border:2px dashed #777; border-radius:6px; padding:12px; margin-top:32px; }
+  .testpanel .btns { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  dialog { border:2px solid #333; border-radius:8px; max-width:min(92vw, 480px); padding:16px; }
+  dialog::backdrop { background:rgba(0,0,0,.35); }
+  dialog .btns { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:16px; }
+  .edit-form { border:1px solid #333; border-radius:6px; padding:12px; background:var(--soft); }
+  .form-btns { display:flex; flex-wrap:wrap; gap:8px; }
+  @media (max-width: 480px) { ul.subtasks { margin-left:8px; } }
+</style>
+</head>
+<body>
+<p class="banner">Discovery prototype. Simulated data. Nothing you type leaves this page or is kept after you close it.</p>
+<header class="app">
+  <span class="name">Taskly</span>
+  <nav aria-label="Prototype screens">
+    <ul>
+      <li><a href="#tasks" data-nav="tasks">Tasks</a></li>
+      <li><a href="#about" data-nav="about">About this prototype</a></li>
+    </ul>
+  </nav>
+</header>
+<main>
+  <p id="status" class="sr" role="status" aria-live="polite"></p>
+
+  <section id="screen-tasks" class="screen" aria-labelledby="h-tasks">
+    <h1 id="h-tasks" tabindex="-1">Tasks</h1>
+    <div id="error" class="alert" role="alert"></div>
+
+    <section id="expenses" class="box" aria-labelledby="h-expenses">
+      <h2 id="h-expenses">Future expenses</h2>
+      <div id="expenses-body"></div>
+    </section>
+
+    <section class="box" aria-labelledby="h-new">
+      <h2 id="h-new">New task</h2>
+      <div id="quick-add"></div>
+    </section>
+
+    <div id="list-area"></div>
+  </section>
+
+  <section id="screen-about" class="screen" aria-labelledby="h-about" hidden>
+    <h1 id="h-about" tabindex="-1">About this prototype</h1>
+    <p>This page simulates version 1 of the task list for one person. All tasks are fictitious and live only in this page's memory.</p>
+    <h2>Not part of this prototype</h2>
+    <ul>
+      <li>Real cost, payments, incurred expenses and expenses of completed tasks (version 2)</li>
+      <li>AI estimates</li>
+      <li>Effort or amount of work</li>
+      <li>Marking which job must come before which</li>
+      <li>Shopping list</li>
+      <li>Sharing with other people</li>
+      <li>Signing in and out</li>
+      <li>Creating or editing places (a fixed sample set is used)</li>
+      <li>Drag and drop (use Move up and Move down)</li>
+    </ul>
+    <p><a href="#tasks">Back to tasks</a></p>
+  </section>
+
+  <section id="screen-missing" class="screen" aria-labelledby="h-missing" hidden>
+    <h1 id="h-missing" tabindex="-1">This screen is not part of the prototype</h1>
+    <p>The link you followed does not lead anywhere in this simulation.</p>
+    <p><a href="#tasks">Go to Tasks</a></p>
+  </section>
+
+  <section class="testpanel" aria-labelledby="h-test">
+    <h2 id="h-test">Test state (for reviewers)</h2>
+    <p class="muted">These controls change the simulation, not the product.</p>
+    <div class="btns">
+      <button type="button" id="ts-sample">Load sample tasks</button>
+      <button type="button" id="ts-empty">Start with an empty list</button>
+      <button type="button" id="ts-loadfail">Show load failure</button>
+      <label class="checks"><input type="checkbox" id="ts-failnext"> Fail the next change</label>
+      <button type="button" id="ts-reset" class="primary">Reset prototype</button>
+    </div>
+  </section>
+</main>
+
+<dialog id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-desc">
+  <h2 id="confirm-title"></h2>
+  <p id="confirm-desc"></p>
+  <div class="btns">
+    <button type="button" id="confirm-cancel">Cancel</button>
+    <button type="button" id="confirm-ok" class="primary"></button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var PLACES = [
+    { id: "p1", name: "Bathroom" }, { id: "p2", name: "Living room" }, { id: "p3", name: "Dining room" },
+    { id: "p4", name: "Kitchen" }, { id: "p5", name: "Pantry" }, { id: "p6", name: "Hall" }, { id: "p7", name: "Garden" }
+  ];
+  var MAX_GROSZE = 1000000000;
+
+  function sample() {
+    var t = [];
+    var n = 0;
+    function add(parentId, f) {
+      n += 1;
+      var task = {
+        id: "t" + n, parentId: parentId, title: f.title, description: f.description || "",
+        min: f.min === undefined ? null : f.min * 100, max: f.max === undefined ? null : f.max * 100,
+        important: !!f.important, urgent: !!f.urgent, places: f.places || [], completed: !!f.completed, position: n
+      };
+      t.push(task);
+      return task.id;
+    }
+    var grass = add(null, { title: "Sow the rest of the lawn", description: "The second part of the lawn, next to the terrace.", min: 1200, max: 1800, important: true, urgent: true, places: ["p7"] });
+    add(grass, { title: "Prepare the soil", min: 300, max: 500, places: ["p7"] });
+    add(grass, { title: "Buy grass seed", min: 250, max: 400, urgent: true });
+    add(grass, { title: "Set up watering for the new part", min: 0, max: 150, places: ["p7"] });
+    var rods = add(null, { title: "Hang the curtain rods", description: "Same rods in three rooms.", min: 600, max: 900, places: ["p1", "p2", "p3"] });
+    add(rods, { title: "Buy the rods", min: 400, max: 600 });
+    add(rods, { title: "Drill and mount", min: 0, max: 50, completed: true, places: ["p1", "p2", "p3"] });
+    var wall = add(null, { title: "Decorative wall in the living room", description: "Behind the sofa, with a TV mount.", min: 2500, max: 4000, important: true, places: ["p2"] });
+    add(wall, { title: "Priming", min: 150, max: 250, places: ["p2"] });
+    add(wall, { title: "Decorative plaster", min: 1800, max: 3000, places: ["p2"] });
+    add(wall, { title: "Impregnation", min: 200, max: 400, places: ["p2"] });
+    add(wall, { title: "TV mount", min: 150, max: 300, places: ["p2"] });
+    add(null, { title: "Pantry wall finish", places: ["p5"] });
+    add(null, { title: "Seal the bath", min: 80, max: 150, urgent: true, places: ["p1"] });
+    add(null, { title: "Plant the perimeter strip", min: 800, max: 1200, completed: true, places: ["p7"] });
+    return { tasks: t, next: n + 1 };
+  }
+
+  var state;
+  function freshState(tasks, next) {
+    return { tasks: tasks, next: next, loadState: "ready", editingId: null, addingSubtaskTo: null, error: null };
+  }
+
+  // ---------- money ----------
+  function group(intStr) {
+    return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+  function formatAmount(grosze, sep) {
+    var zl = Math.floor(grosze / 100), gr = grosze % 100;
+    var s = group(String(zl));
+    if (sep) s = s.replace(/ /g, sep);
+    return gr ? s + "," + (gr < 10 ? "0" : "") + gr : s;
+  }
+  function formatRange(min, max) { return formatAmount(min) + "–" + formatAmount(max) + " zł"; }
+  function parseAmount(raw) {
+    var s = raw.trim().replace(/ /g, " ");
+    if (s === "") return { empty: true };
+    if (!/^(\d{1,3}( \d{3})+|\d+)([,.]\d{1,2})?$/.test(s)) return { error: "Enter an amount like 1 500,50" };
+    var parts = s.replace(/ /g, "").split(/[,.]/);
+    var gr = parts[1] ? Number((parts[1] + "0").slice(0, 2)) : 0;
+    var total = Number(parts[0]) * 100 + gr;
+    if (total > MAX_GROSZE) return { error: "Enter at most 10 000 000 zł" };
+    return { value: total };
+  }
+
+  // ---------- model ----------
+  function byId(id) { for (var i = 0; i < state.tasks.length; i++) if (state.tasks[i].id === id) return state.tasks[i]; return null; }
+  function children(parentId) {
+    return state.tasks.filter(function (t) { return t.parentId === parentId; }).sort(function (a, b) {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return a.position - b.position;
+    });
+  }
+  function siblingsOf(t) { return state.tasks.filter(function (x) { return x.parentId === t.parentId && x.id !== t.id; }); }
+  function futureExpenses() {
+    var min = 0, max = 0, counted = 0, missing = 0;
+    children(null).forEach(function (t) {
+      if (t.completed) return;
+      if (t.min === null) { missing += 1; return; }
+      min += t.min; max += t.max; counted += 1;
+    });
+    return { min: min, max: max, counted: counted, missing: missing };
+  }
+
+  // ---------- helpers ----------
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) return;
+      if (k === "text") e.textContent = v;
+      else if (k === "className") e.className = v;
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? "" : v);
+    });
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function q(t) { return "“" + t + "”"; }
+  var statusEl = document.getElementById("status");
+  function announce(msg) { statusEl.textContent = ""; setTimeout(function () { statusEl.textContent = msg; }, 30); }
+  var pendingFocus = null;
+  function focusAfterRender(keys) { pendingFocus = keys; }
+  function applyFocus() {
+    if (!pendingFocus) return;
+    var keys = pendingFocus; pendingFocus = null;
+    for (var i = 0; i < keys.length; i++) {
+      var target = typeof keys[i] === "string" ? document.querySelector(keys[i]) : keys[i];
+      if (target && target.isConnected && !target.closest("[hidden]")) { target.focus(); return; }
+    }
+  }
+
+  // A change that can be told to fail by the test state; on failure nothing changes (rollback).
+  var failNextEl = document.getElementById("ts-failnext");
+  function change(run, onFail) {
+    if (failNextEl.checked) {
+      failNextEl.checked = false;
+      if (onFail) onFail();
+      showError(function () { clearError(); change(run, onFail); applyFocus(); });
+      return false;
+    }
+    clearError();
+    run();
+    render();
+    return true;
+  }
+  var errorEl = document.getElementById("error");
+  var retryFn = null;
+  function showError(retry) {
+    retryFn = retry;
+    errorEl.textContent = "";
+    errorEl.appendChild(el("span", { text: "Something went wrong. Try again." }));
+    errorEl.appendChild(el("button", { type: "button", id: "error-retry", text: "Try again", onclick: function () { var f = retryFn; retryFn = null; f(); } }));
+  }
+  function clearError() { retryFn = null; errorEl.textContent = ""; }
+
+  // ---------- dialog ----------
+  var dlg = document.getElementById("confirm");
+  var dlgOk = document.getElementById("confirm-ok");
+  var dlgAction = null, dlgReturn = null, dlgOnCancel = null;
+  function confirmDialog(opts) {
+    document.getElementById("confirm-title").textContent = opts.title;
+    document.getElementById("confirm-desc").textContent = opts.description || "";
+    dlgOk.textContent = opts.confirm;
+    dlgAction = opts.onConfirm; dlgOnCancel = opts.onCancel || null; dlgReturn = opts.returnFocus || [];
+    dlg.showModal();
+    document.getElementById("confirm-cancel").focus();
+  }
+  dlgOk.addEventListener("click", function () { var a = dlgAction; dlgAction = null; dlgOnCancel = null; dlg.close(); if (a) a(); });
+  document.getElementById("confirm-cancel").addEventListener("click", function () { dlg.close(); });
+  dlg.addEventListener("close", function () {
+    if (dlgOnCancel) { var c = dlgOnCancel; dlgOnCancel = null; c(); }
+    dlgAction = null;
+    focusAfterRender(dlgReturn || []); applyFocus();
+  });
+
+  // ---------- forms ----------
+  var formSeq = 0;
+  function field(id, label, input, hint) {
+    var err = el("p", { className: "field-error", id: id + "-err", hidden: true });
+    input.id = id;
+    input.setAttribute("aria-describedby", id + "-err");
+    return { node: el("div", { className: "field" }, [el("label", { for: id, text: label }), hint || null, input, err]), input: input, err: err };
+  }
+  function amountField(id, label, value) {
+    var input = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", value: value });
+    var f = field(id, label, input);
+    var wrap = el("div", { className: "suffix" });
+    f.node.replaceChild(wrap, input);
+    wrap.appendChild(input);
+    wrap.appendChild(el("span", { "aria-hidden": "true", text: "zł" }));
+    input.setAttribute("aria-label", label + ", zł");
+    return f;
+  }
+  function setErr(f, msg) {
+    f.err.textContent = msg || ""; f.err.hidden = !msg;
+    if (msg) f.input.setAttribute("aria-invalid", "true"); else f.input.removeAttribute("aria-invalid");
+  }
+  function validate(fs) {
+    [fs.title, fs.min, fs.max].forEach(function (f) { setErr(f, null); });
+    var title = fs.title.input.value.trim();
+    var errs = [];
+    if (!title) { setErr(fs.title, "Enter a title"); errs.push(fs.title); }
+    var a = parseAmount(fs.min.input.value), b = parseAmount(fs.max.input.value);
+    if (a.error) { setErr(fs.min, a.error); errs.push(fs.min); }
+    if (b.error) { setErr(fs.max, b.error); errs.push(fs.max); }
+    if (!a.error && !b.error) {
+      if (a.empty !== b.empty) { var f = a.empty ? fs.min : fs.max; setErr(f, "Enter both amounts or neither"); errs.push(f); }
+      else if (!a.empty && a.value > b.value) { setErr(fs.min, "Min must not exceed max"); errs.push(fs.min); }
+    }
+    if (errs.length) return null;
+    return { title: title, description: fs.desc.input.value.trim(), min: a.empty ? null : a.value, max: b.empty ? null : b.value };
+  }
+
+  function focusFirstInvalid(form) { var f = form.querySelector('[aria-invalid="true"]'); if (f) f.focus(); }
+
+  // Quick add (tasks) and add subtask: title + Add, details disclosure with description and estimate.
+  function addForm(parentId, labelText, onDone) {
+    formSeq += 1;
+    var p = "f" + formSeq;
+    var fs = {
+      title: field(p + "-title", labelText, el("input", { type: "text", autocomplete: "off" })),
+      desc: field(p + "-desc", "Description (optional)", el("textarea", {})),
+      min: amountField(p + "-min", "Min", ""),
+      max: amountField(p + "-max", "Max", "")
+    };
+    var details = el("details", { className: "more" }, [
+      el("summary", { text: "Details" }),
+      fs.desc.node,
+      el("div", { className: "legend", text: "Estimate (optional)" }),
+      el("div", { className: "amounts" }, [fs.min.node, fs.max.node])
+    ]);
+    var kids = [el("div", { className: "quick" }, [fs.title.node, el("button", { type: "submit", className: "primary", text: "Add" })])];
+    if (onDone) kids[0].appendChild(el("button", { type: "button", text: "Cancel", onclick: function () { onDone(null); } }));
+    kids.push(details);
+    var form = el("form", { novalidate: true, "data-form": parentId ? "subtask-" + parentId : "quick" }, kids);
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var v = validate(fs);
+      if (!v) { if (fs.min.input.getAttribute("aria-invalid") || fs.max.input.getAttribute("aria-invalid")) details.open = true; focusFirstInvalid(form); return; }
+      var id = "t" + state.next;
+      var ok = change(function () {
+        state.next += 1;
+        var sibs = state.tasks.filter(function (t) { return t.parentId === parentId; });
+        var pos = sibs.reduce(function (m, t) { return Math.max(m, t.position); }, 0) + 1;
+        state.tasks.push({ id: id, parentId: parentId, title: v.title, description: v.description, min: v.min, max: v.max,
+          important: false, urgent: false, places: [], completed: false, position: pos });
+        if (parentId) state.addingSubtaskTo = parentId; else form.reset();
+        announce((parentId ? "Subtask " : "Task ") + q(v.title) + " added.");
+        focusAfterRender([parentId ? '[data-form="subtask-' + parentId + '"] input' : '[data-form="quick"] input']);
+      });
+      if (ok) applyFocus();
+    });
+    return form;
+  }
+
+  function editForm(t) {
+    formSeq += 1;
+    var p = "f" + formSeq;
+    var fs = {
+      title: field(p + "-title", "Title", el("input", { type: "text", autocomplete: "off", value: t.title })),
+      desc: field(p + "-desc", "Description (optional)", el("textarea", {})),
+      min: amountField(p + "-min", "Min", t.min === null ? "" : formatAmount(t.min, " ")),
+      max: amountField(p + "-max", "Max", t.max === null ? "" : formatAmount(t.max, " "))
+    };
+    fs.desc.input.value = t.description;
+    var imp = el("input", { type: "checkbox", checked: t.important });
+    var urg = el("input", { type: "checkbox", checked: t.urgent });
+    var placeBoxes = PLACES.map(function (pl) {
+      var cb = el("input", { type: "checkbox", value: pl.id, checked: t.places.indexOf(pl.id) >= 0 });
+      return { cb: cb, node: el("label", {}, [cb, pl.name]) };
+    });
+    var form = el("form", { novalidate: true, className: "edit-form", "data-form": "edit-" + t.id, "aria-label": "Edit " + q(t.title) }, [
+      fs.title.node, fs.desc.node,
+      el("div", { className: "legend", text: "Estimate (optional)" }),
+      el("div", { className: "amounts" }, [fs.min.node, fs.max.node]),
+      el("fieldset", {}, [el("legend", { text: "Markers" }), el("div", { className: "checks" }, [el("label", {}, [imp, "Important"]), el("label", {}, [urg, "Urgent"])])]),
+      el("fieldset", {}, [el("legend", { text: "Places" }), el("div", { className: "checks" }, placeBoxes.map(function (x) { return x.node; }))]),
+      el("div", { className: "form-btns" }, [
+        el("button", { type: "submit", className: "primary", text: "Save" }),
+        el("button", { type: "button", text: "Cancel", onclick: function () { state.editingId = null; clearError(); render(); focusAfterRender(['[data-key="edit-' + t.id + '"]']); applyFocus(); } })
+      ])
+    ]);
+    form.addEventListener("keydown", function (ev) { if (ev.key === "Escape") { ev.preventDefault(); state.editingId = null; render(); focusAfterRender(['[data-key="edit-' + t.id + '"]']); applyFocus(); } });
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var v = validate(fs);
+      if (!v) { focusFirstInvalid(form); return; }
+      var places = placeBoxes.filter(function (x) { return x.cb.checked; }).map(function (x) { return x.cb.value; });
+      var ok = change(function () {
+        t.title = v.title; t.description = v.description; t.min = v.min; t.max = v.max;
+        t.important = imp.checked; t.urgent = urg.checked; t.places = places;
+        state.editingId = null;
+        announce(q(t.title) + " saved.");
+        focusAfterRender(['[data-key="edit-' + t.id + '"]']);
+      });
+      if (ok) applyFocus();
+    });
+    return form;
+  }
+
+  // ---------- actions ----------
+  function toggleComplete(t, cb) {
+    if (!t.completed) {
+      var open = t.parentId === null ? children(t.id).filter(function (s) { return !s.completed; }) : [];
+      var doIt = function () {
+        change(function () {
+          t.completed = true;
+          open.forEach(function (s) { s.completed = true; });
+          announce(q(t.title) + " completed." + (t.parentId === null ? " Future expenses updated." : ""));
+          focusAfterRender(['[data-key="cb-' + t.id + '"]']);
+        }, function () { cb.checked = false; });
+        applyFocus();
+      };
+      if (open.length) {
+        cb.checked = false;
+        confirmDialog({
+          title: "Complete " + q(t.title) + " and its " + (open.length === 1 ? "open subtask" : open.length + " open subtasks") + "?",
+          description: "Reopening the task later does not reopen its subtasks.",
+          confirm: "Complete task",
+          onConfirm: function () { cb.checked = true; doIt(); },
+          returnFocus: ['[data-key="cb-' + t.id + '"]']
+        });
+      } else doIt();
+    } else {
+      change(function () {
+        var sibs = siblingsOf(t);
+        t.completed = false;
+        t.position = sibs.reduce(function (m, x) { return Math.min(m, x.position); }, t.position) - 1;
+        announce(q(t.title) + " reopened." + (t.parentId === null ? " Future expenses updated." : ""));
+        focusAfterRender(['[data-key="cb-' + t.id + '"]']);
+      }, function () { cb.checked = true; });
+      applyFocus();
+    }
+  }
+  function move(t, dir) {
+    var openSibs = children(t.parentId).filter(function (x) { return !x.completed; });
+    var i = openSibs.indexOf(t), j = i + dir;
+    if (j < 0 || j >= openSibs.length) return;
+    change(function () {
+      var other = openSibs[j], tmp = other.position;
+      other.position = t.position; t.position = tmp;
+      announce(q(t.title) + " moved " + (dir < 0 ? "up" : "down") + ", now " + (j + 1) + " of " + openSibs.length + ".");
+      var mine = '[data-key="' + (dir < 0 ? "up-" : "down-") + t.id + '"]';
+      var otherBtn = '[data-key="' + (dir < 0 ? "down-" : "up-") + t.id + '"]';
+      focusAfterRender([mine, otherBtn, '[data-key="cb-' + t.id + '"]']);
+    });
+    applyFocus();
+  }
+  function remove(t) {
+    var subs = t.parentId === null ? children(t.id) : [];
+    var list = children(t.parentId);
+    var idx = list.indexOf(t);
+    var next = list[idx + 1] || list[idx - 1];
+    confirmDialog({
+      title: subs.length === 0 ? "Delete " + q(t.title) + "?" : "Delete " + q(t.title) + " and its " + (subs.length === 1 ? "subtask" : subs.length + " subtasks") + "?",
+      description: "This cannot be undone.",
+      confirm: t.parentId === null ? "Delete task" : "Delete subtask",
+      returnFocus: ['[data-key="delete-' + t.id + '"]'],
+      onConfirm: function () {
+        var ok = change(function () {
+          state.tasks = state.tasks.filter(function (x) { return x.id !== t.id && x.parentId !== t.id; });
+          if (state.editingId === t.id) state.editingId = null;
+          announce(q(t.title) + " deleted.");
+          dlgReturn = [next ? '[data-key="cb-' + next.id + '"]' : null, t.parentId ? '[data-key="cb-' + t.parentId + '"]' : null, '[data-form="quick"] input'].filter(Boolean);
+          focusAfterRender(dlgReturn);
+        });
+        if (!ok) dlgReturn = ['#error-retry'];
+      }
+    });
+  }
+
+  // ---------- rendering ----------
+  function placeNames(t) { return PLACES.filter(function (p) { return t.places.indexOf(p.id) >= 0; }).map(function (p) { return p.name; }); }
+  function taskNode(t, isSub) {
+    if (state.editingId === t.id) return el("li", { className: isSub ? "" : "task", "data-id": t.id }, [editForm(t)]);
+    var subs = isSub ? [] : children(t.id);
+    var cb = el("input", { type: "checkbox", checked: t.completed, "aria-label": "Complete " + q(t.title), "data-key": "cb-" + t.id });
+    cb.addEventListener("change", function () { toggleComplete(t, cb); });
+    var meta = el("div", { className: "meta" }, [
+      t.min === null ? el("span", { className: "est none", text: "No estimate" }) : el("span", { className: "est", text: formatRange(t.min, t.max) }),
+      t.important ? el("span", { className: "tag", text: "Important" }) : null,
+      t.urgent ? el("span", { className: "tag", text: "Urgent" }) : null,
+      t.places.length ? el("span", { text: "Places: " + placeNames(t).join(", ") }) : null,
+      subs.length ? (function () {
+        var done = subs.filter(function (s) { return s.completed; }).length;
+        return el("span", {}, [el("span", { "aria-hidden": "true", text: done + "/" + subs.length + " subtasks" }),
+          el("span", { className: "sr", text: done + " of " + subs.length + " " + (subs.length === 1 ? "subtask" : "subtasks") + " completed" })]);
+      })() : null,
+      t.completed ? el("span", { text: "Completed" }) : null
+    ]);
+    var openSibs = children(t.parentId).filter(function (x) { return !x.completed; });
+    var i = openSibs.indexOf(t);
+    var actions = el("div", { className: "actions" }, [
+      !t.completed && i > 0 ? el("button", { type: "button", "data-key": "up-" + t.id, "aria-label": "Move up " + q(t.title), text: "Move up", onclick: function () { move(t, -1); } }) : null,
+      !t.completed && i >= 0 && i < openSibs.length - 1 ? el("button", { type: "button", "data-key": "down-" + t.id, "aria-label": "Move down " + q(t.title), text: "Move down", onclick: function () { move(t, 1); } }) : null,
+      isSub ? null : el("button", { type: "button", "data-key": "addsub-" + t.id, "aria-label": "Add subtask to " + q(t.title), text: "Add subtask", onclick: function () {
+        state.addingSubtaskTo = t.id; render(); focusAfterRender(['[data-form="subtask-' + t.id + '"] input']); applyFocus();
+      } }),
+      el("button", { type: "button", "data-key": "edit-" + t.id, "aria-label": "Edit " + q(t.title), text: "Edit", onclick: function () {
+        state.editingId = t.id; clearError(); render(); focusAfterRender(['[data-form="edit-' + t.id + '"] input']); applyFocus();
+      } }),
+      el("button", { type: "button", "data-key": "delete-" + t.id, "aria-label": "Delete " + q(t.title), text: "Delete", onclick: function () { remove(t); } })
+    ]);
+    var body = el("div", { className: "body" }, [
+      el("div", { className: "title", id: "title-" + t.id, text: t.title }),
+      meta,
+      t.description ? el("p", { className: "desc", text: t.description }) : null,
+      actions
+    ]);
+    var li = el("li", { className: (isSub ? "" : "task ") + (t.completed ? "done" : ""), "data-id": t.id }, [el("div", { className: "row" }, [cb, body])]);
+    if (!isSub && subs.length) li.appendChild(el("ul", { className: "subtasks", "aria-label": "Subtasks of " + q(t.title) }, subs.map(function (s) { return taskNode(s, true); })));
+    if (!isSub && state.addingSubtaskTo === t.id) {
+      li.appendChild(el("div", { style: "margin:8px 0 0 34px" }, [addForm(t.id, "New subtask", function () {
+        state.addingSubtaskTo = null; render(); focusAfterRender(['[data-key="addsub-' + t.id + '"]']); applyFocus();
+      })]));
+    }
+    return li;
+  }
+
+  var expensesBody = document.getElementById("expenses-body");
+  var listArea = document.getElementById("list-area");
+  var quickAdd = document.getElementById("quick-add");
+  function renderExpenses() {
+    expensesBody.textContent = "";
+    if (state.loadState === "loading") { expensesBody.appendChild(el("p", { className: "muted", text: "Loading future expenses…" })); return; }
+    if (state.loadState === "error") { expensesBody.appendChild(el("p", { className: "muted", text: "Could not load future expenses." })); return; }
+    var fe = futureExpenses();
+    expensesBody.appendChild(fe.counted ? el("p", { className: "total", id: "fe-total", text: formatRange(fe.min, fe.max) }) : el("p", { className: "muted", id: "fe-total", text: "No estimates yet" }));
+    if (fe.missing) {
+      expensesBody.appendChild(el("p", { id: "fe-missing" }, [
+        (fe.missing === 1 ? "1 task without an estimate" : fe.missing + " tasks without an estimate") + ". ",
+        el("span", { className: "muted", text: "They are not counted in future expenses until they have an estimate." })
+      ]));
+    }
+  }
+  function renderList() {
+    listArea.textContent = "";
+    if (state.loadState === "loading") { listArea.appendChild(el("p", { id: "list-loading", text: "Loading tasks…" })); return; }
+    if (state.loadState === "error") {
+      listArea.appendChild(el("div", { className: "alert", role: "alert" }, [
+        el("span", { text: "Could not load your tasks." }),
+        el("button", { type: "button", id: "load-retry", text: "Try again", onclick: function () { load(false); } })
+      ]));
+      return;
+    }
+    var top = children(null);
+    if (!top.length) {
+      listArea.appendChild(el("div", { className: "box", id: "empty" }, [el("p", { className: "title", text: "No tasks yet." }), el("p", { text: "Add the first thing you need to do." })]));
+      return;
+    }
+    listArea.appendChild(el("h2", { id: "h-list", className: "sr", text: "Task list" }));
+    listArea.appendChild(el("ul", { className: "tasks", "aria-labelledby": "h-list" }, top.map(function (t) { return taskNode(t, false); })));
+  }
+  function render() {
+    renderExpenses();
+    renderList();
+    var hasQuick = quickAdd.querySelector("form");
+    if (!hasQuick) quickAdd.appendChild(addForm(null, "Title"));
+    quickAdd.querySelector("form").hidden = state.loadState !== "ready";
+  }
+  function resetQuickAdd() { quickAdd.textContent = ""; }
+
+  function load(fail) {
+    state.loadState = "loading";
+    render();
+    announce("Loading tasks…");
+    setTimeout(function () {
+      state.loadState = fail ? "error" : "ready";
+      render();
+      if (fail) { announce("Could not load your tasks."); focusAfterRender(["#load-retry"]); }
+      else { announce("Tasks loaded."); focusAfterRender(["#h-tasks"]); }
+      applyFocus();
+    }, 600);
+  }
+
+  // ---------- navigation ----------
+  var screens = { tasks: "screen-tasks", about: "screen-about" };
+  function route(moveFocus) {
+    var h = location.hash.replace(/^#/, "") || "tasks";
+    var key = screens[h] ? h : "missing";
+    ["screen-tasks", "screen-about", "screen-missing"].forEach(function (id) { document.getElementById(id).hidden = id !== (screens[key] || "screen-missing"); });
+    document.querySelectorAll("[data-nav]").forEach(function (a) { if (a.getAttribute("data-nav") === key) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    var heading = document.getElementById(key === "missing" ? "h-missing" : "h-" + key);
+    document.title = heading.textContent + " – Taskly discovery prototype";
+    if (moveFocus) heading.focus();
+  }
+  window.addEventListener("hashchange", function () { route(true); });
+
+  // ---------- test state ----------
+  function setData(empty, msg) {
+    var s = sample();
+    state = freshState(empty ? [] : s.tasks, empty ? 1 : s.next);
+    clearError(); resetQuickAdd(); render(); announce(msg);
+  }
+  document.getElementById("ts-sample").addEventListener("click", function () { setData(false, "Sample tasks loaded."); });
+  document.getElementById("ts-empty").addEventListener("click", function () {
+    setData(true, "The list is empty.");
+    if (location.hash !== "#tasks" && location.hash !== "") location.hash = "#tasks";
+    focusAfterRender(['[data-form="quick"] input']); applyFocus();
+  });
+  document.getElementById("ts-loadfail").addEventListener("click", function () { clearError(); load(true); });
+  document.getElementById("ts-reset").addEventListener("click", function () {
+    failNextEl.checked = false;
+    setData(false, "Prototype reset to the sample tasks.");
+    if (location.hash !== "#tasks") { history.pushState(null, "", "#tasks"); }
+    route(true);
+  });
+
+  var s0 = sample();
+  state = freshState(s0.tasks, s0.next);
+  render();
+  route(false);
+})();
+</script>
+</body>
+</html>

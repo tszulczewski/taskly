@@ -1,12 +1,16 @@
 import type { FieldErrors, SignInValues, SignUpValues, SubmitResult } from "../../src";
 
+/** The rate-limit message for the wait in Better Auth's `X-Retry-After` header, in seconds. */
+export const rateLimitedIn = (seconds: number) =>
+  `Too many attempts. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`;
+
 /**
  * Simulated server answers for stories (P1: async handlers in props, no MSW). Messages are the
  * sign-in spec's (UI/UX, Messages).
  */
 export const messages = {
   wrongCredentials: "Email or password is incorrect.",
-  rateLimited: "Too many attempts. Wait a few seconds and try again.",
+  rateLimited: rateLimitedIn(7),
   signUpFailed: "Could not create the account.",
   invalidSignUp: "Check your details and try again.",
   signOutFailed: "Could not sign out. Try again.",
@@ -34,7 +38,7 @@ export const never = () => new Promise<never>(() => {});
 
 /**
  * Example field rules. The real ones come from `signInInput` / `signUpInput` in `@taskly/core`;
- * the spec fixes only the password hint, so these message texts are examples (E3).
+ * the spec fixes the password hint and the two "at most" texts, so the other texts are examples (E3).
  */
 const email = (value: string) =>
   value.trim() === ""
@@ -49,7 +53,17 @@ export const validateSignIn = (values: SignInValues): FieldErrors<keyof SignInVa
 });
 
 export const validateSignUp = (values: SignUpValues): FieldErrors<keyof SignUpValues> => ({
-  name: values.name.trim() === "" ? "Enter your name." : undefined,
+  name:
+    values.name.trim() === ""
+      ? "Enter your name."
+      : values.name.trim().length > 100
+        ? "Use at most 100 characters."
+        : undefined,
   email: email(values.email),
-  password: values.password.length < 10 ? "Use at least 10 characters." : undefined,
+  password:
+    values.password.length < 10
+      ? "Use at least 10 characters."
+      : values.password.length > 128
+        ? "Use at most 128 characters."
+        : undefined,
 });
