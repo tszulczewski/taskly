@@ -19,6 +19,19 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
   - Closed: a valid body → 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED`; whitespace-only name, 101-char name and 9-char password → 400 `INVALID_SIGN_UP_INPUT`.
   - Open: the user was created with the name trimmed, and the warning was logged once. The test user was deleted afterwards.
 
+- **2.1** (subagent, `728601e`): `authCall` with overloads per path and `AUTH_MESSAGES`. Codes were checked in Better Auth 1.7.7; the account-exists code is `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` (422). The lookup table is a `Map`, so a prototype key cannot match.
+- **2.2** (subagent, `45840e0`): `getSessionUser(headers, { disableRefresh })` sends `query` only when the flag is true. `lib/session.ts` was added to the ESLint server-only ignores.
+- **2.3** (subagent, `96b810d`): app wrappers around the design-system `SignInForm` and `SignUpForm`, `useSignOut`, `useTheme` and an app `AppShell`.
+  - The spec's `SignOutButton`/`AppHeader` are covered by the ui `AppHeader` (button, busy state, failure alert, retry) through the app `AppShell`. No app `SignUpClosed` wrapper; the page uses the ui one.
+  - Files are kebab-case, following the repo; engineering-standards §2 says PascalCase.
+- **Owner decisions (2026-10-28):** no user name in the header for now, because the ui `AppHeader` has no slot for it. An inline script in `layout.tsx` applies the stored theme before first paint.
+- **2.4** (subagent, `4eaaef6`):
+  - Pages `(auth)/sign-in` and `(auth)/sign-up`: a static `AuthCard`, then `<Suspense>` around the `SignInGate`/`SignUpGate` (`redirectIfSignedIn`, `connection()`, `ALLOW_SIGN_UP`).
+  - `/` is `<Suspense><SignedInShell>` with the placeholder.
+  - `ThemeScript` in `<head>` with `suppressHydrationWarning`; `useTheme` applies the theme in `useLayoutEffect`.
+  - The subagent's smoke test on the standalone build and in agent-browser passed: the redirects work and the flag is read per request.
+- **Phase 2 check** (coordinator, `next dev`, sign-up open): `/` → 200 with a streamed `NEXT_REDIRECT;replace;/sign-in`; `/sign-in` shows "Create an account"; `/sign-up` shows the form.
+
 ## Files changed
 
 - Phase 1: `packages/core/src/{env,auth,schemas,sign-up-hook}.ts` + tests, `.env.example`, `.ai/lessons.md`.
@@ -31,5 +44,7 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
 
 - Before-hooks run before Better Auth's origin check. An invalid body from an untrusted origin gets 400 `INVALID_SIGN_UP_INPUT`; a valid one gets 403 `INVALID_ORIGIN`. Nothing is written in either case. The 1.2 subagent claimed the origin check came first; the curl run showed otherwise.
 - The hook enforces 10–128 characters, so the API contract row "400 password too short or long" can no longer be reached over HTTP; such a request gets `INVALID_SIGN_UP_INPUT`. `authCall` still maps both codes. The spec is unchanged (not approved).
+- `next dev` only: the Strict Mode remount clears attributes on `<html>`, so the auth pages, which have no `useTheme`, can show dark for a light-theme user. Production is unaffected. Not fixed.
+- In `next dev`, the streamed redirect payload on `/` includes a stack trace (`at requireSessionUser`). The production build was checked by the 2.4 subagent and does not include it.
 - The local `.env` has an empty `ANTHROPIC_API_KEY` (pre-existing), so auth fails with a ZodError until a value is set. `next dev` runs in `packages/app` and does not read the root `.env`; for the manual check it was sourced into the shell.
 ## Lessons recorded (links into .ai/lessons.md)
