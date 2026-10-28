@@ -14,6 +14,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-28 — Auth HTTP calls need an explicit deadline covering both response headers and body: a pending `fetch` keeps the sign-in/sign-up form and sign-out button busy with no retry. Test timeout recovery, and keep Query cache and navigation unchanged when sign-out times out.
+
 - 2026-10-28 — The standalone server renames its process to `next-server (vX)`: killing the `node …/server.js` PID (or grepping for `server.js`) leaves the real server listening. Find it with `ps -eo pid,args | grep '[n]ext-server'` or `ss -ltnp | grep :<port>` and kill that PID. Also: Better Auth answers 415 to a POST without a JSON body, including sign-out, so send `{}` as `authCall` does.
 - 2026-10-28 — Close every phase of a phased implementation with `npm run build && npm run test:integration`, not only unit tests/lint/typecheck: closing sign-up by default and protecting `/` broke two old browser tests in `test/app.integration.test.ts`, and that showed up only one phase later.
 - 2026-10-28 — A `DrizzleQueryError` message contains the full SQL params; a failed Better Auth `account` insert carries the password hash. Never log or print raw error messages from auth/adapter calls (CLI, test helpers); report a generic error instead.
