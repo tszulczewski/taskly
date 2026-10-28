@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-28
 - **Spec:** .ai/specs/2026-10-16-sign-in-pages.md
-- **Outcome:** in progress
+- **Outcome:** partial (spec Phase A done; Phase B pending)
 
 ## Goal
 
@@ -76,3 +76,7 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
 - In `next dev`, the streamed redirect payload on `/` includes a stack trace (`at requireSessionUser`). The standalone production build sends only the redirect, without a stack trace (checked by the coordinator).
 - The local `.env` has an empty `ANTHROPIC_API_KEY` (pre-existing), so auth fails with a ZodError until a value is set. `next dev` runs in `packages/app` and does not read the root `.env`; for the manual check it was sourced into the shell.
 ## Lessons recorded (links into .ai/lessons.md)
+
+## Session end (2026-10-28)
+
+Stopped after phase 3 at the owner's request; work continues in a new session. Handoff: the "Handoff" section of `track.md`. Clean-up: the dev DB's leftover test users were deleted at the owner's request (`admin@neocraft.eu` and four `acc1792044412199-*` users from 2026-10-15), so the dev DB has no users.
