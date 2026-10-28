@@ -14,6 +14,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-28 — A `DrizzleQueryError` message contains the full SQL params; a failed Better Auth `account` insert carries the password hash. Never log or print raw error messages from auth/adapter calls (CLI, test helpers); report a generic error instead.
 - 2026-10-28 — A server-only module in `packages/app` that imports `@taskly/core/server` (outside `app/api/**` and `route.ts`) must be listed by path in the `no-restricted-imports` ignores in `eslint.config.mjs` (as `lib/api.ts`, `lib/session.ts`, `components/auth/auth-gates.tsx` are), and must `import "server-only"` so the exemption cannot leak into a client bundle.
 - 2026-10-28 — Testing a theme flash on hydration: a `MutationObserver` that reads the current `data-theme` hides a dark→light flip made in one batch; record each change with `attributeOldValue: true`. Apply the stored theme in `useLayoutEffect` keyed on the explicit choice, not `useEffect([theme])`, which first re-applies the server default.
 - 2026-10-28 — Zod 4 `z.stringbool().default(false)` applies the default only when the variable is missing; an empty value (`ALLOW_SIGN_UP=`, as dotenv and systemd `EnvironmentFile` set it) fails validation. Ship boolean flags in `.env.example` with an explicit value (`ALLOW_SIGN_UP=false`), and in runbooks remove the line rather than blanking it.

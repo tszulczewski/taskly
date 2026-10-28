@@ -16,6 +16,7 @@ describe("entry points", () => {
     expect(server.getAuth).toBeTypeOf("function");
     expect(server.createTask).toBeTypeOf("function");
     expect(server.getEnv).toBeTypeOf("function");
+    expect(server.createPasswordUser).toBeTypeOf("function");
     expect(server.can).toBe(isomorphic.can);
   });
 });
