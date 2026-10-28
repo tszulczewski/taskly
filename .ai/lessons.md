@@ -14,6 +14,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-28 — Vitest 5.0.5 turns any error thrown in `globalSetup` into `code.charCodeAt is not a function` (its runner hands Vite a Buffer, and source-map lookup crashes), shown as "No test files found". `test/global-setup.ts` now rethrows with the cause chain in the message and a plain-string `stack`; to debug other setup code, run it directly in node.
+- 2026-10-28 — Mutation checks (temporarily breaking source to prove a test catches it) on a shared working tree make concurrent sessions' test runs fail for no visible reason: a review saw 4 failures in `session.test.ts` while a subagent had removed `disableRefresh`. Do mutation checks in a separate worktree or copy. Vitest 5's content-keyed `node_modules/.vitest-cache` shows what source a past run transformed, which proves such a race.
 - 2026-10-28 — Auth HTTP calls need an explicit deadline covering both response headers and body: a pending `fetch` keeps the sign-in/sign-up form and sign-out button busy with no retry. Test timeout recovery, and keep Query cache and navigation unchanged when sign-out times out.
 
 - 2026-10-28 — The standalone server renames its process to `next-server (vX)`: killing the `node …/server.js` PID (or grepping for `server.js`) leaves the real server listening. Find it with `ps -eo pid,args | grep '[n]ext-server'` or `ss -ltnp | grep :<port>` and kill that PID. Also: Better Auth answers 415 to a POST without a JSON body, including sign-out, so send `{}` as `authCall` does.
