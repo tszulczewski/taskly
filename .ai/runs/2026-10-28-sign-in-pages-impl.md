@@ -45,6 +45,6 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
 - Before-hooks run before Better Auth's origin check. An invalid body from an untrusted origin gets 400 `INVALID_SIGN_UP_INPUT`; a valid one gets 403 `INVALID_ORIGIN`. Nothing is written in either case. The 1.2 subagent claimed the origin check came first; the curl run showed otherwise.
 - The hook enforces 10–128 characters, so the API contract row "400 password too short or long" can no longer be reached over HTTP; such a request gets `INVALID_SIGN_UP_INPUT`. `authCall` still maps both codes. The spec is unchanged (not approved).
 - `next dev` only: the Strict Mode remount clears attributes on `<html>`, so the auth pages, which have no `useTheme`, can show dark for a light-theme user. Production is unaffected. Not fixed.
-- In `next dev`, the streamed redirect payload on `/` includes a stack trace (`at requireSessionUser`). The production build was checked by the 2.4 subagent and does not include it.
+- In `next dev`, the streamed redirect payload on `/` includes a stack trace (`at requireSessionUser`). The standalone production build sends only the redirect, without a stack trace (checked by the coordinator).
 - The local `.env` has an empty `ANTHROPIC_API_KEY` (pre-existing), so auth fails with a ZodError until a value is set. `next dev` runs in `packages/app` and does not read the root `.env`; for the manual check it was sourced into the shell.
 ## Lessons recorded (links into .ai/lessons.md)
