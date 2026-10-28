@@ -1,4 +1,11 @@
-import { type ApiFailure, type ApiResponse, CSRF_HEADER, CSRF_HEADER_VALUE } from "@taskly/core";
+import {
+  type ApiFailure,
+  type ApiResponse,
+  CSRF_HEADER,
+  CSRF_HEADER_VALUE,
+  type SignInInput,
+  type SignUpInput,
+} from "@taskly/core";
 
 export class ApiError extends Error {
   constructor(
@@ -44,4 +51,62 @@ export async function apiCall<T>(
     throw new ApiError(res.status, json.error.code, json.error.message, json.error.fieldErrors);
   }
   throw new ApiError(res.status, "bad_response", "Unexpected server response");
+}
+
+/** User-facing texts for the auth forms. Raw Better Auth messages are never shown. */
+export const AUTH_MESSAGES = {
+  invalidCredentials: "Email or password is incorrect.",
+  accountNotCreated: "Could not create the account.",
+  checkDetails: "Check your details and try again.",
+  signUpClosed: "Sign-up is closed. Ask the owner of this Taskly.",
+  rateLimitedNoWait: "Too many attempts. Wait a few seconds and try again.",
+  signOutFailed: "Could not sign out. Try again.",
+  generic: "Something went wrong. Try again.",
+} as const;
+
+// A Map, not an object literal, so codes such as "constructor" never hit a prototype key.
+const AUTH_CODE_MESSAGES = new Map<string, string>([
+  ["INVALID_EMAIL_OR_PASSWORD", AUTH_MESSAGES.invalidCredentials],
+  ["USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", AUTH_MESSAGES.accountNotCreated],
+  ["INVALID_SIGN_UP_INPUT", AUTH_MESSAGES.checkDetails],
+  ["PASSWORD_TOO_SHORT", AUTH_MESSAGES.checkDetails],
+  ["PASSWORD_TOO_LONG", AUTH_MESSAGES.checkDetails],
+  ["EMAIL_PASSWORD_SIGN_UP_DISABLED", AUTH_MESSAGES.signUpClosed],
+]);
+
+function rateLimitedMessage(retryAfter: string | null): string {
+  const seconds = retryAfter !== null && /^\d+$/.test(retryAfter) ? Number(retryAfter) : 0;
+  if (seconds <= 0) return AUTH_MESSAGES.rateLimitedNoWait;
+  return `Too many attempts. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`;
+}
+
+function readCode(json: unknown): string | undefined {
+  if (typeof json !== "object" || json === null || !("code" in json)) return undefined;
+  return typeof json.code === "string" ? json.code : undefined;
+}
+
+/**
+ * POSTs to a Better Auth endpoint. Resolves on success; otherwise throws an ApiError whose
+ * `message` is the text to show the user. Sign-in never sends `rememberMe` (spec Q8).
+ */
+export function authCall(path: "/api/auth/sign-in/email", body: SignInInput): Promise<void>;
+export function authCall(path: "/api/auth/sign-up/email", body: SignUpInput): Promise<void>;
+export function authCall(path: "/api/auth/sign-out"): Promise<void>;
+export async function authCall(path: string, body?: SignInInput | SignUpInput): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: { [CSRF_HEADER]: CSRF_HEADER_VALUE, "content-type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+  } catch {
+    throw new ApiError(0, "network_error", AUTH_MESSAGES.generic);
+  }
+  if (res.ok) return;
+  if (res.status === 429) {
+    throw new ApiError(429, "rate_limited", rateLimitedMessage(res.headers.get("x-retry-after")));
+  }
+  const code = readCode(await readJsonSafe(res)) ?? "bad_response";
+  throw new ApiError(res.status, code, AUTH_CODE_MESSAGES.get(code) ?? AUTH_MESSAGES.generic);
 }
