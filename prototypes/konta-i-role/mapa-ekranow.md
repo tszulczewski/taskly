@@ -2,6 +2,7 @@
 
 - Data: 2026-10-26
 - Status: **zatwierdzona** przez właściciela produktu 2026-10-26. Niczego jeszcze nie zbudowano. Odpowiedzi właściciela z 2026-10-26 (dwie tury) są wpisane w sekcji 7; wszystkie luki są rozstrzygnięte.
+- Rozszerzenie 2026-10-28 (kwoty po odświeżeniu briefu z 2026-10-27: R12–R18, D22–D24, C1): sekcja „Rozszerzenie: suma podzadań i dokładna cena”. **Zatwierdzone** przez właściciela 2026-10-28, z L23 w wariancie A (sekcja 7).
 - Przepływ: logowanie, rejestracja (otwarta i zamknięta), wylogowanie, strona główna `/` z zadaniami i podzadaniami (Epik 01).
 - Materiały: `.ai/specs/product-brief.md`, `.ai/specs/backlog.md`, `.ai/specs/2026-10-16-sign-in-pages.md` (dalej **SI**), `.ai/specs/2026-10-16-tasks-and-subtasks.md` (dalej **TS**), `.ai/specs/research/personas.md`, `packages/ui` (komponenty, Storybook, `POSTEP.md`), `.ai/docs/design-system.md`, `AGENTS.md`. Kryteria akceptacji pochodzą z issue #15, #16 i #24 na GitHubie (backlog nie ma osobnych plików historii).
 - Stałe identyfikatory: ekrany `s01`–`s08`, stany `sNN.M`, scenariusze `P01`–`P11`, konta `K1`–`K4`, luki w specyfikacji `L01`–`L22`, luki w design systemie `DS01`–`DS07`. Nie zmieniam ich, bo przypinamy do nich komentarze.
@@ -51,6 +52,66 @@ Rola „właściciel” oznacza zalogowanego użytkownika, który jest `owner` s
 Stany s04.22–s04.29 (przeciąganie, „Move up / Move down”, ukończenie, ponowne otwarcie) dopisano 2026-10-27 na prośbę właściciela. Należą do E02 i E03. Tego samego dnia właściciel przeniósł je do pliku decyzji dla specyfikacji E02-S01 i E03-S01: `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md`, sekcja „Screen states from the clickable prototype”. Identyfikatory się nie zmieniają, a prototyp nadal te stany pokazuje.
 
 P06 obejmuje też przesunięcie i ukończenie; konflikt pozycji 409 z P09 dotyczy dodania (s04.12) i przesunięcia (s04.24). Liczby z sekcji 6 dotyczą mapy bez rozszerzenia; z nim s04 ma 29 stanów, a prototyp pokazuje **83**.
+
+### Rozszerzenie: suma podzadań i dokładna cena (2026-10-28, zatwierdzone)
+
+Odświeżenie briefu z 2026-10-27 zastępuje R06–R08, D15 i D16: szacunek zadania z podzadaniami to suma ich szacunków (R12–R15, D22, D23), dokładną cenę wpisuje się raz (R18, D24), a szybkie dodawanie pokazuje kwoty obok tytułu (prototyp odkrywczy C1). Źródła: spec E01 w rewizji 2026-10-28 (dalej **TS**), przepisane kryteria #15 i #16, design system (`packages/ui/POSTEP.md`, Etap 10, decyzje W1–W4). Identyfikatory się nie zmieniają: stany, których reguła wypadła, zostają z dopiskiem „zastąpiony”, a nowe dostają kolejne numery.
+
+#### Aktualne kryteria (przepisane 2026-10-28)
+
+| Kod | Treść (skrót) |
+|---|---|
+| #15-AC1 | „Amount” 1 500 zł i „up to” 2 000 zł → wiersz „1 500–2 000 zł” (D23, R16). |
+| #15-AC4 | „Amount” większe od „up to” → „“Up to” must not be less than the amount.” pod „up to”. |
+| #15-AC6 | Jedna kwota (w dowolnym polu) → dokładna cena, min = max, jedna kwota, np. „500 zł” (R18, D24). Zastępuje „Enter both amounts or neither” (L03). |
+| #15-AC7 | Tytuł, „Amount” i „up to (optional)” w jednym wierszu bez otwierania czegokolwiek; opis za zwijanym „Description” (C1, W4). |
+| #16-AC2 | Zadanie 1 000–2 000 zł, podzadania 300–400 zł i 500 zł → zadanie 800–900 zł; po usunięciu obu podzadań znów 1 000–2 000 zł (R12, R15). |
+| #16-AC3 | Podzadania 300–400 zł i jedno bez szacunku → 300–400 zł i „1 subtask without an estimate”; wszystkie bez szacunku → „No estimate” (R13). |
+| #16-AC4 | Edycja szacunku podzadania zmienia szacunek zadania; formularz zadania nie ma pól kwot (R12). |
+| #16-AC5 | Podzadanie do cudzego zadania → „nie znaleziono” (dawne #16-AC4; poza prototypem, L01). |
+
+#### Stany zastąpione (id zostają, prototyp już ich nie pokazuje)
+
+| Stan | Co wypadło | Zastępuje go |
+|---|---|---|
+| s04.7 | szybkie dodawanie z rozwiniętym „Details” | s04.30 |
+| s04.8 (część) | „Min must not exceed max”, „Enter both amounts or neither”; reszta s04.8 obowiązuje | s04.32 |
+| s05.3 | szacunek rodzica bez zmian obok podzadań (R06) | s05.8 |
+| s06.7 | edycja podzadania nie zmienia rodzica (R06) | s06.10 |
+| s07.1 | „New subtask” z „Details” | s07.8 |
+| s07.4 | po dodaniu podzadania szacunek rodzica bez zmian (R06) | s07.9, s07.11 |
+
+#### Nowe stany
+
+| Stan | Ekran | Co widać | Źródło |
+|---|---|---|---|
+| s04.30 | s04 | Szybkie dodawanie w jednym wierszu: od 640 px „New task”, grupa „Estimate (optional)” z „Amount” i „up to (optional)” (sufiks „zł”) oraz „Add”; poniżej 640 px kwoty pod tytułem. Pod wierszem zwinięty „Description” ze strzałką; po dodaniu się zwija, fokus wraca do tytułu. | #15-AC7, TS-UI „Quick add”, C1, DS W4 |
+| s04.31 | s04 | Dokładna cena: wpisana tylko jedna kwota (w dowolnym polu); wiersz pokazuje jedną kwotę, np. „500 zł”. Obie równe kwoty dają to samo. | #15-AC6, TS-Edge, R18, D24 |
+| s04.32 | s04 | Błędy kwot: „“Up to” must not be less than the amount.” pod „up to”; „Enter an amount like 1 500,50” pod polem z błędną kwotą. | #15-AC4, TS-UI „Validation” |
+| s04.33 | s04 | Błąd opisu przy zwiniętym „Description” (opis ponad 2000 znaków, przełącznik zwinięty, Enter): przełącznik sam się otwiera, fokus w polu, komunikat „Enter at most 2 000 characters.”. | DS F9, W4 |
+| s04.34 | s04 | Zadanie z podzadaniami pokazuje sumę ich szacunków, bez żadnego oznaczenia; w drugiej linii obok „N subtasks” przygaszone „N subtasks without an estimate”. Dane K2: „Decorative wall” 700–1 400 zł i „3 subtasks without an estimate”. | #16-AC3, TS-UI „Summed estimate”, R12, R13, DS W2 |
+| s04.35 | s04 | Wszystkie podzadania bez szacunku: zadanie pokazuje „No estimate” i „N subtasks without an estimate”. Osiągalny kliknięciem: podzadanie bez kwot pod zadaniem bez podzadań (s07.10). | #16-AC3, TS-Edge, R13 |
+| s05.8 | s05 | Otwarte zadanie z podzadaniami: przy zadaniu suma, przy podzadaniach ich własne kwoty albo „No estimate”. | #16-AC2, R12 |
+| s06.9 | s06 | Edycja zadania z podzadaniami: zamiast pól kwot tekst „Sum of subtasks: 700–1 400 zł” (albo „Sum of subtasks: no estimate yet”) i „Change the amounts on the subtasks.”; tytuł i opis edytowalne. | #16-AC4, TS-UI „Edit”, DS W2 |
+| s06.10 | s06 | Zapisana kwota podzadania zmienia sumę zadania w jego wierszu. | #16-AC4, R12 |
+| s06.11 | s06 | Edycja dokładnej ceny: kwota w „Amount”, „up to” puste; wyczyszczenie „up to” w zakresie zapisuje jedną kwotę. | TS-UI „Edit”, R18 |
+| s06.12 | s06 | Konflikt 409: zadanie dostało podzadanie w innej karcie, a właściciel zapisuje kwotę: formularz pokazuje „A task with subtasks takes its estimate from them”, zostawia wpisany tekst, lista się odświeża i pola kwot ustępują sumie. Nic nie zapisano, także tytułu; ponowny zapis wysyła tytuł. Przez P09. | TS-UI „Edit”, TS-Edge |
+| s07.8 | s07 | Formularz podzadania w układzie szybkiego dodawania: „New subtask”, „Amount”, „up to (optional)”, „Add”; pod spodem „Description” i „Cancel”; Escape anuluje. Bez notatki, dokąd idą pieniądze. | TS-UI „Add subtask”, C1, DS W4 |
+| s07.9 | s07 | Pierwsze podzadanie z kwotą pod zadaniem z wpisanym szacunkiem: szacunek zadania staje się sumą, a w jego wierszu pod tytułem przygaszona linia (`role="status"`): „The estimate of “…” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.” Znika przy następnej zmianie. | #16-AC2, TS-UI „Roll-up messages”, R12, R15, DS W1 |
+| s07.10 | s07 | Pierwsze podzadanie bez kwot pod zadaniem z wpisanym szacunkiem: zadanie „No estimate” i „1 subtask without an estimate”, ten sam komunikat co s07.9. Zadanie bez własnej kwoty: bez komunikatu. | TS-Edge, R13, R15 |
+| s07.11 | s07 | Kolejne podzadanie: suma rośnie, bez komunikatu. | #16-AC2, R12 |
+| s08.8 | s08 | Usunięto ostatnie podzadanie zadania z zachowaną kwotą: wraca kwota, w wierszu przygaszona linia „The estimate of “…” is back to your amount: 350–660 zł.” | #16-AC2, TS-UI „Roll-up messages”, R15, DS W1 |
+| s08.9 | s08 | Usunięto ostatnie podzadanie zadania, które nigdy nie miało własnej kwoty: „No estimate”, bez komunikatu. | TS-UI „Roll-up messages”, R15 |
+| s08.10 | s08 | Usunięto jedno z kilku podzadań: suma zadania maleje. | R12 |
+
+#### Scenariusze, dane, design system
+
+- **P09** dostaje wartość „zadanie dostało podzadanie w innej karcie” (409 przy zapisie kwoty zadania, s06.12). Pozostałe nowe stany są osiągalne kliknięciem przy P06 „potwierdza”; „odmawia” i „nie odpowiada” działają jak w s04.11, s06.4, s07.5, s08.5.
+- **Dane K2:** kwoty bez zmian (L20). Po R12 „Decorative wall” pokazuje sumę uchwytu TV i szafki RTV, 700–1 400 zł, a wpisane 350–660 zł jest zachowane i wraca po usunięciu wszystkich podzadań (s08.8). Opisy „Not included in the wall estimate” i „Without the TV cabinet, the TV mount…” przestały być prawdziwe (L23): uchwyt i szafka są bez opisu, a opis ściany to „Living room. Without the sockets”.
+- Kwoty z kryteriów wpisuje się na żywo: #16-AC2 (zadanie 1 000–2 000 zł, podzadania 300–400 zł i 500 zł → 800–900 zł), #15-AC6 (jedna kwota).
+- **Design system:** wszystko jest w `QuickAdd`, `TaskForm` (`summedEstimate`), `TaskRow` (`unestimatedSubtasks`, `notice`) i `EstimateRange` (PR #37). Przy budowie prototypu wyszła luka **DS08** (sekcja 5).
+- **Poza prototypem** (należą do E03, nie do mapy E01): „Add estimate” wprost w wierszu (C5), lista zadań bez szacunku w przyszłych wydatkach (C4), „0 of 1 subtask done” (C7).
+- **Liczby rozszerzenia:** 18 nowych stanów (s04: 6, s05: 1, s06: 4, s07: 4, s08: 3), 6 zastąpionych (s04.8 tylko w części). Prototyp pokazuje **96** stanów (83 − 5 zastąpionych w całości + 18 nowych). Luki: 1 nowa w specyfikacji (L23), 1 w design systemie (DS08, znaleziona przy budowie).
 
 ### Role i dostęp
 
@@ -192,6 +253,7 @@ Nie rozstrzygam ich. Przy każdej jest pytanie do właściciela produktu.
 - **DS05** — `TaskList` i `TaskRow` nie mają widoku tylko do odczytu (bez szybkiego dodawania i „…”) dla roli `viewer` (dotyczy, jeśli w L19 odpowiesz „tak”).
 - **DS06** — Polskie teksty komponentów istnieją tylko w storybookach (`Polish…`); nie ma jednego słownika do aplikacji (dotyczy, jeśli w L04 wybierzesz polski albo język z przeglądarki).
 - **DS07** — Nie ma komponentu ani wzorca dla stanu offline PWA (dotyczy, jeśli w L17 odpowiesz „tak”).
+- **DS08** (2026-10-28, z budowy prototypu) — Błąd opisu z walidacji w przeglądarce przy zwiniętym „Description” otwiera przełącznik, ale fokus zostaje w tytule zamiast w opisie (s04.33, Chromium). Szczegóły: `prototypes/task-list-v1/POSTEP.md`, „Rozszerzenie 2026-10-28”.
 
 ## 6. Liczby
 
@@ -254,3 +316,9 @@ Pytania z raportu końcowego `prototypes/task-list-v1/POSTEP.md`. Wpisane do spe
 | Ile czekać przy limicie prób | Tak: „Too many attempts. Try again in N seconds.” z nagłówka `X-Retry-After`, bez niego ogólny tekst. | SI-Messages, SI-API, SI-Edge, SI krok 3; DS `fake-api`, `SignInForm` |
 | s04.22–s04.29 | Przenieść do E02/E03. | `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md` |
 | SI-Q3 i poprawki #15 | Wpisać. | SI-Q3 (L04); #15 (L03, L09, L18); TS-UI (L07, L08, L22) |
+
+### Czwarta tura: rozszerzenie z 2026-10-28 (rozstrzygnięte)
+
+- **L23** — Dane demo K2 po R12. Kwoty od właściciela (L20) zakładały, że uchwyt TV i szafka RTV są poza szacunkiem ściany: ich opisy mówią „Not included in the wall estimate”, a opis ściany „Without the TV cabinet, the TV mount and the sockets”. Po R12 szacunek ściany to suma podzadań (700–1 400 zł), więc te zdania przeczą temu, co widać.
+  **Pytanie:** (A, rekomendacja) kwoty bez zmian, z opisów uchwytu i szafki usuwam „Not included in the wall estimate”, a opis ściany skracam do „Living room. Without the sockets”; wpisane 350–660 zł zostaje ukryte i wraca po usunięciu podzadań. (B) Dane bez zmian, sprzeczność zostaje jako materiał do testu. (C) Podasz kwoty gruntowania, tynku dekoracyjnego i impregnacji, żeby suma ściany objęła całą pracę.
+  **Odpowiedź (2026-10-28):** A. Rozszerzenie mapy zatwierdzone („zatwierdzam”).

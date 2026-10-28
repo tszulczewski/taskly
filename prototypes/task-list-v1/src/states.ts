@@ -22,6 +22,8 @@ export interface StateGuide {
   after?: Partial<Scenarios>;
   /** Not in the prototype (map, L01): it stays an API test. */
   outside?: true;
+  /** The state whose rule the 2026-10-28 extension of the map replaced, and its successor. */
+  superseded?: string;
 }
 
 const marta = "marta@taskly.test / remont-demo-2026";
@@ -246,13 +248,14 @@ export const stateGuide: StateGuide[] = [
     id: "s04.7",
     screen: "s04",
     label: "quick add with details",
-    hint: "Open “Details” under “New task”.",
+    hint: "Replaced by s04.30: there is no “Details” any more.",
+    superseded: "s04.30",
   },
   {
     id: "s04.8",
     screen: "s04",
     label: "quick add field errors",
-    hint: "Add with no title; min 2 000 and max 1 500; only a min; “12,5x”; 20 000 000.",
+    hint: "Add with no title; “12,5x”; 20 000 000 as the amount. The amount rules are s04.32.",
   },
   {
     id: "s04.9",
@@ -265,7 +268,7 @@ export const stateGuide: StateGuide[] = [
     id: "s04.10",
     screen: "s04",
     label: "added",
-    hint: "Add a task with Details min 1 500, max 2 000 (or 12,50): highlighted, focus back in the title.",
+    hint: "Add a task with Amount 1 500 and up to 2 000 (or 12,50): highlighted, focus back in the title.",
   },
   {
     id: "s04.11",
@@ -392,6 +395,42 @@ export const stateGuide: StateGuide[] = [
     label: "completed cannot move",
     hint: "Complete a task: no handle, and its “…” has no “Move up / Move down”.",
   },
+  {
+    id: "s04.30",
+    screen: "s04",
+    label: "quick add in one row",
+    hint: "Title, Amount, up to and Add in one row from 640 px; “Description” is closed under it.",
+  },
+  {
+    id: "s04.31",
+    screen: "s04",
+    label: "exact price",
+    hint: "Add a task with only Amount 500 (or only up to): the row shows “500 zł”.",
+  },
+  {
+    id: "s04.32",
+    screen: "s04",
+    label: "amount errors",
+    hint: "Add with Amount 2 000 and up to 1 500, or with “12,5x” in either field.",
+  },
+  {
+    id: "s04.33",
+    screen: "s04",
+    label: "description error, toggle closed",
+    hint: "Open “Description”, paste more than 2 000 characters, close it and press Add: it opens itself.",
+  },
+  {
+    id: "s04.34",
+    screen: "s04",
+    label: "sum of subtasks",
+    hint: "“Decorative wall” shows 700–1 400 zł, the sum of its subtasks, and “3 subtasks without an estimate”.",
+  },
+  {
+    id: "s04.35",
+    screen: "s04",
+    label: "no subtask has an estimate",
+    hint: "“…” of “Pantry wall finish” → Add subtask, add one with no amounts: “No estimate” and “1 subtask without an estimate”.",
+  },
 
   {
     id: "s05.1",
@@ -404,7 +443,8 @@ export const stateGuide: StateGuide[] = [
     id: "s05.3",
     screen: "s05",
     label: "parent estimate unchanged",
-    hint: "“Decorative wall” keeps 350–660 zł next to its subtasks' amounts.",
+    hint: "Replaced by s05.8: the task now shows the sum of its subtasks.",
+    superseded: "s05.8",
   },
   {
     id: "s05.4",
@@ -432,13 +472,19 @@ export const stateGuide: StateGuide[] = [
     hint: "Scroll to the last task: its title grows downwards.",
     dataset: "many",
   },
+  {
+    id: "s05.8",
+    screen: "s05",
+    label: "sum next to the subtasks",
+    hint: "“Decorative wall” shows 700–1 400 zł; its subtasks show their own amounts or “No estimate”.",
+  },
 
   { id: "s06.1", screen: "s06", label: "default", hint: "The form is filled in." },
   {
     id: "s06.2",
     screen: "s06",
     label: "field errors",
-    hint: "Clear the title, or make min bigger than max, and save.",
+    hint: "Clear the title, or make Amount bigger than up to, and save.",
   },
   {
     id: "s06.3",
@@ -470,7 +516,8 @@ export const stateGuide: StateGuide[] = [
     id: "s06.7",
     screen: "s05",
     label: "subtask estimate edited",
-    hint: "“…” of “TV mount” → Edit, change the amounts, save: the parent keeps 350–660 zł.",
+    hint: "Replaced by s06.10: the parent's sum now changes with it.",
+    superseded: "s06.10",
   },
   {
     id: "s06.8",
@@ -479,13 +526,44 @@ export const stateGuide: StateGuide[] = [
     hint: "Save: the message shows in the form, then the list drops the task.",
     scenarios: { race: "deleted" },
   },
+  {
+    id: "s06.9",
+    screen: "s04",
+    label: "edit a task with subtasks",
+    hint: "“…” of “Decorative wall” → Edit: “Sum of subtasks: 700–1 400 zł” instead of the amount fields.",
+  },
+  {
+    id: "s06.10",
+    screen: "s05",
+    label: "subtask estimate edited",
+    hint: "“…” of “TV mount” → Edit, Amount 300, up to 500, save: the wall shows 800–1 500 zł.",
+  },
+  {
+    id: "s06.11",
+    screen: "s06",
+    label: "exact price edited",
+    hint: "Clear “up to” and save: “Curtain rods” shows one amount, “1 070 zł”.",
+  },
+  {
+    id: "s06.12",
+    screen: "s06",
+    label: "got a subtask elsewhere (409)",
+    hint: "Change an amount and save: the server's message, then the sum replaces the amount fields; save again to keep the title.",
+    scenarios: { race: "subtaskElsewhere" },
+  },
 
-  { id: "s07.1", screen: "s07", label: "default", hint: "“Cancel” or Escape closes it." },
+  {
+    id: "s07.1",
+    screen: "s07",
+    label: "default",
+    hint: "Replaced by s07.8: the form has no “Details” any more.",
+    superseded: "s07.8",
+  },
   {
     id: "s07.2",
     screen: "s07",
     label: "field errors",
-    hint: "Add with no title, or min bigger than max.",
+    hint: "Add with no title, or Amount bigger than up to.",
   },
   {
     id: "s07.3",
@@ -498,7 +576,8 @@ export const stateGuide: StateGuide[] = [
     id: "s07.4",
     screen: "s07",
     label: "added",
-    hint: "Add a subtask with min 300, max 400: the parent keeps its estimate.",
+    hint: "Replaced by s07.9 and s07.11: the parent's estimate is now the sum.",
+    superseded: "s07.11",
   },
   {
     id: "s07.5",
@@ -520,6 +599,30 @@ export const stateGuide: StateGuide[] = [
     label: "someone else's task",
     hint: "Not in the prototype (L01): it stays an API test.",
     outside: true,
+  },
+  {
+    id: "s07.8",
+    screen: "s07",
+    label: "default",
+    hint: "“New subtask”, Amount, up to, Add; “Description” and “Cancel” under it. Escape closes it.",
+  },
+  {
+    id: "s07.9",
+    screen: "s04",
+    label: "first subtask, the estimate becomes the sum",
+    hint: "“…” of “Pantry wall finish” → Add subtask, Amount 300, up to 400: 300–400 zł and a note under the title.",
+  },
+  {
+    id: "s07.10",
+    screen: "s04",
+    label: "first subtask without an estimate",
+    hint: "“…” of “Curtain rods” → Add subtask with no amounts: “No estimate”, the count and the note.",
+  },
+  {
+    id: "s07.11",
+    screen: "s07",
+    label: "another subtask",
+    hint: "Add a subtask with Amount 300, up to 400: the wall shows 1 000–1 800 zł, no note.",
   },
 
   {
@@ -561,5 +664,24 @@ export const stateGuide: StateGuide[] = [
     label: "last task deleted",
     hint: "Ewa (K4) has one task: delete “Paint the hallway”; focus goes to the empty state.",
     account: "K4",
+  },
+  {
+    id: "s08.8",
+    screen: "s05",
+    label: "last subtask deleted, own amount back",
+    hint: "Delete the wall's five subtasks: 350–660 zł comes back with a note under the title.",
+  },
+  {
+    id: "s08.9",
+    screen: "s04",
+    label: "last subtask deleted, no own amount",
+    hint: "Add a subtask to Ewa's “Paint the hallway”, then delete it: “No estimate”, no note.",
+    account: "K4",
+  },
+  {
+    id: "s08.10",
+    screen: "s05",
+    label: "one of several subtasks deleted",
+    hint: "Delete “TV cabinet”: the wall shows 200–400 zł.",
   },
 ];

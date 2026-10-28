@@ -77,6 +77,20 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
   - #15 AC7: "+ Description" → a collapsible "Description" toggle; previous body in the scratchpad (`issues-old/15-before-ac7.md`).
 - Next: step 4 (styled prototype `prototypes/task-list-v1/`) after the owner's go-ahead.
 
+### Step 4 — styled prototype (`prototypes/task-list-v1/`)
+
+- Owner: "zacznij". Branch `feat/prototype-estimate-rollup` from `56dc157` (on top of PR #37, which the prototype's components come from).
+- Read `lekcja-07/prompty/prompt-mapa-ekranow.md` and `prompt-klikalny-prototyp.md`, the map, the prototype README and task screen, spec E01 (UI/UX, Edge Cases), the rewritten ACs of #15/#16, the revision-002 README (C1–C7) and the roll-up decision record.
+- Map `prototypes/konta-i-role/mapa-ekranow.md`: new section "Rozszerzenie: suma podzadań i dokładna cena" with the current ACs, 6 superseded states (ids kept, marked), 18 new states (s04.30–s04.35, s05.8, s06.9–s06.12, s07.8–s07.11, s08.8–s08.10), a new P09 value (409 on an estimate save, s06.12), data notes and numbers (prototype shows 96 states); C4, C5, C7 left to E03. New spec gap L23 (K2's wall data after R12) in section 7 with options; the map prompt says to stop for approval, so the prototype waits for it.
+- Owner approved the map ("zatwierdzam") and chose L23 = A (AskUserQuestion). Map status and L23 updated.
+- Prototype (`prototypes/task-list-v1/`):
+  - `data.ts`: L23 A (TV parts without the "not included" description; wall description "Living room. Without the sockets").
+  - `screens/task-screen.tsx`: list rolled up with `rollUp`; roll-up notices on the first subtask and on deleting the last one, cleared on the next change; a task with subtasks keeps its own figure on edit; P09 "task got a subtask in another tab" gives the 409 of s06.12; validation adds the spec's 2 000-character description limit (the DS sample `validateTask` has none, so s04.33 was unreachable).
+  - `scenarios.ts` (P09 value), `states.ts` (18 new states; superseded ones disabled with "replaced by …"), `review-bar.tsx` (disabled superseded options), `screens.ts` (notes), `navigation.test.tsx` (4 new tests, s07.1 → s07.8 in the guide test).
+  - `README.md`, `POSTEP.md` (section "Rozszerzenie 2026-10-28" with the walk table).
+- agent-browser walk on the built prototype (screenshots in `prototypes/task-list-v1/evidence/rollup-01…09-*.png`, absolute paths in POSTEP.md): s04.34, s04.31, s04.32, s07.9, s08.8, s06.9, s06.12 at 1440 dark; s04.30, s07.8, s04.33 at 320 light. All as the map says, except focus in s04.33.
+- Found DS08: a client-side description error with the toggle closed opens it but leaves focus in the title in Chromium; a jsdom test of the same flow passes (temporary test, removed). Not fixed (prompt rule 8: no design-system changes from the prototype); asked the owner whether to fix it in PR #37.
+
 ## Files changed
 
 - `.ai/runs/2026-10-28-e01-subtask-rollup-alignment.md` (this log)
@@ -90,6 +104,7 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 
 - `npx prettier --check` on the spec, the standards and this log: pass.
 - Step 3 gate (2026-10-28): `npm run format:check` pass; `npm run lint` 0 errors (1 existing warning in `.agents/skills/om-share-this-session`, unrelated); `npm run typecheck` pass; `npm test` 47 files, 262 tests, coverage 100% (803/803 statements, 600/600 branches, 329/329 functions, 717/717 lines); `npm run build` pass; `check:tokens` pass; `test:storybook` 120 files, 916 tests pass (both themes, axe); `build-storybook` pass.
+- Step 4: `npx tsc --noEmit -p prototypes/task-list-v1/tsconfig.json` pass; `npx vitest run --config prototypes/task-list-v1/vitest.config.mts` 17 tests pass; `vite build` of the prototype pass; agent-browser walk as above.
 - First `test:storybook` run after the code change: 22 failures (11 stories × 2 themes) from old labels, totals and the now-ambiguous amount labels; fixed in the stories.
 
 ## Problems / open questions
@@ -101,3 +116,5 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
 - 2026-10-28: grep docs, TODOs and the design system for superseded rule ids.
 - 2026-10-28: design-system ids are a shared namespace (W1–W4 instead of Q/S).
 - 2026-10-28: a new field in quick add makes Storybook label queries ambiguous; scope them.
+- 2026-10-28: focus into a Radix collapsible can pass in jsdom and fail in Chromium.
+- 2026-10-28: agent-browser at 320 px, the review engine's "← Back" button covers controls.

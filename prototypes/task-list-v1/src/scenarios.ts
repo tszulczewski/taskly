@@ -20,7 +20,7 @@ export interface Scenarios {
   /** P07 */
   signOut: "ok" | "fail" | "failThenOk";
   /** P09: applies to the next request it fits, then goes back to "none". */
-  race: "none" | "deleted" | "conflict";
+  race: "none" | "deleted" | "conflict" | "subtaskElsewhere";
   /** P12: the page itself, before the list or the form is there. */
   page: "fast" | "slow" | "failed";
 }
@@ -89,6 +89,10 @@ export const scenarioOptions: { [K in Exclude<keyof Scenarios, "signUpOpen">]: O
     { value: "none", label: "none" },
     { value: "deleted", label: "task deleted in another tab (404 at the next edit or subtask)" },
     { value: "conflict", label: "position conflict (409 at the next add or move)" },
+    {
+      value: "subtaskElsewhere",
+      label: "task got a subtask in another tab (409 at the next estimate save)",
+    },
   ],
   page: [
     { value: "fast", label: "fast" },

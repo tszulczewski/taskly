@@ -54,24 +54,26 @@ export const screens: ScreenInfo[] = [
     id: "s04",
     short: "Task list",
     name: "Task list (/) in the app shell",
-    summary: "Owner. Quick add above the list; tasks with their estimate range in złoty.",
+    summary:
+      "Owner. Quick add with the amounts in one row; tasks with a range, an exact price or the sum of their subtasks.",
     note: {
       stories:
-        "#15-AC1–AC4, #24-DW1, #24-DW3; tasks spec UI/UX and Edge cases; map L13, L14, L21, L22; extension s04.22–s04.29 (E02 order, E03 completion, owner's request; moved to the E02/E03 decisions file).",
+        "#15-AC1–AC4, #15-AC6, #15-AC7, #16-AC3, #24-DW1, #24-DW3; tasks spec UI/UX and Edge cases (revision 2026-10-28: R12–R18, C1); map L13, L14, L21, L22; extension s04.22–s04.29 (E02 order, E03 completion, owner's request; moved to the E02/E03 decisions file); extension s04.30–s04.35 (2026-10-28).",
       simulated:
         "The server: list load (P05), changes (P06), races (P09), page load (P12), session expiry (P04). A move only changes the order in this page; there is no fractional position.",
-      open: "#15-AC5 has no screen (L01: API test). How the theme choice is remembered (L06). Offline (L17: not in version 1).",
+      open: "#15-AC5 has no screen (L01: API test). How the theme choice is remembered (L06). Offline (L17: not in version 1). Future expenses and “Add estimate” in the row belong to E03 (C4, C5).",
     },
   },
   {
     id: "s05",
     short: "Task opened",
     name: "Task opened in its row (a view in s04)",
-    summary: "“Decorative wall” is opened: description, indented subtasks and “Add subtask”.",
+    summary:
+      "“Decorative wall” is opened: its estimate is the sum of the subtasks shown under it, each with its own amount.",
     note: {
-      stories: "#16-AC1, #16-AC2; map L07.",
+      stories: "#16-AC1, #16-AC2, #16-AC3 (R12, R13); map L07; s05.3 replaced by s05.8.",
       simulated:
-        'On arrival the prototype opens "Decorative wall" itself, with the same clicks a person would make.',
+        'On arrival the prototype opens "Decorative wall" itself, with the same clicks a person would make. The sum is computed in this page, as the server would on read.',
       open: "Whether several tasks may be open at once (the design system's proposal).",
     },
   },
@@ -81,20 +83,25 @@ export const screens: ScreenInfo[] = [
     name: "Edit in place (a view in s04)",
     summary: "“Curtain rods” opened for editing from its “…” menu; the row changes after saving.",
     note: {
-      stories: '#16-AC3; tasks spec UI/UX "Edit"; map L08, L15.',
-      simulated: 'Saving answers from P06; "deleted in another tab" (404) is P09.',
-      open: '#16-AC3\'s "summary" belongs to E03 (L02). How long the deleted row stays (here 3 s).',
+      stories:
+        '#16-AC4 (R12), #15-AC6 (R18); tasks spec UI/UX "Edit"; map L08, L15; s06.7 replaced by s06.10.',
+      simulated:
+        'Saving answers from P06; "deleted in another tab" (404) and "got a subtask in another tab" (409) are P09. The subtask from the other tab is "Bathroom", without an estimate.',
+      open: "How long the deleted row stays (here 3 s).",
     },
   },
   {
     id: "s07",
     short: "Add subtask",
     name: "Add a subtask (a view in s05)",
-    summary: "“New subtask” under “Decorative wall”; the parent's estimate does not change.",
+    summary:
+      "“New subtask” under “Decorative wall”, in the quick-add layout; the parent's sum grows when it is saved.",
     note: {
-      stories: "#16-AC1, #16-AC2 (#16-AC4 has no screen, L01).",
-      simulated: 'Adding answers from P06; "parent deleted" (404) is P09.',
-      open: "#16-AC4 stays an API test (L01).",
+      stories:
+        "#16-AC1, #16-AC2, #16-AC3 (#16-AC5 has no screen, L01); s07.1 and s07.4 replaced by s07.8–s07.11.",
+      simulated:
+        'Adding answers from P06; "parent deleted" (404) is P09. The note about the sum is written by this page, as the app would after the server confirmed.',
+      open: "#16-AC5 stays an API test (L01).",
     },
   },
   {
@@ -103,7 +110,8 @@ export const screens: ScreenInfo[] = [
     name: "Delete confirmation (a dialog over s04)",
     summary: "Deleting “Decorative wall” asks first and names its subtasks.",
     note: {
-      stories: 'Tasks spec UI/UX "Delete"; map L08; design-system decision O4.',
+      stories:
+        'Tasks spec UI/UX "Delete" and "Roll-up messages"; #16-AC2 (R15); map L08; design-system decisions O4, W1.',
       simulated:
         "Deleting answers from P06. The modal dialog covers the review bar: close it first, or press Alt+Shift+R.",
       open: "Nothing beyond the map (there is no undo, as the spec says).",

@@ -189,9 +189,14 @@ export function ReviewBar({
                     {stateGuide
                       .filter((state) => state.id.startsWith(`${screen.id}.`))
                       .map((state) => (
-                        <option key={state.id} value={state.id} disabled={state.outside}>
+                        <option
+                          key={state.id}
+                          value={state.id}
+                          disabled={state.outside ?? state.superseded !== undefined}
+                        >
                           {state.id} {state.label}
                           {state.outside ? " (not in the prototype)" : ""}
+                          {state.superseded ? ` (replaced by ${state.superseded})` : ""}
                         </option>
                       ))}
                   </optgroup>

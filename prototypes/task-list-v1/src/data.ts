@@ -16,23 +16,25 @@ export interface Account {
 
 export const listName = "My renovation";
 
-const notInWallEstimate = "Not included in the wall estimate";
-
-/** K2's list: names from the brief, amounts from the owner (L20). */
+/**
+ * K2's list: names from the brief, amounts from the owner (L20). Since R12 the wall's estimate is
+ * the sum of its subtasks; its own 350–660 zł is kept and comes back when they are all deleted.
+ * The descriptions that put the TV parts outside the wall's estimate were dropped (map L23, A).
+ */
 export const martaTasks = (): TaskItem[] => [
   task("rods", "Curtain rods", {
     description: "Bathroom, living room and dining room",
     estimate: [1070, 1400],
   }),
   task("wall", "Decorative wall", {
-    description: "Living room. Without the TV cabinet, the TV mount and the sockets",
+    description: "Living room. Without the sockets",
     estimate: [350, 660],
     subtasks: [
       task("wall-priming", "Priming"),
       task("wall-plaster", "Decorative plaster"),
       task("wall-impregnation", "Impregnation"),
-      task("wall-mount", "TV mount", { description: notInWallEstimate, estimate: [200, 400] }),
-      task("wall-cabinet", "TV cabinet", { description: notInWallEstimate, estimate: [500, 1000] }),
+      task("wall-mount", "TV mount", { estimate: [200, 400] }),
+      task("wall-cabinet", "TV cabinet", { estimate: [500, 1000] }),
     ],
   }),
   task("pantry", "Pantry wall finish", { estimate: [770, 1210] }),
@@ -106,7 +108,7 @@ export const manyTasks = (): TaskItem[] => {
     ),
     {
       description: fill(
-        "Living room. Without the TV cabinet, the TV mount and the sockets. Priming first, then the decorative plaster, then impregnation.",
+        "Living room. Without the sockets. Priming first, then the decorative plaster, then impregnation.",
         2000,
       ),
       estimate: [350, 660],
