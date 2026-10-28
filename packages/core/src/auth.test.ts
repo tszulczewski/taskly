@@ -117,4 +117,24 @@ describe("auth", () => {
     getSession.mockResolvedValueOnce(null);
     expect(await getSessionUser(new Headers())).toBeNull();
   });
+
+  it("keeps session renewal on by default", async () => {
+    const { getAuth, getSessionUser } = await load();
+    const getSession = getAuth().api.getSession as unknown as ReturnType<typeof vi.fn>;
+    getSession.mockResolvedValue(null);
+    const headers = new Headers();
+    await getSessionUser(headers);
+    await getSessionUser(headers, {});
+    await getSessionUser(headers, { disableRefresh: false });
+    for (const [arg] of getSession.mock.calls) expect(arg).toStrictEqual({ headers });
+  });
+
+  it("disables session renewal for page reads", async () => {
+    const { getAuth, getSessionUser } = await load();
+    const getSession = getAuth().api.getSession as unknown as ReturnType<typeof vi.fn>;
+    getSession.mockResolvedValueOnce({ user: { id: "u1" } });
+    const headers = new Headers();
+    expect(await getSessionUser(headers, { disableRefresh: true })).toEqual({ id: "u1" });
+    expect(getSession).toHaveBeenCalledWith({ headers, query: { disableRefresh: true } });
+  });
 });

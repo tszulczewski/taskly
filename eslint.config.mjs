@@ -69,7 +69,12 @@ const eslintConfig = defineConfig([
   {
     // Client code must not pull server-only modules into the browser bundle.
     files: ["packages/app/**/*.{ts,tsx}"],
-    ignores: ["packages/app/app/api/**", "packages/app/lib/api.ts", "packages/app/app/**/route.ts"],
+    ignores: [
+      "packages/app/app/api/**",
+      "packages/app/lib/api.ts",
+      "packages/app/lib/session.ts",
+      "packages/app/app/**/route.ts",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",

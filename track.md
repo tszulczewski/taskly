@@ -17,7 +17,7 @@ Legend: `[x]` done and committed, `[ ]` pending.
 ## Phase 2 — Pages in the browser (spec steps 3–6)
 
 - [x] 2.1 `authCall` and the error-message table in `lib/api-client.ts`
-- [ ] 2.2 Session guard: `getSessionUser(headers, { disableRefresh })`, `lib/session.ts` (`requireSessionUser`, `redirectIfSignedIn`)
+- [x] 2.2 Session guard: `getSessionUser(headers, { disableRefresh })`, `lib/session.ts` (`requireSessionUser`, `redirectIfSignedIn`)
 - [ ] 2.3 App components: `SignInForm`, `SignUpForm`, `SignUpClosed`, `SignOutButton`, `AppHeader` (wired to `authCall`, router, Query cache)
 - [ ] 2.4 Pages `/sign-in`, `/sign-up` (Suspense + `connection()`), protected placeholder `/`
 

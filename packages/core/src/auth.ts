@@ -51,8 +51,14 @@ export function authRouteHandlers() {
   return toNextJsHandler(getAuth());
 }
 
-/** Returns the signed-in user or null. Pass the request headers. */
-export async function getSessionUser(headers: Headers) {
-  const session = await getAuth().api.getSession({ headers });
+/**
+ * Returns the signed-in user or null. Pass the request headers.
+ * `disableRefresh` is for page renders, which cannot write a renewed cookie; API reads keep renewal on.
+ */
+export async function getSessionUser(headers: Headers, options: { disableRefresh?: boolean } = {}) {
+  const session = await getAuth().api.getSession({
+    headers,
+    ...(options.disableRefresh && { query: { disableRefresh: true } }),
+  });
   return session?.user ?? null;
 }
