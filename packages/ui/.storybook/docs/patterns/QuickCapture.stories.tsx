@@ -38,12 +38,11 @@ export const SeveralInARow: Story = {
   },
 };
 
-export const WithDetails: Story = {
+export const WithEstimate: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Details" }));
-    await userEvent.type(canvas.getByLabelText("Min"), "250");
-    await userEvent.type(canvas.getByLabelText("Max"), "400");
+    await userEvent.type(canvas.getByLabelText("Amount"), "250");
+    await userEvent.type(canvas.getByLabelText(/^up to/), "400");
     await capture(canvas, "Install the extractor fan");
     await expect(canvas.getByText("250–400 zł")).toBeVisible();
   },

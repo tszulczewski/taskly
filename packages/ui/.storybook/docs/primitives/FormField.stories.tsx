@@ -37,10 +37,10 @@ export const Variants: Story = {
       <FormField label="Password" hint="At least 10 characters">
         {(field) => <PasswordInput {...field} />}
       </FormField>
-      <FormField label="Minimum, zł" optional>
+      <FormField label="Amount" optional>
         {(field) => <Input {...field} inputMode="decimal" suffix="zł" />}
       </FormField>
-      <FormField label="Maximum, zł" optional error="Maximum must be at least the minimum.">
+      <FormField label="up to" optional error="“Up to” must not be less than the amount.">
         {(field) => <Input {...field} inputMode="decimal" suffix="zł" defaultValue="900" />}
       </FormField>
     </Stack>
@@ -110,7 +110,7 @@ export const LongTextNarrow: Story = {
         label="Estimated cost of materials and labour, zł"
         optional
         hint="Tasks without an estimate are not counted in the total."
-        error="The maximum must be at least the minimum. Change one of the amounts."
+        error="“Up to” must not be less than the amount. Change one of the amounts."
       >
         {(field) => <Input {...field} inputMode="decimal" suffix="zł" defaultValue="900" />}
       </FormField>
@@ -125,10 +125,10 @@ export const Polish: Story = {
         {(field) => <PasswordInput {...field} toggleLabel="Pokaż hasło" />}
       </FormField>
       <FormField
-        label="Maksimum, zł"
+        label="do"
         optional
         optionalText="(opcjonalnie)"
-        error="Maksimum musi być co najmniej równe minimum."
+        error="„Do” nie może być mniejsze niż kwota."
       >
         {(field) => <Input {...field} inputMode="decimal" suffix="zł" defaultValue="900" />}
       </FormField>
@@ -156,7 +156,7 @@ export const DoAndDont: Story = {
       <DoDont
         good={{
           node: (
-            <FormField label="Maximum, zł" optional error="Maximum must be at least the minimum.">
+            <FormField label="up to" optional error="“Up to” must not be less than the amount.">
               {(field) => <Input {...field} suffix="zł" defaultValue="900" />}
             </FormField>
           ),
@@ -164,7 +164,7 @@ export const DoAndDont: Story = {
         }}
         bad={{
           node: (
-            <FormField label="Maximum, zł" optional error="Invalid value.">
+            <FormField label="up to" optional error="Invalid value.">
               {(field) => <Input {...field} suffix="zł" defaultValue="900" />}
             </FormField>
           ),

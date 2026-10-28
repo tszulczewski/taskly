@@ -22,6 +22,9 @@ const edit = async (canvas: Canvas, body: Canvas, title: string) => {
   await userEvent.click(canvas.getByRole("button", { name: `More actions for “${title}”` }));
   await userEvent.click(body.getByRole("menuitem", { name: "Edit" }));
 };
+// Quick add has amount fields too; the edit form's are the ones under test.
+const editForm = (canvas: Canvas, title: string) =>
+  within(canvas.getByRole("form", { name: `Edit “${title}”` }));
 
 export const Editing: Story = {
   play: async ({ canvasElement }) => {
@@ -35,8 +38,9 @@ export const Saved: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await edit(canvas, within(canvasElement.ownerDocument.body), curtainRods.title);
-    await userEvent.clear(canvas.getByLabelText("Max"));
-    await userEvent.type(canvas.getByLabelText("Max"), "300{Enter}");
+    const upTo = editForm(canvas, curtainRods.title).getByLabelText(/^up to/);
+    await userEvent.clear(upTo);
+    await userEvent.type(upTo, "300{Enter}");
     await waitFor(() => expect(canvas.getByText("180–300 zł")).toBeVisible());
     await expect(
       canvas.getByRole("button", { name: `More actions for “${curtainRods.title}”` }),
@@ -60,9 +64,10 @@ export const Invalid: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await edit(canvas, within(canvasElement.ownerDocument.body), pantry.title);
-    await userEvent.clear(canvas.getByLabelText("Max"));
-    await userEvent.type(canvas.getByLabelText("Max"), "500{Enter}");
-    await expect(canvas.getByText(taskMessages.minOverMax)).toBeVisible();
+    const upTo = editForm(canvas, pantry.title).getByLabelText(/^up to/);
+    await userEvent.clear(upTo);
+    await userEvent.type(upTo, "500{Enter}");
+    await expect(canvas.getByText(taskMessages.upToBelowAmount)).toBeVisible();
   },
 };
 

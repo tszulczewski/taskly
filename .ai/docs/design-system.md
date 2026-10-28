@@ -28,7 +28,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | --- | --- | --- | --- |
 | Button | `Button` | Submitting a form, confirming or cancelling, “Try again”; icon-only for a known gesture (…, +). | Going to another page (Link); a quiet action in a row (TextAction); several row actions (“…” menu). |
 | Text action and link | `TextAction, Link` | “Add estimate”, “Add subtask”, a muted prompt for an empty value; Link for any navigation. | The main action of a form (Button primary); something that does not navigate, as a Link. |
-| Input | `Input` | Task title, email, name, min and max (`inputMode="decimal"`, suffix “zł”). | A password (PasswordInput); several sentences (Textarea); a field without a visible label. |
+| Input | `Input` | Task title, email, name, the estimate's “Amount” and “up to” (`inputMode="decimal"`, suffix “zł”). | A password (PasswordInput); several sentences (Textarea); a field without a visible label. |
 | Password input | `PasswordInput` | The password on sign-in and sign-up. | Any value that is not secret; a “Repeat password” field. |
 | Textarea | `Textarea` | The optional task description. | A title, a name or an amount (Input); a description that is only shown. |
 | Form field | `FormField, Label` | Around every Input, PasswordInput and Textarea. | An error about the whole form (Alert); a rule for the whole screen (one sentence). |
@@ -37,7 +37,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Surface | `Surface` | The task list, the future expenses line, the sign-in card. | Inside another Surface; one card per task; tiles with numbers. |
 | Alert | `Alert` | A failed sign-in or sign-out; a refused save above a form. | An error about one field (FormField); success; a notice that disappears (no toasts). |
 | Skeleton | `Skeleton` | The first load of the task list or the future expenses line. | Waiting for a button (Button loading); a change already shown optimistically. |
-| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add Details, a task row's details, “N tasks without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
+| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “N tasks without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
 | Confirm dialog | `ConfirmDialog` | Deleting (danger); completing a task with open subtasks (primary). | An action undone in one tap; details or a form; reporting a failure. |
 | Menu | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete. | The main action of a screen; one value of several (RadioGroup); navigation. |
 | Popover | `Popover, PopoverTrigger, PopoverContent, PopoverAnchor` | The place picker of a task row. | A list of actions (Menu); a whole form (in the row); a question before deleting. |
@@ -50,11 +50,11 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Sign-in form | `SignInForm` | The `/sign-in` page, inside AuthCard. | Creating the account; Google sign-in (after the MVP). |
 | Sign-up form | `SignUpForm` | `/sign-up` while sign-up is open. | Sign-up closed (SignUpClosed); inviting people (version 2). |
 | Sign-up closed | `SignUpClosed` | `/sign-up` while sign-up is closed (the default). | Sign-up is open; a failed request (Alert). |
-| Quick add | `QuickAdd` | Above the list, the one way to add a task; under an expanded task for subtasks. | Changing a task (TaskForm); a form in a modal; a subtask under a subtask. |
+| Quick add | `QuickAdd` | Above the list, the one way to add a task: title, amounts and Add in one row (C1); under an expanded task for subtasks. | Changing a task (TaskForm); a form in a modal; a subtask under a subtask. |
 | Task list | `TaskList` | The main screen `/`, under quick add. | Columns by status (a board); a table of amounts. |
 | Task row | `TaskRow` | Every task and subtask; TaskList renders the rows. | A card per task; details in a drawer; many amount columns. |
 | Task form | `TaskForm` | “Edit” in a row's menu; TaskRow renders it. | Adding (QuickAdd); details in a drawer; deleting. |
-| Estimate range | `EstimateRange` | The right end of a task or subtask row. | Typing an amount (Input); a real cost; the future expenses total. |
+| Estimate range | `EstimateRange` | The right end of a task or subtask row: a range, one exact amount, or a task's sum of subtasks (R12, R18). | Typing an amount (Input); a real cost; the future expenses total. |
 | Delete task dialog | `DeleteTaskDialog` | “Delete” in a row's menu; TaskList opens it. | Any other confirmation (ConfirmDialog); undo after the fact (there is none). |
 | Drag handle | `DragHandle, SortableGroup` | Rows of a list that can be reordered, from 640px. | Below 640px (long press, Move up / down); pending or completed rows. |
 | Markers | `Markers` | The meta line of a row, after the places. | Setting a marker (row menu); a place (PlaceTag); a warning (Alert). |
@@ -158,7 +158,7 @@ Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-rin
 - English first in stories (specs are in English); Polish is the main language of the product, with **ty** form and imperative buttons. Glossary: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, place → miejsce.
 - Buttons are verbs, with the object when not obvious ("Delete task"); pending labels "Saving…"; icon-button names say action and object ("More actions for “Seal the bath”").
 - Errors say what happened and what to do, next to where it happened; empty states say why and the next step.
-- Money: integer grosze end to end, formatted by the server; an estimate is "1 200–1 500 zł" (non-breaking spaces, en dash without spaces, grosze only when not zero). `formatPlnRange` in `@taskly/core` does not do this yet (decision F11).
+- Money: integer grosze end to end, formatted by the server; an estimate is "1 200–1 500 zł", or one amount, "450 zł", when min equals max (non-breaking spaces, en dash without spaces, grosze only when not zero; R18). A task with subtasks shows their sum, computed on the server (R12, standards §6). `formatPlnRange` in `@taskly/core` does not do this yet (decision F11).
 - Dates and times are not shown in version 1; when they appear: "22 paź 2026", "14:30" / "22 Oct 2026", "2:30 pm" (decision L2). The language comes from the browser on the first visit, with no switch in version 1 (decision L3).
 
 ## Commands
@@ -179,7 +179,7 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | --- | --- |
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
-| D01–D21, R06–R11, N01–N04 | `.ai/specs/product-brief.md` |
-| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4 decisions | `packages/ui/POSTEP.md` |
+| D01–D24, R06–R18, N01–N04 (R06–R08, D15, D16 superseded by R12–R18, D22–D24) | `.ai/specs/product-brief.md` |
+| P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4, W1–W4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

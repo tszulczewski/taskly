@@ -43,7 +43,7 @@ type Story = StoryObj<typeof meta>;
 export const Playground: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("status")).toHaveTextContent("Future expenses1 380–1 750 zł");
+    await expect(canvas.getByRole("status")).toHaveTextContent("Future expenses730–950 zł");
     await expect(
       canvas.getByRole("button", { name: "2 tasks without an estimate" }),
     ).toHaveAttribute("aria-expanded", "false");

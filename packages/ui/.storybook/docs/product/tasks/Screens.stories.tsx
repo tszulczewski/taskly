@@ -351,7 +351,8 @@ export const AddEstimatePhone: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "2 tasks without an estimate" }));
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await expect(canvas.getByRole("textbox", { name: "Min" })).toHaveFocus();
+    const list = within(canvas.getByRole("list", { name: "2 tasks without an estimate" }));
+    await expect(list.getByRole("textbox", { name: "Amount" })).toHaveFocus();
   },
 };
 

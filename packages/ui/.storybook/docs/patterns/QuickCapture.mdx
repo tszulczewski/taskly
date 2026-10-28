@@ -11,7 +11,7 @@ How a thought becomes a task before it is forgotten: type the title, press Enter
 
 | Rule                                                                                                               | Source                 |
 | ------------------------------------------------------------------------------------------------------------------ | ---------------------- |
-| Only the title is required; description and estimate wait under "Details".                                         | spec E01, R10, A03     |
+| Only the title is required; the amounts sit beside it, the description waits behind "Description".                 | spec E01, R10, A03, C1 |
 | Enter in the title adds; there is always a visible "Add" button too (no keyboard-only paths).                      | spec E01, A05          |
 | The new task appears at the end at once (pending), then is confirmed and briefly highlighted.                      | spec E01, decision F1  |
 | After the add the field is empty and keeps focus for the next task.                                                | spec E01, After an add |
@@ -21,7 +21,7 @@ How a thought becomes a task before it is forgotten: type the title, press Enter
 
 ## A list whose items have only a name
 
-`QuickAdd` always offers "Details" with a description and an estimate. For a list whose items have only a name (the quick shopping list, E04), build the same form from primitives until a name-only quick add is built with the E04 spec (decision N3). The rules above still apply: Enter adds, a visible "Add", the field clears and keeps focus only after the server confirmed, a refusal keeps the text and says why above the field.
+`QuickAdd` always offers the amounts and a description. For a list whose items have only a name (the quick shopping list, E04), build the same form from primitives until a name-only quick add is built with the E04 spec (decision N3). The rules above still apply: Enter adds, a visible "Add", the field clears and keeps focus only after the server confirmed, a refusal keeps the text and says why above the field.
 
 ```tsx
 const form = useForm<"name">({
@@ -55,7 +55,7 @@ The field stays above the list on every width until the E04 spec decides where i
 | ---------------- | ---------------- |
 | Ready            | Ready            |
 | Several in a row | Several In A Row |
-| With details     | With Details     |
+| With estimate    | With Estimate    |
 | Refused          | Refused          |
 
 Pending and rolled-back rows: Optimistic change.

@@ -6,16 +6,15 @@ import {
   CollapsibleIndicator,
   CollapsibleTrigger,
   FormField,
-  Input,
   TextAction,
   Textarea,
 } from "../../../src";
 import { withDocFrame } from "../../blocks/DocFrame";
 import { DoDont, Narrow, Stack, StateRow } from "../../blocks/Primitives";
 
-function QuickAddDetails({
+function QuickAddDescription({
   open,
-  label = "Details",
+  label = "Description",
   preview,
 }: {
   open?: boolean;
@@ -34,12 +33,6 @@ function QuickAddDetails({
         <div className="flex flex-col gap-between-groups">
           <FormField label="Description" optional>
             {(f) => <Textarea {...f} />}
-          </FormField>
-          <FormField label="Minimum, zł" optional>
-            {(f) => <Input {...f} inputMode="decimal" suffix="zł" />}
-          </FormField>
-          <FormField label="Maximum, zł" optional>
-            {(f) => <Input {...f} inputMode="decimal" suffix="zł" />}
           </FormField>
         </div>
       </CollapsibleContent>
@@ -83,10 +76,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
-  render: () => <QuickAddDetails />,
+  render: () => <QuickAddDescription />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const trigger = canvas.getByRole("button", { name: "Details" });
+    const trigger = canvas.getByRole("button", { name: "Description" });
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(trigger);
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -102,8 +95,8 @@ export const Variants: Story = {
   render: () => (
     <Stack>
       <StateRow
-        title="Form details (quick add)"
-        cells={[{ state: "closed", node: <QuickAddDetails /> }]}
+        title="Form part (quick add)"
+        cells={[{ state: "closed", node: <QuickAddDescription /> }]}
       />
       <StateRow
         title="Summary line (future expenses)"
@@ -118,13 +111,16 @@ export const States: Story = {
     <StateRow
       title="Trigger and content"
       cells={[
-        { state: "closed", node: <QuickAddDetails label="Details (closed)" /> },
-        { state: "hover", node: <QuickAddDetails label="Details (hover)" preview="hover" /> },
+        { state: "closed", node: <QuickAddDescription label="Description (closed)" /> },
+        {
+          state: "hover",
+          node: <QuickAddDescription label="Description (hover)" preview="hover" />,
+        },
         {
           state: "focus (keyboard)",
-          node: <QuickAddDetails label="Details (focus)" preview="focus-visible" />,
+          node: <QuickAddDescription label="Description (focus)" preview="focus-visible" />,
         },
-        { state: "open", node: <QuickAddDetails label="Details (open)" open /> },
+        { state: "open", node: <QuickAddDescription label="Description (open)" open /> },
       ]}
     />
   ),
@@ -134,7 +130,7 @@ export const ManyItemsNarrow: Story = {
   globals: { viewport: { value: "phone320", isRotated: false } },
   render: () => (
     <Narrow>
-      <QuickAddDetails open label="Details: description, minimum and maximum" />
+      <QuickAddDescription open label="Description: a long note about the task" />
     </Narrow>
   ),
 };

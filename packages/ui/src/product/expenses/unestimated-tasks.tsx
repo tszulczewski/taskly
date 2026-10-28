@@ -15,23 +15,28 @@ import { TextAction } from "../../components/ui/text-action";
 import { useForm, type FieldErrors, type SubmitResult } from "../../lib/use-form";
 import { defaultExpensesText, type ExpensesText } from "./text";
 
-export type EstimateField = "min" | "max";
-/** The amounts as typed; the app parses them (`parsePlnToGrosze`). */
+export type EstimateField = "amount" | "upTo";
+/** The amounts as typed; one filled field is an exact price (R18, `estimateFromAmounts`). */
 export type EstimateValues = Record<EstimateField, string>;
 
 export interface UnestimatedTask {
   id: string;
   title: string;
+  /**
+   * Set for a task whose subtasks all lack an estimate (R13): its estimate is their sum, so it
+   * gets none of its own and the line says to price the subtasks instead.
+   */
+  subtasksWithoutEstimate?: number;
 }
 
 export interface UnestimatedTasksProps {
-  /** Open main tasks without an estimate, in list order (R08, R10). */
+  /** Open main tasks without an estimate, in list order (R10, R13, R17). */
   tasks: UnestimatedTask[];
   /** The app's rules for the two amounts (the shared Zod schema). */
   validate: (values: EstimateValues) => FieldErrors<EstimateField>;
   /** Saves the estimate; on `{ ok: true }` the form stays busy until the task leaves `tasks`. */
   onAddEstimate: (id: string, values: EstimateValues) => Promise<SubmitResult<EstimateField>>;
-  /** The last task got its estimate and this list is gone; the parent takes focus. */
+  /** No "Add estimate" is left after a save (the list is gone or names only tasks priced through their subtasks); the parent takes focus. */
   onEmptied?: () => void;
   text?: Partial<ExpensesText>;
 }
@@ -50,20 +55,26 @@ function EstimateForm({
   t: ExpensesText;
 }) {
   const form = useForm<EstimateField>({
-    initialValues: { min: "", max: "" },
+    initialValues: { amount: "", upTo: "" },
     validate,
     onSubmit,
     unexpectedError: t.unexpectedError,
   });
-  const amount = (name: EstimateField, label: string, autoFocus: boolean) => (
-    <FormField label={label} error={form.errors[name]} className="flex-1">
+  const amount = (name: EstimateField, label: string, optionalText: string) => (
+    <FormField
+      label={label}
+      error={form.errors[name]}
+      optional
+      optionalText={optionalText}
+      className="flex-1"
+    >
       {(control) => (
         <Input
           {...control}
           {...form.field(name)}
           inputMode="decimal"
           suffix={t.currency}
-          autoFocus={autoFocus}
+          autoFocus={name === "amount"}
         />
       )}
     </FormField>
@@ -80,8 +91,8 @@ function EstimateForm({
       <fieldset className="flex min-w-0 flex-col gap-inline">
         <legend className="mb-inline font-strong break-words">{t.estimateFor(title)}</legend>
         <div className="flex gap-group">
-          {amount("min", t.min, true)}
-          {amount("max", t.max, false)}
+          {amount("amount", t.amount, "")}
+          {amount("upTo", t.upTo, t.optional)}
         </div>
       </fieldset>
       <div className="flex flex-wrap gap-group">
@@ -99,7 +110,8 @@ function EstimateForm({
 /**
  * The collapsed line under future expenses, "3 tasks without an estimate" (Luki 9, R02.10, R10).
  * Open, it says why they are not counted and offers "Add estimate" for each; the amounts are
- * typed in place (decision I4) and the task leaves the list once it has them.
+ * typed in place (decision I4) and the task leaves the list once it has them. A task whose
+ * subtasks all lack an estimate says to price them instead (R13; owner, 2026-10-28).
  */
 export function UnestimatedTasks({
   tasks,
@@ -122,10 +134,16 @@ export function UnestimatedTasks({
     const buttons = Array.from(
       listRef.current?.querySelectorAll<HTMLElement>("[data-add-estimate]") ?? [],
     );
+    const button = (id: string) =>
+      buttons.find((candidate) => candidate.dataset.addEstimate === id);
+    // A task priced through its subtasks has no button, so look for the next one that has.
     const target =
       "id" in request
-        ? buttons.find((button) => button.dataset.addEstimate === request.id)
-        : buttons[Math.min(request.index, buttons.length - 1)];
+        ? button(request.id)
+        : (tasks
+            .slice(request.index)
+            .map((task) => button(task.id))
+            .find(Boolean) ?? buttons.at(-1));
     if (target) target.focus();
     else onEmptied?.();
   }, [adding, tasks, onEmptied]);
@@ -165,13 +183,19 @@ export function UnestimatedTasks({
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-x-group">
                     <span className="min-w-0 break-words">{task.title}</span>
-                    <TextAction
-                      data-add-estimate={task.id}
-                      aria-label={t.addEstimateFor(task.title)}
-                      onClick={() => setAdding(task.id)}
-                    >
-                      {t.addEstimate}
-                    </TextAction>
+                    {task.subtasksWithoutEstimate ? (
+                      <span className="text-meta text-muted">
+                        {t.addSubtaskEstimates(task.subtasksWithoutEstimate)}
+                      </span>
+                    ) : (
+                      <TextAction
+                        data-add-estimate={task.id}
+                        aria-label={t.addEstimateFor(task.title)}
+                        onClick={() => setAdding(task.id)}
+                      >
+                        {t.addEstimate}
+                      </TextAction>
+                    )}
                   </div>
                 )}
               </li>

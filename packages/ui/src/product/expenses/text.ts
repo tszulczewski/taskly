@@ -13,9 +13,12 @@ export interface ExpensesText {
   addEstimate: string;
   /** The accessible name of a task's "Add estimate"; it starts with the visible words. */
   addEstimateFor: (title: string) => string;
+  /** Instead of "Add estimate" for a task whose subtasks all lack one (R13): it has no own amount. */
+  addSubtaskEstimates: (count: number) => string;
   estimateFor: (title: string) => string;
-  min: string;
-  max: string;
+  amount: string;
+  upTo: string;
+  optional: string;
   currency: string;
   save: string;
   saving: string;
@@ -36,9 +39,12 @@ export const defaultExpensesText: ExpensesText = {
   unestimatedRule: "They are not counted in future expenses until they have an estimate.",
   addEstimate: "Add estimate",
   addEstimateFor: (title) => `Add estimate for “${title}”`,
+  addSubtaskEstimates: (count) =>
+    count === 1 ? "Add an estimate to its subtask" : `Add estimates to its ${count} subtasks`,
   estimateFor: (title) => `Estimate for “${title}”`,
-  min: "Min",
-  max: "Max",
+  amount: "Amount",
+  upTo: "up to",
+  optional: "(optional)",
   currency: "zł",
   save: "Save",
   saving: "Saving…",

@@ -147,7 +147,7 @@ const previews: Record<string, ReactNode> = {
   ),
   Textarea: <FormField label="Description">{(field) => <Textarea {...field} />}</FormField>,
   "Form field": (
-    <FormField label="Max" error="Min must not exceed max">
+    <FormField label="up to" error="“Up to” must not be less than the amount.">
       {(field) => <Input {...field} defaultValue="100" inputMode="decimal" suffix="zł" />}
     </FormField>
   ),
@@ -186,7 +186,7 @@ const previews: Record<string, ReactNode> = {
       <CollapsibleTrigger asChild>
         <TextAction tone="muted">
           <CollapsibleIndicator />
-          Details
+          Description
         </TextAction>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -272,7 +272,7 @@ const previews: Record<string, ReactNode> = {
   ),
   "Task form": (
     <TaskForm
-      initialValues={{ title: curtainRods.title, description: "", min: "180", max: "250" }}
+      initialValues={{ title: curtainRods.title, amount: "180", upTo: "250", description: "" }}
       validate={validateTask}
       onSubmit={ok}
       onCancel={nothing}

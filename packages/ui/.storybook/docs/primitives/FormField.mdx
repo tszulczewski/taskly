@@ -74,9 +74,9 @@ Parts are `space-inline` (4px) apart; fields in a form are `space-between-groups
 
 ## 8. Content
 
-- Labels are nouns in sentence case, no colon: "Email", "Password", "Minimum, zł" (Luki 5).
+- Labels are nouns in sentence case, no colon: "Email", "Password", "Amount" (Luki 5). The estimate's "up to" is the one lowercase label: it continues "Amount" inside the "Estimate" group (spec E01, R18).
 - Hints state the rule: "At least 10 characters" (sign-in spec).
-- Errors say what happened and what to do, in one sentence: "Maximum must be at least the minimum." (spec E01, Luki 5). Not "Invalid value".
+- Errors say what happened and what to do, in one sentence: "“Up to” must not be less than the amount." (spec E01, Luki 5). Not "Invalid value".
 - Optional marker in Polish: `optionalText="(opcjonalnie)"`.
 - Long labels and errors wrap; nothing is truncated.
 
@@ -110,11 +110,11 @@ Minimal:
 <FormField label="Name">{(field) => <Input {...field} autoComplete="name" />}</FormField>
 ```
 
-In Taskly: the maximum of an estimate, validated against the minimum.
+In Taskly: the "up to" of an estimate, validated against the amount.
 
 ```tsx
-<FormField label="Maximum, zł" optional error={errors.max}>
-  {(field) => <Input {...field} name="max" inputMode="decimal" suffix="zł" />}
+<FormField label="up to" optional error={errors.upTo}>
+  {(field) => <Input {...field} name="upTo" inputMode="decimal" suffix="zł" />}
 </FormField>
 ```
 

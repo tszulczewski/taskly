@@ -43,7 +43,7 @@ Product components are presentational (decision P1): props in, callbacks out, am
 | [Surface](?path=/docs/primitives-surface--docs)                              | `Surface`                                                                   | The task list, the future expenses line, the sign-in card.                                                                             | Inside another Surface; one card per task; tiles with numbers.                                      |
 | [Alert](?path=/docs/primitives-alert--docs)                                  | `Alert`                                                                     | A failed sign-in or sign-out; a refused save above a form.                                                                             | An error about one field (FormField); success; a notice that disappears (no toasts).                |
 | [Skeleton](?path=/docs/primitives-skeleton--docs)                            | `Skeleton`                                                                  | The first load of the task list or the future expenses line.                                                                           | Waiting for a button (Button loading); a change already shown optimistically.                       |
-| [Collapsible](?path=/docs/primitives-collapsible--docs)                      | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add Details, a task row's details, “N tasks without an estimate”.                                                                | Details in a drawer or window; switching views; a rule the user needs to act.                       |
+| [Collapsible](?path=/docs/primitives-collapsible--docs)                      | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add Description, a task row's details, “N tasks without an estimate”.                                                            | Details in a drawer or window; switching views; a rule the user needs to act.                       |
 | [Confirm dialog](?path=/docs/primitives-confirm-dialog--docs)                | `ConfirmDialog`                                                             | Deleting (danger); completing a task with open subtasks (primary).                                                                     | An action undone in one tap; details or a form; reporting a failure.                                |
 | [Menu](?path=/docs/primitives-menu--docs)                                    | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete.                                                                 | The main action of a screen; one value of several (RadioGroup); navigation.                         |
 | [Popover](?path=/docs/primitives-popover--docs)                              | `Popover, PopoverTrigger, PopoverContent, PopoverAnchor`                    | The place picker of a task row.                                                                                                        | A list of actions (Menu); a whole form (in the row); a question before deleting.                    |
@@ -77,21 +77,21 @@ Product components are presentational (decision P1): props in, callbacks out, am
 
 Every rule in these pages names where it comes from. A rule without a source is marked as a proposal.
 
-| Id                                                                                          | Where                                                                                      |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| R01.x, R02.x, A01.x–A05                                                                     | references and anti-references, `.ai/design/reference.md`                                  |
-| Q1–Q5, P01–P15, Luki 1–10                                                                   | the owner's answers, proposals and gaps in `.ai/design/reference.md`                       |
-| T1–T10, tokens rule 1–15                                                                    | `.ai/design/tokeny.md` (decisions and "Zasady")                                            |
-| D01–D21, R06–R11, N01–N04                                                                   | product decisions and rules, `.ai/specs/product-brief.md`                                  |
-| spec E01, sign-in spec                                                                      | `.ai/specs/2026-10-16-tasks-and-subtasks.md`, `.ai/specs/2026-10-16-sign-in-pages.md`      |
-| E01-S01 … E03-S02                                                                           | backlog stories, `.ai/specs/backlog.md`                                                    |
-| decision 2026-10-21                                                                         | completed tasks' order, `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md` |
-| P1–P5, K1–K5, B1–B9, C1–C10, D1–D10, E1–E12, F–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4 | decisions taken while building this system, `packages/ui/POSTEP.md`                        |
-| standards §N                                                                                | `.ai/docs/engineering-standards.md`                                                        |
-| task rule N                                                                                 | the rules of the task that built this system, `.ai/design/prompt-storybook.md`             |
-| WCAG x.y.z, WAI-ARIA APG                                                                    | the accessibility standard and its authoring practices                                     |
+| Id                                                                                                 | Where                                                                                      |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| R01.x, R02.x, A01.x–A05                                                                            | references and anti-references, `.ai/design/reference.md`                                  |
+| Q1–Q5, P01–P15, Luki 1–10                                                                          | the owner's answers, proposals and gaps in `.ai/design/reference.md`                       |
+| T1–T10, tokens rule 1–15                                                                           | `.ai/design/tokeny.md` (decisions and "Zasady")                                            |
+| D01–D24, R06–R18, N01–N04                                                                          | product decisions and rules, `.ai/specs/product-brief.md`                                  |
+| spec E01, sign-in spec                                                                             | `.ai/specs/2026-10-16-tasks-and-subtasks.md`, `.ai/specs/2026-10-16-sign-in-pages.md`      |
+| E01-S01 … E03-S02                                                                                  | backlog stories, `.ai/specs/backlog.md`                                                    |
+| decision 2026-10-21                                                                                | completed tasks' order, `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md` |
+| P1–P5, K1–K5, B1–B9, C1–C10, D1–D10, E1–E12, F–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4, W1–W4 | decisions taken while building this system, `packages/ui/POSTEP.md`                        |
+| standards §N                                                                                       | `.ai/docs/engineering-standards.md`                                                        |
+| task rule N                                                                                        | the rules of the task that built this system, `.ai/design/prompt-storybook.md`             |
+| WCAG x.y.z, WAI-ARIA APG                                                                           | the accessibility standard and its authoring practices                                     |
 
-Note the two families that look alike: **P01–P15** (reference proposals, two digits) and **P1–P5** (stage-0 decisions); **R02.x** (a reference row) and **R06–R11** (product rules).
+Note the two families that look alike: **P01–P15** (reference proposals, two digits) and **P1–P5** (stage-0 decisions); **R02.x** (a reference row) and **R06–R18** (product rules; R06–R08, D15 and D16 are superseded by R12–R18 and D22–D24, brief refresh 2026-10-27).
 
 ## Commands
 

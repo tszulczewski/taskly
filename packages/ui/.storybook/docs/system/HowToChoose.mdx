@@ -14,7 +14,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 | it cancels, retries or is a second action next to the main one | `Button` (secondary)                                 | "Cancel", "Try again"                      | spec E01               |
 | it deletes data after a question                               | `Button variant="danger"`                            | "Delete task" in the dialog                | P3                     |
 | it acts quietly inside a row or a list                         | `TextAction`                                         | "Add estimate", "Add subtask"              | R01.4, R02.3, Luki 9   |
-| it stands in for an empty value the user can fill in           | `TextAction tone="muted"`                            | "Details" in quick add                     | R01.4, tokens rule 6   |
+| it stands in for an empty value the user can fill in           | `TextAction tone="muted"`                            | "Description" in quick add                 | R01.4, tokens rule 6   |
 | it takes the user to another page                              | `Link`                                               | "Create an account", "Go to sign in"       | WAI-ARIA APG (link)    |
 | it is a known gesture with an icon only                        | `Button size="icon"` with `aria-label` (+ `Tooltip`) | "…", the drag handle                       | Luki 7, tokens rule 11 |
 | one row has several actions                                    | one "…" `Menu`                                       | Add subtask, Edit, Places…, Delete         | R02.1, A01.3, P2       |
@@ -59,7 +59,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 | If …                                        | then use …                                                    | Example in Taskly                                          | Source                |
 | ------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------- | --------------------- |
-| one field is wrong                          | the error of its `FormField`                                  | "Min must not exceed max"                                  | spec E01, WCAG 3.3.1  |
+| one field is wrong                          | the error of its `FormField`                                  | "“Up to” must not be less than the amount."                | spec E01, WCAG 3.3.1  |
 | the whole form failed (server, credentials) | `Alert` above the form                                        | "Email or password is incorrect."                          | sign-in spec          |
 | a change shown at once was refused          | the message in that row, `role="alert"`                       | "Could not move “Seal the bath”. It is back where it was." | spec E01, decision H5 |
 | a screen's data failed to load              | `ErrorState` with "Try again"                                 | "Could not load your tasks."                               | spec E01              |

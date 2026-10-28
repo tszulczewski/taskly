@@ -8,7 +8,6 @@ export interface TaskText extends TaskFieldsText, SortableText {
   newSubtask: string;
   add: string;
   adding: string;
-  details: string;
   save: string;
   saving: string;
   cancel: string;
@@ -17,6 +16,12 @@ export interface TaskText extends TaskFieldsText, SortableText {
   /** The meta line of a row the server has not confirmed yet. */
   pending: string;
   subtaskCount: (count: number) => string;
+  /** The meta line of a task whose sum leaves some subtasks out (R13). */
+  unestimatedSubtasks: (count: number) => string;
+  /** The edit form of a task with subtasks shows their sum instead of the amounts (R12). */
+  sumOfSubtasks: string;
+  sumNone: string;
+  sumHint: string;
   moreActions: (title: string) => string;
   editTask: (title: string) => string;
   subtasksOf: (title: string) => string;
@@ -60,7 +65,6 @@ export const defaultTaskText: TaskText = {
   newSubtask: "New subtask",
   add: "Add",
   adding: "Adding…",
-  details: "Details",
   save: "Save",
   saving: "Saving…",
   cancel: "Cancel",
@@ -68,6 +72,11 @@ export const defaultTaskText: TaskText = {
   noEstimate: "No estimate",
   pending: "Saving…",
   subtaskCount: (count) => (count === 1 ? "1 subtask" : `${count} subtasks`),
+  unestimatedSubtasks: (count) =>
+    count === 1 ? "1 subtask without an estimate" : `${count} subtasks without an estimate`,
+  sumOfSubtasks: "Sum of subtasks:",
+  sumNone: "no estimate yet",
+  sumHint: "Change the amounts on the subtasks.",
   moreActions: (title) => `More actions for “${title}”`,
   editTask: (title) => `Edit “${title}”`,
   subtasksOf: (title) => `Subtasks of “${title}”`,

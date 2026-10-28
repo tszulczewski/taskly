@@ -7,6 +7,7 @@ import { DoDont, Narrow } from "../../../blocks/Primitives";
 import {
   longTask,
   paintCeiling,
+  pantry,
   polishTaskText,
   polishTasks,
   taskMessages,
@@ -16,17 +17,18 @@ import type { TaskItem } from "../../../../src";
 
 const valuesOf = (task: TaskItem) => ({
   title: task.title,
+  amount: task.amount,
+  upTo: task.upTo,
   description: task.description ?? "",
-  min: task.min,
-  max: task.max,
 });
+const upTo = /^up to/;
 
 const meta = {
   title: "Product/Tasks/Task form",
   component: TaskForm,
   decorators: [withDocFrame],
   args: {
-    initialValues: valuesOf(paintCeiling),
+    initialValues: valuesOf(pantry),
     validate: validateTask,
     onSubmit: fn(answer({ ok: true })) as TaskFormProps["onSubmit"],
     onCancel: fn(),
@@ -49,9 +51,9 @@ export const Playground: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByLabelText("Title")).toHaveFocus();
-    await userEvent.clear(canvas.getByLabelText("Max"));
-    await userEvent.type(canvas.getByLabelText("Max"), "1 800{Enter}");
-    await expect(args.onSubmit).toHaveBeenCalledWith({ ...valuesOf(paintCeiling), max: "1 800" });
+    await userEvent.clear(canvas.getByLabelText(upTo));
+    await userEvent.type(canvas.getByLabelText(upTo), "1 800{Enter}");
+    await expect(args.onSubmit).toHaveBeenCalledWith({ ...valuesOf(pantry), upTo: "1 800" });
   },
 };
 
@@ -59,32 +61,57 @@ export const RemoveEstimate: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     // Clearing both amounts removes the estimate (spec E01, Edit).
-    await userEvent.clear(canvas.getByLabelText("Min"));
-    await userEvent.clear(canvas.getByLabelText("Max"));
+    await userEvent.clear(canvas.getByLabelText("Amount"));
+    await userEvent.clear(canvas.getByLabelText(upTo));
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(args.onSubmit).toHaveBeenCalledWith({
-      ...valuesOf(paintCeiling),
-      min: "",
-      max: "",
+      ...valuesOf(pantry),
+      amount: "",
+      upTo: "",
     });
   },
 };
 
-export const OneAmountOnly: Story = {
+export const ExactPrice: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    // One amount is an exact price, not an error (R18; it replaces "both amounts or neither").
+    await userEvent.clear(canvas.getByLabelText(upTo));
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(args.onSubmit).toHaveBeenCalledWith({ ...valuesOf(pantry), upTo: "" });
+  },
+};
+
+export const UpToBelowAmount: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.clear(canvas.getByLabelText("Min"));
+    await userEvent.clear(canvas.getByLabelText(upTo));
+    await userEvent.type(canvas.getByLabelText(upTo), "500");
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
-    await expect(canvas.getByLabelText("Min")).toHaveFocus();
-    await expect(canvas.getByText(taskMessages.bothOrNeither)).toBeVisible();
+    await expect(canvas.getByLabelText(upTo)).toHaveFocus();
+    await expect(canvas.getByText(taskMessages.upToBelowAmount)).toBeVisible();
   },
+};
+
+export const SumOfSubtasks: Story = {
+  args: { initialValues: valuesOf(paintCeiling), summedEstimate: paintCeiling.estimate },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // A task with subtasks takes its estimate from them: text, no amount fields (R12).
+    await expect(canvas.queryByLabelText("Amount")).toBeNull();
+    await expect(canvas.getByText("Change the amounts on the subtasks.")).toBeVisible();
+  },
+};
+
+export const SumWithoutEstimates: Story = {
+  args: { initialValues: valuesOf(paintCeiling), summedEstimate: null },
 };
 
 export const InvalidAmount: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.clear(canvas.getByLabelText("Min"));
-    await userEvent.type(canvas.getByLabelText("Min"), "1e3");
+    await userEvent.clear(canvas.getByLabelText("Amount"));
+    await userEvent.type(canvas.getByLabelText("Amount"), "1e3");
     await userEvent.tab();
     await expect(canvas.getByText(taskMessages.amount)).toBeVisible();
   },
@@ -114,7 +141,7 @@ export const SaveFailed: Story = {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByLabelText("Title"), " today{Enter}");
     await expect(await canvas.findByRole("alert")).toHaveTextContent(taskMessages.saveFailed);
-    await expect(canvas.getByLabelText("Title")).toHaveValue(`${paintCeiling.title} today`);
+    await expect(canvas.getByLabelText("Title")).toHaveValue(`${pantry.title} today`);
   },
 };
 
@@ -140,7 +167,7 @@ export const Narrow320: Story = {
 };
 
 export const Polish: Story = {
-  args: { initialValues: valuesOf(polishTasks[0] as TaskItem), text: polishTaskText },
+  args: { initialValues: valuesOf(polishTasks[1] as TaskItem), text: polishTaskText },
 };
 
 export const DoAndDont: Story = {
@@ -149,7 +176,7 @@ export const DoAndDont: Story = {
       good={{
         node: (
           <TaskForm
-            initialValues={valuesOf(paintCeiling)}
+            initialValues={valuesOf(pantry)}
             validate={validateTask}
             onSubmit={answer({ ok: true })}
             onCancel={() => {}}

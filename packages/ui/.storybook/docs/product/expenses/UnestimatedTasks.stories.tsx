@@ -80,7 +80,7 @@ export const AddingEstimate: Story = {
     const canvas = within(canvasElement);
     await open(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await expect(canvas.getByRole("textbox", { name: "Min" })).toHaveFocus();
+    await expect(canvas.getByRole("textbox", { name: "Amount" })).toHaveFocus();
   },
 };
 
@@ -89,9 +89,9 @@ export const FieldErrors: Story = {
     const canvas = within(canvasElement);
     await open(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await userEvent.type(canvas.getByRole("textbox", { name: "Min" }), "300");
-    await userEvent.type(canvas.getByRole("textbox", { name: "Max" }), "200{Enter}");
-    await expect(await canvas.findByText(taskMessages.minOverMax)).toBeVisible();
+    await userEvent.type(canvas.getByRole("textbox", { name: "Amount" }), "300");
+    await userEvent.type(canvas.getByRole("textbox", { name: /^up to/ }), "200{Enter}");
+    await expect(await canvas.findByText(taskMessages.upToBelowAmount)).toBeVisible();
   },
 };
 
@@ -101,8 +101,8 @@ export const Saving: Story = {
     const canvas = within(canvasElement);
     await open(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await userEvent.type(canvas.getByRole("textbox", { name: "Min" }), "150");
-    await userEvent.type(canvas.getByRole("textbox", { name: "Max" }), "200{Enter}");
+    await userEvent.type(canvas.getByRole("textbox", { name: "Amount" }), "150");
+    await userEvent.type(canvas.getByRole("textbox", { name: /^up to/ }), "200{Enter}");
     await expect(canvas.getByRole("button", { name: "Saving…" })).toHaveAttribute(
       "aria-busy",
       "true",
@@ -115,9 +115,9 @@ export const Saved: Story = {
     const canvas = within(canvasElement);
     await open(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await userEvent.type(canvas.getByRole("textbox", { name: "Min" }), "150");
-    await userEvent.type(canvas.getByRole("textbox", { name: "Max" }), "200{Enter}");
-    await expect(args.onAddEstimate).toHaveBeenCalledWith("seal", { min: "150", max: "200" });
+    // One amount is enough: an exact price (R18).
+    await userEvent.type(canvas.getByRole("textbox", { name: "Amount" }), "150{Enter}");
+    await expect(args.onAddEstimate).toHaveBeenCalledWith("seal", { amount: "150", upTo: "" });
     // The task has left the list; focus moves to the next one.
     await waitFor(() =>
       expect(
@@ -133,13 +133,29 @@ export const SaveFailed: Story = {
     const canvas = within(canvasElement);
     await open(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await userEvent.type(canvas.getByRole("textbox", { name: "Min" }), "150");
-    await userEvent.type(canvas.getByRole("textbox", { name: "Max" }), "200{Enter}");
+    await userEvent.type(canvas.getByRole("textbox", { name: "Amount" }), "150");
+    await userEvent.type(canvas.getByRole("textbox", { name: /^up to/ }), "200{Enter}");
     await expect(await canvas.findByText(taskMessages.estimateFailed)).toBeVisible();
   },
 };
 
 export const OneTask: Story = { args: { tasks: [seal] } };
+
+export const PricedThroughSubtasks: Story = {
+  args: {
+    tasks: [
+      { id: "paint", title: "Paint the bathroom ceiling", subtasksWithoutEstimate: 3 },
+      seal,
+      tap,
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await open(canvas);
+    // Its estimate is its subtasks' sum, so it has no "Add estimate" of its own (R13).
+    await expect(canvas.getByText("Add estimates to its 3 subtasks")).toBeVisible();
+  },
+};
 
 export const LongTitle: Story = {
   args: { tasks: [{ id: longTask.id, title: longTask.title }, seal] },

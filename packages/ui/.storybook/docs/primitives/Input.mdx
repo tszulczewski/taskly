@@ -19,7 +19,7 @@ Lets the user type one short value: a task title, an e-mail address or an amount
 
 - The quick-add title field: only the title is required, Enter adds the task (spec E01, R02.9).
 - Email and name on the sign-in and sign-up pages (sign-in spec).
-- Min and max of an estimate, with `inputMode="decimal"` and `suffix="zł"` (spec E01).
+- The amounts of an estimate, "Amount" and "up to", with `inputMode="decimal"` and `suffix="zł"` (spec E01, R18).
 - Editing a task title in the row (spec E01, Inline edit).
 
 ## 3. When not to use
@@ -80,7 +80,7 @@ The label, hint and error are not part of `Input`; `FormField` adds them.
 ## 8. Content
 
 - The label names the field; the placeholder only shows an example, starting with "e.g." / "np.": "e.g. Paint the bathroom ceiling" (WCAG 3.3.2, task rules).
-- Put the unit in the label for amounts as well as the suffix: "Minimum, zł" (spec E01, WCAG 1.3.1).
+- For amounts the suffix "zł" is read with the field (`aria-describedby`), so the label stays short: "Amount" (spec E01, WCAG 1.3.1).
 - Amounts: a space as the thousands separator ("1 200", P06, tokens rule 5); a comma for decimals in Polish ("12,50", proposal). Parsing belongs to the app (spec E01: grosze).
 - Long values scroll inside the field; the field never grows wider than its column (WCAG 1.4.10).
 - Polish examples are longer: "np. Pomalować sufit w łazience".
@@ -117,11 +117,11 @@ Minimal:
 </FormField>
 ```
 
-In Taskly: the minimum of an estimate in quick-add details.
+In Taskly: the amount of an estimate in quick add.
 
 ```tsx
-<FormField label="Minimum, zł" optional error={errors.min}>
-  {(field) => <Input {...field} name="min" inputMode="decimal" suffix="zł" />}
+<FormField label="Amount" optional optionalText="" error={errors.amount}>
+  {(field) => <Input {...field} name="amount" inputMode="decimal" suffix="zł" />}
 </FormField>
 ```
 

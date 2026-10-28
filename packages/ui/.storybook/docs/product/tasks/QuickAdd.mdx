@@ -9,7 +9,7 @@ import * as Stories from "./QuickAdd.stories";
 
 ## 1. What it is for
 
-Captures a task by its title alone, before it is forgotten, and is ready for the next one straight away. Description and estimate can be added now under "Details" or later.
+Captures a task in one row, before it is forgotten: the title, the estimate beside it and "Add" (discovery prototype C1). Only the title is required; the amounts are there so the estimate goes in with the task, and the description waits behind its toggle. The form is ready for the next task straight away.
 
 <Unstyled>
   <Story of={Stories.Playground} />
@@ -30,14 +30,14 @@ Captures a task by its title alone, before it is forgotten, and is ready for the
 
 ## 4. Anatomy
 
-| Part                  | Required | Notes                                                                                      |
-| --------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| Error                 | optional | `Alert` above the form after a failed add; what was typed stays                            |
-| Title                 | yes      | Label "New task" or "New subtask"; Enter submits                                           |
-| Add                   | yes      | Primary `Button` beside the field; "Adding…" with a spinner while sending                  |
-| Details               | yes      | Muted `TextAction` with an arrow; opens the description and the estimate in place          |
-| Description, Min, Max | optional | Marked "(optional)"; amounts with `inputmode="decimal"` and the suffix "zł" (spec E01, K5) |
-| Cancel                | subtask  | Muted `TextAction`; Escape does the same                                                   |
+| Part        | Required | Notes                                                                                                                       |
+| ----------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Error       | optional | `Alert` above the form after a failed add; what was typed stays                                                             |
+| Title       | yes      | Label "New task" or "New subtask"; Enter submits                                                                            |
+| Estimate    | optional | A group "Estimate (optional)": "Amount" and "up to (optional)", `inputmode="decimal"`, suffix "zł" (R18, D24, spec E01, K5) |
+| Add         | yes      | Primary `Button` at the end of the row; "Adding…" with a spinner while sending                                              |
+| Description | optional | Muted `TextAction` "Description" with an arrow under the row; opens the field in place (W4)                                 |
+| Cancel      | subtask  | Muted `TextAction` beside "Description"; Escape does the same                                                               |
 
 ## 5. Variants
 
@@ -54,37 +54,40 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 Each state is a story with a play function that reaches it.
 
-| State                   | What the user sees                                         | Story                   | Source                 |
-| ----------------------- | ---------------------------------------------------------- | ----------------------- | ---------------------- |
-| Empty                   | The title field and "Add"; Details closed.                 | Polish                  | spec E01               |
-| Added                   | The field is empty again and keeps focus.                  | Playground              | spec E01, After an add |
-| With details            | Description and min / max open.                            | With Details            | spec E01               |
-| Missing title           | "Enter a title." under the field, focus there.             | Missing Title           | Form pattern           |
-| Min over max            | "Min must not exceed max" under Max, focus there.          | Min Over Max            | spec E01, Errors       |
-| Error in closed Details | Details opens by itself; focus on the field (decision F9). | Error In Closed Details | Form pattern           |
-| Pending                 | Spinner and "Adding…"; a second Enter sends nothing.       | Pending                 | spec E01               |
-| Add failed              | The message above the form; the title stays.               | Add Failed              | spec E01, rollback     |
-| No network              | "Something went wrong. Try again."                         | Offline                 | spec E01, Edge cases   |
+| State                       | What the user sees                                                                           | Story                       | Source                 |
+| --------------------------- | -------------------------------------------------------------------------------------------- | --------------------------- | ---------------------- |
+| Empty                       | Title, the two amounts and "Add" in one row; Description closed.                             | Polish                      | spec E01, C1           |
+| Added                       | The fields are empty again; focus back in the title.                                         | Playground                  | spec E01, After an add |
+| With estimate               | Amount and up to filled; the task is added with its range.                                   | With Estimate               | spec E01, C1           |
+| Exact price                 | Only the amount filled; the task is added with one amount.                                   | Exact Price                 | R18, D24               |
+| Missing title               | "Enter a title." under the field, focus there.                                               | Missing Title               | Form pattern           |
+| Up to below amount          | "“Up to” must not be less than the amount." under up to, focus there.                        | Up To Below Amount          | spec E01, Errors       |
+| Error in closed Description | Description opens by itself; focus on the field (decision F9).                               | Error In Closed Description | Form pattern           |
+| Description too long        | "Enter at most 2 000 characters." from the form's own check; Description opens, focus in it. | Description Too Long        | spec E01, F9           |
+| Pending                     | Spinner and "Adding…"; a second Enter sends nothing.                                         | Pending                     | spec E01               |
+| Add failed                  | The message above the form; what was typed stays.                                            | Add Failed                  | spec E01, rollback     |
+| No network                  | "Something went wrong. Try again."                                                           | Offline                     | spec E01, Edge cases   |
 
 Loading and many items do not apply. Disabled does not exist: the form is always ready.
 
 <Unstyled>
-  <Story of={Stories.MinOverMax} />
+  <Story of={Stories.UpToBelowAmount} />
   <Story of={Stories.AddFailed} />
 </Unstyled>
 
 ## 7. Behaviour and accessibility
 
-- **Keyboard:** title → Add → Details → (description → Min → Max). Enter in any one-line field submits. Covered by the Playground test.
+- **Keyboard:** title → Amount → up to → Add → Description (→ description; Cancel for a subtask). Enter in any one-line field submits. Covered by the Playground test.
 - **After an add:** the field clears and focus stays in it (spec E01). The form counts as added only after the server confirmed, so a refused add keeps what was typed (decision F2).
-- **Errors:** linked with `aria-describedby`; the form error is announced (`role="alert"`). A field inside Details with an error keeps Details open (decision F9).
-- **Details:** a disclosure button with `aria-expanded`; the arrow turns over `motion-duration-base` (Luki 8).
-- **Targets:** field, Add and Details are at least 44px high on phones, 36px from 640px (K1, V1).
+- **Errors:** linked with `aria-describedby`; the form error is announced (`role="alert"`). A description with an error keeps Description open (decision F9).
+- **Estimate:** a `fieldset` with the legend "Estimate (optional)", so a screen reader hears the group before "Amount" and "up to". One amount is an exact price; both, a range; neither, no estimate (R18, R10).
+- **Description:** a disclosure button with `aria-expanded`; the arrow turns over `motion-duration-base` (Luki 8).
+- **Targets:** fields, Add and Description are at least 44px high on phones, 36px from 640px (K1, V1).
 
 ## 8. Content
 
-- Labels: "New task", "New subtask", "Details", "Description", "Min", "Max" (spec E01). Button: "Add".
-- Messages: "Enter an amount like 1 500,50", "Min must not exceed max", "Enter both amounts or neither" (spec E01). "Enter a title." and "Enter at most 10 000 000 zł" are examples; the real ones come from the shared schema (decision E3).
+- Labels: "New task", "New subtask", "Estimate (optional)", "Amount", "up to (optional)", "Description" (spec E01, R18). Button: "Add".
+- Messages: "Enter an amount like 1 500,50", "“Up to” must not be less than the amount." (spec E01). "Enter a title." and "Enter at most 10 000 000 zł" are examples; the real ones come from the shared schema (decision E3).
 - Amounts accept Polish formatting: "1 500,50", "1500.5" (spec E01).
 
 <Unstyled>
@@ -93,11 +96,11 @@ Loading and many items do not apply. Disabled does not exist: the form is always
 
 ## 9. Responsive
 
-| Width  | Behaviour                                                           | Source      |
-| ------ | ------------------------------------------------------------------- | ----------- |
-| 320px  | Title and Add share a line; Min and Max share a line under Details. | WCAG 1.4.10 |
-| 768px  | Same, as wide as the content column.                                | P01         |
-| 1440px | Same, at most `layout-content-max-width`.                           | P01, R01.5  |
+| Width  | Behaviour                                                                                          | Source      |
+| ------ | -------------------------------------------------------------------------------------------------- | ----------- |
+| 320px  | Stacked: the title, then Amount and up to side by side, then Add; Description under them.          | WCAG 1.4.10 |
+| 640px  | One row: the title takes the rest, the estimate two fifths, Add at the end, level with the fields. | C1, P01     |
+| 1440px | Same, at most `layout-content-max-width`.                                                          | P01, R01.5  |
 
 <Unstyled>
   <Story of={Stories.Narrow320} />

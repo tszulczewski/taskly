@@ -39,7 +39,7 @@ const total = (canvas: Canvas) =>
 export const InProgress: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(total(canvas)).toHaveTextContent("1 380–1 750 zł");
+    await expect(total(canvas)).toHaveTextContent("730–950 zł");
     await expect(titles(canvas).slice(-2)).toEqual([
       "Finish the pantry shelves",
       "Box in the pipes in the bathroom",
@@ -54,7 +54,7 @@ export const Completed: Story = {
     await expect(box(canvas, "Hang the curtain rods")).toBeChecked();
     await expect(box(canvas, "Hang the curtain rods")).toHaveFocus();
     await expect(titles(canvas)[3]).toBe("Hang the curtain rods");
-    await expect(total(canvas)).toHaveTextContent("1 200–1 500 zł");
+    await expect(total(canvas)).toHaveTextContent("550–700 zł");
   },
 };
 
@@ -96,8 +96,8 @@ export const SubtaskCompleted: Story = {
       "Buy paint and rollers",
       "Fill the cracks above the window",
     ]);
-    // A subtask's estimate never counts (R06): the total stays.
-    await expect(total(canvas)).toHaveTextContent("1 380–1 750 zł");
+    // A completed subtask still counts in its task's sum (R14): the total stays.
+    await expect(total(canvas)).toHaveTextContent("730–950 zł");
   },
 };
 
@@ -107,7 +107,7 @@ export const Reopened: Story = {
     await userEvent.click(box(canvas, "Finish the pantry shelves"));
     await expect(box(canvas, "Finish the pantry shelves")).not.toBeChecked();
     await expect(titles(canvas)[0]).toBe("Finish the pantry shelves");
-    await expect(total(canvas)).toHaveTextContent("2 280–3 150 zł");
+    await expect(total(canvas)).toHaveTextContent("1 630–2 350 zł");
   },
 };
 
@@ -130,7 +130,7 @@ export const ChangeFailed: Story = {
       taskMessages.changeFailed("Hang the curtain rods"),
     );
     await expect(box(canvas, "Hang the curtain rods")).not.toBeChecked();
-    await expect(total(canvas)).toHaveTextContent("1 380–1 750 zł");
+    await expect(total(canvas)).toHaveTextContent("730–950 zł");
   },
 };
 
@@ -139,9 +139,11 @@ export const EstimateAdded: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "2 tasks without an estimate" }));
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    await userEvent.type(canvas.getByRole("textbox", { name: "Min" }), "150");
-    await userEvent.type(canvas.getByRole("textbox", { name: "Max" }), "200{Enter}");
-    await waitFor(() => expect(total(canvas)).toHaveTextContent("1 530–1 950 zł"));
+    // Quick add has amount fields too; the ones under test are in the list.
+    const list = within(canvas.getByRole("list", { name: "2 tasks without an estimate" }));
+    await userEvent.type(list.getByRole("textbox", { name: "Amount" }), "150");
+    await userEvent.type(list.getByRole("textbox", { name: /^up to/ }), "200{Enter}");
+    await waitFor(() => expect(total(canvas)).toHaveTextContent("880–1 150 zł"));
     await expect(
       canvas.getByRole("button", { name: "Add estimate for “Fix the dripping kitchen tap”" }),
     ).toHaveFocus();

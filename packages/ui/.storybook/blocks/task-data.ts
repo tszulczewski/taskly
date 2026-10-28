@@ -21,8 +21,8 @@ import { bathroom, bedroom, hall, kitchen, livingRoom, polishPlaces } from "./pl
 export const taskMessages = {
   title: "Enter a title.",
   amount: "Enter an amount like 1 500,50",
-  minOverMax: "Min must not exceed max",
-  bothOrNeither: "Enter both amounts or neither",
+  upToBelowAmount: "“Up to” must not be less than the amount.",
+  descriptionTooLong: "Enter at most 2 000 characters.",
   overCap: "Enter at most 10 000 000 zł",
   addFailed: "Could not add the task. Try again.",
   saveFailed: "Could not save the task. Try again.",
@@ -31,9 +31,14 @@ export const taskMessages = {
   changeFailed: (title: string) => `Could not save “${title}”. It is back as it was.`,
   required: "Enter an amount.",
   estimateFailed: "Could not save the estimate. Try again.",
+  /** The roll-up notes of spec E01 (Roll-up messages, Q1); the app writes them into `notice`. */
+  sumStarted: (title: string) =>
+    `The estimate of “${title}” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.`,
+  sumBack: (title: string, amount: string) =>
+    `The estimate of “${title}” is back to your amount: ${amount}.`,
 } as const;
 
-const amountPattern = /^(?:\d{1,3}(?:[  ]\d{3})+|\d+)(?:[.,]\d{1,2})?$/;
+const amountPattern = /^(?:\d{1,3}(?:[  ]\d{3})+|\d+)(?:[.,]\d{1,2})?$/;
 const maxGrosze = 1_000_000_000;
 
 /** Typed text to grosze, like `parsePlnToGrosze`: null when empty, NaN when it is not an amount. */
@@ -41,33 +46,33 @@ export function toGrosze(text: string): number | null {
   const value = text.trim();
   if (value === "") return null;
   if (!amountPattern.test(value)) return Number.NaN;
-  const [whole = "0", fraction = ""] = value.replace(/[  ]/g, "").split(/[.,]/);
+  const [whole = "0", fraction = ""] = value.replace(/[  ]/g, "").split(/[.,]/);
   return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
 }
 
+/** The rules of `estimateFromAmounts` (spec E01): one field is an exact price, both a range. */
 export function validateTask(values: TaskFormValues): TaskFieldErrors {
   const errors: TaskFieldErrors = {};
   if (values.title.trim() === "") errors.title = taskMessages.title;
-  const min = toGrosze(values.min);
-  const max = toGrosze(values.max);
-  for (const [name, amount] of [
-    ["min", min],
-    ["max", max],
+  const amount = toGrosze(values.amount);
+  const upTo = toGrosze(values.upTo);
+  for (const [name, grosze] of [
+    ["amount", amount],
+    ["upTo", upTo],
   ] as const) {
-    if (Number.isNaN(amount)) errors[name] = taskMessages.amount;
-    else if (amount !== null && amount > maxGrosze) errors[name] = taskMessages.overCap;
+    if (Number.isNaN(grosze)) errors[name] = taskMessages.amount;
+    else if (grosze !== null && grosze > maxGrosze) errors[name] = taskMessages.overCap;
   }
-  if (errors.min || errors.max) return errors;
-  if (min === null && max !== null) errors.min = taskMessages.bothOrNeither;
-  else if (max === null && min !== null) errors.max = taskMessages.bothOrNeither;
-  else if (min !== null && max !== null && min > max) errors.max = taskMessages.minOverMax;
+  if (values.description.trim().length > 2000) errors.description = taskMessages.descriptionTooLong;
+  if (errors.amount || errors.upTo) return errors;
+  if (amount !== null && upTo !== null && amount > upTo) errors.upTo = taskMessages.upToBelowAmount;
   return errors;
 }
 
 const group = (grosze: number) => {
   const whole = Math.floor(grosze / 100)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   const rest = grosze % 100;
   return rest === 0 ? whole : `${whole},${rest.toString().padStart(2, "0")}`;
 };
@@ -75,86 +80,138 @@ const group = (grosze: number) => {
 /** The form's text for an amount, e.g. "1 200" or "12,50". */
 export const amountText = (grosze: number) => group(grosze);
 
-/** A range as the app formats it (tokens rule 5): "1 200–1 500 zł". */
-const rangeText = (min: number, max: number) => `${group(min)}–${group(max)} zł`;
+/** An estimate as the app formats it (tokens rule 5): "1 200–1 500 zł", or "500 zł" (R18). */
+const estimateText = (min: number, max: number) =>
+  min === max ? `${group(min)} zł` : `${group(min)}–${group(max)} zł`;
 
-/** Builds a task as the list receives it, from amounts in złoty. */
+type Range = [min: number, max: number];
+
+/** The two typed fields as a range: one filled field is an exact price (R18). */
+function typedRange(amount: string, upTo: string): Range | null {
+  const low = toGrosze(amount);
+  const high = toGrosze(upTo);
+  if (low === null && high === null) return null;
+  return [low ?? (high as number), high ?? (low as number)];
+}
+
+/** The form's two fields for a range: an exact price in "Amount" only. */
+const fields = (range: Range | null) => ({
+  amount: range === null ? "" : amountText(range[0]),
+  upTo: range === null || range[0] === range[1] ? "" : amountText(range[1]),
+});
+
+/**
+ * What the server would send for a row, from its typed amounts (`rollUpEstimate`, spec E01): a
+ * task with subtasks shows their sum and how many have none (R12, R13); its own amounts stay in
+ * `amount`/`upTo`, unshown, and come back when its last subtask goes (R15). Completed subtasks
+ * still count (R14). Stories keep the own amounts there because the real API does not send them.
+ */
+export function rollUp(item: TaskItem): TaskItem {
+  const { unestimatedSubtasks: _, ...rest } = item;
+  const own = typedRange(item.amount, item.upTo);
+  if (item.subtasks === undefined || item.subtasks.length === 0) {
+    return { ...rest, estimate: own === null ? null : estimateText(...own) };
+  }
+  const subtasks = item.subtasks.map(rollUp);
+  const priced = subtasks.flatMap((subtask) => {
+    const range = typedRange(subtask.amount, subtask.upTo);
+    return range === null ? [] : [range];
+  });
+  const missing = subtasks.length - priced.length;
+  const sum = priced.reduce<Range>(([min, max], [low, high]) => [min + low, max + high], [0, 0]);
+  return {
+    ...rest,
+    subtasks,
+    estimate: priced.length === 0 ? null : estimateText(...sum),
+    ...(missing > 0 ? { unestimatedSubtasks: missing } : {}),
+  };
+}
+
+/** Builds a task as the list receives it, from amounts in złoty: `[500]` is an exact price. */
 export function task(
   id: string,
   title: string,
   options: {
-    estimate?: [number, number];
+    estimate?: [number] | [number, number];
     description?: string;
     subtasks?: TaskItem[];
     pending?: boolean;
     error?: string;
+    notice?: string;
     important?: boolean;
     urgent?: boolean;
     places?: Place[];
     completed?: boolean;
   } = {},
 ): TaskItem {
-  const [min, max] = options.estimate?.map((zloty) => zloty * 100) ?? [];
-  return {
+  const [low, high = low] = options.estimate?.map((zloty) => Math.round(zloty * 100)) ?? [];
+  return rollUp({
     id,
     title,
     description: options.description ?? null,
-    estimate: min === undefined || max === undefined ? null : rangeText(min, max),
-    min: min === undefined ? "" : amountText(min),
-    max: max === undefined ? "" : amountText(max),
+    estimate: null,
+    ...fields(low === undefined || high === undefined ? null : [low, high]),
     ...(options.subtasks ? { subtasks: options.subtasks } : {}),
     ...(options.pending ? { pending: true } : {}),
     ...(options.error ? { error: options.error } : {}),
+    ...(options.notice ? { notice: options.notice } : {}),
     ...(options.important ? { important: true } : {}),
     ...(options.urgent ? { urgent: true } : {}),
     ...(options.places ? { places: options.places } : {}),
     ...(options.completed ? { completed: true } : {}),
-  };
+  });
 }
 
 /** Turns what a form sent into the row the list shows. */
 export function fromValues(id: string, values: TaskFormValues, base?: TaskItem): TaskItem {
-  const min = toGrosze(values.min);
-  const max = toGrosze(values.max);
-  return {
+  return rollUp({
     ...base,
     id,
     title: values.title.trim(),
     description: values.description.trim() === "" ? null : values.description.trim(),
-    estimate: min === null || max === null ? null : rangeText(min, max),
-    min: min === null ? "" : amountText(min),
-    max: max === null ? "" : amountText(max),
-  };
+    estimate: null,
+    ...fields(typedRange(values.amount, values.upTo)),
+  });
 }
 
-/** Both amounts are needed to count a task in future expenses (R08, R10); else the E01 rules. */
+/** "Add estimate" saves something: at least one amount (R10); else the E01 rules. */
 export function validateEstimate(values: EstimateValues): FieldErrors<EstimateField> {
-  const errors = validateTask({ title: "estimate", description: "", ...values });
-  const result: FieldErrors<EstimateField> = {};
-  for (const name of ["min", "max"] as const) {
-    const error = values[name].trim() === "" ? taskMessages.required : errors[name];
-    if (error) result[name] = error;
+  if (values.amount.trim() === "" && values.upTo.trim() === "") {
+    return { amount: taskMessages.required };
   }
-  return result;
+  const { amount, upTo } = validateTask({ title: "estimate", description: "", ...values });
+  return { ...(amount ? { amount } : {}), ...(upTo ? { upTo } : {}) };
 }
 
 /**
- * Future expenses as the server would compute them (R08, R10): the sums of the minimums and of the
- * maximums of open main tasks with an estimate; subtasks never count (R06).
+ * Future expenses as the server would compute them (R17, R10, R13): the sums of the minimums and of
+ * the maximums of open main tasks, each with its estimate from `rollUp`, so a subtask is counted
+ * once, inside its task.
  */
 export function futureExpenses(tasks: TaskItem[]): {
   total: string | null;
   unestimated: UnestimatedTask[];
 } {
-  const open = tasks.filter((item) => item.completed !== true);
-  const estimated = open.filter((item) => item.estimate !== null);
-  const sum = (key: "min" | "max") =>
-    estimated.reduce((total, item) => total + (toGrosze(item[key]) ?? 0), 0);
+  const open = tasks.filter((item) => item.completed !== true).map(rollUp);
+  const ranges = open.flatMap((item) => {
+    if (item.estimate === null) return [];
+    const subtasks = item.subtasks ?? [];
+    if (subtasks.length === 0) return [typedRange(item.amount, item.upTo) as Range];
+    return subtasks.flatMap((subtask) => {
+      const range = typedRange(subtask.amount, subtask.upTo);
+      return range === null ? [] : [range];
+    });
+  });
+  const sum = ranges.reduce<Range>(([min, max], [low, high]) => [min + low, max + high], [0, 0]);
   return {
-    total: estimated.length === 0 ? null : rangeText(sum("min"), sum("max")),
+    total: ranges.length === 0 ? null : estimateText(...sum),
     unestimated: open
       .filter((item) => item.estimate === null)
-      .map(({ id, title }) => ({ id, title })),
+      .map(({ id, title, subtasks }) =>
+        subtasks && subtasks.length > 0
+          ? { id, title, subtasksWithoutEstimate: subtasks.length }
+          : { id, title },
+      ),
   };
 }
 
@@ -295,7 +352,6 @@ export const polishTaskText: Partial<TaskText> = {
   newSubtask: "Nowe podzadanie",
   add: "Dodaj",
   adding: "Dodawanie…",
-  details: "Szczegóły",
   save: "Zapisz",
   saving: "Zapisywanie…",
   cancel: "Anuluj",
@@ -303,6 +359,12 @@ export const polishTaskText: Partial<TaskText> = {
   noEstimate: "Bez szacunku",
   pending: "Zapisywanie…",
   subtaskCount: (count) => `${count} ${subtaskWord(count)}`,
+  unestimatedSubtasks: (count) => `${count} ${subtaskWord(count)} bez szacunku`,
+  sumOfSubtasks: "Suma podzadań:",
+  sumNone: "jeszcze bez szacunku",
+  sumHint: "Zmień kwoty w podzadaniach.",
+  amount: "Kwota",
+  upTo: "do",
   moreActions: (title) => `Więcej akcji dla „${title}”`,
   editTask: (title) => `Edytuj „${title}”`,
   subtasksOf: (title) => `Podzadania „${title}”`,
@@ -439,9 +501,12 @@ export const polishExpensesText: Partial<ExpensesText> = {
   unestimatedRule: "Nie liczą się do przyszłych wydatków, dopóki nie mają szacunku.",
   addEstimate: "Dodaj szacunek",
   addEstimateFor: (title) => `Dodaj szacunek dla „${title}”`,
+  addSubtaskEstimates: (count) =>
+    count === 1 ? "Dodaj szacunek do jego podzadania" : `Dodaj szacunki do jego ${count} podzadań`,
   estimateFor: (title) => `Szacunek dla „${title}”`,
-  min: "Min",
-  max: "Maks",
+  amount: "Kwota",
+  upTo: "do",
+  optional: "(opcjonalnie)",
   save: "Zapisz",
   saving: "Zapisywanie…",
   cancel: "Anuluj",

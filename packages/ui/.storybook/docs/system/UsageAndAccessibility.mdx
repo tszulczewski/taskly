@@ -69,9 +69,9 @@ The rules every screen keeps. Each names its source; the component pages show th
 
 | Rule                                                                                                                                                                         | Source                            |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| An estimate is a min–max range in złoty, written "1 200–1 500 zł"; both amounts or neither; min not above max.                                                               | R07, spec E01, tokens rule 5      |
-| A subtask's estimate never changes its task's estimate or any total.                                                                                                         | R06                               |
-| Future expenses: the sums of the minimums and of the maximums of open main tasks with an estimate; tasks without one are named under it.                                     | R08, R10, Luki 9                  |
+| An estimate is a range in złoty, written "1 200–1 500 zł", or one amount for an exact price, "450 zł"; "up to" not below the amount.                                         | R18, D24, spec E01, tokens rule 5 |
+| A task with subtasks takes its estimate from them: their sum, unmarked; its typed figure is kept and comes back when the last subtask goes.                                  | R12, R13, R15, D22, D23           |
+| Future expenses: the sums of the minimums and of the maximums of open main tasks with an estimate, each counted once; tasks without one are named under it.                  | R17, R10, Luki 9                  |
 | Completing a task completes its subtasks (asked first when any is open); completing every subtask does not complete the task; reopening a task does not reopen its subtasks. | R09, R11, decision I2             |
 | Completed rows stay, muted, after the open ones; a reopened row goes first. Display order only.                                                                              | R02.2, decision 2026-10-21        |
 | Completed and unsaved rows cannot be moved; a subtask moves only within its task.                                                                                            | decision 2026-10-21, spec E01, G1 |

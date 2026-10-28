@@ -4,18 +4,12 @@ import { useState } from "react";
 import { FormField } from "../../components/form-field";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleIndicator,
-  CollapsibleTrigger,
-} from "../../components/ui/collapsible";
 import { Input } from "../../components/ui/input";
 import { TextAction } from "../../components/ui/text-action";
 import { cn } from "../../lib/cn";
 import { useForm } from "../../lib/use-form";
 import { defaultTaskText, type TaskText } from "./text";
-import { TaskFields } from "./task-fields";
+import { DescriptionField, EstimateFields } from "./task-fields";
 import { emptyTaskValues, type TaskField, type TaskFieldErrors, type TaskSubmit } from "./types";
 
 export interface QuickAddProps {
@@ -31,11 +25,18 @@ export interface QuickAddProps {
   text?: Partial<TaskText>;
 }
 
-const detailFields: TaskField[] = ["description", "min", "max"];
+/**
+ * From 640px the estimate's legend sits above its labels, one line higher than the title's label;
+ * this keeps the title and the Add button level with the amount fields.
+ */
+function LineSpace() {
+  return <span aria-hidden="true" className="hidden h-lh wide:block" />;
+}
 
 /**
- * Captures a task by its title alone: Enter or "Add" saves it, "Details" reveals the description
- * and the estimate (spec E01, R02.9, A03). After an add the form is ready for the next one.
+ * Captures a task in one row: the title, the amounts and "Add" (spec E01, discovery prototype C1),
+ * so the estimate goes in when the task is added; only the title is required. The description sits
+ * behind its toggle. After an add the form is ready for the next one.
  */
 export function QuickAdd({
   validate,
@@ -46,16 +47,18 @@ export function QuickAdd({
   text,
 }: QuickAddProps) {
   const t = { ...defaultTaskText, ...text };
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const form = useForm<TaskField>({
     initialValues: emptyTaskValues,
     validate,
-    onSubmit,
+    onSubmit: async (values) => {
+      const result = await onSubmit(values);
+      if (result.ok) setDescriptionOpen(false);
+      return result;
+    },
     unexpectedError: t.unexpectedError,
     resetOnSuccess: true,
   });
-  // A field with an error is never hidden: Details stays open until it is fixed.
-  const detailsError = detailFields.some((name) => form.errors[name]);
 
   return (
     <form
@@ -67,37 +70,35 @@ export function QuickAdd({
       }}
     >
       {form.formError ? <Alert title={form.formError} /> : null}
-      <FormField label={onCancel ? t.newSubtask : t.newTask} error={form.errors.title}>
-        {/* The button sits beside the input, so a title error shows under both. */}
-        {(control) => (
-          <div className="flex gap-group">
-            <Input {...control} {...form.field("title")} autoFocus={autoFocus} />
-            <Button type="submit" variant="primary" loading={form.pending}>
-              {form.pending ? t.adding : t.add}
-            </Button>
-          </div>
-        )}
-      </FormField>
-      <Collapsible open={detailsOpen || detailsError} onOpenChange={setDetailsOpen}>
-        <div className="flex flex-wrap items-center gap-group">
-          <CollapsibleTrigger asChild>
-            <TextAction tone="muted">
-              <CollapsibleIndicator />
-              {t.details}
-            </TextAction>
-          </CollapsibleTrigger>
-          {onCancel ? (
+      <div className="flex flex-col gap-group wide:flex-row wide:items-start">
+        <div className="flex min-w-0 flex-col gap-inline wide:flex-1">
+          <LineSpace />
+          <FormField label={onCancel ? t.newSubtask : t.newTask} error={form.errors.title}>
+            {(control) => <Input {...control} {...form.field("title")} autoFocus={autoFocus} />}
+          </FormField>
+        </div>
+        <EstimateFields form={form} text={t} className="wide:w-2/5" />
+        <div className="flex flex-col gap-inline">
+          <LineSpace />
+          <LineSpace />
+          <Button type="submit" variant="primary" loading={form.pending} className="self-start">
+            {form.pending ? t.adding : t.add}
+          </Button>
+        </div>
+      </div>
+      <DescriptionField
+        form={form}
+        text={t}
+        open={descriptionOpen}
+        onOpenChange={setDescriptionOpen}
+        actions={
+          onCancel ? (
             <TextAction tone="muted" disabled={form.pending} onClick={onCancel}>
               {t.cancel}
             </TextAction>
-          ) : null}
-        </div>
-        <CollapsibleContent>
-          <div className="flex flex-col gap-between-groups pt-group">
-            <TaskFields form={form} text={t} />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+          ) : null
+        }
+      />
     </form>
   );
 }

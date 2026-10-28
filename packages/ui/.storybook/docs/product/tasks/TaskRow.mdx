@@ -35,11 +35,12 @@ Shows one task or subtask as a single calm line: what to do and what it may cost
 | Arrow            | optional | From 640px: the chevron before the checkbox; it only repeats the title for the pointer (`aria-hidden`, not a tab stop). Always on tasks, on subtasks only with a description (decisions F5, J1)                |
 | Checkbox         | optional | `TaskCheckbox` after the arrow (from 640px) or first in the row, when the row gets `onToggleComplete` (E03-S01, R02.1, decision I3)                                                                            |
 | Title            | yes      | `font-weight-strong`; wraps, never truncated. With details it is the disclosure button (`aria-expanded`), and the whole text block is its target (decision J1)                                                 |
-| Estimate         | yes      | `EstimateRange`: right of the title from 640px, under it below                                                                                                                                                 |
-| Meta line        | optional | 13px muted, wraps: "Saving…" while pending (decision F3), `PlaceTag`s, `Markers`, then "3 subtasks", or `SubtaskProgress` "1/3" with completion (Luki 6, decision F4)                                          |
+| Estimate         | yes      | `EstimateRange`: right of the title from 640px, under it below. On a task with subtasks it is their sum (R12)                                                                                                  |
+| Meta line        | optional | 13px muted, wraps: "Saving…" while pending (decision F3), `PlaceTag`s, `Markers`, then "3 subtasks", or `SubtaskProgress` "1/3" with completion, then "1 subtask without an estimate" (Luki 6, F4, R13)        |
 | "…" menu         | yes      | Add subtask (tasks only), Edit, Places…; Important, Urgent; Move up, Move down; Delete in `color-text-danger` (R02.1, P2, decision G3); a `Tooltip` repeats its name, "More actions for “title”" (decision N4) |
 | Places popover   | optional | `PlacePicker` in a `Popover` aligned to the end of "…" (decision G3, decision H7)                                                                                                                              |
 | Row error        | optional | 13px `color-text-danger`, `role="alert"`, under the title after a rollback (spec E01)                                                                                                                          |
+| Roll-up notice   | optional | Tasks only: 13px muted, `role="status"`, under the title when the estimate starts or stops being the sum (decision W1)                                                                                         |
 | Expanded content | optional | Description (primary text, `layout-text-measure`), the subtasks indented by `task-row-indent`, "Add subtask"                                                                                                   |
 
 A one-line row is 68px on phones and 52px from 640px: the text block is at least one target high (`min-h-touch`, 44px / 36px) between `task-row-padding-y` (12px / 8px) above and below, so `task-row-min-height` (64px / 52px) is only a floor (T10, decisions N8, V1). Sides `space-inset`, rows divided by 1px `color-border-divider` (tokens, R02.1). An expanded task sits on `color-surface-raised`; rows inside it hover with `color-surface-raised-hover`.
@@ -78,6 +79,8 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 | Adding a subtask | `QuickAdd` "New subtask" under the subtasks.                                                                                                                          | Adding Subtask                                                          | spec E01                    |
 | Pending          | Muted title, "Saving…", menu items disabled.                                                                                                                          | Pending                                                                 | spec E01, Optimistic UI     |
 | Change failed    | The message under the title in `color-text-danger`.                                                                                                                   | Change Failed                                                           | spec E01                    |
+| Sum started      | The sum as the estimate; a muted notice under the title says the typed amount is kept.                                                                                | Sum Started                                                             | R12, R15, W1                |
+| Editing a sum    | `TaskForm` with "Sum of subtasks" as text instead of the amounts.                                                                                                     | Editing Sum                                                             | R12, spec E01               |
 | Just added       | Scrolled into view, raised tone fading over `motion-duration-highlight` (decision F1).                                                                                | Highlighted                                                             | spec E01, After an add      |
 | Long text        | The title wraps; the amount keeps its place.                                                                                                                          | Long Text                                                               | —                           |
 | With completion  | The checkbox after the arrow; "1/3" in the meta line.                                                                                                                 | With Completion                                                         | decision I3                 |
@@ -100,8 +103,9 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 
 ## 8. Content
 
-- Menu: "Add subtask", "Edit", "Delete" (spec E01); "Places…", "Important", "Urgent", "Move up", "Move down" (decision G3). Meta: "1 subtask" / "3 subtasks".
-- No estimate: "No estimate" (spec E01).
+- Menu: "Add subtask", "Edit", "Delete" (spec E01); "Places…", "Important", "Urgent", "Move up", "Move down" (decision G3). Meta: "1 subtask" / "3 subtasks"; "1 subtask without an estimate" / "2 subtasks without an estimate" (R13).
+- No estimate: "No estimate" (spec E01). A sum is not marked as one (decision W2).
+- Roll-up notices, written by the app: "The estimate of “Paint the bathroom” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks." and "The estimate of “Paint the bathroom” is back to your amount: 450 zł." (spec E01, decision W1).
 
 <Unstyled>
   <Story of={Stories.Polish} />
@@ -124,7 +128,7 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 
 <ArgTypes of={Stories} />
 
-`TaskItem` arrives ready to show: `estimate` formatted, `min` / `max` as the form shows them (P1).
+`TaskItem` arrives ready to show: `estimate` formatted (the sum on a task with subtasks), `amount` / `upTo` as the form shows the typed figure, `unestimatedSubtasks` counted and `notice` written by the app (P1).
 
 ## 11. Code
 
