@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-28
 - **Spec:** `.ai/specs/2026-10-16-tasks-and-subtasks.md` (E01), against `.ai/specs/product-brief.md` (R12–R18, D22–D24)
-- **Outcome:** in progress
+- **Outcome:** steps 1–4 done and merged (#36, #37, #38); step 5 waits for the owner
 
 ## Goal
 
@@ -95,6 +95,19 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
   - DS08 on `feat/ui-estimate-rollup`: the new Storybook story "Description Too Long" (title, Description opened, 2 001 characters pasted, closed, Add or Enter) passed in Chromium before any fix. Re-walked the prototype with typed text at 1440 and 320 px: focus goes into the description. **DS08 was a false alarm**: the first walk set the textarea value from a script. Withdrawn in the map and POSTEP.md; the lesson recorded earlier was wrong and is replaced.
   - Kept on PR #37 as regression coverage: the sample `validateTask` checks the spec's 2 000-character description limit, the story and its MDX row (`bbe676a`; gate: format, lint 0 errors, typecheck, `test:storybook` 918 pass, `build-storybook`).
   - Prototype branch rebased on it; the prototype's local description check removed (the sample has it now); new s04.33 screenshot.
+- Opened PR #38 (`feat/prototype-estimate-rollup` → `feat/ui-estimate-rollup`); updated the PR #37 description.
+
+### Merge (owner: "scalaj PR po kolei")
+
+- All three PRs green in CI. Squash-merged #36 → `a8a4232`.
+- #37 then conflicted (its docs commits were squashed into main). A rebase with force-push was blocked by the permission classifier. Instead: checked that main's tree equals the docs branch tip `ddd3205`, merged main into the PR branch with `-s ours` (tree unchanged, verified), pushed as a fast-forward; CI green; squash-merged → `85d205a` (main's tree equals the old PR tip `bbe676a`).
+- #38 the same way (main's tree equal to `bbe676a`; `-s ours` merge; CI green); squash-merged → `f17611b`. Main's tree equals the PR tip `310ecfa`.
+- Remote branches kept (the repo does not delete them on merge). Local leftovers: `merge/ui-on-main`, `merge/prototype-on-main` and a rebased, unpushed `feat/ui-estimate-rollup`.
+
+### Cleanup (owner: "posprzątaj lokalnie i na gitcie")
+
+- Deleted the remote and local branches of #36–#38 and the local helpers `merge/ui-on-main`, `merge/prototype-on-main`; `git fetch --prune`.
+- With the owner's approval also deleted `feat/authorization-layer-impl` (PR #10, merged) and `design/shopping-screen-agent-test{,-2,-3}` (agent-test branches without PRs), locally and on GitHub. Only `main` is left.
 
 ## Files changed
 

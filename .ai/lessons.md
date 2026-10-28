@@ -14,6 +14,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
+- 2026-10-28 — Stacked PRs with squash merges: after the lower PR is squashed, the next one conflicts. Force-push is blocked here; if main's tree equals the old base tip (`git rev-parse A^{tree} B^{tree}`), merge main into the PR branch with `-s ours` and push as a fast-forward, then wait for CI.
 - 2026-10-28 — In an agent-browser walk, type into fields with `keyboard type` / `inserttext`, never by setting `value` from a script: the scripted path showed focus in the wrong field and became a false design-system bug (DS08, withdrawn). Before reporting a component bug, reproduce it in a Storybook play test in Chromium.
 - 2026-10-28 — agent-browser on the review-engine prototypes at 320 px: the floating "← Back" button covers controls near the bottom edge and `click` refuses; `scrollIntoView({block: "center"})` the target first.
 - 2026-10-28 — Design-system ids are a shared namespace: before citing a new decision in Storybook, check the legend in Start here (Q1–Q5 are reference answers, S1–S8 are screens). Spec-local labels like "Q1"/"S2" clash; give DS decisions the next free POSTEP.md letter (W1–W4) and add it to both legends.
