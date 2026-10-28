@@ -170,6 +170,9 @@ export function touchesSessionCookie(res: Response) {
   return res.headers.getSetCookie().some((c) => c.startsWith(`${SESSION_COOKIE}=`));
 }
 
+/** How long the `waitFor*` browser helpers poll before failing. */
+const BROWSER_WAIT_MS = 15_000;
+
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
 export function createBrowser(session: string) {
   const bin = resolve(root, "node_modules/.bin/agent-browser");
@@ -178,12 +181,117 @@ export function createBrowser(session: string) {
       encoding: "utf8",
       timeout: 60_000,
     }).trim();
+
+  /** Runs a JavaScript expression in the page and returns its (JSON-serializable) value. */
+  function evaluate<T>(expression: string): T {
+    const out = JSON.parse(run("--json", "eval", expression)) as {
+      success: boolean;
+      data: { result: T } | null;
+      error: string | null;
+    };
+    if (!out.success || !out.data) throw new Error(`eval failed: ${out.error}`);
+    return out.data.result;
+  }
+
+  async function waitFor(check: () => boolean, what: () => string, timeoutMs = BROWSER_WAIT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      try {
+        if (check()) return;
+      } catch {
+        // A check can fail while the page is navigating (its context is gone); poll again.
+      }
+      if (Date.now() > deadline)
+        throw new Error(`Timed out after ${timeoutMs} ms waiting for ${what()}`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
+  const pathname = () => new URL(run("get", "url")).pathname;
+  const hasText = (text: string) =>
+    evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(text)})`);
+
   return {
     open: (url: string) => run("open", url),
     title: () => run("get", "title"),
     url: () => run("get", "url"),
     text: (selector: string) => run("get", "text", selector),
     snapshot: () => run("snapshot"),
+    evaluate,
+    /** Focuses the field and types with real key events (setting `value` by script misleads React). */
+    typeInto: (selector: string, text: string) => {
+      run("focus", selector);
+      run("keyboard", "type", text);
+    },
+    /** Clicks the element with this ARIA role and exact accessible name. */
+    clickRole: (role: string, name: string) =>
+      run("find", "role", role, "click", "--name", name, "--exact"),
+    /** Texts of the `role="alert"` elements on the page. */
+    alerts: () =>
+      evaluate<string[]>(
+        `[...document.querySelectorAll('[role="alert"]')].map((e) => e.textContent.trim())`,
+      ),
+    /**
+     * Whether the button with this exact text can be pressed: neither `disabled` nor busy
+     * (`Button` keeps a loading button focusable and marks it `aria-disabled` instead).
+     */
+    buttonEnabled: (name: string) =>
+      evaluate<boolean>(`(() => {
+        const b = [...document.querySelectorAll("button")].find((e) => e.textContent.trim() === ${JSON.stringify(name)});
+        return !!b && !b.disabled && b.getAttribute("aria-disabled") !== "true";
+      })()`),
+    /** Waits until the page's pathname is `path` (redirects and client navigations included). */
+    waitForPath: (path: string, timeoutMs?: number) =>
+      waitFor(
+        () => pathname() === path,
+        () => `path ${path} (still on ${run("get", "url")})`,
+        timeoutMs,
+      ),
+    /** Number of elements matching a CSS selector. */
+    count: (selector: string) =>
+      evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`),
+    /**
+     * Waits until React has hydrated the element matching the CSS selector. Text typed into a
+     * server-rendered input before that is wiped when React takes over the controlled field, and
+     * a click does nothing, so wait for this before interacting with a form or button.
+     */
+    waitForHydrated: (selector: string, timeoutMs?: number) =>
+      waitFor(
+        () =>
+          evaluate<boolean>(`(() => {
+            const el = document.querySelector(${JSON.stringify(selector)});
+            return !!el && Object.keys(el).some((k) => k.startsWith("__reactProps$"));
+          })()`),
+        () => `hydrated ${selector} on ${run("get", "url")}`,
+        timeoutMs,
+      ),
+    /** Waits until the page's visible text contains `text`. */
+    waitForText: (text: string, timeoutMs?: number) =>
+      waitFor(
+        () => hasText(text),
+        () => `text "${text}" on ${run("get", "url")}`,
+        timeoutMs,
+      ),
+    /** Fails the matching requests at the network level, as a dropped connection would. */
+    abortRequests: (pattern: string) => run("network", "route", pattern, "--abort"),
+    unroute: (pattern: string) => run("network", "unroute", pattern),
+    /** Stores a `name=value` pair (e.g. from `sessionCookie`) as the secure, HttpOnly cookie Better Auth sets. */
+    setSessionCookie: (pair: string, url: string) => {
+      const at = pair.indexOf("=");
+      run(
+        "cookies",
+        "set",
+        pair.slice(0, at),
+        pair.slice(at + 1),
+        "--url",
+        url,
+        "--secure",
+        "--httpOnly",
+        "--sameSite",
+        "Lax",
+      );
+    },
+    clearCookies: () => run("cookies", "clear"),
     close: () => run("close"),
   };
 }
