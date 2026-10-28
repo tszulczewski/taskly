@@ -9,7 +9,7 @@ Legend: `[x]` done and committed, `[ ]` pending.
 
 ## Phase 1 — Auth configuration and server validation (spec steps 1–2)
 
-- [ ] 1.1 `ALLOW_SIGN_UP` env flag, `auth.ts` settings (disableSignUp, maxPasswordLength 128, 30-day sessions renewed after 1 day, adapter `transaction: true`, client IP from `x-forwarded-for` behind trusted proxies), one-time warning while sign-up is open
+- [x] 1.1 `ALLOW_SIGN_UP` env flag, `auth.ts` settings (disableSignUp, maxPasswordLength 128, 30-day sessions renewed after 1 day, adapter `transaction: true`, client IP from `x-forwarded-for` behind trusted proxies), one-time warning while sign-up is open
 - [ ] 1.2 `signUpInput` / `signInInput` schemas and the Better Auth `/sign-up/email` hook (400 `INVALID_SIGN_UP_INPUT`, trimmed name)
 
 **Manual test:** curl against `npm run dev` — sign-up closed by default, open with `ALLOW_SIGN_UP=true`, invalid name rejected.

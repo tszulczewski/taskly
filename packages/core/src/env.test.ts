@@ -15,6 +15,15 @@ describe("parseEnv", () => {
     const env = parseEnv(valid);
     expect(env.DATABASE_POOL_MAX).toBe(5);
     expect(env.ANTHROPIC_MODEL).toBe("claude-sonnet-5-5");
+    expect(env.ALLOW_SIGN_UP).toBe(false);
+  });
+  it("parses ALLOW_SIGN_UP as a boolean string", () => {
+    expect(parseEnv({ ...valid, ALLOW_SIGN_UP: "true" }).ALLOW_SIGN_UP).toBe(true);
+    expect(parseEnv({ ...valid, ALLOW_SIGN_UP: "false" }).ALLOW_SIGN_UP).toBe(false);
+  });
+  it("rejects an invalid or empty ALLOW_SIGN_UP", () => {
+    expect(() => parseEnv({ ...valid, ALLOW_SIGN_UP: "maybe" })).toThrow();
+    expect(() => parseEnv({ ...valid, ALLOW_SIGN_UP: "" })).toThrow();
   });
   it("rejects a short auth secret and a missing database url", () => {
     expect(() => parseEnv({ ...valid, BETTER_AUTH_SECRET: "short" })).toThrow();
