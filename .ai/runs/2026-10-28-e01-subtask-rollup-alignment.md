@@ -44,7 +44,17 @@ Bring spec E01, issues #15/#16, `backlog.md`, the design system (`packages/ui`) 
   - #20: new AC6 (R14), per Q4.
 - Applied with `gh issue edit --body-file` (and `--title` for #16); live bodies match the drafts (only a trailing newline differs).
 - `backlog.md`: E01-S02 title row updated; a "Decisions made after filing (2026-10-27, D22–D24)" note covering #15, #16, #20 and #21.
-- #21: the owner leaned towards rewriting its AC2 now; draft to be shown before editing.
+- Committed steps 1–2 as `0c1194c` (owner: "tak i commit").
+- #21: draft shown and approved ("tak"): AC2 replaced (R17: the task counts once with its summed estimate), AC1 in the DS format, AC3 + R13, AC4 + R14, AC5 "No estimates yet" (as the DS `FutureExpenses` already shows) instead of "0–0 PLN", new AC7 (R18). Applied with `gh issue edit 21 --body-file`; live body matches.
+
+### Step 3 — design system (`packages/ui`, separate PR)
+
+- Plan shown and confirmed by the owner ("potwierdzam"), with:
+  - S1: branch `feat/ui-estimate-rollup` from `docs/discovery-subtask-rollup` (stacked PRs);
+  - S2: in `UnestimatedTasks`, a task whose subtasks all lack an estimate shows muted "Add estimates to its N subtasks" instead of "Add estimate" (no action; full handling in E03);
+  - S3: the description toggle uses the DS collapsible text action ("Description" with its arrow); spec wording changed from "+ Description";
+  - S4: roll-up messages (Q1) are a visible muted `role="status"` line in the parent's row, cleared by the app on its next change.
+- Spec E01 updated for S3 and S4 (UI/UX quick add, add subtask, roll-up messages, PR B/C precondition, step 8). Issue #15 AC7 still says "+ Description"; to be shown to the owner.
 
 ## Files changed
 
