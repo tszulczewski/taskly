@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTH_TIMEOUT_MS } from "../../lib/api-client";
 import { SignInForm } from "./sign-in-form";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
@@ -14,6 +15,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   fetchMock.mockReset();
@@ -118,6 +120,39 @@ describe("SignInForm (app)", () => {
     fill("anna@example.com", "correct horse");
     await submit();
     expect(screen.getByRole("alert").textContent).toBe("Something went wrong. Try again.");
+  });
+
+  it("frees the form after a request that never answers, and a retry signs in", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Like the browser's fetch, the hung request rejects once its signal aborts.
+    fetchMock.mockImplementationOnce(
+      (_path, init) =>
+        new Promise((_resolve, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          ),
+        ),
+    );
+    render(<SignInForm signUpOpen={false} />);
+    fill("anna@example.com", "correct horse");
+    await submit();
+    expect(screen.getByRole("button", { name: "Signing in…" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS);
+    });
+    expect(screen.getByRole("alert").textContent).toBe("Something went wrong. Try again.");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Sign in" }).getAttribute("aria-disabled"),
+    ).toBeNull();
+
+    fetchMock.mockResolvedValueOnce(json(200, { token: "t" }));
+    await submit();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(router.refresh).toHaveBeenCalledOnce();
   });
 
   it("hides the password again when the form is submitted", async () => {

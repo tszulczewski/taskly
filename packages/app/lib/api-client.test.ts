@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AUTH_MESSAGES, ApiError, apiCall, authCall } from "./api-client";
+import { AUTH_MESSAGES, AUTH_TIMEOUT_MS, ApiError, apiCall, authCall } from "./api-client";
 
 function mockFetch(body: unknown, status = 200, raw = false) {
   const fetchMock = vi.fn(async () => ({
@@ -173,5 +173,126 @@ describe("authCall", () => {
       code: "network_error",
       message: AUTH_MESSAGES.generic,
     });
+  });
+});
+
+describe("authCall deadline", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const signalOf = (f: ReturnType<typeof vi.fn>) =>
+    (f.mock.calls[0] as unknown as [string, RequestInit])[1].signal!;
+
+  // Like the browser's fetch: aborting the signal rejects the pending request or errors its body.
+  const onAbort = (signal: AbortSignal | null | undefined, run: () => void) =>
+    signal?.addEventListener("abort", run, { once: true });
+
+  function stubHungHeaders() {
+    const f = vi.fn(
+      (_path: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) =>
+          onAbort(init.signal, () => reject(new DOMException("aborted", "AbortError"))),
+        ),
+    );
+    vi.stubGlobal("fetch", f);
+    return f;
+  }
+
+  function stubHungBody(status: number) {
+    const f = vi.fn(async (_path: string, init: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"code":'));
+          onAbort(init.signal, () => controller.error(new DOMException("aborted", "AbortError")));
+        },
+      });
+      return new Response(body, { status });
+    });
+    vi.stubGlobal("fetch", f);
+    return f;
+  }
+
+  const settle = (call: Promise<void>) =>
+    call.then(
+      () => "resolved" as const,
+      (e: unknown) => e,
+    );
+
+  it("aborts when the response headers never arrive", async () => {
+    vi.useFakeTimers();
+    const f = stubHungHeaders();
+    let outcome: unknown;
+    void settle(authCall("/api/auth/sign-out")).then((o) => (outcome = o));
+    const signal = signalOf(f);
+    expect(signal).toBeInstanceOf(AbortSignal);
+    await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS - 1);
+    expect(outcome).toBeUndefined();
+    expect(signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal.aborted).toBe(true);
+    expect(outcome).toBeInstanceOf(ApiError);
+    expect(outcome).toMatchObject({ status: 0, code: "timeout", message: AUTH_MESSAGES.generic });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("aborts when an error response's body never finishes", async () => {
+    vi.useFakeTimers();
+    const f = stubHungBody(500);
+    let outcome: unknown;
+    void settle(authCall("/api/auth/sign-in/email", { email: "a@b.pl", password: "secret" })).then(
+      (o) => (outcome = o),
+    );
+    await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS - 1);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signalOf(f).aborted).toBe(true);
+    expect(outcome).toMatchObject({ status: 0, code: "timeout", message: AUTH_MESSAGES.generic });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resolves on success without reading the body, then clears the timer and releases it", async () => {
+    vi.useFakeTimers();
+    const f = stubHungBody(200);
+    await expect(authCall("/api/auth/sign-out")).resolves.toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(signalOf(f).aborted).toBe(true);
+  });
+
+  it("clears the timer when the call fails before the deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: "INVALID_EMAIL_OR_PASSWORD" }), { status: 401 }),
+      ),
+    );
+    expect(await settle(authCall("/api/auth/sign-out"))).toMatchObject({
+      code: "INVALID_EMAIL_OR_PASSWORD",
+    });
+    expect(vi.getTimerCount()).toBe(0);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    expect(await settle(authCall("/api/auth/sign-out"))).toMatchObject({ code: "network_error" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("can be retried after a timeout", async () => {
+    vi.useFakeTimers();
+    stubHungHeaders();
+    const first = settle(authCall("/api/auth/sign-out"));
+    await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS);
+    expect(await first).toMatchObject({ code: "timeout" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
+    await expect(authCall("/api/auth/sign-out")).resolves.toBeUndefined();
   });
 });

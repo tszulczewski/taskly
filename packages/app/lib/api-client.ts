@@ -86,19 +86,24 @@ function readCode(json: unknown): string | undefined {
 }
 
 /**
- * POSTs to a Better Auth endpoint. Resolves on success; otherwise throws an ApiError whose
- * `message` is the text to show the user. Sign-in never sends `rememberMe` (spec Q8).
+ * How long an auth call may take, response headers and body together. Better Auth answers in well
+ * under a second; 15 s still covers a slow phone connection, while a request that never finishes
+ * frees the busy button for a retry in reasonable time.
  */
-export function authCall(path: "/api/auth/sign-in/email", body: SignInInput): Promise<void>;
-export function authCall(path: "/api/auth/sign-up/email", body: SignUpInput): Promise<void>;
-export function authCall(path: "/api/auth/sign-out"): Promise<void>;
-export async function authCall(path: string, body?: SignInInput | SignUpInput): Promise<void> {
+export const AUTH_TIMEOUT_MS = 15_000;
+
+async function postAuth(
+  path: string,
+  body: SignInInput | SignUpInput | undefined,
+  signal: AbortSignal,
+): Promise<void> {
   let res: Response;
   try {
     res = await fetch(path, {
       method: "POST",
       headers: { [CSRF_HEADER]: CSRF_HEADER_VALUE, "content-type": "application/json" },
       body: JSON.stringify(body ?? {}),
+      signal,
     });
   } catch {
     throw new ApiError(0, "network_error", AUTH_MESSAGES.generic);
@@ -109,4 +114,27 @@ export async function authCall(path: string, body?: SignInInput | SignUpInput): 
   }
   const code = readCode(await readJsonSafe(res)) ?? "bad_response";
   throw new ApiError(res.status, code, AUTH_CODE_MESSAGES.get(code) ?? AUTH_MESSAGES.generic);
+}
+
+/**
+ * POSTs to a Better Auth endpoint. Resolves on success; otherwise throws an ApiError whose
+ * `message` is the text to show the user. A call that does not finish within `AUTH_TIMEOUT_MS`
+ * is aborted and fails with code `timeout`. Sign-in never sends `rememberMe` (spec Q8).
+ */
+export function authCall(path: "/api/auth/sign-in/email", body: SignInInput): Promise<void>;
+export function authCall(path: "/api/auth/sign-up/email", body: SignUpInput): Promise<void>;
+export function authCall(path: "/api/auth/sign-out"): Promise<void>;
+export async function authCall(path: string, body?: SignInInput | SignUpInput): Promise<void> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), AUTH_TIMEOUT_MS);
+  try {
+    await postAuth(path, body, deadline.signal);
+  } catch (error) {
+    if (deadline.signal.aborted) throw new ApiError(0, "timeout", AUTH_MESSAGES.generic);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    // Also releases a success response's body, which is never read.
+    deadline.abort();
+  }
 }

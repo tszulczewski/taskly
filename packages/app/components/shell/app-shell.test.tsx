@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTH_TIMEOUT_MS } from "../../lib/api-client";
 import { AppShell } from "./app-shell";
 import { THEME_STORAGE_KEY } from "./theme-script";
 
@@ -21,6 +22,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.clearAllMocks();
@@ -87,6 +89,43 @@ describe("AppShell (app) sign-out", () => {
     const button = screen.getByRole("button", { name: "Sign out" });
     expect(button.getAttribute("aria-busy")).toBeNull();
     expect(button.getAttribute("aria-disabled")).toBeNull();
+
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    await signOut();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(clear).toHaveBeenCalledOnce();
+    expect(router.replace).toHaveBeenCalledWith("/sign-in");
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe("AppShell (app) sign-out deadline", () => {
+  it("fails a sign-out that never answers, keeps the cache and page, and a retry completes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Like the browser's fetch, the hung request rejects once its signal aborts.
+    fetchMock.mockImplementationOnce(
+      (_path, init) =>
+        new Promise((_resolve, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          ),
+        ),
+    );
+    const clear = vi.spyOn(client, "clear");
+    render(shell());
+    await signOut();
+    expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS);
+    });
+    expect(screen.getByRole("alert").textContent).toBe("Could not sign out. Try again.");
+    expect(clear).not.toHaveBeenCalled();
+    expect(client.getQueryData(["tasks"])).toEqual(["Plaster the wall"]);
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBeNull();
 
     fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     await signOut();
