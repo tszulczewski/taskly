@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Sign in" };
 export default function SignInPage() {
   return (
     <AuthCard title="Sign in">
-      <Suspense fallback={<AuthFormSkeleton />}>
+      <Suspense fallback={<AuthFormSkeleton variant="sign-in" />}>
         <SignInGate />
       </Suspense>
     </AuthCard>

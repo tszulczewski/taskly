@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Create account" };
 export default function SignUpPage() {
   return (
     <AuthCard title="Create an account">
-      <Suspense fallback={<AuthFormSkeleton />}>
+      <Suspense fallback={<AuthFormSkeleton variant="sign-up" />}>
         <SignUpGate />
       </Suspense>
     </AuthCard>
