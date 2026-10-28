@@ -73,6 +73,14 @@ describe("auth", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it("validates sign-up with the shared hook", async () => {
+    const { getAuth } = await load();
+    const { signUpBeforeHook } = await import("./sign-up-hook");
+    getAuth();
+    const config = betterAuth.mock.calls[0]?.[0] as { hooks: { before: unknown } };
+    expect(config.hooks.before).toBe(signUpBeforeHook);
+  });
+
   it("opens sign-up when ALLOW_SIGN_UP is true and warns once, on first use", async () => {
     vi.stubEnv("ALLOW_SIGN_UP", "true");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

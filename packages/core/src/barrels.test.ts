@@ -7,6 +7,9 @@ describe("entry points", () => {
     expect(isomorphic.can).toBeTypeOf("function");
     expect(isomorphic.mapError).toBeTypeOf("function");
     expect(isomorphic.formatPln).toBeTypeOf("function");
+    // The sign-up and sign-in forms import these from the client-safe entry.
+    expect(isomorphic.signUpInput).toBeDefined();
+    expect(isomorphic.signInInput).toBeDefined();
   });
 
   it("exports services from the server entry and keeps the root exports", () => {

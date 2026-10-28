@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies, toNextJsHandler } from "better-auth/next-js";
 import { getEnv } from "./env";
+import { signUpBeforeHook } from "./sign-up-hook";
 
 export const SESSION_TTL_S = 30 * 24 * 60 * 60;
 export const SESSION_RENEW_AFTER_S = 24 * 60 * 60;
@@ -33,6 +34,7 @@ function createAuth() {
       maxPasswordLength: 128,
     },
     session: { expiresIn: SESSION_TTL_S, updateAge: SESSION_RENEW_AFTER_S },
+    hooks: { before: signUpBeforeHook },
     // Sessions are stored in PostgreSQL (session table). Google login comes after the MVP.
     plugins: [nextCookies()],
   });
