@@ -54,18 +54,19 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 Each state is a story with a play function that reaches it.
 
-| State                       | What the user sees                                                    | Story                       | Source                 |
-| --------------------------- | --------------------------------------------------------------------- | --------------------------- | ---------------------- |
-| Empty                       | Title, the two amounts and "Add" in one row; Description closed.      | Polish                      | spec E01, C1           |
-| Added                       | The fields are empty again; focus back in the title.                  | Playground                  | spec E01, After an add |
-| With estimate               | Amount and up to filled; the task is added with its range.            | With Estimate               | spec E01, C1           |
-| Exact price                 | Only the amount filled; the task is added with one amount.            | Exact Price                 | R18, D24               |
-| Missing title               | "Enter a title." under the field, focus there.                        | Missing Title               | Form pattern           |
-| Up to below amount          | "“Up to” must not be less than the amount." under up to, focus there. | Up To Below Amount          | spec E01, Errors       |
-| Error in closed Description | Description opens by itself; focus on the field (decision F9).        | Error In Closed Description | Form pattern           |
-| Pending                     | Spinner and "Adding…"; a second Enter sends nothing.                  | Pending                     | spec E01               |
-| Add failed                  | The message above the form; what was typed stays.                     | Add Failed                  | spec E01, rollback     |
-| No network                  | "Something went wrong. Try again."                                    | Offline                     | spec E01, Edge cases   |
+| State                       | What the user sees                                                                           | Story                       | Source                 |
+| --------------------------- | -------------------------------------------------------------------------------------------- | --------------------------- | ---------------------- |
+| Empty                       | Title, the two amounts and "Add" in one row; Description closed.                             | Polish                      | spec E01, C1           |
+| Added                       | The fields are empty again; focus back in the title.                                         | Playground                  | spec E01, After an add |
+| With estimate               | Amount and up to filled; the task is added with its range.                                   | With Estimate               | spec E01, C1           |
+| Exact price                 | Only the amount filled; the task is added with one amount.                                   | Exact Price                 | R18, D24               |
+| Missing title               | "Enter a title." under the field, focus there.                                               | Missing Title               | Form pattern           |
+| Up to below amount          | "“Up to” must not be less than the amount." under up to, focus there.                        | Up To Below Amount          | spec E01, Errors       |
+| Error in closed Description | Description opens by itself; focus on the field (decision F9).                               | Error In Closed Description | Form pattern           |
+| Description too long        | "Enter at most 2 000 characters." from the form's own check; Description opens, focus in it. | Description Too Long        | spec E01, F9           |
+| Pending                     | Spinner and "Adding…"; a second Enter sends nothing.                                         | Pending                     | spec E01               |
+| Add failed                  | The message above the form; what was typed stays.                                            | Add Failed                  | spec E01, rollback     |
+| No network                  | "Something went wrong. Try again."                                                           | Offline                     | spec E01, Edge cases   |
 
 Loading and many items do not apply. Disabled does not exist: the form is always ready.
 

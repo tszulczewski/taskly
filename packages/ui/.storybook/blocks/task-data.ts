@@ -63,6 +63,7 @@ export function validateTask(values: TaskFormValues): TaskFieldErrors {
     if (Number.isNaN(grosze)) errors[name] = taskMessages.amount;
     else if (grosze !== null && grosze > maxGrosze) errors[name] = taskMessages.overCap;
   }
+  if (values.description.trim().length > 2000) errors.description = taskMessages.descriptionTooLong;
   if (errors.amount || errors.upTo) return errors;
   if (amount !== null && upTo !== null && amount > upTo) errors.upTo = taskMessages.upToBelowAmount;
   return errors;

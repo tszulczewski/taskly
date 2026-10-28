@@ -95,6 +95,22 @@ export const UpToBelowAmount: Story = {
   },
 };
 
+export const DescriptionTooLong: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByRole("button", { name: "Description" });
+    await userEvent.type(canvas.getByLabelText("New task"), "Fix the tap");
+    await userEvent.click(toggle);
+    await userEvent.click(canvas.getByLabelText(/^Description/));
+    await userEvent.paste("x".repeat(2001));
+    await userEvent.click(toggle);
+    await userEvent.type(canvas.getByLabelText("New task"), "{Enter}");
+    // The browser's own check opens the closed description and moves focus into it (decision F9).
+    await waitFor(() => expect(canvas.getByLabelText(/^Description/)).toHaveFocus());
+    await expect(canvas.getByText(taskMessages.descriptionTooLong)).toBeVisible();
+  },
+};
+
 export const ErrorInClosedDescription: Story = {
   args: {
     onSubmit: answer({
