@@ -124,3 +124,10 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - Negative controls in a separate worktree: without the TTY check, success printed before commit, raw mode removed, or the pool not closed, each fails the expected tests.
   - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 62 files, 448 tests, 100% coverage; `test:integration` 10 files, 60 tests.
   - Manual rehearsal on a disposable dev user (deleted afterwards): exit 0 after 1.4 s, the password did not appear in the transcript, the old password 401, the new one 200.
+- Owner decision (2026-10-29): no changes to the reset or to Google-account handling for now, since there is no Google sign-in. The current refusal for a user with no password account stays as built in 4.1–4.2, and nothing is recorded for the Google spec.
+- **4.3** (subagent):
+  - The reset Runbook in `AGENTS.md` replaces the placeholder. It adds what 4.2 learned: an absolute env-file path, Node's exit 9 for a bad path, piped input refused, an account without a password refused, npm echoing the command line, and that an already-exported variable (even an empty one) wins over the file. `auth:set-password` is now on the Commands line.
+  - Every Phase B requirement is mapped to code or a test, and no gaps were found.
+  - The spec was moved with `git mv` to `implemented/`, with Status set to implemented. Live references were updated in the tasks-and-subtasks spec and the Storybook docs (`StartHere.mdx`, `WhatIsMissing.mdx`, `epics/SignIn.mdx`); history files were left as they are.
+  - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 62 files, 448 tests, 100% coverage; `test:integration` 10 files, 60 tests.
+- Stopped for the owner's manual test of phase 4.
