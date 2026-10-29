@@ -179,6 +179,12 @@ export function touchesSessionCookie(res: Response) {
   return res.headers.getSetCookie().some((c) => c.startsWith(`${SESSION_COOKIE}=`));
 }
 
+/** A cookie as agent-browser reports it; `expires` is in seconds since the epoch, -1 for a session cookie. */
+export type BrowserCookie = { name: string; value: string; expires: number };
+
+/** A request agent-browser has captured. */
+export type BrowserRequest = { url: string; method: string };
+
 /** How long the `waitFor*` browser helpers poll before failing. */
 const BROWSER_WAIT_MS = 15_000;
 
@@ -202,6 +208,17 @@ export function createBrowser(session: string) {
     return out.data.result;
   }
 
+  /** Runs a command with `--json` and returns its `data`. */
+  function runJson<T>(...args: string[]): T {
+    const out = JSON.parse(run("--json", ...args)) as {
+      success: boolean;
+      data: T | null;
+      error: string | null;
+    };
+    if (!out.success || !out.data) throw new Error(`${args[0]} failed: ${out.error}`);
+    return out.data;
+  }
+
   async function waitFor(check: () => boolean, what: () => string, timeoutMs = BROWSER_WAIT_MS) {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
@@ -222,14 +239,23 @@ export function createBrowser(session: string) {
 
   return {
     open: (url: string) => run("open", url),
+    reload: () => run("reload"),
     title: () => run("get", "title"),
     url: () => run("get", "url"),
     text: (selector: string) => run("get", "text", selector),
     snapshot: () => run("snapshot"),
     evaluate,
+    /** Polls `check` until it returns true; `what` describes the awaited state in the timeout error. */
+    waitFor,
     /** Focuses the field and types with real key events (setting `value` by script misleads React). */
     typeInto: (selector: string, text: string) => {
       run("focus", selector);
+      run("keyboard", "type", text);
+    },
+    /** Like `typeInto`, but first selects the field's text so the typing replaces it. */
+    retypeInto: (selector: string, text: string) => {
+      run("focus", selector);
+      run("press", "Control+a");
       run("keyboard", "type", text);
     },
     /** Clicks the element with this ARIA role and exact accessible name. */
@@ -301,6 +327,12 @@ export function createBrowser(session: string) {
       );
     },
     clearCookies: () => run("cookies", "clear"),
+    /** The cookies the current page can see, HttpOnly ones included. */
+    cookies: () => runJson<{ cookies: BrowserCookie[] }>("cookies", "get").cookies,
+    /** Requests the page has made since the last `clearRequests`, whose URL matches `filter`. */
+    requests: (filter: string) =>
+      runJson<{ requests: BrowserRequest[] }>("network", "requests", "--filter", filter).requests,
+    clearRequests: () => run("network", "requests", "--clear"),
     /**
      * Sends `X-Forwarded-For: <address>` with every request, as Apache would append it, so the
      * page's auth requests use that address's rate-limit bucket instead of the shared 127.0.0.1 one.
