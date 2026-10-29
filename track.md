@@ -23,7 +23,7 @@ Legend: `[ ]` to do · `[x]` done
 - [x] **2.2 Task routes** — `GET/POST /api/lists/[listId]/tasks`, `PATCH/DELETE /api/tasks/[taskId]`; route unit tests with mocked core; HTTP integration tests (schemas, CSRF header, 400 `fieldErrors`, session renewal on `GET …/tasks`).
 - [x] **2.3 `formatPlnRange` fix (F11, R18)** — "1 200–1 500 zł", grosze only when not zero, one amount when min = max; unit tests; check `EstimateRange` in `packages/ui`.
 - [x] **2.4 Page `/`** — tested session/redirect helper in `packages/app/lib/`, `ensureDefaultList` inside `<Suspense>`, "page did not open" state with working Sign out; renewal integration test (document render does not consume renewal).
-- [ ] **2.5 Task hooks** — `useTasks`, `useCreateTask` (optimistic append, pending row), `useUpdateTask`, `useDeleteTask` (wait for server), response schemas via `apiCall`, `onSettled` invalidation, rollback; unit tests.
+- [x] **2.5 Task hooks** — `useTasks`, `useCreateTask` (optimistic append, pending row), `useUpdateTask`, `useDeleteTask` (wait for server), response schemas via `apiCall`, `onSettled` invalidation, rollback; unit tests.
 - [ ] **2.6 `TaskListScreen`** — design-system `QuickAdd` / `TaskList` / `TaskRow` / `TaskForm` / `DeleteTaskDialog` wired to the hooks: amounts, description toggle, scroll + highlight + focus after add, edit in place (changed fields only), delete dialog, loading/empty/error states, 409 and 404 messages; jsdom component tests.
 - [ ] **2.7 Browser integration test for #15** — AC1–AC4, AC6, AC7 with `createUser`, `ALLOW_SIGN_UP=false`, fixture cleanup.
 - [ ] **Phase 2 gate** — `npm run build && npm run test:integration`; owner's manual test at `/` (checklist in the run log).
