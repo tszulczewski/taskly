@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { requireRole } from "./access";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { createList, deleteList, ensureDefaultList, listsForUser, renameList } from "./lists";
-import { createTask } from "./tasks";
+import { createTask, deleteTask } from "./tasks";
 import type { Tx } from "./types";
 
 const url = process.env.DATABASE_URL;
@@ -541,6 +541,85 @@ describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
 
       expect(deleteResult).toEqual({ value: undefined });
       expect(createResult).toEqual({ error: expect.any(NotFoundError) });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    /** A task with one subtask in `listId`; returns the task's id. */
+    async function taskWithSubtask(listId: string) {
+      const [task] = await db
+        .insert(schema.tasks)
+        .values({ listId, title: "Roof", position: "a0" })
+        .returning({ id: schema.tasks.id });
+      await db
+        .insert(schema.tasks)
+        .values({ listId, parentId: task!.id, title: "Gutter", position: "a0" });
+      return task!.id;
+    }
+
+    it("lets deleteTask finish before a delete that started while it held only its membership", async () => {
+      const listId = await sharedList("Gazebo");
+      const taskId = await taskWithSubtask(listId);
+      // Holds the task FOR KEY SHARE, so deleteTask stops after requireRole, at its task lock.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.tasks.id })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.id, taskId))
+          .for("key share"),
+      );
+      let deletingTask: Promise<Settled<unknown>> | undefined;
+      let deleting: Promise<Settled<void>> | undefined;
+      let taskResult: Settled<unknown> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        deletingTask = settle(deleteTask(editorDb, ids.ed, taskId));
+        await waitUntilBlockedBy(editorPid, holderPid);
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        // The delete waits for the editor's membership, not the other way round.
+        await waitUntilBlockedBy(ownerPid, editorPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        taskResult = await deletingTask;
+        deleteResult = await deleting;
+      }
+
+      expect(taskResult).toEqual({ value: null });
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    it("makes deleteTask wait for a delete that locked the members first, then report the task as not found", async () => {
+      const listId = await sharedList("Pergola");
+      const taskId = await taskWithSubtask(listId);
+      // Holds the task, so the delete stops in its cascade, after locking every membership.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.tasks.id })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.id, taskId))
+          .for("update"),
+      );
+      let deleting: Promise<Settled<void>> | undefined;
+      let deletingTask: Promise<Settled<unknown>> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      let taskResult: Settled<unknown> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        await waitUntilBlockedBy(ownerPid, holderPid);
+        deletingTask = settle(deleteTask(editorDb, ids.ed, taskId));
+        await waitUntilBlockedBy(editorPid, ownerPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        deleteResult = await deleting;
+        taskResult = await deletingTask;
+      }
+
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(taskResult).toEqual({ error: new NotFoundError("Task") });
       expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
     });
   });

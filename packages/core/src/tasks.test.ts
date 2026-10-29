@@ -7,7 +7,7 @@ import { ZodError } from "zod";
 import { requireRole } from "./access";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { taskViewSchema } from "./schemas";
-import { createTask, listTasks, requireTaskRole } from "./tasks";
+import { createTask, deleteTask, listTasks, requireTaskRole, updateTask } from "./tasks";
 import type { Db } from "./types";
 
 vi.mock("./access", () => ({ requireRole: vi.fn() }));
@@ -81,6 +81,18 @@ const lastTopLevel = {
 };
 const insertSql =
   'insert into "tasks" ("id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at") values (default, $1, default, $2, $3, default, $4, $5, $6, default, default) returning "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze"';
+
+// requireTaskRole's queries, also the start of updateTask and deleteTask.
+const readListId = {
+  sql: 'select "list_id" from "tasks" where "tasks"."id" = $1',
+  params: [taskId],
+};
+const lockTask = {
+  sql: 'select "id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at" from "tasks" where "tasks"."id" = $1 for update',
+  params: [taskId],
+};
+const createdAt = "2026-10-29T10:00:00.000Z";
+const taskRow = [taskId, listId, null, "Tiles", null, "todo", "a0", 100, 200, null, createdAt];
 
 describe("createTask", () => {
   it("authorizes write, locks the list row, appends after the last top-level task and returns its view", async () => {
@@ -361,17 +373,6 @@ describe("listTasks", () => {
 });
 
 describe("requireTaskRole", () => {
-  const readListId = {
-    sql: 'select "list_id" from "tasks" where "tasks"."id" = $1',
-    params: [taskId],
-  };
-  const lockTask = {
-    sql: 'select "id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at" from "tasks" where "tasks"."id" = $1 for update',
-    params: [taskId],
-  };
-  const createdAt = "2026-10-29T10:00:00.000Z";
-  const taskRow = [taskId, listId, null, "Tiles", null, "todo", "a0", 100, 200, null, createdAt];
-
   const run = (db: Db, id: string, action: "read" | "write" | "manage" = "write") =>
     db.transaction((tx) => requireTaskRole(tx, userId, id, action));
 
@@ -434,5 +435,264 @@ describe("requireTaskRole", () => {
     grantRole(log);
     await expect(run(db, taskId)).rejects.toEqual(new NotFoundError("Task"));
     expect(log).toEqual(["begin", readListId, "requireRole write", lockTask, "rollback"]);
+  });
+});
+
+describe("updateTask", () => {
+  const viewQuery = {
+    sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze" from "tasks" where ("tasks"."id" = $1 or "tasks"."parent_id" = $2) order by "tasks"."position" COLLATE "C", "tasks"."id" asc',
+    params: [taskId, taskId],
+  };
+  const update = (set: string, params: unknown[]) => ({
+    sql: `update "tasks" set ${set} where "tasks"."id" = $${params.length + 1}`,
+    params: [...params, taskId],
+  });
+
+  it("authorizes write on the task, writes every field given and returns the task's view", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", "Grey ones", 150000, 200000]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, {
+      title: " Tiles ",
+      description: " Grey ones ",
+      estimate: { minGrosze: 150000, maxGrosze: 200000 },
+    });
+
+    expect(view).toEqual({
+      id: taskId,
+      title: "Tiles",
+      description: "Grey ones",
+      estimate: { minGrosze: 150000, maxGrosze: 200000 },
+      unestimatedSubtasks: 0,
+      subtasks: [],
+    });
+    expect(taskViewSchema.parse(view)).toEqual(view);
+    expect(mockedRequireRole).toHaveBeenCalledWith(expect.anything(), userId, listId, "write");
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      update(
+        '"title" = $1, "description" = $2, "estimate_min_grosze" = $3, "estimate_max_grosze" = $4',
+        ["Tiles", "Grey ones", 150000, 200000],
+      ),
+      viewQuery,
+      "commit",
+    ]);
+  });
+
+  it("writes only the title when only the title is given, keeping the stored fields", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Paint", "Kept", 100, 200]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { title: "Paint" });
+
+    expect(log[4]).toEqual(update('"title" = $1', ["Paint"]));
+    expect(view).toEqual(
+      expect.objectContaining({
+        description: "Kept",
+        estimate: { minGrosze: 100, maxGrosze: 200 },
+      }),
+    );
+  });
+
+  it("writes only the description when only the description is given", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", "New", 100, 200]],
+    );
+    grantRole(log);
+    await updateTask(db, userId, taskId, { description: "New" });
+    expect(log[4]).toEqual(update('"description" = $1', ["New"]));
+  });
+
+  it("writes both estimate columns when only the estimate is given", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", null, 5000, 5000]],
+    );
+    grantRole(log);
+    await updateTask(db, userId, taskId, { estimate: { minGrosze: 5000, maxGrosze: 5000 } });
+    expect(log[4]).toEqual(
+      update('"estimate_min_grosze" = $1, "estimate_max_grosze" = $2', [5000, 5000]),
+    );
+  });
+
+  it('clears the estimate with null and the description with ""', async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", null, null, null]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { description: "", estimate: null });
+
+    expect(log[4]).toEqual(
+      update('"description" = $1, "estimate_min_grosze" = $2, "estimate_max_grosze" = $3', [
+        null,
+        null,
+        null,
+      ]),
+    );
+    expect(view).toEqual(expect.objectContaining({ description: null, estimate: null }));
+  });
+
+  it("never writes keys outside the parsed input", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Rod", null, null, null]],
+    );
+    grantRole(log);
+
+    await updateTask(db, userId, taskId, {
+      title: "Rod",
+      listId: "99999999-9999-4999-8999-999999999999",
+      parentId: ids.a,
+      position: "zzz",
+      status: "done",
+      costGrosze: 1,
+    });
+
+    expect(log[4]).toEqual(update('"title" = $1', ["Rod"]));
+  });
+
+  it("returns the task with its subtasks and rolled-up estimate, whatever order the rows come in", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [
+        [ids.a1, taskId, "Plaster", null, 30000, 40000],
+        [taskId, null, "Bathroom", "Walls", 100000, 200000],
+        [ids.a2, taskId, "Paint", null, null, null],
+      ],
+    );
+    grantRole(log);
+
+    await expect(updateTask(db, userId, taskId, { title: "Bathroom" })).resolves.toEqual({
+      id: taskId,
+      title: "Bathroom",
+      description: "Walls",
+      estimate: { minGrosze: 30000, maxGrosze: 40000 },
+      unestimatedSubtasks: 1,
+      subtasks: [
+        {
+          id: ids.a1,
+          title: "Plaster",
+          description: null,
+          estimate: { minGrosze: 30000, maxGrosze: 40000 },
+        },
+        { id: ids.a2, title: "Paint", description: null, estimate: null },
+      ],
+    });
+  });
+
+  it.each([
+    ["no field", {}],
+    ["only undefined fields", { title: undefined, description: undefined }],
+    ["a blank title", { title: " " }],
+    ["min above max", { estimate: { minGrosze: 2, maxGrosze: 1 } }],
+    ["a description over the limit", { description: "x".repeat(2001) }],
+    ["no object", null],
+  ])("rejects %s before opening a transaction", async (_name, input) => {
+    const { db, log } = fakeDb();
+    await expect(updateTask(db, userId, taskId, input)).rejects.toBeInstanceOf(ZodError);
+    expect(log).toEqual([]);
+    expect(mockedRequireRole).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing for a viewer", async () => {
+    const forbidden = new ForbiddenError();
+    const { db, log } = fakeDb([[listId]]);
+    mockedRequireRole.mockRejectedValue(forbidden);
+    await expect(updateTask(db, userId, taskId, { title: "x" })).rejects.toBe(forbidden);
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+
+  it("writes nothing for an unknown task", async () => {
+    const { db, log } = fakeDb([]);
+    grantRole(log);
+    await expect(updateTask(db, userId, taskId, { title: "x" })).rejects.toEqual(
+      new NotFoundError("Task"),
+    );
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+
+  it("translates a check violation raised by the update", async () => {
+    const { db, log } = fakeDb([[listId]], [taskRow], pgError("23514"));
+    grantRole(log);
+
+    const error: unknown = await updateTask(db, userId, taskId, { title: "secret title" }).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toEqual(new ConflictError("Invalid estimate"));
+    expect(JSON.stringify(error)).not.toContain("secret");
+    expect(log.at(-1)).toBe("rollback");
+  });
+});
+
+describe("deleteTask", () => {
+  const deleteQuery = { sql: 'delete from "tasks" where "tasks"."id" = $1', params: [taskId] };
+
+  it("authorizes write on the task, deletes it and returns null for a top-level task", async () => {
+    const { db, log } = fakeDb([[listId]], [taskRow], []);
+    grantRole(log);
+
+    await expect(deleteTask(db, userId, taskId)).resolves.toBeNull();
+    expect(mockedRequireRole).toHaveBeenCalledWith(expect.anything(), userId, listId, "write");
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      deleteQuery,
+      "commit",
+    ]);
+  });
+
+  it("deletes nothing for a viewer", async () => {
+    const forbidden = new ForbiddenError();
+    const { db, log } = fakeDb([[listId]]);
+    mockedRequireRole.mockRejectedValue(forbidden);
+    await expect(deleteTask(db, userId, taskId)).rejects.toBe(forbidden);
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+
+  it.each([
+    ["an unknown task", [[]]],
+    ["a task deleted before its lock", [[[listId]], []]],
+  ])("reports %s as not found and deletes nothing", async (_name, replies) => {
+    const { db, log } = fakeDb(...replies);
+    grantRole(log);
+    await expect(deleteTask(db, userId, taskId)).rejects.toEqual(new NotFoundError("Task"));
+    expect(log).not.toContainEqual(deleteQuery);
+    expect(log.at(-1)).toBe("rollback");
+  });
+
+  it("translates a constraint violation raised by the delete", async () => {
+    const { db, log } = fakeDb([[listId]], [taskRow], pgError("23503"));
+    grantRole(log);
+    await expect(deleteTask(db, userId, taskId)).rejects.toEqual(new NotFoundError("Task"));
+    expect(log.at(-1)).toBe("rollback");
   });
 });

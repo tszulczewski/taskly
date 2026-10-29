@@ -1,12 +1,18 @@
 import { schema } from "@taskly/db";
-import { and, asc, desc, DrizzleQueryError, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, DrizzleQueryError, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireRole } from "./access";
 import type { Action } from "./authorization";
 import { rollUpEstimate } from "./estimate";
 import { ConflictError, NotFoundError, NotImplementedError } from "./errors";
 import { positionBetween } from "./position";
-import { createTaskInput, type Estimate, type SubtaskView, type TaskView } from "./schemas";
+import {
+  createTaskInput,
+  type Estimate,
+  type SubtaskView,
+  type TaskView,
+  updateTaskInput,
+} from "./schemas";
 import type { Db, Tx } from "./types";
 
 const { tasks } = schema;
@@ -29,6 +35,14 @@ type ViewRow = {
   estimateMinGrosze: number | null;
   estimateMaxGrosze: number | null;
 };
+
+/** The columns `updateTask` may write. */
+type TaskChanges = Partial<
+  Pick<
+    typeof tasks.$inferInsert,
+    "title" | "description" | "estimateMinGrosze" | "estimateMaxGrosze"
+  >
+>;
 
 /** Sibling order: fractional keys compare bytewise, whatever the column collation. */
 const byPosition = sql`${tasks.position} COLLATE "C"`;
@@ -108,6 +122,20 @@ export async function requireTaskRole(
   return task;
 }
 
+/** The `TaskView` of a top-level task: its row and its subtasks, read in list order. */
+async function topLevelView(tx: Tx, topLevelId: string): Promise<TaskView> {
+  const rows = await tx
+    .select(viewColumns)
+    .from(tasks)
+    .where(or(eq(tasks.id, topLevelId), eq(tasks.parentId, topLevelId)))
+    .orderBy(byPosition, asc(tasks.id));
+  const subtasks = rows.filter((row) => row.parentId === topLevelId);
+  return taskView(
+    rows.find((row) => row.id === topLevelId)!,
+    subtasks,
+  );
+}
+
 /** Top-level tasks in list order, each with its subtasks (same order) and effective estimate. */
 export async function listTasks(db: Db, userId: string, listId: string): Promise<TaskView[]> {
   return inTransaction(db, async (tx) => {
@@ -167,14 +195,31 @@ export async function createTask(
   });
 }
 
+/**
+ * Writes only the keys present in the input (`estimate: null` clears both bounds) and returns
+ * the task's `TaskView`.
+ */
 export async function updateTask(
-  _db: Db,
-  _userId: string,
-  _taskId: string,
-  _input: unknown,
-): Promise<unknown> {
-  throw new NotImplementedError("updateTask");
+  db: Db,
+  userId: string,
+  taskId: string,
+  input: unknown,
+): Promise<TaskView> {
+  const { title, description, estimate } = updateTaskInput.parse(input);
+  const changes: TaskChanges = {};
+  if (title !== undefined) changes.title = title;
+  if (description !== undefined) changes.description = description;
+  if (estimate !== undefined) {
+    changes.estimateMinGrosze = estimate?.minGrosze ?? null;
+    changes.estimateMaxGrosze = estimate?.maxGrosze ?? null;
+  }
+  return inTransaction(db, async (tx) => {
+    const task = await requireTaskRole(tx, userId, taskId, "write");
+    await tx.update(tasks).set(changes).where(eq(tasks.id, task.id));
+    return topLevelView(tx, task.id);
+  });
 }
+
 export async function moveTask(
   _db: Db,
   _userId: string,
@@ -183,6 +228,12 @@ export async function moveTask(
 ): Promise<unknown> {
   throw new NotImplementedError("moveTask");
 }
-export async function deleteTask(_db: Db, _userId: string, _taskId: string): Promise<void> {
-  throw new NotImplementedError("deleteTask");
+
+/** Deletes the task; its subtasks go with it through the parent FK's cascade. */
+export async function deleteTask(db: Db, userId: string, taskId: string): Promise<TaskView | null> {
+  return inTransaction(db, async (tx) => {
+    const task = await requireTaskRole(tx, userId, taskId, "write");
+    await tx.delete(tasks).where(eq(tasks.id, task.id));
+    return null;
+  });
 }

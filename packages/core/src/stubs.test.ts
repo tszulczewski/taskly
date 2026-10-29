@@ -11,7 +11,7 @@ import {
   setShoppingItemChecked,
 } from "./shopping";
 import { globalSummary, listSummary } from "./summaryService";
-import { deleteTask, moveTask, updateTask } from "./tasks";
+import { moveTask } from "./tasks";
 import type { Db } from "./types";
 
 const db = {} as Db;
@@ -28,9 +28,7 @@ const calls: Array<[string, () => Promise<unknown>]> = [
   ["setShoppingItemChecked", () => setShoppingItemChecked(db, "u", "i", true)],
   ["globalSummary", () => globalSummary(db, "u")],
   ["listSummary", () => listSummary(db, "u", "l")],
-  ["deleteTask", () => deleteTask(db, "u", "t")],
   ["moveTask", () => moveTask(db, "u", "t", { afterId: null, beforeId: null })],
-  ["updateTask", () => updateTask(db, "u", "t", {})],
 ];
 
 describe("service stubs", () => {

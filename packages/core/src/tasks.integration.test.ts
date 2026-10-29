@@ -3,11 +3,12 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ZodError } from "zod";
 import { ForbiddenError, NotFoundError } from "./errors";
 import { createList, ensureDefaultList } from "./lists";
 import { positionBetween } from "./position";
 import { taskListResponseSchema, taskViewSchema } from "./schemas";
-import { createTask, listTasks, requireTaskRole } from "./tasks";
+import { createTask, deleteTask, listTasks, requireTaskRole, updateTask } from "./tasks";
 
 const url = process.env.DATABASE_URL;
 const run = `tsk${Date.now()}`;
@@ -168,7 +169,12 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
     await expect(createTask(db, ids.bob, aliceList, { title: "x" })).rejects.toBeInstanceOf(
       NotFoundError,
     );
-    expect((await rowsOf(aliceList)).map((r) => r.title)).toEqual(["Alice's task"]);
+    const [aliceTask] = await rowsOf(aliceList);
+    await expect(updateTask(db, ids.bob, aliceTask!.id, { title: "x" })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(deleteTask(db, ids.bob, aliceTask!.id)).rejects.toBeInstanceOf(NotFoundError);
+    expect(await rowsOf(aliceList)).toEqual([aliceTask]);
   });
 
   it("gives ten concurrent creates ten distinct positions, listed in position order", async () => {
@@ -189,6 +195,225 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
     const listed = await listTasks(db, ids.vi, listId);
     expect(listed.map((t) => t.id)).toEqual(rows.map((r) => r.id));
     expect(new Set(listed.map((t) => t.id))).toEqual(new Set(views.map((v) => v.id)));
+  });
+
+  /** A shared list with one task: "Tiles", "Grey", 1 000–1 500 zł. */
+  async function listWithTask(name: string) {
+    const listId = await sharedList(name);
+    const view = await createTask(db, ids.alice, listId, {
+      title: "Tiles",
+      description: "Grey",
+      estimate: { minGrosze: 100000, maxGrosze: 150000 },
+    });
+    const [row] = await rowsOf(listId);
+    return { listId, taskId: view.id, row: row! };
+  }
+
+  /** Inserts a subtask directly: the services create none until task 3.1. */
+  async function addSubtask(
+    listId: string,
+    parentId: string,
+    position: string,
+    estimate: [number, number] | null,
+  ) {
+    const [row] = await db
+      .insert(schema.tasks)
+      .values({
+        listId,
+        parentId,
+        title: `Sub ${position}`,
+        position,
+        estimateMinGrosze: estimate?.[0] ?? null,
+        estimateMaxGrosze: estimate?.[1] ?? null,
+      })
+      .returning({ id: schema.tasks.id });
+    return row!.id;
+  }
+
+  /** Who asks for which task id; each case must end in NotFoundError("Task"). */
+  const notFoundTargets: [string, (taskId: string) => Promise<[string, string]>][] = [
+    ["a non-member", async (taskId) => [ids.bob, taskId]],
+    ["an unknown id", async () => [ids.alice, unknownId]],
+    ["a malformed id", async () => [ids.alice, "not-a-uuid"]],
+    [
+      "another user's task",
+      async () => {
+        const bobList = await ensureDefaultList(db, ids.bob);
+        const { id } = await createTask(db, ids.bob, bobList, { title: "Bob's" });
+        return [ids.alice, id];
+      },
+    ],
+  ];
+
+  describe("updateTask", () => {
+    it("updates every field for an editor and returns the task's view", async () => {
+      const { listId, taskId, row } = await listWithTask("Bath");
+
+      const view = await updateTask(db, ids.ed, taskId, {
+        title: " Wall tiles ",
+        description: " White ",
+        estimate: { minGrosze: 200000, maxGrosze: 250000 },
+      });
+
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(view).toEqual({
+        id: taskId,
+        title: "Wall tiles",
+        description: "White",
+        estimate: { minGrosze: 200000, maxGrosze: 250000 },
+        unestimatedSubtasks: 0,
+        subtasks: [],
+      });
+      expect(await rowsOf(listId)).toEqual([
+        {
+          ...row,
+          title: "Wall tiles",
+          description: "White",
+          estimateMinGrosze: 200000,
+          estimateMaxGrosze: 250000,
+        },
+      ]);
+      expect(await listTasks(db, ids.vi, listId)).toEqual([view]);
+    });
+
+    it("keeps the description and estimate on a title-only update (the .partial() regression)", async () => {
+      const { listId, taskId, row } = await listWithTask("Hallway");
+
+      const view = await updateTask(db, ids.alice, taskId, { title: "Floor tiles" });
+
+      expect(view).toEqual(
+        expect.objectContaining({
+          title: "Floor tiles",
+          description: "Grey",
+          estimate: { minGrosze: 100000, maxGrosze: 150000 },
+        }),
+      );
+      expect(await rowsOf(listId)).toEqual([{ ...row, title: "Floor tiles" }]);
+    });
+
+    it("updates only the description, or only the estimate", async () => {
+      const { listId, taskId, row } = await listWithTask("Toilet");
+
+      await updateTask(db, ids.ed, taskId, { description: "Matt" });
+      expect(await rowsOf(listId)).toEqual([{ ...row, description: "Matt" }]);
+
+      const view = await updateTask(db, ids.ed, taskId, {
+        estimate: { minGrosze: 5000, maxGrosze: 5000 },
+      });
+      expect(view.estimate).toEqual({ minGrosze: 5000, maxGrosze: 5000 });
+      expect(await rowsOf(listId)).toEqual([
+        { ...row, description: "Matt", estimateMinGrosze: 5000, estimateMaxGrosze: 5000 },
+      ]);
+    });
+
+    it('clears the estimate with null and the description with ""', async () => {
+      const { listId, taskId, row } = await listWithTask("Laundry");
+
+      const view = await updateTask(db, ids.alice, taskId, { estimate: null, description: "" });
+
+      expect(view).toEqual(expect.objectContaining({ description: null, estimate: null }));
+      expect(await rowsOf(listId)).toEqual([
+        { ...row, description: null, estimateMinGrosze: null, estimateMaxGrosze: null },
+      ]);
+    });
+
+    it("returns the rolled-up view of a task that has subtasks", async () => {
+      const { listId, taskId } = await listWithTask("Bedroom");
+      const plaster = await addSubtask(listId, taskId, "a0", [30000, 40000]);
+      const paint = await addSubtask(listId, taskId, "a1", null);
+
+      const view = await updateTask(db, ids.ed, taskId, { title: "Bedroom walls" });
+
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(view).toEqual({
+        id: taskId,
+        title: "Bedroom walls",
+        description: "Grey",
+        estimate: { minGrosze: 30000, maxGrosze: 40000 },
+        unestimatedSubtasks: 1,
+        subtasks: [
+          {
+            id: plaster,
+            title: "Sub a0",
+            description: null,
+            estimate: { minGrosze: 30000, maxGrosze: 40000 },
+          },
+          { id: paint, title: "Sub a1", description: null, estimate: null },
+        ],
+      });
+      expect(await listTasks(db, ids.alice, listId)).toEqual([view]);
+    });
+
+    it.each([
+      ["no field", {}],
+      ["a blank title", { title: " " }],
+      ["min above max", { estimate: { minGrosze: 2, maxGrosze: 1 } }],
+    ])("rejects %s with a ZodError before touching the task", async (_name, input) => {
+      const { listId, taskId, row } = await listWithTask("Closet");
+
+      await expect(updateTask(db, ids.alice, taskId, input)).rejects.toBeInstanceOf(ZodError);
+      // Parsed before authorization: even an unknown id gets the input error.
+      await expect(updateTask(db, ids.bob, unknownId, input)).rejects.toBeInstanceOf(ZodError);
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
+
+    it("forbids a viewer and changes nothing", async () => {
+      const { listId, taskId, row } = await listWithTask("Attic");
+      await expect(updateTask(db, ids.vi, taskId, { title: "x" })).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
+
+    it.each(notFoundTargets)("reports %s as a missing task", async (_name, target) => {
+      const { listId, taskId, row } = await listWithTask("Shed");
+      const [userId, id] = await target(taskId);
+
+      const error: unknown = await updateTask(db, userId, id, { title: "Hacked" }).catch(
+        (e: unknown) => e,
+      );
+
+      expect(error).toBeInstanceOf(NotFoundError);
+      expect((error as NotFoundError).resource).toBe("Task");
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
+  });
+
+  describe("deleteTask", () => {
+    it("deletes a top-level task with its subtasks, returns null and keeps the other tasks", async () => {
+      const { listId, taskId } = await listWithTask("Kitchenette");
+      await addSubtask(listId, taskId, "a0", [30000, 40000]);
+      await addSubtask(listId, taskId, "a1", null);
+      const other = await createTask(db, ids.alice, listId, { title: "Sink" });
+
+      await expect(deleteTask(db, ids.ed, taskId)).resolves.toBeNull();
+
+      expect((await rowsOf(listId)).map((r) => r.id)).toEqual([other.id]);
+      expect(await listTasks(db, ids.alice, listId)).toEqual([other]);
+    });
+
+    it("reports an already deleted task as missing", async () => {
+      const { taskId } = await listWithTask("Balcony");
+      await deleteTask(db, ids.alice, taskId);
+      await expect(deleteTask(db, ids.alice, taskId)).rejects.toEqual(new NotFoundError("Task"));
+    });
+
+    it("forbids a viewer and keeps the task", async () => {
+      const { listId, taskId, row } = await listWithTask("Basement");
+      await expect(deleteTask(db, ids.vi, taskId)).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
+
+    it.each(notFoundTargets)("reports %s as a missing task", async (_name, target) => {
+      const { listId, taskId, row } = await listWithTask("Driveway");
+      const [userId, id] = await target(taskId);
+
+      const error: unknown = await deleteTask(db, userId, id).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(NotFoundError);
+      expect((error as NotFoundError).resource).toBe("Task");
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
   });
 
   describe("requireTaskRole", () => {
