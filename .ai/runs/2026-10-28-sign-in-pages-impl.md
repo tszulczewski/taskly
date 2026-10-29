@@ -135,3 +135,12 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
 - With the owner's consent, I pushed both branches and opened PR #40 (Phase A → `main`, closes #24) and PR #41 (Phase B, stacked on `feat/sign-in-pages-phase-a`, closes #25). Labels: `feature`, `review`, `needs-qa`, `risk-high`.
 - CI is green on both PRs, including the integration job with Testcontainers PostgreSQL + agent-browser. That is the first Testcontainers run of this code, since Docker is not accessible locally.
 - **Outcome:** spec implemented; merging is up to the owner after a second-person review and QA.
+- Owner's code review (`.ai/runs/2026-10-29-sign-in-branch-code-review.md`): approve, with one minor finding. I verified it with a reproduction: `readHidden` drops only ESC, so Left becomes `[D`, Delete becomes `[3~` and SS3 Home becomes `OH` in the password, including when ESC and the rest arrive in separate chunks. Ctrl+U is ignored too. The review proposed discarding the sequences, but that still stores a different password than the user meant (`abc` + Left + `X` gives `abcX`, not `abXc`). Owner decision: reject instead, as task 4.4.
+- **4.4** (subagent):
+  - `readHidden` now rejects with `UnsupportedKeyError` on any control character other than Enter, Backspace, Ctrl+C and Ctrl+D. That covers C0 (ESC included) and C1 (`\x80`–`\x9f`, the 8-bit CSI/SS3 forms). There is no sequence parser.
+  - The CLI prints its own message for this case ("Only letters, digits, symbols and Backspace work in the password prompt; …"), exit 1.
+  - The Runbook gets one sentence about it.
+  - Tests: unit tests for 10 key cases, plus a PTY test where an arrow in the password gives exit 1 and nothing changes.
+  - Negative control against the old prompt: 10 unit tests fail, and the PTY test gets exit 0, meaning the wrong password was stored. That confirms the lockout scenario.
+  - Gate: `format:check`, `typecheck`, `build`, `audit` pass; `lint` passes with the known warning; `npm test` 62 files, 461 tests, 100% coverage; `test:integration` 10 files, 61 tests.
+  - The review session's lesson line was rewritten from "discard" to "reject".

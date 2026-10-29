@@ -5,12 +5,14 @@ import { ZodError } from "zod";
 import { getEnv } from "../env";
 import { NotFoundError } from "../errors";
 import { SET_PASSWORD_NOT_FOUND, setPassword } from "../password-admin";
-import { readHidden } from "./prompt-hidden";
+import { UnsupportedKeyError, readHidden } from "./prompt-hidden";
 
 export const SUCCESS_MESSAGE = "Password updated; all sessions signed out";
 export const USAGE = "Usage: npm run auth:set-password -- --env-file <private-file> <email>";
 export const NOT_INTERACTIVE =
   "Run this in an interactive terminal; the password cannot be piped in.";
+export const UNSUPPORTED_KEY =
+  "Only letters, digits, symbols and Backspace work in the password prompt; arrow, Delete and other editing keys are not supported. Nothing was changed.";
 
 export const EXIT_OK = 0;
 export const EXIT_FAILURE = 1;
@@ -67,8 +69,10 @@ export async function runSetPassword(argv: string[], deps: SetPasswordDeps): Pro
       deps.stderr("The passwords do not match. Nothing was changed.");
       return EXIT_FAILURE;
     }
-  } catch {
-    deps.stderr("Cancelled. Nothing was changed.");
+  } catch (error) {
+    deps.stderr(
+      error instanceof UnsupportedKeyError ? UNSUPPORTED_KEY : "Cancelled. Nothing was changed.",
+    );
     return EXIT_FAILURE;
   }
 

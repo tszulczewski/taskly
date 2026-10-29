@@ -7,7 +7,7 @@ import { parseEnv } from "../env";
 import { NotFoundError } from "../errors";
 import { SET_PASSWORD_NOT_FOUND, setPassword } from "../password-admin";
 import { setPasswordInput } from "../schemas";
-import { readHidden } from "./prompt-hidden";
+import { PromptCancelledError, UnsupportedKeyError, readHidden } from "./prompt-hidden";
 import {
   EXIT_FAILURE,
   EXIT_OK,
@@ -15,6 +15,7 @@ import {
   NOT_INTERACTIVE,
   type SetPasswordDeps,
   SUCCESS_MESSAGE,
+  UNSUPPORTED_KEY,
   USAGE,
   nodeDeps,
   runSetPassword,
@@ -25,7 +26,10 @@ vi.mock("../password-admin", async (importOriginal) => ({
   setPassword: vi.fn(),
 }));
 vi.mock("@taskly/db", () => ({ getDb: vi.fn() }));
-vi.mock("./prompt-hidden", () => ({ readHidden: vi.fn() }));
+vi.mock("./prompt-hidden", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./prompt-hidden")>()),
+  readHidden: vi.fn(),
+}));
 // getEnv caches its first result; validate the current process.env on every call instead.
 vi.mock("../env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../env")>();
@@ -181,16 +185,41 @@ describe("runSetPassword", () => {
     expect(f.printed()).not.toContain(PASSWORD);
   });
 
-  it("aborts without resetting when the prompt is cancelled", async () => {
+  it.each([
+    ["is cancelled", new PromptCancelledError()],
+    ["closes with an unexpected error", new Error("EIO: i/o error, read")],
+  ])("aborts without resetting when the prompt %s", async (_case, error) => {
     const f = fakeDeps({
       promptHidden: async () => {
-        throw new Error("Prompt cancelled");
+        throw error;
       },
     });
 
     expect(await runSetPassword(ARGV, f.deps)).toBe(EXIT_FAILURE);
     expect(f.calls).not.toContain("setPassword owner@example.test");
     expect(f.err).toStrictEqual(["Cancelled. Nothing was changed."]);
+  });
+
+  it.each([
+    ["first", 0],
+    ["repeat", 1],
+  ])("explains an unsupported key at the %s prompt and never resets", async (_prompt, rejectAt) => {
+    let asked = 0;
+    const f = fakeDeps({
+      promptHidden: async (question) => {
+        f.calls.push(`prompt ${question}`);
+        if (asked++ === rejectAt) throw new UnsupportedKeyError();
+        return PASSWORD;
+      },
+    });
+
+    expect(await runSetPassword(ARGV, f.deps)).toBe(EXIT_FAILURE);
+    expect(f.calls.filter((call) => call.startsWith("prompt"))).toHaveLength(rejectAt + 1);
+    expect(f.calls).not.toContain("setPassword owner@example.test");
+    expect(f.calls).not.toContain("closeDb");
+    expect(f.out).toStrictEqual([]);
+    expect(f.err).toStrictEqual([UNSUPPORTED_KEY]);
+    expect(UNSUPPORTED_KEY).toMatch(/Backspace.*arrow, Delete.*Nothing was changed\.$/);
   });
 
   it("prints success only once the reset has committed", async () => {

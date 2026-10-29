@@ -70,7 +70,7 @@ Rules:
   5. Done only on exit 0 with "Password updated; all sessions signed out". On failure nothing is committed: fix the reported problem and retry, service still stopped.
   6. VPS: `sudo systemctl start taskly`, also when giving up. Check that the new password signs in and that a browser signed in before the reset lands on `/sign-in`. Close the tunnel.
 
-  Pass the env file as an absolute path (a relative one resolves against the repo root). A missing or unreadable file fails at once with Node's own `node: <path>: not found` (exit 9). Piped input is refused ("Run this in an interactive terminal…"), and so is an account without password sign-in; neither changes anything. npm echoes the command line, so the email and env-file path show in the terminal; the password never does.
+  Pass the env file as an absolute path (a relative one resolves against the repo root). A missing or unreadable file fails at once with Node's own `node: <path>: not found` (exit 9). Piped input is refused ("Run this in an interactive terminal…"), and so is an account without password sign-in; neither changes anything. npm echoes the command line, so the email and env-file path show in the terminal; the password never does. Only Backspace edits in the password prompt; arrow, Delete and other editing keys abort it with nothing changed.
 
 ### Engineering standards (digest)
 

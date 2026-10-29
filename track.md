@@ -49,6 +49,7 @@ Owner's manual test of phase 3 (2026-10-29):
 - [x] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
 - [x] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
 - [x] 4.3 Reset Runbook in `AGENTS.md`, full gate, lessons, move spec to `implemented/`
+- [x] 4.4 Code review (`.ai/runs/2026-10-29-sign-in-branch-code-review.md`, minor): the hidden prompt turns arrow/Delete/Home sequences into password text (`abc`+Left → `abc[D`) and ignores Ctrl+U. Reject ESC and any control key other than Enter/Backspace/Ctrl+C/Ctrl+D with a distinct CLI message; unit + PTY tests; Runbook note
 
 **Manual test:** reset the password of a disposable dev account with `npm run auth:set-password`.
 

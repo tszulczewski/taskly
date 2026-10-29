@@ -17,6 +17,8 @@ const email = (slug: string) => `${run}-${slug}@example.test`;
 const OLD_PASSWORD = "old-password-before-reset";
 const NEW_PASSWORD = "new-password-after-reset";
 const SUCCESS = "Password updated; all sessions signed out";
+const UNSUPPORTED_KEY =
+  "Only letters, digits, symbols and Backspace work in the password prompt; arrow, Delete and other editing keys are not supported. Nothing was changed.";
 // An open pg pool keeps Node alive for its 10 s idle timeout; a clean exit is far quicker.
 const PROMPT_EXIT_MS = 5_000;
 
@@ -179,6 +181,33 @@ describe("npm run auth:set-password (fresh shell, real PostgreSQL)", () => {
     expect(reset.output()).toContain("No user with that email. Nothing was changed.");
     expect(reset.output()).not.toContain(SUCCESS);
     expect(reset.output()).not.toContain(NEW_PASSWORD);
+  });
+
+  it("rejects an arrow key in the password and changes nothing", async () => {
+    const user = await userWithSession("arrow");
+    const hashBefore = await passwordHashOf(user.id);
+    // Left then X: the user believes they typed "…reseXt". The same keys at both prompts would
+    // pass the mismatch check, so the repeat prompt gets them too if it ever appears.
+    const keys = `${NEW_PASSWORD.slice(0, -1)}\x1b[DX${NEW_PASSWORD.slice(-1)}\r`;
+
+    const reset = startReset(envFile, dir, user.email, { tty: true });
+    await reset.waitFor("New password: ");
+    reset.type(keys);
+    const repeated = reset.waitFor("Repeat the new password: ").then(
+      () => reset.type(keys),
+      () => {},
+    );
+    const { code } = await reset.exited;
+    await repeated;
+
+    expect(code).toBe(1);
+    expect(reset.output()).toContain(UNSUPPORTED_KEY);
+    expect(reset.output()).not.toContain("Repeat the new password");
+    expect(reset.output()).not.toContain(SUCCESS);
+    expect(reset.output()).not.toContain(NEW_PASSWORD.slice(0, -1));
+    expect(await passwordHashOf(user.id)).toBe(hashBefore);
+    expect(await sessionsOf(user.id)).toHaveLength(1);
+    expect((await signIn(user.email, OLD_PASSWORD)).status).toBe(200);
   });
 
   it("refuses piped input before prompting and changes nothing", async () => {

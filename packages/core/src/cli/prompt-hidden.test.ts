@@ -1,6 +1,11 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { type HiddenInput, PromptCancelledError, readHidden } from "./prompt-hidden";
+import {
+  type HiddenInput,
+  PromptCancelledError,
+  UnsupportedKeyError,
+  readHidden,
+} from "./prompt-hidden";
 
 function fakeTerminal() {
   const log: string[] = [];
@@ -55,12 +60,36 @@ describe("readHidden", () => {
     await expect(answer).resolves.toBe("zażxy");
   });
 
-  it("drops other control characters", async () => {
+  it("keeps spaces, symbols and non-Latin characters", async () => {
     const t = fakeTerminal();
     const answer = t.ask();
-    t.type("a\tb\x1bc\r");
+    t.type("pass word ~!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/ ąę ¡¿ 密码\r");
 
-    await expect(answer).resolves.toBe("abc");
+    await expect(answer).resolves.toBe("pass word ~!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/ ąę ¡¿ 密码");
+  });
+
+  // Discarding these would store a password the user did not mean: `abc`, Left, `X` looks like
+  // `abXc` but would become `abcX`, and the same keys at both prompts pass the mismatch check.
+  it.each([
+    ["Left", ["abc\x1b[DX\r"]],
+    ["Delete", ["abc\x1b[3~\r"]],
+    ["Home (CSI)", ["abc\x1b[H\r"]],
+    ["Home (SS3)", ["abc\x1bOH\r"]],
+    ["ESC and [D in separate chunks", ["abc", "\x1b", "[D", "\r"]],
+    ["Alt+x", ["abc\x1bx\r"]],
+    ["Tab", ["abc\tdef\r"]],
+    ["Ctrl+U", ["abc\x15xyz\r"]],
+    ["Ctrl+W", ["abc\x17xyz\r"]],
+    ["an 8-bit CSI", ["abc\x9bD\r"]],
+  ])("rejects %s and restores the terminal", async (_key, chunks) => {
+    const t = fakeTerminal();
+    const answer = t.ask();
+    t.type(...chunks);
+
+    await expect(answer).rejects.toBeInstanceOf(UnsupportedKeyError);
+    expect(t.log).toStrictEqual(["raw:true", "write:Password: ", "raw:false", "pause", "write:\n"]);
+    expect(t.input.listenerCount("data")).toBe(0);
+    expect(t.input.listenerCount("end")).toBe(0);
   });
 
   it.each([
