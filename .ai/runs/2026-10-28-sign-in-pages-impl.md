@@ -102,3 +102,5 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - Tests: a unit regression test checks that two module instances warn once. A new integration test checks one warning in the server's stderr after a page render and an auth API call; `startApp` now collects stderr. The integration test was not run against an unfixed build; the old-build reproduction above shows the same two requests giving 2 warnings.
   - Mutation check in a separate worktree: without the fix, the new unit test fails (warn called 2 times).
   - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 60 files, 403 tests, 100% coverage; `test:integration` 9 files, 50 tests.
+- Owner's manual test of phase 3 (after 3.8 and 3.9): everything works. Phase 3 is accepted.
+- At the owner's request, the dev DB's registration data was deleted: 3 users (`admin@neocraft.eu`, `admin2@neocraft.eu` and a subagent's `repro-…@example.test`), with their sessions and accounts. The dev DB now has no users. Domain tables have no FK to `user` and were not touched.
