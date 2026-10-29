@@ -2,7 +2,7 @@
 
 - **Spec:** `.ai/specs/2026-10-16-sign-in-pages.md` (issues #24 Phase A, #25 Phase B)
 - **Run log:** `.ai/runs/2026-10-28-sign-in-pages-impl.md`
-- **Branch:** `feat/sign-in-pages-phase-a` (Phase B gets its own branch on top)
+- **Branch:** `feat/sign-in-pages-phase-a` (phases 1–3); phase 4 on `feat/sign-in-pages-phase-b`, created from phase-a on 2026-10-29
 - **Rule:** one subagent per task, one commit per task, manual test stop after each phase.
 
 Legend: `[x]` done and committed, `[ ]` pending.
@@ -46,7 +46,7 @@ Owner's manual test of phase 3 (2026-10-29):
 
 ## Phase 4 — Password reset, spec Phase B (spec steps 7B, 10)
 
-- [ ] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
+- [x] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
 - [ ] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
 - [ ] 4.3 Reset Runbook in `AGENTS.md`, full gate, lessons, move spec to `implemented/`
 

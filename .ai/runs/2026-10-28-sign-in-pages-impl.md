@@ -104,3 +104,12 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 60 files, 403 tests, 100% coverage; `test:integration` 9 files, 50 tests.
 - Owner's manual test of phase 3 (after 3.8 and 3.9): everything works. Phase 3 is accepted.
 - At the owner's request, the dev DB's registration data was deleted: 3 users (`admin@neocraft.eu`, `admin2@neocraft.eu` and a subagent's `repro-…@example.test`), with their sessions and accounts. The dev DB now has no users. Domain tables have no FK to `user` and were not touched.
+- Phase 4 started on `feat/sign-in-pages-phase-b`, created from phase-a at `feba96f`. Neither branch is pushed.
+- **4.1** (subagent): `setPassword(email, newPassword)` in `password-admin.ts`.
+  - It parses `setPasswordInput`: the email is lowercased, and the password check is the shared `newPasswordField`, 10–128 characters, which `signUpInput` now uses too.
+  - It hashes before the transaction. Inside `runWithTransaction` it runs `findUserByEmail`, `findCredentialAccount`, `updatePassword` and `deleteUserSessions`. The API was checked in Better Auth 1.7.7 (`@better-auth/core/dist/types/context.d.mts`, `better-auth/dist/db/internal-adapter.mjs`, `@better-auth/core/dist/context/transaction.mjs`, `@better-auth/drizzle-adapter/dist/index.mjs:559`).
+  - My decision, since the spec is silent: a user with no credential account gets `NotFoundError("Credential account")` and nothing changes. `updatePassword` would otherwise change no row while sessions were still revoked and the command reported success. Better Auth's own reset endpoint would create the account instead. Today every account is email + password, so this only matters once Google login exists.
+  - No row lock: the reset is an offline step with the service stopped (spec).
+  - Tests: +6 unit tests, plus schema and barrel tests. +6 integration tests: the new password works, the old one fails, sessions are gone, unknown email, short password, no credential account, and rollback when the injected failure comes before or after both writes.
+  - Negative control in a separate worktree: with the writes outside the transaction, 2 rollback tests fail; with `transaction: false`, 3 fail (the earlier `createPasswordUser` orphan test included).
+  - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 60 files, 411 tests, 100% coverage; `test:integration` 9 files, 56 tests.
