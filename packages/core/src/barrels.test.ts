@@ -10,6 +10,12 @@ describe("entry points", () => {
     // The sign-up and sign-in forms import these from the client-safe entry.
     expect(isomorphic.signUpInput).toBeDefined();
     expect(isomorphic.signInInput).toBeDefined();
+    // The task forms parse amounts and validate tasks in the browser (spec E01).
+    expect(isomorphic.parsePlnToGrosze).toBeTypeOf("function");
+    expect(isomorphic.estimateFromAmounts).toBeTypeOf("function");
+    expect(isomorphic.rollUpEstimate).toBeTypeOf("function");
+    expect(isomorphic.createTaskInput).toBeDefined();
+    expect(isomorphic.taskListResponseSchema).toBeDefined();
   });
 
   it("exports services from the server entry and keeps the root exports", () => {
