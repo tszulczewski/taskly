@@ -21,10 +21,11 @@ const PLACEHOLDER = "Your tasks will appear here";
 const SIGN_OUT_FAILED = "Could not sign out. Try again.";
 const HEADER = '[data-slot="app-header"]';
 
-// The browser cannot send `X-Forwarded-For`, so all its auth requests share the trusted-127.0.0.1
-// bucket, one per path, of 3 attempts per 10 s for `/sign-in*` and `/sign-up*`. This file submits
-// the sign-up form once and the sign-in form twice. Sign-out tests get their session over HTTP
-// with their own client address instead, so they spend nothing from the browser's buckets.
+// Without an `X-Forwarded-For` header all the browser's auth requests share the trusted-127.0.0.1
+// bucket, one per path, of 3 attempts per 10 s for `/sign-in*` and `/sign-up*`. From that bucket
+// this file submits the sign-up form once and the sign-in form twice. Sign-out tests get their
+// session over HTTP with their own client address, and the same-tab round trip sends its own
+// address from the browser (`setForwardedFor`), so neither spends from the shared buckets.
 describe("auth in the browser (sign-up open)", () => {
   let app: RunningApp;
   const browser = createBrowser("taskly-auth-browser-open");
@@ -69,6 +70,7 @@ describe("auth in the browser (sign-up open)", () => {
   beforeEach(() => {
     browser.open("about:blank");
     browser.clearCookies();
+    browser.clearHeaders();
   });
 
   afterAll(async () => {
@@ -107,6 +109,52 @@ describe("auth in the browser (sign-up open)", () => {
     await browser.waitForPath("/sign-in");
     await browser.waitForHydrated('input[autocomplete="email"]');
     expect(browser.url()).toBe(`${app.url}/sign-in`);
+  });
+
+  // Regression (track 3.8): Cache Components hide a page the user left (React Activity) and show
+  // the same instance on the next visit, so a busy sign-out button or a finished form came back
+  // still spinning. Every step stays in one tab with no reload, as a user would do it.
+  it("signs up, out and in again in one tab, and each page comes back ready", async () => {
+    const authFields = 'input[autocomplete="current-password"], input[autocomplete="new-password"]';
+    const formsEmpty = () =>
+      browser.evaluate<boolean>(
+        `[...document.querySelectorAll(${JSON.stringify(authFields)})].every((e) => e.value === "")`,
+      );
+    browser.setForwardedFor(nextIp());
+    browser.open(`${app.url}/sign-up`);
+    await browser.waitForHydrated('input[autocomplete="name"]');
+    browser.typeInto('input[autocomplete="name"]', "Round Trip");
+    browser.typeInto('input[autocomplete="email"]', email("roundtrip"));
+    browser.typeInto('input[autocomplete="new-password"]', password);
+    browser.clickRole("button", "Create account");
+    await browser.waitForPath("/");
+    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForHydrated(HEADER);
+
+    browser.clickRole("button", "Sign out");
+    await browser.waitForPath("/sign-in");
+    await browser.waitForHydrated('input[autocomplete="current-password"]');
+    expect(browser.buttonEnabled("Sign in")).toBe(true);
+    browser.typeInto('input[autocomplete="email"]', email("roundtrip"));
+    browser.typeInto('input[autocomplete="current-password"]', password);
+    browser.clickRole("button", "Sign in");
+    await browser.waitForPath("/");
+    await browser.waitForText(PLACEHOLDER);
+    expect(browser.count(HEADER)).toBe(1);
+    expect(browser.buttonEnabled("Sign out")).toBe(true);
+    expect(await sessionCount(email("roundtrip"))).toBe(1);
+
+    browser.clickRole("button", "Sign out");
+    await browser.waitForPath("/sign-in");
+    await browser.waitForHydrated('a[href="/sign-up"]');
+    expect(await sessionCount(email("roundtrip"))).toBe(0);
+    expect(browser.buttonEnabled("Sign in")).toBe(true);
+    expect(formsEmpty()).toBe(true);
+    browser.clickRole("link", "Create an account");
+    await browser.waitForPath("/sign-up");
+    await browser.waitForHydrated('input[autocomplete="name"]');
+    expect(browser.buttonEnabled("Create account")).toBe(true);
+    expect(formsEmpty()).toBe(true);
   });
 
   it("keeps a failed sign-out on / with a retry message, and a retry signs out", async () => {

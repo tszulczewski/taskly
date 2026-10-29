@@ -292,6 +292,13 @@ export function createBrowser(session: string) {
       );
     },
     clearCookies: () => run("cookies", "clear"),
+    /**
+     * Sends `X-Forwarded-For: <address>` with every request, as Apache would append it, so the
+     * page's auth requests use that address's rate-limit bucket instead of the shared 127.0.0.1 one.
+     */
+    setForwardedFor: (address: string) =>
+      run("set", "headers", JSON.stringify({ "X-Forwarded-For": address })),
+    clearHeaders: () => run("set", "headers", "{}"),
     close: () => run("close"),
   };
 }

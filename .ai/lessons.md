@@ -12,6 +12,10 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-10-29 — With `cacheComponents`, Next 16 hides a page you leave (React `<Activity>`) and shows the same instance, with its state, on the next visit. Busy-until-navigation UI (header sign-out, finished `useForm`) came back spinning after sign-up → sign-out → sign-in in one tab. Reset transient state in a `useLayoutEffect` cleanup, and test flows as same-tab round trips, not only after a fresh `browser.open` → [details](lessons/2026-10-29-activity-keeps-state-across-auth.md)
+- 2026-10-29 — Manual-test steps for the standalone build must say to open the `BETTER_AUTH_URL` host (`http://localhost:3000`), not the `http://127.0.0.1:3000` the server prints with `HOSTNAME=127.0.0.1`. Better Auth rejects any other origin with 403 `INVALID_ORIGIN`, which the form shows as "Something went wrong".
+- 2026-10-29 — When editing a file in place with Python, read it before opening it for writing: `open(p, 'w').write(f(open(p).read()))` truncates first and reads an empty file. This wiped another session's uncommitted `lessons.md` edits (restored from a saved copy).
+
 <!-- Format: - YYYY-MM-DD — Short summary → [details](lessons/YYYY-MM-DD-slug.md) -->
 
 - 2026-10-28 — Vitest 5.0.5 turns any error thrown in `globalSetup` into `code.charCodeAt is not a function` (its runner hands Vite a Buffer, and source-map lookup crashes), shown as "No test files found". `test/global-setup.ts` now rethrows with the cause chain in the message and a plain-string `stack`; to debug other setup code, run it directly in node.
