@@ -37,6 +37,7 @@ describe("schema", () => {
 
   it("resolves every foreign key reference", () => {
     const withKeys = [
+      schema.lists,
       schema.listMembers,
       schema.invitations,
       schema.tasks,

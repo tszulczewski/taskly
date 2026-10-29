@@ -9,7 +9,7 @@ Legend: `[ ]` to do · `[x]` done
 
 ## Phase 1 — Schema and core (PR A, closes #22; spec steps 1–6)
 
-- [ ] **1.1 Migration `0001`** — `schema.ts` (description, `(list_id, id)` unique, same-list parent FK with cascade, estimate checks, unique sibling position `NULLS NOT DISTINCT`, `lists.default_for_user_id` + partial unique index), `db:generate`, unique before FK in SQL, schema integration tests, Testcontainers-only upgrade test, rollback SQL tested by hand and recorded in the run log.
+- [x] **1.1 Migration `0001`** — `schema.ts` (description, `(list_id, id)` unique, same-list parent FK with cascade, estimate checks, unique sibling position `NULLS NOT DISTINCT`, `lists.default_for_user_id` + partial unique index), `db:generate`, unique before FK in SQL, schema integration tests, Testcontainers-only upgrade test, rollback SQL tested by hand and recorded in the run log.
 - [ ] **1.2 Money, estimates and schemas** — `parsePlnToGrosze`, `MAX_ESTIMATE_GROSZE`, `estimate.ts` (`estimateFromAmounts`, `rollUpEstimate`), `estimateGroszeSchema`, `estimateViewSchema`, `taskFields` / `createTaskInput` / `updateTaskInput`, `estimateSchema` path → `maxGrosze`, response schemas and `TaskView`; unit tests.
 - [ ] **1.3 `ensureDefaultList`** — read first, write only on a miss (`ON CONFLICT DO NOTHING`); unit tests (hit/miss) and integration tests (idempotent, concurrent first calls, per user).
 - [ ] **1.4 `deleteList` changes** — default-list guard (409), lock all memberships `FOR UPDATE` ordered by `user_id`; `renameList` still renames the default list; distinct-actor concurrency test (no `40P01`).
