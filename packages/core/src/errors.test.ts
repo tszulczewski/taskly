@@ -5,6 +5,7 @@ import {
   NotFoundError,
   NotImplementedError,
   UnauthorizedError,
+  ValidationError,
 } from "./errors";
 
 describe("errors", () => {
@@ -18,5 +19,7 @@ describe("errors", () => {
     expect(new ConflictError().message).toBe("Conflict");
     expect(new ConflictError("Slot taken").message).toBe("Slot taken");
     expect(new NotImplementedError("x").message).toBe("x is not implemented yet");
+    expect(new ValidationError().message).toBe("Invalid input");
+    expect(new ValidationError("Invalid JSON body").message).toBe("Invalid JSON body");
   });
 });

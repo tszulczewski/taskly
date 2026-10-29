@@ -5,6 +5,7 @@ import {
   NotFoundError,
   NotImplementedError,
   UnauthorizedError,
+  ValidationError,
 } from "./errors";
 
 /** JSON envelope shared by all API routes (SSE routes are the exception). */
@@ -59,6 +60,7 @@ export function mapError(error: unknown): MappedError {
       (fieldErrors[issue.path.join(".") || "_"] ??= []).push(issue.message);
     return fail(400, "validation_error", "Invalid input", fieldErrors);
   }
+  if (error instanceof ValidationError) return fail(400, "validation_error", error.message);
   if (error instanceof UnauthorizedError) return fail(401, "unauthorized", "Unauthorized");
   if (error instanceof ForbiddenError) return fail(403, "forbidden", "Forbidden");
   if (error instanceof NotFoundError) return fail(404, "not_found", error.message);

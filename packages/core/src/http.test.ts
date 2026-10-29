@@ -6,6 +6,7 @@ import {
   NotFoundError,
   NotImplementedError,
   UnauthorizedError,
+  ValidationError,
 } from "./errors";
 import { apiResponseSchema, hasCsrfHeader, mapError } from "./http";
 
@@ -16,6 +17,12 @@ describe("mapError", () => {
     expect(mapError(new NotFoundError("List")).status).toBe(404);
     expect(mapError(new ConflictError()).status).toBe(409);
     expect(mapError(new NotImplementedError("x")).status).toBe(501);
+  });
+  it("maps an unparseable request to 400 with its message and no field errors", () => {
+    expect(mapError(new ValidationError("Invalid JSON body"))).toEqual({
+      status: 400,
+      body: { ok: false, error: { code: "validation_error", message: "Invalid JSON body" } },
+    });
   });
   it("maps Zod errors to 400 with field errors", () => {
     const r = z.object({ name: z.string().min(2) }).safeParse({ name: "a" });

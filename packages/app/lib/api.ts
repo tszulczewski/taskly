@@ -6,6 +6,7 @@ import {
   mapError,
   type ResponseSchema,
   UnauthorizedError,
+  ValidationError,
 } from "@taskly/core";
 import { getSessionUser } from "@taskly/core/server";
 
@@ -68,4 +69,16 @@ export async function requireUser(req: Request) {
   const user = await getSessionUser(req.headers);
   if (!user) throw new UnauthorizedError();
   return user;
+}
+
+/**
+ * The request body as `unknown`, for core to parse with its Zod schema. A body that is not JSON
+ * (or is missing) is a 400, not the generic 500 that `req.json()`'s SyntaxError would give.
+ */
+export async function readJson(req: Request): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new ValidationError("Invalid JSON body");
+  }
 }

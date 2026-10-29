@@ -8,13 +8,14 @@ import {
   type TaskView,
   taskViewSchema,
   UnauthorizedError,
+  ValidationError,
 } from "@taskly/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionUser = vi.fn();
 vi.mock("@taskly/core/server", () => ({ getSessionUser }));
 
-const { apiHandler, requireUser } = await import("./api");
+const { apiHandler, readJson, requireUser } = await import("./api");
 
 const post = (headers: Record<string, string> = {}) =>
   new Request("http://x/api", { method: "POST", headers });
@@ -227,5 +228,43 @@ describe("requireUser", () => {
   it("throws UnauthorizedError without a session", async () => {
     getSessionUser.mockResolvedValueOnce(null);
     await expect(requireUser(new Request("http://x/"))).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+});
+
+describe("readJson", () => {
+  const withBody = (body?: string) => new Request("http://x/api", { method: "POST", body });
+
+  it("returns the parsed body untouched", async () => {
+    expect(await readJson(withBody('{"title":"Tiles","extra":[1]}'))).toEqual({
+      title: "Tiles",
+      extra: [1],
+    });
+    expect(await readJson(withBody("null"))).toBeNull();
+  });
+
+  it.each([
+    ["malformed JSON", "{title:"],
+    ["an empty body", ""],
+    ["no body", undefined],
+  ])("turns %s into a 400 validation error", async (_, body) => {
+    const error = await readJson(withBody(body)).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as Error).message).toBe("Invalid JSON body");
+  });
+
+  it("answers 400 without logging when a handler reads a malformed body", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const req = new Request("http://x/api", {
+      method: "POST",
+      headers: { "x-requested-with": "taskly" },
+      body: "{",
+    });
+    const res = await apiHandler(async (r: Request) => readJson(r))(req, {});
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: { code: "validation_error", message: "Invalid JSON body" },
+    });
+    expect(spy).not.toHaveBeenCalled();
   });
 });
