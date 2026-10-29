@@ -47,7 +47,7 @@ Owner's manual test of phase 3 (2026-10-29):
 ## Phase 4 — Password reset, spec Phase B (spec steps 7B, 10)
 
 - [x] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
-- [ ] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
+- [x] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
 - [ ] 4.3 Reset Runbook in `AGENTS.md`, full gate, lessons, move spec to `implemented/`
 
 **Manual test:** reset the password of a disposable dev account with `npm run auth:set-password`.

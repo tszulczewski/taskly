@@ -11,6 +11,8 @@ describe("errors", () => {
   it("builds messages", () => {
     expect(new NotFoundError().message).toBe("Resource not found");
     expect(new NotFoundError("List").message).toBe("List not found");
+    expect(new NotFoundError("List").resource).toBe("List");
+    expect(new NotFoundError().resource).toBe("Resource");
     expect(new ForbiddenError().message).toBe("Forbidden");
     expect(new UnauthorizedError().message).toBe("Unauthorized");
     expect(new ConflictError().message).toBe("Conflict");

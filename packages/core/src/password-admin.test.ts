@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "./errors";
-import { createPasswordUser, setPassword } from "./password-admin";
+import { SET_PASSWORD_NOT_FOUND, createPasswordUser, setPassword } from "./password-admin";
 
 const { calls, ctx, runWithTransaction } = vi.hoisted(() => {
   const calls: string[] = [];
@@ -153,9 +153,14 @@ describe("setPassword", () => {
   it("throws NotFoundError for an unknown email without writing", async () => {
     ctx.internalAdapter.findUserByEmail.mockResolvedValueOnce(null);
 
-    await expect(setPassword("nobody@example.test", "new-correct-horse")).rejects.toThrow(
-      new NotFoundError("User"),
+    const error = await setPassword("nobody@example.test", "new-correct-horse").catch(
+      (e: unknown) => e,
     );
+    expect(error).toBeInstanceOf(NotFoundError);
+    expect(error).toMatchObject({
+      message: "User not found",
+      resource: SET_PASSWORD_NOT_FOUND.user,
+    });
     expect(ctx.internalAdapter.updatePassword).not.toHaveBeenCalled();
     expect(ctx.internalAdapter.deleteUserSessions).not.toHaveBeenCalled();
   });
@@ -163,9 +168,14 @@ describe("setPassword", () => {
   it("throws NotFoundError for a user without a credential account, without writing", async () => {
     ctx.internalAdapter.findCredentialAccount.mockResolvedValueOnce(null);
 
-    await expect(setPassword("ada@example.test", "new-correct-horse")).rejects.toThrow(
-      new NotFoundError("Credential account"),
+    const error = await setPassword("ada@example.test", "new-correct-horse").catch(
+      (e: unknown) => e,
     );
+    expect(error).toBeInstanceOf(NotFoundError);
+    expect(error).toMatchObject({
+      message: "Credential account not found",
+      resource: SET_PASSWORD_NOT_FOUND.credentialAccount,
+    });
     expect(ctx.internalAdapter.updatePassword).not.toHaveBeenCalled();
     expect(ctx.internalAdapter.deleteUserSessions).not.toHaveBeenCalled();
   });

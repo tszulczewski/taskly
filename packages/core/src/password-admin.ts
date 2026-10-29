@@ -4,6 +4,12 @@ import { getAuth } from "./auth";
 import { NotFoundError } from "./errors";
 import { type SignUpInput, setPasswordInput, signUpInput } from "./schemas";
 
+/** `NotFoundError.resource` values of `setPassword`, so callers can tell the two apart. */
+export const SET_PASSWORD_NOT_FOUND = {
+  user: "User",
+  credentialAccount: "Credential account",
+} as const;
+
 /**
  * Creates an email + password user the way Better Auth's sign-up handler does, but without
  * its `disableSignUp` gate and HTTP rate limit. For tests and maintenance, never for a route.
@@ -41,12 +47,12 @@ export async function setPassword(email: string, newPassword: string) {
   const hash = await ctx.password.hash(input.newPassword);
   await runWithTransaction(ctx.adapter, async () => {
     const found = await ctx.internalAdapter.findUserByEmail(input.email);
-    if (!found) throw new NotFoundError("User");
+    if (!found) throw new NotFoundError(SET_PASSWORD_NOT_FOUND.user);
     const userId = found.user.id;
     // updatePassword silently matches no row when there is no credential account; refuse rather
     // than revoke sessions and report a reset that set no password.
     if (!(await ctx.internalAdapter.findCredentialAccount(userId))) {
-      throw new NotFoundError("Credential account");
+      throw new NotFoundError(SET_PASSWORD_NOT_FOUND.credentialAccount);
     }
     await ctx.internalAdapter.updatePassword(userId, hash);
     await ctx.internalAdapter.deleteUserSessions(userId);

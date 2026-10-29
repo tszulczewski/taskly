@@ -19,6 +19,7 @@
     "audit": "npm audit --omit=dev --audit-level=high",
     "test:unit": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.mts",
+    "auth:set-password": "tsx --conditions=react-server packages/core/scripts/set-password.ts",
     "storybook": "npm run storybook -w @taskly/ui",
     "build-storybook": "npm run build-storybook -w @taskly/ui",
     "test:storybook": "npm run test:storybook -w @taskly/ui",
@@ -35,6 +36,7 @@
     "jsdom": "^30.1.2",
     "prettier": "^3.9.10",
     "testcontainers": "^12.2.1",
+    "tsx": "4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.5"
   }
