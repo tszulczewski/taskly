@@ -37,6 +37,9 @@ export const estimateViewSchema = z
 
 export const createListInput = z.object({ name: z.string().trim().min(1).max(100) });
 
+/** The name `ensureDefaultList` gives a user's default list; also the `/` heading when it failed. */
+export const DEFAULT_LIST_NAME = "My renovation";
+
 const TITLE_MAX = 200;
 const DESCRIPTION_MAX = 2000;
 

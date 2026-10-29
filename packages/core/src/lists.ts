@@ -2,7 +2,7 @@ import { schema } from "@taskly/db";
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { requireRole } from "./access";
 import { ConflictError, NotImplementedError } from "./errors";
-import { createListInput, type Role } from "./schemas";
+import { createListInput, DEFAULT_LIST_NAME, type Role } from "./schemas";
 import type { Db, DbOrTx, Tx } from "./types";
 
 export type ListSummaryRow = { id: string; name: string; kind: "project" | "shopping"; role: Role };
@@ -82,8 +82,6 @@ export async function deleteList(db: Db, userId: string, listId: string): Promis
     await tx.delete(schema.lists).where(eq(schema.lists.id, listId));
   });
 }
-
-const DEFAULT_LIST_NAME = "My renovation";
 
 async function findDefaultListId(db: DbOrTx, userId: string): Promise<string | undefined> {
   const [list] = await db

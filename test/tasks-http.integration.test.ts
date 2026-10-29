@@ -333,6 +333,20 @@ describe("task routes over HTTP", () => {
     const aged = new Date(Date.now() + 28 * DAY_MS);
     await db.update(schema.session).set({ expiresAt: aged }).where(eq(schema.session.token, token));
 
+    // The page that opens the list first: a full document request (no `RSC: 1`) must not spend
+    // the renewal, or the API call below would find nothing left to renew.
+    const doc = await fetch(`${app.url}/`, {
+      headers: { cookie: user.cookie },
+      redirect: "manual",
+    });
+    expect(doc.status).toBe(200);
+    const html = await doc.text();
+    // The page gave this list to the screen (its id is in the screen's props).
+    expect(html).toContain(listId);
+    expect(html).not.toContain("Could not open your tasks.");
+    expect(touchesSessionCookie(doc)).toBe(false);
+    expect((await sessionRow(token))?.expiresAt).toEqual(aged);
+
     const res = await api(tasksPath(listId), { cookie: user.cookie });
     expect(taskListResponseSchema.parse(await okData(res))).toEqual([]);
     const renewed = sessionCookie(res);

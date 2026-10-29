@@ -16,6 +16,8 @@ describe("entry points", () => {
     expect(isomorphic.rollUpEstimate).toBeTypeOf("function");
     expect(isomorphic.createTaskInput).toBeDefined();
     expect(isomorphic.taskListResponseSchema).toBeDefined();
+    // The `/` page shows the default list's name, also when the list could not be opened.
+    expect(isomorphic.DEFAULT_LIST_NAME).toBe("My renovation");
   });
 
   it("exports services from the server entry and keeps the root exports", () => {

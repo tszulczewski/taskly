@@ -17,7 +17,8 @@ import {
 const run = `authbrowseropen${Date.now()}`;
 const email = (slug: string) => `${run}-${slug}@example.test`;
 const password = "correct-horse-battery";
-const PLACEHOLDER = "Your tasks will appear here";
+// The heading of `/`, the signed-in page.
+const HEADING = "My renovation";
 const SIGN_OUT_FAILED = "Could not sign out. Try again.";
 const HEADER = '[data-slot="app-header"]';
 
@@ -97,7 +98,7 @@ describe("auth in the browser (sign-up open)", () => {
     browser.clickRole("button", "Create account");
 
     await browser.waitForPath("/");
-    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForText(HEADING);
     expect(await sessionCount(email("signup"))).toBe(1);
     await browser.waitForHydrated(HEADER);
 
@@ -128,7 +129,7 @@ describe("auth in the browser (sign-up open)", () => {
     browser.typeInto('input[autocomplete="new-password"]', password);
     browser.clickRole("button", "Create account");
     await browser.waitForPath("/");
-    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForText(HEADING);
     await browser.waitForHydrated(HEADER);
 
     browser.clickRole("button", "Sign out");
@@ -139,7 +140,7 @@ describe("auth in the browser (sign-up open)", () => {
     browser.typeInto('input[autocomplete="current-password"]', password);
     browser.clickRole("button", "Sign in");
     await browser.waitForPath("/");
-    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForText(HEADING);
     expect(browser.count(HEADER)).toBe(1);
     expect(browser.buttonEnabled("Sign out")).toBe(true);
     expect(await sessionCount(email("roundtrip"))).toBe(1);
@@ -160,7 +161,7 @@ describe("auth in the browser (sign-up open)", () => {
   it("keeps a failed sign-out on / with a retry message, and a retry signs out", async () => {
     await signInBrowserAs("signout-fail");
     browser.open(`${app.url}/`);
-    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForText(HEADING);
     await browser.waitForHydrated(HEADER);
 
     browser.abortRequests("**/api/auth/sign-out");
@@ -186,7 +187,7 @@ describe("auth in the browser (sign-up open)", () => {
     await createUser({ name: "Signs In", email: email("signin"), password });
     await fillSignIn(email("signin"), password);
     await browser.waitForPath("/");
-    await browser.waitForText(PLACEHOLDER);
+    await browser.waitForText(HEADING);
     expect(browser.url()).toBe(`${app.url}/`);
   });
 
