@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { requireRole } from "./access";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { createList, deleteList, ensureDefaultList, listsForUser, renameList } from "./lists";
+import { createTask } from "./tasks";
+import type { Tx } from "./types";
 
 const url = process.env.DATABASE_URL;
 const run = `lst${Date.now()}`;
@@ -451,6 +453,94 @@ describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
 
       expect(deleteResult).toEqual({ value: undefined });
       expect(editorResult).toEqual({ error: expect.any(NotFoundError) });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    /** Runs `work` in a transaction on the shared pool that holds its locks until released. */
+    function holdInTransaction(work: (tx: Tx) => Promise<unknown>) {
+      const locked = deferred<number>();
+      const release = deferred();
+      const done = settle(
+        db.transaction(async (tx) => {
+          await work(tx);
+          const { rows } = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+          locked.resolve(rows[0]!.pid);
+          await release.promise;
+        }),
+      );
+      const pid = Promise.race([
+        locked.promise,
+        done.then((r) => Promise.reject(new Error(`holder ended early: ${String(r)}`))),
+      ]);
+      return { pid, release: release.resolve, done };
+    }
+
+    it("lets createTask finish before a delete that started while it held only its membership", async () => {
+      const listId = await sharedList("Veranda");
+      // Holds the list row, so createTask stops after requireRole, before its append lock.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.lists.id })
+          .from(schema.lists)
+          .where(eq(schema.lists.id, listId))
+          .for("share"),
+      );
+      let creating: Promise<Settled<unknown>> | undefined;
+      let deleting: Promise<Settled<void>> | undefined;
+      let createResult: Settled<unknown> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        creating = settle(createTask(editorDb, ids.ed, listId, { title: "Skylight" }));
+        await waitUntilBlockedBy(editorPid, holderPid);
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        // The delete waits for the editor's membership, not the other way round.
+        await waitUntilBlockedBy(ownerPid, editorPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        createResult = await creating;
+        deleteResult = await deleting;
+      }
+
+      expect(createResult).toEqual({ value: expect.objectContaining({ title: "Skylight" }) });
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    it("makes createTask wait for a delete that locked the members first, then report the list as not found", async () => {
+      const listId = await sharedList("Terrace");
+      const [task] = await db
+        .insert(schema.tasks)
+        .values({ listId, title: "Paint", position: "a0" })
+        .returning({ id: schema.tasks.id });
+      // Holds the list's task, so the delete stops in its cascade, after locking every membership.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.tasks.id })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.id, task!.id))
+          .for("update"),
+      );
+      let deleting: Promise<Settled<void>> | undefined;
+      let creating: Promise<Settled<unknown>> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      let createResult: Settled<unknown> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        await waitUntilBlockedBy(ownerPid, holderPid);
+        creating = settle(createTask(editorDb, ids.ed, listId, { title: "Too late" }));
+        await waitUntilBlockedBy(editorPid, ownerPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        deleteResult = await deleting;
+        createResult = await creating;
+      }
+
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(createResult).toEqual({ error: expect.any(NotFoundError) });
       expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
     });
   });
