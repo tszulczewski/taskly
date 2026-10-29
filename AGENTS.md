@@ -55,8 +55,14 @@ Rules:
 - Next.js with **`output: 'standalone'`** and **`outputFileTracingRoot`** pointing to the **repository root** (required so workspace packages are traced).
 - Run by **systemd** on **127.0.0.1:3000** (set `HOSTNAME=127.0.0.1`, `PORT=3000`); never bind publicly. Copy `public/` and `.next/static` into the standalone output.
 - **Apache reverse proxy** in a separate vhost, **TLS via Let's Encrypt**, and **no buffering for the SSE route** (no response buffering/compression, long proxy timeout; the SSE handler sends `Cache-Control: no-cache, no-transform` and periodic heartbeat comments).
+- **Client IP for rate limiting:** the app trusts `X-Forwarded-For` only from `127.0.0.1`/`::1` and uses the right-most untrusted address (`advanced.ipAddress` in `packages/core/src/auth.ts`). Two failure modes: if Apache stops sending XFF, every client is seen as 127.0.0.1 and shares one bucket, so a stranger's failed sign-ins can lock the owner out; if the app is ever exposed without Apache, a client can forge a fresh XFF per request and bypass the rate limit — the 127.0.0.1-only bind prevents that.
 - **Local PostgreSQL** tuned for low RAM (small `shared_buffers`, `work_mem`, `max_connections`). Development also uses a locally installed PostgreSQL (not Docker).
-- Configuration via environment variables (`DATABASE_URL`, Better Auth secret/URL, Anthropic API key); never commit secrets; keep a `.env.example`.
+- Configuration via environment variables (`DATABASE_URL`, Better Auth secret/URL, Anthropic API key, `ALLOW_SIGN_UP`); never commit secrets; keep a `.env.example`.
+
+#### Runbook
+- **Check the Apache vhost:** `ProxyAddHeaders` stays at its default `On`, so the client IP is appended to `X-Forwarded-For`.
+- **Create the owner account** (public sign-up is off unless `ALLOW_SIGN_UP=true`; while it is on, the app logs a warning on the first auth request): set `ALLOW_SIGN_UP=true` in the systemd `EnvironmentFile` → `systemctl restart taskly` → sign up in the browser → remove the line (don't leave it empty: an empty value fails env validation) → restart again.
+- **Reset a password:** no path yet; the runbook arrives with Phase B of `.ai/specs/2026-10-16-sign-in-pages.md`.
 
 ### Engineering standards (digest)
 

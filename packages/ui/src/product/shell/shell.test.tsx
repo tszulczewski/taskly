@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
 import { ThemeToggle } from "./theme-toggle";
@@ -19,12 +20,16 @@ describe("ThemeToggle", () => {
   });
 });
 
-const renderShell = (onSignOut: () => Promise<boolean>) =>
-  render(
+/** The shell on a page that Cache Components hide on navigation (React Activity). */
+const shell = (onSignOut: () => Promise<boolean>, visible = true) => (
+  <Activity mode={visible ? "visible" : "hidden"}>
     <AppShell theme="dark" onThemeChange={vi.fn()} onSignOut={onSignOut}>
       <h1>Tasks</h1>
-    </AppShell>,
-  );
+    </AppShell>
+  </Activity>
+);
+
+const renderShell = (onSignOut: () => Promise<boolean>) => render(shell(onSignOut));
 
 const signOut = async () => {
   await act(async () => {
@@ -43,6 +48,27 @@ describe("AppShell", () => {
     renderShell(async () => true);
     await signOut();
     expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("is ready to sign out again when its page comes back after a confirmed sign-out", async () => {
+    const onSignOut = vi.fn(async () => true);
+    const { rerender } = renderShell(onSignOut);
+    await signOut();
+    rerender(shell(onSignOut, false));
+    rerender(shell(onSignOut, true));
+    expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBeNull();
+    await signOut();
+    expect(onSignOut).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops an old failure message when its page is hidden and shown again", async () => {
+    const onSignOut = vi.fn(async () => false);
+    const { rerender } = renderShell(onSignOut);
+    await signOut();
+    expect(screen.getByRole("alert")).toBeTruthy();
+    rerender(shell(onSignOut, false));
+    rerender(shell(onSignOut, true));
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

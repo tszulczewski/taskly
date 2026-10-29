@@ -19,5 +19,25 @@ export const createTaskInput = z.object({
   title: z.string().trim().min(1).max(200),
 });
 
+const emailField = z.email("Enter a valid email address.");
+
+/** Shared by the sign-up form and the server sign-up hook. Messages are shown under the fields. */
+export const signUpInput = z.object({
+  name: z.string().trim().min(1, "Enter your name.").max(100, "Use at most 100 characters."),
+  email: emailField,
+  password: z
+    .string()
+    .min(10, "Use at least 10 characters.")
+    .max(128, "Use at most 128 characters."),
+});
+export type SignUpInput = z.infer<typeof signUpInput>;
+
+/** No length rule at sign-in, so the form does not reveal the password policy. */
+export const signInInput = z.object({
+  email: emailField,
+  password: z.string().min(1, "Enter your password."),
+});
+export type SignInInput = z.infer<typeof signInInput>;
+
 /** Shape Claude must return for a cost estimate; validated before use. */
 export const aiEstimateResponse = estimateSchema;

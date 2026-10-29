@@ -38,6 +38,7 @@ export function useForm<F extends string>({
   unexpectedError,
   resetOnSuccess = false,
 }: UseFormOptions<F>) {
+  const [initial] = useState(initialValues);
   const [values, setValues] = useState(initialValues);
   const [edited, setEdited] = useState<ReadonlySet<F>>(new Set());
   const [errors, setErrors] = useState<FieldErrors<F>>({});
@@ -56,6 +57,19 @@ export function useForm<F extends string>({
     const control = formRef.current?.elements.namedItem(name);
     if (control instanceof HTMLElement) control.focus();
   }, [errors]);
+
+  // With Cache Components a page the user left is hidden (React Activity), not unmounted, and the
+  // same instance is shown on the next visit, e.g. `/sign-in` after signing out. Hiding is the page
+  // change that ends a finished form's busy state, so it comes back idle and empty instead of
+  // spinning and still holding what was sent (a password).
+  useLayoutEffect(() => {
+    if (status !== "done") return;
+    return () => {
+      setValues(initial);
+      setEdited(new Set());
+      setStatus("idle");
+    };
+  }, [status, initial]);
 
   const showErrors = (found: FieldErrors<F>) => {
     setErrors(found);

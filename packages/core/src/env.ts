@@ -8,6 +8,7 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
+  ALLOW_SIGN_UP: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

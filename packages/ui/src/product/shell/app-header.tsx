@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { ThemeToggle, type Theme, type ThemeToggleText } from "./theme-toggle";
@@ -22,7 +22,7 @@ export interface AppHeaderProps {
   onThemeChange: (theme: Theme) => void;
   /**
    * Signs out; resolves true when the server confirmed. The app then clears the cache and goes to
-   * `/sign-in`, so the button stays busy until the page changes.
+   * `/sign-in`, so the button stays busy until the page changes (is hidden or unmounted).
    */
   onSignOut: () => Promise<boolean>;
   text?: Partial<AppHeaderText>;
@@ -36,6 +36,17 @@ export function AppHeader({ theme, onThemeChange, onSignOut, text }: AppHeaderPr
   const t = { ...defaultText, ...text };
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  // With Cache Components the page is hidden (React Activity), not unmounted, after sign-out, and
+  // this same header comes back after the next sign-in. Hiding is the page change that ends the
+  // busy state, so the header returns ready to sign out again, without an old failure message.
+  useLayoutEffect(
+    () => () => {
+      setPending(false);
+      setFailed(false);
+    },
+    [],
+  );
 
   const signOut = async () => {
     setPending(true);

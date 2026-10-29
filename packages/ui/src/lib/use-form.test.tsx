@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { Activity, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useForm, type FieldErrors, type SubmitResult } from "./use-form";
 
@@ -49,6 +50,11 @@ const submit = async () => {
   });
 };
 
+/** A page that Cache Components hide on navigation (React Activity) and later show again. */
+const page = (visible: boolean, form: ReactNode) => (
+  <Activity mode={visible ? "visible" : "hidden"}>{form}</Activity>
+);
+
 describe("useForm", () => {
   it("validates a field on blur only after the user typed in it", () => {
     render(<TestForm onSubmit={vi.fn()} />);
@@ -83,6 +89,27 @@ describe("useForm", () => {
     expect(screen.getByRole("button").getAttribute("aria-disabled")).toBe("true");
     await act(async () => resolve({ ok: true }));
     expect(screen.getByRole("button").getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("comes back idle and empty when its page is shown again after a confirmed submit", async () => {
+    const onSubmit = vi.fn(async () => ({ ok: true as const }));
+    const { rerender } = render(page(true, <TestForm onSubmit={onSubmit} />));
+    fireEvent.change(title(), { target: { value: "Tiles" } });
+    await submit();
+    rerender(page(false, <TestForm onSubmit={onSubmit} />));
+    rerender(page(true, <TestForm onSubmit={onSubmit} />));
+    expect((title() as HTMLInputElement).value).toBe("");
+    expect(screen.getByRole("button").getAttribute("aria-disabled")).toBe("false");
+    fireEvent.blur(title());
+    expect(screen.queryByText("Enter a title")).toBeNull();
+  });
+
+  it("keeps an unsent draft when its page is hidden and shown again", () => {
+    const { rerender } = render(page(true, <TestForm onSubmit={vi.fn()} />));
+    fireEvent.change(title(), { target: { value: "Tiles" } });
+    rerender(page(false, <TestForm onSubmit={vi.fn()} />));
+    rerender(page(true, <TestForm onSubmit={vi.fn()} />));
+    expect((title() as HTMLInputElement).value).toBe("Tiles");
   });
 
   it("shows server field errors and focuses the first one", async () => {
