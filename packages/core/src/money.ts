@@ -1,12 +1,39 @@
-const plnFormat = new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" });
+const NBSP = "\u00a0";
+const EN_DASH = "\u2013";
 
-/** The only place grosze become PLN: formatting at the UI edge. */
-export function formatPln(grosze: number): string {
-  return plnFormat.format(grosze / 100);
+/**
+ * Grosze → "1 200" or "1 200,05", grouped with NBSP. Built from the integer's digits, with no
+ * float division. `pl-PL` Intl is not used: it leaves 4-digit amounts ungrouped and always prints
+ * two decimals (decision F11).
+ */
+function plnAmount(grosze: number): string {
+  if (!Number.isSafeInteger(grosze) || grosze < 0) {
+    throw new RangeError(`Not an amount in grosze: ${grosze}`);
+  }
+  const digits = String(grosze).padStart(3, "0");
+  const zloty = digits.slice(0, -2).replace(/\B(?=(\d{3})+$)/g, NBSP);
+  const fraction = digits.slice(-2);
+  return fraction === "00" ? zloty : `${zloty},${fraction}`;
 }
 
+/**
+ * The only place grosze become PLN: "1 200 zł", "12,50 zł" (tokens rule 5, decision F11). Spaces
+ * are U+00A0; grosze are shown only when not zero.
+ */
+export function formatPln(grosze: number): string {
+  return `${plnAmount(grosze)}${NBSP}zł`;
+}
+
+/**
+ * An estimate: "1 200–1 500 zł" (en dash without spaces, one "zł"), or one amount when min = max
+ * (R18). Each side shows grosze only when its own are not zero: "1 200,05–1 500 zł".
+ */
 export function formatPlnRange(minGrosze: number, maxGrosze: number): string {
-  return `${formatPln(minGrosze)} – ${formatPln(maxGrosze)}`;
+  if (minGrosze > maxGrosze) {
+    throw new RangeError(`Minimum above maximum: ${minGrosze} > ${maxGrosze}`);
+  }
+  if (minGrosze === maxGrosze) return formatPln(minGrosze);
+  return `${plnAmount(minGrosze)}${EN_DASH}${formatPln(maxGrosze)}`;
 }
 
 /** The cap on one typed amount: 10 000 000.00 PLN. Sums (roll-ups, totals) may exceed it. */
