@@ -47,10 +47,11 @@ A one-line row is 68px on phones and 52px from 640px: the text block is at least
 
 ## 5. Variants
 
-| Variant                     | Choose it when                                    | Source   |
-| --------------------------- | ------------------------------------------------- | -------- |
-| Task (with `onAddSubtask`)  | A top-level task: arrow, "Add subtask".           | spec E01 |
-| Subtask (no `onAddSubtask`) | Inside a task: no "Add subtask" (one level only). | spec E01 |
+| Variant                                                   | Choose it when                                                                                            | Source          |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------- |
+| Task (with `onAddSubtask`)                                | A top-level task: arrow, "Add subtask".                                                                   | spec E01        |
+| Subtask (no `onAddSubtask`)                               | Inside a task: no "Add subtask" (one level only).                                                         | spec E01        |
+| Task without subtasks (`level="task"`, no `onAddSubtask`) | A list with tasks only (`TaskList` without `onAddSubtask`): the row opens only when it has a description. | spec E01 (PR B) |
 
 <Unstyled>
   <Story of={Stories.Subtask} />

@@ -2,11 +2,12 @@ const NBSP = "\u00a0";
 const EN_DASH = "\u2013";
 
 /**
- * Grosze → "1 200" or "1 200,05", grouped with NBSP. Built from the integer's digits, with no
- * float division. `pl-PL` Intl is not used: it leaves 4-digit amounts ungrouped and always prints
- * two decimals (decision F11).
+ * Grosze → "1 200" or "1 200,05", grouped with NBSP, without "zł": what an amount field is
+ * prefilled with, and `parsePlnToGrosze` reads it back to the same grosze. Built from the
+ * integer's digits, with no float division. `pl-PL` Intl is not used: it leaves 4-digit amounts
+ * ungrouped and always prints two decimals (decision F11).
  */
-function plnAmount(grosze: number): string {
+export function formatPlnAmount(grosze: number): string {
   if (!Number.isSafeInteger(grosze) || grosze < 0) {
     throw new RangeError(`Not an amount in grosze: ${grosze}`);
   }
@@ -21,7 +22,7 @@ function plnAmount(grosze: number): string {
  * are U+00A0; grosze are shown only when not zero.
  */
 export function formatPln(grosze: number): string {
-  return `${plnAmount(grosze)}${NBSP}zł`;
+  return `${formatPlnAmount(grosze)}${NBSP}zł`;
 }
 
 /**
@@ -33,7 +34,7 @@ export function formatPlnRange(minGrosze: number, maxGrosze: number): string {
     throw new RangeError(`Minimum above maximum: ${minGrosze} > ${maxGrosze}`);
   }
   if (minGrosze === maxGrosze) return formatPln(minGrosze);
-  return `${plnAmount(minGrosze)}${EN_DASH}${formatPln(maxGrosze)}`;
+  return `${formatPlnAmount(minGrosze)}${EN_DASH}${formatPln(maxGrosze)}`;
 }
 
 /** The cap on one typed amount: 10 000 000.00 PLN. Sums (roll-ups, totals) may exceed it. */

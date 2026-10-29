@@ -11,7 +11,7 @@ import { TaskForm } from "./task-form";
 import { TaskList, type TaskListProps } from "./task-list";
 import { defaultTaskText } from "./text";
 import type { TaskFormValues, TaskItem } from "./types";
-import type { PlaceOptions } from "./task-row";
+import { TaskRow, type PlaceOptions } from "./task-row";
 import type { Place } from "../places/types";
 
 const scrollIntoView = vi.fn();
@@ -506,6 +506,45 @@ describe("TaskList", () => {
     expect(document.activeElement).toBe(addSubtask);
     fireEvent.click(addSubtask);
     expect(field("New subtask")).toBeTruthy();
+  });
+
+  it("offers no subtasks without onAddSubtask, and opens only rows with something to show", () => {
+    renderList({
+      tasks: [sealBath, { ...sealBath, id: "tiles", title: "Tile", description: "White." }, paint],
+      onAddSubtask: undefined,
+    });
+    expect(screen.queryByRole("button", { name: "Seal the bath" })).toBeNull();
+    openMenu("Seal the bath");
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Tile" }));
+    expect(screen.getByText("White.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    expect(screen.getByRole("list", { name: "Subtasks of “Paint the ceiling”" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add subtask" })).toBeNull();
+  });
+
+  it("renders a TaskRow on its own as a task with onAddSubtask and as a subtask without", () => {
+    const row = (onAddSubtask?: typeof ok) => (
+      <ul>
+        <TaskRow
+          task={sealBath}
+          validate={noErrors}
+          onEdit={ok}
+          onAddSubtask={onAddSubtask}
+          onRequestDelete={vi.fn()}
+        />
+      </ul>
+    );
+    const { rerender } = render(row(ok));
+    openMenu("Seal the bath");
+    expect(screen.getByRole("menuitem", { name: "Add subtask" })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    rerender(row());
+    openMenu("Seal the bath");
+    expect(screen.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
+    expect(screen.getByRole("listitem").className).toContain("group/subtask");
   });
 
   it("returns focus to the menu button when the menu just closes", async () => {

@@ -66,8 +66,13 @@ export interface TaskRowProps {
   validate: (values: TaskFormValues) => TaskFieldErrors;
   /** Saves an edit; resolve `{ ok: true }` to close the form. */
   onEdit: TaskChange;
-  /** Adds a subtask under this task. Leave it out for a subtask: one level only (spec E01). */
+  /** Adds a subtask under this task; turns on "Add subtask". A subtask has none: one level only. */
   onAddSubtask?: TaskChange;
+  /**
+   * A task or a subtask (one level only, spec E01). Left out, a row without `onAddSubtask` is a
+   * subtask; `TaskList` says "task", so a list can leave subtasks out.
+   */
+  level?: "task" | "subtask";
   /** "Delete" was chosen; the list asks first. `trigger` is this row's "…", for focus on cancel. */
   onRequestDelete: (task: TaskItem, trigger: HTMLElement | null) => void;
   /** The row just added: scrolled into view and briefly highlighted (spec E01, After an add). */
@@ -135,6 +140,7 @@ export function TaskRow({
   validate,
   onEdit,
   onAddSubtask,
+  level = onAddSubtask === undefined ? "subtask" : "task",
   onRequestDelete,
   highlightId,
   move,
@@ -156,8 +162,10 @@ export function TaskRow({
   const menuMovedFocus = useRef(false);
   const focusRequest = useRef<"menu" | "add-subtask" | undefined>(undefined);
   const subtasks = task.subtasks ?? [];
-  const isSubtask = onAddSubtask === undefined;
-  const hasDetails = !isSubtask || task.description !== null;
+  const isSubtask = level === "subtask";
+  const addSubtask = isSubtask ? undefined : onAddSubtask;
+  // A row opens only when there is something to show in it.
+  const hasDetails = addSubtask !== undefined || task.description !== null || subtasks.length > 0;
   const highlighted = highlightId === task.id;
   const completed = task.completed === true;
   const columns: Columns = { handle: move !== undefined, checkbox: onToggleComplete !== undefined };
@@ -218,6 +226,7 @@ export function TaskRow({
         <TaskRow
           key={subtask.id}
           task={subtask}
+          level="subtask"
           validate={validate}
           onEdit={onEdit}
           onRequestDelete={onRequestDelete}
@@ -275,7 +284,7 @@ export function TaskRow({
           event.preventDefault();
         }}
       >
-        {isSubtask || completed ? null : (
+        {addSubtask === undefined || completed ? null : (
           <MenuItem
             disabled={task.pending}
             onSelect={() =>
@@ -546,13 +555,13 @@ export function TaskRow({
           ) : (
             subtaskList
           )}
-          {onAddSubtask && !completed ? (
+          {addSubtask && !completed ? (
             <UnderTitle columns={columns} className="py-row-y">
               {addingSubtask ? (
                 <QuickAdd
                   validate={validate}
                   onSubmit={async (values) => {
-                    const result = await onAddSubtask(task.id, values);
+                    const result = await addSubtask(task.id, values);
                     // One subtask per opening; "Add subtask" takes focus for the next (decision F7).
                     if (result.ok) closeAddSubtask();
                     return result;

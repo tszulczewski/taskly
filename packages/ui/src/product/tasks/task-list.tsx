@@ -23,7 +23,8 @@ export interface TaskListProps {
   retrying?: boolean;
   validate: (values: TaskFormValues) => TaskFieldErrors;
   onEdit: TaskChange;
-  onAddSubtask: TaskChange;
+  /** Adds a subtask; turns on "Add subtask". Without it the list shows tasks only. */
+  onAddSubtask?: TaskChange;
   /** Deletes after the user confirmed; resolve `false` (or throw) to show the failure in the dialog. */
   onDelete: (id: string) => Promise<boolean>;
   /** The task or subtask just added (spec E01, After an add). */
@@ -174,6 +175,7 @@ export function TaskList({
           <TaskRow
             key={task.id}
             task={task}
+            level="task"
             validate={validate}
             onEdit={onEdit}
             onAddSubtask={onAddSubtask}

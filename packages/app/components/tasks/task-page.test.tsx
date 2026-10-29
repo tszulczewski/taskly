@@ -12,6 +12,12 @@ vi.mock("../../lib/session", () => ({ requireSessionUser }));
 vi.mock("../../lib/default-list", () => ({ openDefaultList }));
 vi.mock("../auth/use-sign-out", () => ({ useSignOut: () => signOut }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+// The screen loads its tasks through TanStack Query; its own tests cover it.
+vi.mock("./task-list-screen", () => ({
+  TaskListScreen: ({ listId }: { listId: string }) => (
+    <div data-slot="task-list-screen" data-list-id={listId} />
+  ),
+}));
 
 const { TaskPage } = await import("./task-page");
 

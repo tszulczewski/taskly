@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { MAX_ESTIMATE_GROSZE, formatPln, formatPlnRange, parsePlnToGrosze } from "./money";
+import {
+  MAX_ESTIMATE_GROSZE,
+  formatPln,
+  formatPlnAmount,
+  formatPlnRange,
+  parsePlnToGrosze,
+} from "./money";
 
 // Expected strings spell the two special characters out so a plain space cannot pass for them.
 const NBSP = "\u00a0";
@@ -127,6 +133,25 @@ describe("formatPln", () => {
     "refuses %d, which is not an amount in grosze",
     (grosze) => {
       expect(() => formatPln(grosze)).toThrow(RangeError);
+    },
+  );
+});
+
+describe("formatPlnAmount", () => {
+  it.each([
+    [0, "0"],
+    [5, "0,05"],
+    [150_050, "1_500,50"],
+    [150_000, "1_500"],
+    [MAX_ESTIMATE_GROSZE, "10_000_000"],
+  ])("writes %d grosze as the amount field shows it, %s", (grosze, text) => {
+    expect(formatPlnAmount(grosze)).toBe(pln(text));
+  });
+
+  it.each([0, 1, 99, 100, 1_250, 150_050, 99_999_999, MAX_ESTIMATE_GROSZE])(
+    "reads %d back to the same grosze with parsePlnToGrosze",
+    (grosze) => {
+      expect(parsePlnToGrosze(formatPlnAmount(grosze))).toBe(grosze);
     },
   );
 });
