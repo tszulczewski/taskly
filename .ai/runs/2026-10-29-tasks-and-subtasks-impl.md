@@ -190,6 +190,25 @@ Evidence for the evidence-based QA of PR A (spec Risks), collected 2026-10-29 at
 3. **Integration run** (isolation, concurrency, deadlock tests): `npx vitest run --config vitest.integration.config.mts packages/core packages/db` under Testcontainers (`TEST_DATABASE_URL` unset): 6 files, 89 tests passed, none skipped: `access` 13, `lists` 18, `password-admin` 10, `tasks` 33, `schema` 14, `migrations` 1. The upgrade test ran (✓ `migration 0001 on a database with 0000 data (Testcontainers only) > keeps every row and enforces the new constraints`). Covered there: isolation (user B cannot list, add to, update or delete A's tasks; separate default lists), roles (viewer forbidden on create/update/delete), not-found (non-member, unknown and malformed ids), 10 concurrent creates, concurrent `ensureDefaultList`, and the distinct-actor `deleteList` concurrency tests against a hand-written writer, `createTask` and `deleteTask` in both orderings (no `40P01`).
 4. **Manual rollback check:** see Task 1.1 ("Rollback SQL for `0001`" and "Manual rollback test", disposable `postgres:16` container; never run against the dev DB).
 
+### Phase 1 gate (main session, after `ca603c4`)
+
+- `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab npm run test:integration`: exit 0.
+  - lint: 0 errors, 1 pre-existing warning (`prepare-share-bundle.mjs`).
+  - `npm test`: 65 files, 641 tests passed, coverage thresholds (100%) met.
+  - `npm run build`: pass.
+  - `npm run test:integration` (Testcontainers): 12 files, 119 tests passed, including the existing browser tests against the production build.
+- A rolled-back SQL probe against the dev DB (`psql -f phase1-probe.sql`, kept in the session scratchpad) showed each constraint rejecting its case (range, pair, negative, sibling position, cross-list parent, second default list), an exact price accepted and the parent cascade working; row counts were unchanged afterwards (3 tasks, 6 lists).
+
+### Phase 1 manual test checklist (owner)
+
+Phase 1 has no routes or UI, so the check is on the database and the tests:
+
+1. `git log --oneline main..` shows the tracker commit plus tasks 1.1–1.6.
+2. `psql "$DATABASE_URL"` → `\d tasks` and `\d lists`: `tasks.description`, `lists.default_for_user_id` and the constraints `tasks_estimate_pair_chk`, `tasks_estimate_range_chk`, `tasks_sibling_position_uq`, `tasks_list_id_id_idx`, `tasks_list_id_parent_id_fk`, `lists_default_for_user_kind_uq` are present.
+3. Run the rolled-back probe: `psql "$DATABASE_URL" -X -q -f <probe file>`. Expect an ERROR naming the constraint for steps 2–6 and 8, `tasks_left_in_list_a = 0` for step 7, and unchanged row counts afterwards.
+4. `npx vitest run --config vitest.integration.config.mts packages/core packages/db` (Docker): all green, the upgrade test shown with ✓.
+5. The app still starts and sign-in/sign-out work as before (`/` still shows the placeholder heading; the task screen arrives in Phase 2).
+
 ## Problems / open questions
 
 - Task 1.1: in this session's sandbox agent-browser cannot create its socket directory under `XDG_RUNTIME_DIR` (`Permission denied (os error 13)`), so the browser integration tests fail until `AGENT_BROWSER_SOCKET_DIR` points at a short writable path. Running outside the sandbox was refused. Not a code problem; CI is unaffected.

@@ -15,7 +15,7 @@ Legend: `[ ]` to do · `[x]` done
 - [x] **1.4 `deleteList` changes** — default-list guard (409), lock all memberships `FOR UPDATE` ordered by `user_id`; `renameList` still renames the default list; distinct-actor concurrency test (no `40P01`).
 - [x] **1.5 `createTask` (top-level) and `listTasks`** — `requireTaskRole`, list-row append lock, pg error translation (23503/23505/23514), `rollUpEstimate` in `listTasks`; unit + integration tests (exact price, viewer, non-member, isolation, 10 concurrent creates); clean up `stubs.test.ts`.
 - [x] **1.6 `updateTask` and `deleteTask`** — success/forbidden/not-found, title-only update keeps fields, clear estimate, `deleteTask` vs `deleteList` concurrency; collect PR A QA evidence (pre-deploy violation query, `0001` on dev DB, integration run) in the run log.
-- [ ] **Phase 1 gate** — `npm run build && npm run test:integration`; owner's manual test (checklist in the run log).
+- [x] **Phase 1 gate** — `npm run build && npm run test:integration`; owner's manual test (checklist in the run log).
 
 ## Phase 2 — Routes and screen (PR B, closes #15; spec steps 7–8)
 
