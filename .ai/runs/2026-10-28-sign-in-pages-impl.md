@@ -80,3 +80,9 @@ Implement the spec task by task (tracker: `track.md`), one subagent and one comm
 ## Session end (2026-10-28)
 
 Stopped after phase 3 at the owner's request; work continues in a new session. Handoff: the "Handoff" section of `track.md`. Clean-up: the dev DB's leftover test users were deleted at the owner's request (`admin@neocraft.eu` and four `acc1792044412199-*` users from 2026-10-15), so the dev DB has no users.
+
+## Session 2026-10-29
+
+- Read the `track.md` handoff, this log, `.ai/lessons.md` and both review reports.
+- The full-branch review (`.ai/runs/2026-10-28-sign-in-full-branch-review.md`, through `a6f03c2`) approves with no findings, so phase 3 gets no extra tasks. Since `a6f03c2`, only `track.md` and this log have changed, so the phase 3 gate result still applies to the same code.
+- Stopped for the owner's manual test of phase 3.

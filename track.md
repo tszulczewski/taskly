@@ -35,6 +35,8 @@ Review of phases 1–2: `.ai/runs/2026-10-28-sign-in-phases-1-2-review.md` (requ
 - [x] 3.6 Review follow-up: find the cause of the one-off `npm test` failure (4 session-guard assertions) and of the default `test:integration` startup error (`code.charCodeAt is not a function`, Testcontainers path used by CI)
 - [x] 3.7 Runbook (client IP, Apache check, owner account) in `AGENTS.md`, full gate, lessons
 
+Full-branch review (through `a6f03c2`): `.ai/runs/2026-10-28-sign-in-full-branch-review.md` — verdict approve, no findings, so no extra tasks.
+
 **Manual test:** `npm run build && npm run test:integration`; create the owner account following the Runbook.
 
 ## Phase 4 — Password reset, spec Phase B (spec steps 7B, 10)
