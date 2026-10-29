@@ -21,6 +21,7 @@ describe("entry points", () => {
   it("exports services from the server entry and keeps the root exports", () => {
     expect(server.getAuth).toBeTypeOf("function");
     expect(server.createTask).toBeTypeOf("function");
+    expect(server.ensureDefaultList).toBeTypeOf("function");
     expect(server.getEnv).toBeTypeOf("function");
     expect(server.createPasswordUser).toBeTypeOf("function");
     expect(server.setPassword).toBeTypeOf("function");

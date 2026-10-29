@@ -1,9 +1,9 @@
 import { schema } from "@taskly/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { requireRole } from "./access";
 import { ConflictError, NotImplementedError } from "./errors";
 import { createListInput, type Role } from "./schemas";
-import type { Db, Tx } from "./types";
+import type { Db, DbOrTx, Tx } from "./types";
 
 export type ListSummaryRow = { id: string; name: string; kind: "project" | "shopping"; role: Role };
 
@@ -63,6 +63,42 @@ export async function deleteList(db: Db, userId: string, listId: string): Promis
   await db.transaction(async (tx) => {
     await requireManagedProjectList(tx, userId, listId);
     await tx.delete(schema.lists).where(eq(schema.lists.id, listId));
+  });
+}
+
+const DEFAULT_LIST_NAME = "My renovation";
+
+async function findDefaultListId(db: DbOrTx, userId: string): Promise<string | undefined> {
+  const [list] = await db
+    .select({ id: schema.lists.id })
+    .from(schema.lists)
+    .where(and(eq(schema.lists.defaultForUserId, userId), eq(schema.lists.kind, "project")));
+  return list?.id;
+}
+
+/**
+ * The user's default project list id, created with an owner membership on the first call.
+ * The session user is the authorization. Concurrent first calls return the same list.
+ */
+export async function ensureDefaultList(db: Db, userId: string): Promise<string> {
+  const existing = await findDefaultListId(db, userId);
+  if (existing) return existing;
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(schema.lists)
+      .values({ name: DEFAULT_LIST_NAME, kind: "project", defaultForUserId: userId })
+      // Must match the partial unique index lists_default_for_user_kind_uq, predicate included.
+      .onConflictDoNothing({
+        target: [schema.lists.defaultForUserId, schema.lists.kind],
+        where: isNotNull(schema.lists.defaultForUserId),
+      })
+      .returning({ id: schema.lists.id });
+    if (created) {
+      await tx.insert(schema.listMembers).values({ listId: created.id, userId, role: "owner" });
+      return created.id;
+    }
+    // The conflicting row was committed by the other call, so this new statement sees it.
+    return (await findDefaultListId(tx, userId))!;
   });
 }
 
