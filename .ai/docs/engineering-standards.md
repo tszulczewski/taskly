@@ -35,7 +35,7 @@ app ──▶ ui          (ui imports nothing from the other packages)
 | Domain error | PascalCase + `Error`, in `core/src/errors.ts` | `NotFoundError`, `ForbiddenError` |
 | Event | `concept.entity.action`, past tense (type today: `task`, `shopping`, `members`, `list`) | `tasks.task.updated` |
 | Route handler | one `route.ts` per resource under `app/api/<concept>/…` | `api/lists/[listId]/tasks/route.ts` |
-| React component | PascalCase file and export; hooks `useX` | `TaskRow.tsx`, `useTasks` |
+| React component | kebab-case file (shadcn convention), PascalCase export; hooks `useX` | `task-row.tsx` → `TaskRow`, `useTasks` |
 | TanStack Query keys | built in one `queryKeys` module, never inline arrays | `queryKeys.tasks(listId)` |
 | Booleans | positive: `isDone`, `canEdit` | |
 
