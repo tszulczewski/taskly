@@ -7,7 +7,7 @@ import {
   NotImplementedError,
   UnauthorizedError,
 } from "./errors";
-import { hasCsrfHeader, mapError } from "./http";
+import { apiResponseSchema, hasCsrfHeader, mapError } from "./http";
 
 describe("mapError", () => {
   it("maps domain errors to statuses", () => {
@@ -41,5 +41,27 @@ describe("hasCsrfHeader", () => {
         new Request("http://x/", { method: "POST", headers: { "x-requested-with": "taskly" } }),
       ),
     ).toBe(true);
+  });
+});
+
+describe("apiResponseSchema", () => {
+  it("accepts both envelopes, a success without data, and keeps the data untouched", () => {
+    expect(apiResponseSchema.parse({ ok: true, data: { a: 1 } })).toEqual({
+      ok: true,
+      data: { a: 1 },
+    });
+    expect(apiResponseSchema.safeParse({ ok: true }).success).toBe(true);
+    const failure = { ok: false, error: { code: "c", message: "m", fieldErrors: { t: ["x"] } } };
+    expect(apiResponseSchema.parse(failure)).toEqual(failure);
+  });
+  it("rejects malformed envelopes", () => {
+    for (const value of [
+      null,
+      { ok: 1 },
+      { ok: false },
+      { ok: false, error: { code: "c" } },
+      { ok: false, error: { code: "c", message: "m", fieldErrors: { t: "x" } } },
+    ])
+      expect(apiResponseSchema.safeParse(value).success).toBe(false);
   });
 });

@@ -19,7 +19,7 @@ Legend: `[ ]` to do · `[x]` done
 
 ## Phase 2 — Routes and screen (PR B, closes #15; spec steps 7–8)
 
-- [ ] **2.1 Response validation in `apiHandler` and `apiCall`** — optional response schema, generic 500 on invalid output (no values logged), `bad_response` on the client, existing callers unchanged; unit tests.
+- [x] **2.1 Response validation in `apiHandler` and `apiCall`** — optional response schema, generic 500 on invalid output (no values logged), `bad_response` on the client, existing callers unchanged; unit tests.
 - [ ] **2.2 Task routes** — `GET/POST /api/lists/[listId]/tasks`, `PATCH/DELETE /api/tasks/[taskId]`; route unit tests with mocked core; HTTP integration tests (schemas, CSRF header, 400 `fieldErrors`, session renewal on `GET …/tasks`).
 - [ ] **2.3 `formatPlnRange` fix (F11, R18)** — "1 200–1 500 zł", grosze only when not zero, one amount when min = max; unit tests; check `EstimateRange` in `packages/ui`.
 - [ ] **2.4 Page `/`** — tested session/redirect helper in `packages/app/lib/`, `ensureDefaultList` inside `<Suspense>`, "page did not open" state with working Sign out; renewal integration test (document render does not consume renewal).
