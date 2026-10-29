@@ -144,3 +144,19 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - Negative control against the old prompt: 10 unit tests fail, and the PTY test gets exit 0, meaning the wrong password was stored. That confirms the lockout scenario.
   - Gate: `format:check`, `typecheck`, `build`, `audit` pass; `lint` passes with the known warning; `npm test` 62 files, 461 tests, 100% coverage; `test:integration` 10 files, 61 tests.
   - The review session's lesson line was rewritten from "discard" to "reject".
+
+## Wrap-up (2026-10-29)
+
+- PR #40 (Phase A) was squash-merged as `11ac25d` (closed #24). PR #41 was retargeted to `main`. The tree of `main` matched the old base tip, so `main` was merged into `feat/sign-in-pages-phase-b` with `-s ours` (`173852d`) and pushed as a fast-forward. CI was green, and #41 was squash-merged as `66ebd09` (closed #25).
+- On both PRs, the labels `review` and `needs-qa` were replaced with `qa-approved`: the owner did the manual QA, and the code review approved them.
+- Owner decisions (with my recommendations):
+  - `track.md` is removed from the repo root. Its history stays in this log and in git.
+  - `engineering-standards.md` §2 now names component files in kebab-case (the shadcn convention, used by all 57 product components), with PascalCase exports.
+  - The spec gets an implementation note: the "400 password too short or long" row cannot be reached, because the hook returns `INVALID_SIGN_UP_INPUT` first.
+  - Skeleton heights stay as they are. They differ only for sign-in while sign-up is open (38 px) and for closed sign-up (~289 px). The owner's production case, with sign-up closed, matches.
+  - The user's name in the header is deferred to the tasks screen. It needs a slot in the ui `AppHeader`.
+- Not done, blocked by the auto-mode classifier:
+  - deleting the branches `feat/sign-in-pages-phase-a` and `-phase-b`, locally and on the remote;
+  - adding a `git push origin --delete feat/*` permission rule ("Self-Modification").
+
+  Left to the owner.

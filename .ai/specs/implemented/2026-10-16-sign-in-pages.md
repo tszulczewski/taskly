@@ -157,6 +157,8 @@ There are no new Taskly routes. The existing Better Auth endpoints under `/api/a
 | `POST /api/auth/sign-in/email` | `{ email, password }` (no `rememberMe`, Q8) | 200; persistent session cookie set | 401 invalid email or password; 429 |
 | `POST /api/auth/sign-out` | — | 200; cookie cleared. The session row is deleted unless that database write fails, which Better Auth only logs (Q9). Also 200 when the request carries no session or an expired one. | 429, network or other error → show failed-sign-out state and allow retry |
 
+> **Implementation note (2026-10-29, owner-approved):** the "400 password too short or long" error in the sign-up row cannot be reached over HTTP. The sign-up hook validates `signUpInput` (10–128 characters) before Better Auth's own length check, so such a request gets 400 `INVALID_SIGN_UP_INPUT`. `authCall` still maps both codes.
+
 `authCall` maps these error codes to UI messages in one table. Raw server messages are never shown. A 429 response has no `code`, so it is mapped by status. The wait comes from Better Auth's `X-Retry-After` response header (whole seconds until the window resets); `authCall` reads it only as a positive integer and otherwise falls back to the generic rate-limit message.
 
 The Better Auth endpoint paths and response shapes are owned by the library. A Better Auth major upgrade must re-run the auth integration tests (they pin the paths).
