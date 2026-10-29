@@ -9,9 +9,15 @@ import { signUpBeforeHook } from "./sign-up-hook";
 export const SESSION_TTL_S = 30 * 24 * 60 * 60;
 export const SESSION_RENEW_AFTER_S = 24 * 60 * 60;
 
+// Next bundles this module once for Route Handlers and once for pages, so each bundle builds its
+// own instance; the flag lives on globalThis to warn once per process.
+const SIGN_UP_WARNED = Symbol.for("taskly.auth.signUpWarned");
+const globalForAuth = globalThis as unknown as Record<symbol, true | undefined>;
+
 function createAuth() {
   const env = getEnv();
-  if (env.ALLOW_SIGN_UP) {
+  if (env.ALLOW_SIGN_UP && !globalForAuth[SIGN_UP_WARNED]) {
+    globalForAuth[SIGN_UP_WARNED] = true;
     console.warn("ALLOW_SIGN_UP is on: anyone who can reach the app can create an account.");
   }
   return betterAuth({

@@ -40,7 +40,7 @@ Full-branch review (through `a6f03c2`): `.ai/runs/2026-10-28-sign-in-full-branch
 Owner's manual test of phase 3 (2026-10-29):
 
 - [x] 3.8 Bug: after sign up → sign out → sign in in the same tab, the signed-in user sees the header's sign-out button spinning forever; only a page reload clears it (corrected report). Root cause, fix (header and both forms), browser regression test without a reload between steps
-- [ ] 3.9 The `ALLOW_SIGN_UP` warning is logged twice (route handler and page renders load separate `auth.ts` instances); log it once per process, with a regression test
+- [x] 3.9 The `ALLOW_SIGN_UP` warning is logged twice (route handler and page renders load separate `auth.ts` instances); log it once per process, with a regression test
 
 **Manual test:** `npm run build && npm run test:integration`; create the owner account following the Runbook.
 

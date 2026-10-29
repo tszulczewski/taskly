@@ -77,4 +77,15 @@ describe("sign-up open (ALLOW_SIGN_UP=true, HTTP)", () => {
       .where(eq(schema.session.userId, user!.id));
     expect(sessions).toHaveLength(1);
   });
+
+  // Pages and the auth Route Handler each get their own copy of the auth module.
+  it("logs the ALLOW_SIGN_UP warning once after a page render and an auth API call", async () => {
+    const page = await fetch(`${app.url}/`);
+    await page.text();
+    expect(page.ok).toBe(true);
+    const api = await authRequest(app, "/get-session", { forwardedFor: nextIp(), method: "GET" });
+    expect(api.status).toBe(200);
+    const warnings = app.stderr().split("ALLOW_SIGN_UP is on:").length - 1;
+    expect(warnings).toBe(1);
+  });
 });

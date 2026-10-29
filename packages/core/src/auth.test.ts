@@ -20,6 +20,8 @@ const env = {
   ANTHROPIC_API_KEY: "key",
 };
 
+const signUpWarned = Symbol.for("taskly.auth.signUpWarned");
+
 async function load() {
   vi.resetModules();
   return import("./auth");
@@ -31,6 +33,7 @@ describe("auth", () => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     betterAuth.mockClear();
     drizzleAdapter.mockClear();
+    delete (globalThis as Record<symbol, unknown>)[signUpWarned];
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -94,6 +97,20 @@ describe("auth", () => {
     expect(config.emailAndPassword.disableSignUp).toBe(false);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain("ALLOW_SIGN_UP");
+  });
+
+  // Regression: Next bundles auth.ts separately for Route Handlers and pages, so the
+  // production server logged the warning once per bundle.
+  it("warns once per process, even from separate module instances", async () => {
+    vi.stubEnv("ALLOW_SIGN_UP", "true");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const routeBundle = await load();
+    const pageBundle = await load();
+    expect(pageBundle).not.toBe(routeBundle);
+    routeBundle.getAuth();
+    pageBundle.getAuth();
+    expect(betterAuth).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("uses secure cookies in production", async () => {

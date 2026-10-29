@@ -13,7 +13,12 @@ const standalone = resolve(appDir, ".next/standalone/packages/app");
 /** Default port of the app under test; files that run their own app pass another one. */
 export const APP_PORT = 3200;
 
-export type RunningApp = { url: string; stop: () => Promise<void> };
+export type RunningApp = {
+  url: string;
+  stop: () => Promise<void>;
+  /** Everything the server has written to stderr so far (`console.warn` and `console.error`). */
+  stderr: () => string;
+};
 
 export type StartAppOptions = {
   port?: number;
@@ -48,7 +53,11 @@ export async function startApp(
       ALLOW_SIGN_UP: "false",
       ...env,
     },
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  let stderr = "";
+  child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
+    stderr += chunk;
   });
   const stop = async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
@@ -63,7 +72,7 @@ export async function startApp(
     await stop();
     throw error;
   }
-  return { url, stop };
+  return { url, stop, stderr: () => stderr };
 }
 
 async function isListening(url: string) {
