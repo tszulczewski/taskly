@@ -59,8 +59,9 @@ Owner's manual test of phase 3 (2026-10-29):
   - Phase 4 (spec Phase B) is committed on `feat/sign-in-pages-phase-b`, created from phase-a. Its full gate is green (448 unit tests with 100% coverage, 60 integration tests via `TEST_DATABASE_URL`).
   - The spec is in `implemented/`. Neither branch is pushed.
 - **Next:**
-  1. Owner's manual test of phase 4: reset a disposable dev account with `npm run auth:set-password`.
-  2. With the owner's consent: push and open the Phase A PR (closes #24) and the Phase B PR on top of it (closes #25). Both are risk-high: they need a second-person review, `needs-qa`, and no self-QA.
+  1. Done: the owner's manual test of phase 4 passed (2026-10-29).
+  2. Done 2026-10-29, with the owner's consent: Phase A PR #40 (base `main`, closes #24) and Phase B PR #41, stacked on `feat/sign-in-pages-phase-a` (closes #25). Labels: `feature`, `review`, `needs-qa`, `risk-high`. CI is green on both, including Testcontainers.
+  3. Merge (the owner's call, after a second-person review and QA). Once #40 is merged, retarget #41 to `main`. If the squash merge makes it conflict, use the stacked-PR lesson: merge `main` with `-s ours` when the trees match; force-push is blocked.
 - **Open owner decisions (non-blocking):**
   - component file naming: kebab-case, as in the repo, vs PascalCase in engineering-standards §2;
   - the dead API-contract row "400 password too short or long" in the spec;

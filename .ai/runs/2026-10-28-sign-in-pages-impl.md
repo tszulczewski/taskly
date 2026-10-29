@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-28
 - **Spec:** .ai/specs/2026-10-16-sign-in-pages.md
-- **Outcome:** partial (spec Phase A done; Phase B pending)
+- **Outcome:** success (spec implemented; PRs #40 and #41 open)
 
 ## Goal
 
@@ -131,3 +131,7 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - The spec was moved with `git mv` to `implemented/`, with Status set to implemented. Live references were updated in the tasks-and-subtasks spec and the Storybook docs (`StartHere.mdx`, `WhatIsMissing.mdx`, `epics/SignIn.mdx`); history files were left as they are.
   - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 62 files, 448 tests, 100% coverage; `test:integration` 10 files, 60 tests.
 - Stopped for the owner's manual test of phase 4.
+- Owner's manual test of phase 4 passed (the failure cases, a successful reset, the old session revoked, the old password refused and the new one accepted). The test account `reset@neocraft.eu` stays in the dev DB, since deleting it was not requested.
+- With the owner's consent, I pushed both branches and opened PR #40 (Phase A → `main`, closes #24) and PR #41 (Phase B, stacked on `feat/sign-in-pages-phase-a`, closes #25). Labels: `feature`, `review`, `needs-qa`, `risk-high`.
+- CI is green on both PRs, including the integration job with Testcontainers PostgreSQL + agent-browser. That is the first Testcontainers run of this code, since Docker is not accessible locally.
+- **Outcome:** spec implemented; merging is up to the owner after a second-person review and QA.
