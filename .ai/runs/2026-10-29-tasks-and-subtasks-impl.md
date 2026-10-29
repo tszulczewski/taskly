@@ -284,6 +284,28 @@ Phase 1 has no routes or UI, so the check is on the database and the tests:
 - `AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab npm run test:integration` (Testcontainers, `TEST_DATABASE_URL` unset): 14 files, 141 tests passed.
 - Mutation checks: not done (each would need a rebuilt standalone app in a separate copy). The AC4 request-log check has a positive control in the same test (exactly one POST after the correction); the renewal check's "unchanged" half is non-vacuous because the same test then sees the renewal happen.
 
+### Phase 2 gate (main session, after `ac3c885`)
+
+- From a clean `packages/app/.next`: `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && npm audit --audit-level=high && AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab npm run test:integration`: exit 0.
+  - lint: 0 errors, 1 pre-existing warning. `npm test`: 72 files, 894 tests, coverage thresholds (100%) met.
+  - `npm audit --audit-level=high`: passes; 4 moderate findings, pre-existing (also reported in Task 2.2).
+  - `npm run test:integration` (Testcontainers): 14 files, 141 tests passed.
+
+### Phase 2 manual test checklist (owner)
+
+Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env validation on every page (pre-existing, not from this branch); set any non-empty placeholder first. Open `http://localhost:3000` (the `BETTER_AUTH_URL` host, not 127.0.0.1).
+
+1. Signed out, `/` redirects to `/sign-in`. Sign in: the page shows "My renovation" and the empty state with focus in the title field.
+2. Quick add shows Title, Amount, "up to (optional)" and Add in one row (under the title below 640 px); "Description" is a collapsed toggle.
+3. Add "Tiles" with 1 500 and 2 000 → "1 500–2 000 zł"; the row scrolls into view, is briefly highlighted, fields clear and focus stays in the title.
+4. Add with only Amount "500" → "500 zł"; with only "up to" "500" → "500 zł"; with "12,50" → "12,50 zł"; with no amounts → "No estimate".
+5. Amount "2 000", up to "1 500" → "“Up to” must not be less than the amount." under "up to", nothing saved; bad text like "1e3" → "Enter an amount like 1 500,50".
+6. Add with a description (toggle open) → after the add the toggle collapses; opening the row (its title) shows the description.
+7. "…" → Edit: fields prefilled (an exact price only in Amount), description open if present; change the title only → saved after "Saving…"; clear both amounts → "No estimate".
+8. "…" → Delete → confirm dialog → "Deleting…" → row gone; focus returns sensibly.
+9. Reload: tasks persist in the order added. Two tabs: delete a task in one, then save an edit of it in the other → "This task was deleted. The list has been refreshed."
+10. At 320 px width nothing scrolls horizontally; dark/light theme toggle and Sign out work.
+
 ## Problems / open questions
 
 - Task 1.1: in this session's sandbox agent-browser cannot create its socket directory under `XDG_RUNTIME_DIR` (`Permission denied (os error 13)`), so the browser integration tests fail until `AGENT_BROWSER_SOCKET_DIR` points at a short writable path. Running outside the sandbox was refused. Not a code problem; CI is unaffected.
