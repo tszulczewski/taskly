@@ -1,14 +1,29 @@
 import { schema } from "@taskly/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { requireRole } from "./access";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { createList, deleteList, ensureDefaultList, listsForUser, renameList } from "./lists";
 
 const url = process.env.DATABASE_URL;
 const run = `lst${Date.now()}`;
 const ids = { alice: `${run}-alice`, bob: `${run}-bob`, ed: `${run}-ed`, vi: `${run}-vi` };
+
+type Settled<T> = { value: T } | { error: unknown };
+/** Never rejects, so a failure cannot surface as an unhandled rejection before it is awaited. */
+const settle = <T>(promise: Promise<T>): Promise<Settled<T>> =>
+  promise.then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error }),
+  );
+
+function deferred<T = void>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
 
 describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
   const pool = new Pool({ connectionString: url, max: 3 });
@@ -259,6 +274,184 @@ describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
         .from(schema.lists)
         .where(and(eq(schema.lists.id, id), eq(schema.lists.defaultForUserId, user)));
       expect(row).toEqual({ kind: "project" });
+    });
+  });
+
+  describe("deleteList: the default list and concurrent writers", () => {
+    // One connection per actor, so a backend pid names that actor's transaction.
+    const ownerPool = new Pool({ connectionString: url, max: 1, idleTimeoutMillis: 0 });
+    const editorPool = new Pool({ connectionString: url, max: 1, idleTimeoutMillis: 0 });
+    const ownerDb = drizzle(ownerPool, { schema });
+    const editorDb = drizzle(editorPool, { schema });
+    let ownerPid: number;
+    let editorPid: number;
+
+    beforeAll(async () => {
+      ownerPid = await backendPid(ownerPool);
+      editorPid = await backendPid(editorPool);
+    });
+
+    afterAll(async () => {
+      await ownerPool.end();
+      await editorPool.end();
+    });
+
+    async function backendPid(p: Pool) {
+      const { rows } = await p.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      return rows[0]!.pid;
+    }
+
+    async function isBlockedBy(waiterPid: number, blockerPid: number) {
+      const { rows } = await pool.query<{ blocked: boolean }>(
+        "SELECT $2::int = ANY(pg_blocking_pids($1::int)) AS blocked",
+        [waiterPid, blockerPid],
+      );
+      return rows[0]!.blocked;
+    }
+
+    async function waitUntilBlockedBy(waiterPid: number, blockerPid: number) {
+      const deadline = Date.now() + 10_000;
+      while (Date.now() < deadline) {
+        if (await isBlockedBy(waiterPid, blockerPid)) return;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      throw new Error(`backend ${waiterPid} never waited on backend ${blockerPid}`);
+    }
+
+    async function leftovers(listId: string) {
+      return {
+        lists: await db.$count(schema.lists, eq(schema.lists.id, listId)),
+        members: await db.$count(schema.listMembers, eq(schema.listMembers.listId, listId)),
+        tasks: await db.$count(schema.tasks, eq(schema.tasks.listId, listId)),
+      };
+    }
+
+    /** A non-default project list owned by alice with ed as an editor. */
+    async function sharedList(name: string) {
+      const listId = await newList(ids.alice, name);
+      await db.insert(schema.listMembers).values({ listId, userId: ids.ed, role: "editor" });
+      return listId;
+    }
+
+    it("refuses to delete the default list and keeps its tasks; renaming it still works", async () => {
+      const user = await newUser("keep");
+      const listId = await ensureDefaultList(db, user);
+      await db.insert(schema.tasks).values({ listId, title: "Tiles", position: "a0" });
+
+      const deleting = deleteList(db, user, listId);
+      await expect(deleting).rejects.toBeInstanceOf(ConflictError);
+      await expect(deleting).rejects.toThrow("The default list cannot be deleted");
+      expect(await leftovers(listId)).toEqual({ lists: 1, members: 1, tasks: 1 });
+
+      await renameList(db, user, listId, { name: "Flat" });
+      const [row] = await db.select().from(schema.lists).where(eq(schema.lists.id, listId));
+      expect(row).toEqual(expect.objectContaining({ name: "Flat", defaultForUserId: user }));
+      await expect(ensureDefaultList(db, user)).resolves.toBe(listId);
+    });
+
+    it("waits for an editor's open write, then deletes everything (editor first, no 40P01)", async () => {
+      const listId = await sharedList("Loft");
+      const authorized = deferred();
+      const proceed = deferred();
+      const inserted = deferred();
+      const commit = deferred();
+      // The editor's task append as the lock protocol orders it: own membership FOR SHARE
+      // (requireRole), the list row FOR NO KEY UPDATE, then the insert.
+      const editor = settle(
+        editorDb.transaction(async (tx) => {
+          await requireRole(tx, ids.ed, listId, "write");
+          authorized.resolve();
+          await proceed.promise;
+          await tx
+            .select({ id: schema.lists.id })
+            .from(schema.lists)
+            .where(eq(schema.lists.id, listId))
+            .for("no key update");
+          await tx.insert(schema.tasks).values({ listId, title: "Skylight", position: "a0" });
+          inserted.resolve();
+          await commit.promise;
+        }),
+      );
+      let deleting: Promise<Settled<void>> | undefined;
+      let blockedUntilCommit = false;
+      let editorResult: Settled<void>;
+      let deleteResult: Settled<void> | undefined;
+      try {
+        await Promise.race([authorized.promise, editor]);
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        // The delete must wait while the editor holds only its membership row.
+        await waitUntilBlockedBy(ownerPid, editorPid);
+        proceed.resolve();
+        await Promise.race([inserted.promise, editor]);
+        blockedUntilCommit = await isBlockedBy(ownerPid, editorPid);
+      } finally {
+        // Always end the editor's transaction, or afterAll's cleanup waits on its locks.
+        proceed.resolve();
+        commit.resolve();
+        editorResult = await editor;
+        deleteResult = await deleting;
+      }
+
+      expect(editorResult).toEqual({ value: undefined });
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(blockedUntilCommit).toBe(true);
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    it("makes an editor's write wait for a delete that locked the members first, then finds no list", async () => {
+      const listId = await sharedList("Porch");
+      const [task] = await db
+        .insert(schema.tasks)
+        .values({ listId, title: "Paint", position: "a0" })
+        .returning({ id: schema.tasks.id });
+      const locked = deferred<number>();
+      const release = deferred();
+      // Holds the list's task, so the delete stops in its cascade, after locking every membership.
+      const holder = settle(
+        db.transaction(async (tx) => {
+          await tx
+            .select({ id: schema.tasks.id })
+            .from(schema.tasks)
+            .where(eq(schema.tasks.id, task!.id))
+            .for("update");
+          const { rows } = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+          locked.resolve(rows[0]!.pid);
+          await release.promise;
+        }),
+      );
+      let deleting: Promise<Settled<void>> | undefined;
+      let editor: Promise<Settled<void>> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      let editorResult: Settled<void> | undefined;
+      try {
+        const holderPid = await Promise.race([
+          locked.promise,
+          holder.then((r) => Promise.reject(new Error(`holder ended early: ${String(r)}`))),
+        ]);
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        await waitUntilBlockedBy(ownerPid, holderPid);
+        editor = settle(
+          editorDb.transaction(async (tx) => {
+            await requireRole(tx, ids.ed, listId, "write");
+            await tx
+              .select({ id: schema.lists.id })
+              .from(schema.lists)
+              .where(eq(schema.lists.id, listId))
+              .for("no key update");
+            await tx.insert(schema.tasks).values({ listId, title: "Too late", position: "a1" });
+          }),
+        );
+        await waitUntilBlockedBy(editorPid, ownerPid);
+      } finally {
+        release.resolve();
+        await holder;
+        deleteResult = await deleting;
+        editorResult = await editor;
+      }
+
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(editorResult).toEqual({ error: expect.any(NotFoundError) });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
     });
   });
 

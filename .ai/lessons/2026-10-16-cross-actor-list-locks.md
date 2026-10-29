@@ -15,3 +15,9 @@ Reported as a high-severity specification finding. No implementation or spec req
 
 ## Rule going forward
 Define lock ordering across all participating rows and cascading mutations, rather than assuming per-actor authorization locks provide a common mutex. Concurrency tests must include distinct authorized actors and deliberate barriers. When transaction retries are the chosen recovery, retry the whole transaction and verify its externally visible result.
+
+## Follow-up (2026-10-29, E01 task 1.4)
+`deleteList` now locks every membership of the list `FOR UPDATE` (ordered by `user_id`) before `DELETE FROM lists`. How the test proves it (`packages/core/src/lists.integration.test.ts`):
+- Give each actor a one-connection pool (`max: 1, idleTimeoutMillis: 0`) and read its `pg_backend_pid()` once; a barrier then polls `SELECT $2 = ANY(pg_blocking_pids($1))` until the waiter is blocked by that specific actor. This is exact where `pg_stat_activity` query-text matching is not, and it needs no sleeps.
+- Only one ordering reproduces the old deadlock: the editor holds just its membership `FOR SHARE` when the delete starts, and locks the list row only after the delete is seen waiting. With the old code that gives `40P01`; with the fix the delete waits on the membership and the editor's list lock is free. The "delete first" ordering passed against the old code too (the cascade reached the editor's membership before the editor locked the list row), so it shows the clean 404 outcome, not the fix. Check each ordering against the unfixed code in a separate worktree before claiming it covers the fix.
+- To stop a service midway without injecting into it, hold a row its cascade must touch (a task `FOR UPDATE`) in a third transaction.

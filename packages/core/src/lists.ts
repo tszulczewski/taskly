@@ -35,14 +35,20 @@ export async function createList(db: Db, userId: string, input: unknown): Promis
 }
 
 /** The global shopping list is permanent: it is recreated on first use, so it is never renamed or deleted. */
-async function requireManagedProjectList(tx: Tx, userId: string, listId: string): Promise<void> {
+async function requireManagedProjectList(
+  tx: Tx,
+  userId: string,
+  listId: string,
+): Promise<{ defaultForUserId: string | null }> {
   await requireRole(tx, userId, listId, "manage");
-  // The membership row is locked and cascades from the list, so the list exists.
+  // The membership row is locked and cascades from the list, so the list exists. Not locked:
+  // writers lock the list row after their membership, so taking it here would invert that order.
   const [list] = await tx
-    .select({ kind: schema.lists.kind })
+    .select({ kind: schema.lists.kind, defaultForUserId: schema.lists.defaultForUserId })
     .from(schema.lists)
     .where(eq(schema.lists.id, listId));
   if (list!.kind === "shopping") throw new ConflictError("The shopping list cannot be changed");
+  return { defaultForUserId: list!.defaultForUserId };
 }
 
 export async function renameList(
@@ -58,10 +64,21 @@ export async function renameList(
   });
 }
 
-/** Cascades to members, tasks, shopping items and invitations. */
+/** Cascades to members, tasks, shopping items and invitations. The default list is kept. */
 export async function deleteList(db: Db, userId: string, listId: string): Promise<void> {
   await db.transaction(async (tx) => {
-    await requireManagedProjectList(tx, userId, listId);
+    const list = await requireManagedProjectList(tx, userId, listId);
+    if (list.defaultForUserId !== null) {
+      throw new ConflictError("The default list cannot be deleted");
+    }
+    // Writers hold their own membership FOR SHARE and then lock the list row. Locking every
+    // membership (in one order) before the cascade makes this wait for them, not deadlock.
+    await tx
+      .select({ userId: schema.listMembers.userId })
+      .from(schema.listMembers)
+      .where(eq(schema.listMembers.listId, listId))
+      .orderBy(asc(schema.listMembers.userId))
+      .for("update");
     await tx.delete(schema.lists).where(eq(schema.lists.id, listId));
   });
 }

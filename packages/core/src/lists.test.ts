@@ -14,13 +14,43 @@ const listId = "6f1c1d0e-8a39-4c52-9a4e-0d3f6b2a7e11";
 
 const mockedRequireRole = vi.mocked(requireRole);
 
-/** A Db whose transaction runs the callback against a recording `tx`. */
-function fakeDb(kind: "project" | "shopping" = "project") {
+const render = (query: SQL) => {
+  const { sql, params } = new PgDialect().sqlToQuery(query);
+  return { sql, params };
+};
+
+type ListRow = { kind: "project" | "shopping"; defaultForUserId: string | null };
+
+/**
+ * A Db whose transaction runs the callback against a recording `tx`. A select from `lists`
+ * returns `list`; a select from `list_members` is the delete's lock query, recorded in `lock`.
+ */
+function fakeDb(list: Partial<ListRow> = {}) {
+  const row: ListRow = { kind: "project", defaultForUserId: null, ...list };
   const calls: string[] = [];
   const values = vi.fn();
   const set = vi.fn();
+  const lock = vi.fn();
   const tx = {
-    select: vi.fn(() => ({ from: () => ({ where: async () => [{ kind }] }) })),
+    select: vi.fn((fields: Record<string, unknown>) => ({
+      from: (table: unknown) => ({
+        where: (condition: SQL) => {
+          if (table === schema.lists) {
+            calls.push(`read list ${Object.keys(fields).join(",")}`);
+            return Promise.resolve([row]);
+          }
+          return {
+            orderBy: (order: SQL) => ({
+              for: async (mode: string) => {
+                lock({ fields: Object.keys(fields), table, condition, order, mode });
+                calls.push(`lock members ${mode}`);
+                return [];
+              },
+            }),
+          };
+        },
+      }),
+    })),
     insert: vi.fn(() => ({
       values: (v: unknown) => {
         values(v);
@@ -37,7 +67,7 @@ function fakeDb(kind: "project" | "shopping" = "project") {
     delete: vi.fn(() => ({ where: async () => void calls.push("delete") })),
   };
   const db = { transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)) };
-  return { db: db as unknown as Db, tx, calls, values, set };
+  return { db: db as unknown as Db, tx, calls, values, set, lock };
 }
 
 beforeEach(() => {
@@ -80,7 +110,14 @@ describe("renameList", () => {
     await renameList(db, userId, listId, { name: " Kitchen " });
     expect(mockedRequireRole).toHaveBeenCalledWith(tx, userId, listId, "manage");
     expect(set).toHaveBeenCalledWith({ name: "Kitchen" });
-    expect(calls).toEqual(["update"]);
+    expect(calls).toEqual(["read list kind,defaultForUserId", "update"]);
+  });
+
+  it("renames the default list", async () => {
+    const { db, set, calls } = fakeDb({ defaultForUserId: userId });
+    await renameList(db, userId, listId, { name: "Flat" });
+    expect(set).toHaveBeenCalledWith({ name: "Flat" });
+    expect(calls).toEqual(["read list kind,defaultForUserId", "update"]);
   });
 
   it.each([new ForbiddenError(), new NotFoundError("List")])(
@@ -94,11 +131,11 @@ describe("renameList", () => {
   );
 
   it("refuses to rename the shopping list", async () => {
-    const { db, calls } = fakeDb("shopping");
+    const { db, calls } = fakeDb({ kind: "shopping" });
     await expect(renameList(db, userId, listId, { name: "x" })).rejects.toBeInstanceOf(
       ConflictError,
     );
-    expect(calls).toEqual([]);
+    expect(calls).toEqual(["read list kind,defaultForUserId"]);
   });
 
   it("rejects invalid input before authorizing", async () => {
@@ -109,17 +146,38 @@ describe("renameList", () => {
 });
 
 describe("deleteList", () => {
-  it("requires manage, then deletes", async () => {
-    const { db, tx, calls } = fakeDb();
+  it("requires manage, reads the list, locks every membership in user order, then deletes", async () => {
+    const { db, tx, calls, lock } = fakeDb();
     await deleteList(db, userId, listId);
     expect(mockedRequireRole).toHaveBeenCalledWith(tx, userId, listId, "manage");
-    expect(calls).toEqual(["delete"]);
+    expect(mockedRequireRole.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.select.mock.invocationCallOrder[0]!,
+    );
+    expect(calls).toEqual(["read list kind,defaultForUserId", "lock members update", "delete"]);
+    const [{ fields, table, condition, order, mode }] = lock.mock.calls[0] as [
+      { fields: string[]; table: unknown; condition: SQL; order: SQL; mode: string },
+    ];
+    expect({ fields, table, mode }).toEqual({
+      fields: ["userId"],
+      table: schema.listMembers,
+      mode: "update",
+    });
+    expect(render(condition)).toEqual({ sql: '"list_members"."list_id" = $1', params: [listId] });
+    expect(render(order)).toEqual({ sql: '"list_members"."user_id" asc', params: [] });
+  });
+
+  it("refuses to delete the default list, before locking or deleting anything", async () => {
+    const { db, calls } = fakeDb({ defaultForUserId: userId });
+    const result = deleteList(db, userId, listId);
+    await expect(result).rejects.toBeInstanceOf(ConflictError);
+    await expect(result).rejects.toThrow("The default list cannot be deleted");
+    expect(calls).toEqual(["read list kind,defaultForUserId"]);
   });
 
   it("refuses to delete the shopping list", async () => {
-    const { db, calls } = fakeDb("shopping");
+    const { db, calls } = fakeDb({ kind: "shopping" });
     await expect(deleteList(db, userId, listId)).rejects.toBeInstanceOf(ConflictError);
-    expect(calls).toEqual([]);
+    expect(calls).toEqual(["read list kind,defaultForUserId"]);
   });
 
   it.each([new ForbiddenError(), new NotFoundError("List")])(
@@ -135,10 +193,6 @@ describe("deleteList", () => {
 
 describe("ensureDefaultList", () => {
   const otherId = "0b7e3c52-5d1a-4f0e-8c6b-2a9d4e1f3c77";
-  const render = (condition: SQL) => {
-    const { sql, params } = new PgDialect().sqlToQuery(condition);
-    return { sql, params };
-  };
   const defaultListLookup = {
     sql: '("lists"."default_for_user_id" = $1 and "lists"."kind" = $2)',
     params: [userId, "project"],
