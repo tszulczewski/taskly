@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { signInInput, signUpInput } from "./schemas";
+import { setPasswordInput, signInInput, signUpInput } from "./schemas";
 
 const valid = { name: "Ann", email: "ann@example.com", password: "a".repeat(10) };
 
@@ -64,5 +64,24 @@ describe("signInInput", () => {
       email: ["Enter a valid email address."],
       password: ["Enter your password."],
     });
+  });
+});
+
+describe("setPasswordInput", () => {
+  it("lowercases the email and applies the sign-up password policy", () => {
+    expect(
+      setPasswordInput.parse({ email: "Ann@Example.COM", newPassword: "a".repeat(10) }),
+    ).toEqual({ email: "ann@example.com", newPassword: "a".repeat(10) });
+    expect(setPasswordInput.safeParse({ email: "a", newPassword: "a".repeat(128) }).success).toBe(
+      true,
+    );
+    expect(
+      errors(setPasswordInput.safeParse({ email: "ann@example.com", newPassword: "a".repeat(9) })),
+    ).toEqual({ newPassword: ["Use at least 10 characters."] });
+    expect(
+      errors(
+        setPasswordInput.safeParse({ email: "ann@example.com", newPassword: "a".repeat(129) }),
+      ),
+    ).toEqual({ newPassword: ["Use at most 128 characters."] });
   });
 });

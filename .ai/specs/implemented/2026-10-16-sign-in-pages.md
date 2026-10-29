@@ -1,7 +1,7 @@
 # Sign-up, sign-in and sign-out pages
 
 - **Date:** 2026-10-16
-- **Status:** draft
+- **Status:** implemented
 - **Issue:** #24 (Phase A), #25 (Phase B). This is the prerequisite (Phase 0) of `.ai/specs/2026-10-16-tasks-and-subtasks.md`, confirmed by the owner on 2026-10-16.
 
 ## 📝 TLDR

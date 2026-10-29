@@ -1,6 +1,9 @@
 export class NotFoundError extends Error {
-  constructor(what = "Resource") {
-    super(`${what} not found`);
+  /** What was not found, for callers that react differently per kind (the reset command). */
+  readonly resource: string;
+  constructor(resource = "Resource") {
+    super(`${resource} not found`);
+    this.resource = resource;
   }
 }
 export class ForbiddenError extends Error {

@@ -1,8 +1,8 @@
 # Implementation tracker — sign-in pages
 
-- **Spec:** `.ai/specs/2026-10-16-sign-in-pages.md` (issues #24 Phase A, #25 Phase B)
+- **Spec:** `.ai/specs/implemented/2026-10-16-sign-in-pages.md` (issues #24 Phase A, #25 Phase B)
 - **Run log:** `.ai/runs/2026-10-28-sign-in-pages-impl.md`
-- **Branch:** `feat/sign-in-pages-phase-a` (Phase B gets its own branch on top)
+- **Branch:** `feat/sign-in-pages-phase-a` (phases 1–3); phase 4 on `feat/sign-in-pages-phase-b`, created from phase-a on 2026-10-29
 - **Rule:** one subagent per task, one commit per task, manual test stop after each phase.
 
 Legend: `[x]` done and committed, `[ ]` pending.
@@ -46,18 +46,30 @@ Owner's manual test of phase 3 (2026-10-29):
 
 ## Phase 4 — Password reset, spec Phase B (spec steps 7B, 10)
 
-- [ ] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
-- [ ] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
-- [ ] 4.3 Reset Runbook in `AGENTS.md`, full gate, lessons, move spec to `implemented/`
+- [x] 4.1 `setPassword` (atomic password change + session revocation) + integration tests with failure injection
+- [x] 4.2 `runSetPassword` CLI, bootstrap entry, `auth:set-password` script, `tsx`, PTY smoke test
+- [x] 4.3 Reset Runbook in `AGENTS.md`, full gate, lessons, move spec to `implemented/`
+- [x] 4.4 Code review (`.ai/runs/2026-10-29-sign-in-branch-code-review.md`, minor): the hidden prompt turns arrow/Delete/Home sequences into password text (`abc`+Left → `abc[D`) and ignores Ctrl+U. Reject ESC and any control key other than Enter/Backspace/Ctrl+C/Ctrl+D with a distinct CLI message; unit + PTY tests; Runbook note
 
 **Manual test:** reset the password of a disposable dev account with `npm run auth:set-password`.
 
-## Handoff (2026-10-28, end of session)
+## Handoff (2026-10-29)
 
-- **State:** phases 1–3 (spec Phase A) done and committed on `feat/sign-in-pages-phase-a`, **not pushed**. Full gate green (398 unit tests, 100% coverage; 48 integration tests via `TEST_DATABASE_URL`, no Docker locally).
-- **Next, in this order:**
-  1. Owner's manual test of phase 3 (steps in the run log / last session).
-  2. Push the branch and open the Phase A PR (risk-high: second-person review, `needs-qa`, no self-QA). The phases 1–2 review is in `.ai/runs/2026-10-28-sign-in-phases-1-2-review.md`; phase 3 code has not been reviewed yet.
-  3. Phase 4 on its own branch on top of Phase A (`feat/sign-in-pages-phase-b`), task by task: one subagent and one commit per task, a manual-test stop at the end.
-- **Open owner decisions (non-blocking):** component file naming (kebab-case as in the repo vs PascalCase in engineering-standards §2); the dead API-contract row "400 password too short or long" in the spec; the sign-up skeleton when sign-up is closed; keep or drop the "Reset a password" placeholder in the `AGENTS.md` Runbook until phase 4; user name in the header (needs a ui `AppHeader` slot, later).
-- **Local dev notes:** `next dev` does not read the root `.env` and `ANTHROPIC_API_KEY` is empty there, so source the env and set a dummy key (`set -a; . ./.env; set +a; export ANTHROPIC_API_KEY=dummy`). The standalone server's process is `next-server`: kill it by PID. Do mutation checks in a separate worktree, never in the shared tree.
+- **State:** all phases done.
+  - Phases 1–3 (spec Phase A, plus fixes 3.8 and 3.9) were accepted by the owner on `feat/sign-in-pages-phase-a`.
+  - Phase 4 (spec Phase B) is committed on `feat/sign-in-pages-phase-b`, created from phase-a. Its full gate is green (448 unit tests with 100% coverage, 60 integration tests via `TEST_DATABASE_URL`).
+  - The spec is in `implemented/`. Neither branch is pushed.
+- **Next:**
+  1. Done: the owner's manual test of phase 4 passed (2026-10-29).
+  2. Done 2026-10-29, with the owner's consent: Phase A PR #40 (base `main`, closes #24) and Phase B PR #41, stacked on `feat/sign-in-pages-phase-a` (closes #25). Labels: `feature`, `review`, `needs-qa`, `risk-high`. CI is green on both, including Testcontainers.
+  3. Merge (the owner's call, after a second-person review and QA). Once #40 is merged, retarget #41 to `main`. If the squash merge makes it conflict, use the stacked-PR lesson: merge `main` with `-s ours` when the trees match; force-push is blocked.
+- **Open owner decisions (non-blocking):**
+  - component file naming: kebab-case, as in the repo, vs PascalCase in engineering-standards §2;
+  - the dead API-contract row "400 password too short or long" in the spec;
+  - the user name in the header, which needs a slot in the ui `AppHeader` (later);
+  - the spec TLDR still says "proposes (not yet built)", which is requirement prose.
+- **Local dev notes:**
+  - Open the app at `http://localhost:3000`, the `BETTER_AUTH_URL`, not 127.0.0.1.
+  - `next dev` does not read the root `.env`: `set -a; . ./.env; set +a; export ANTHROPIC_API_KEY=dummy`.
+  - agent-browser in the sandbox needs `AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab`.
+  - Mutation checks go in a separate worktree, with `node_modules` linked at the root and in each `packages/*`.

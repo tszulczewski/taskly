@@ -21,16 +21,25 @@ export const createTaskInput = z.object({
 
 const emailField = z.email("Enter a valid email address.");
 
+/** The password policy for a new password; matches Better Auth's `minPasswordLength`/`maxPasswordLength`. */
+const newPasswordField = z
+  .string()
+  .min(10, "Use at least 10 characters.")
+  .max(128, "Use at most 128 characters.");
+
 /** Shared by the sign-up form and the server sign-up hook. Messages are shown under the fields. */
 export const signUpInput = z.object({
   name: z.string().trim().min(1, "Enter your name.").max(100, "Use at most 100 characters."),
   email: emailField,
-  password: z
-    .string()
-    .min(10, "Use at least 10 characters.")
-    .max(128, "Use at most 128 characters."),
+  password: newPasswordField,
 });
 export type SignUpInput = z.infer<typeof signUpInput>;
+
+/** Offline password reset. Emails are stored lowercased, as Better Auth does at sign-up. */
+export const setPasswordInput = z.object({
+  email: z.string().toLowerCase(),
+  newPassword: newPasswordField,
+});
 
 /** No length rule at sign-in, so the form does not reveal the password policy. */
 export const signInInput = z.object({

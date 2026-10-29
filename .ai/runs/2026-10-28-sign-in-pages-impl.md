@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-28
 - **Spec:** .ai/specs/2026-10-16-sign-in-pages.md
-- **Outcome:** partial (spec Phase A done; Phase B pending)
+- **Outcome:** success (spec implemented; PRs #40 and #41 open)
 
 ## Goal
 
@@ -104,3 +104,43 @@ Stopped after phase 3 at the owner's request; work continues in a new session. H
   - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 60 files, 403 tests, 100% coverage; `test:integration` 9 files, 50 tests.
 - Owner's manual test of phase 3 (after 3.8 and 3.9): everything works. Phase 3 is accepted.
 - At the owner's request, the dev DB's registration data was deleted: 3 users (`admin@neocraft.eu`, `admin2@neocraft.eu` and a subagent's `repro-…@example.test`), with their sessions and accounts. The dev DB now has no users. Domain tables have no FK to `user` and were not touched.
+- Phase 4 started on `feat/sign-in-pages-phase-b`, created from phase-a at `feba96f`. Neither branch is pushed.
+- **4.1** (subagent): `setPassword(email, newPassword)` in `password-admin.ts`.
+  - It parses `setPasswordInput`: the email is lowercased, and the password check is the shared `newPasswordField`, 10–128 characters, which `signUpInput` now uses too.
+  - It hashes before the transaction. Inside `runWithTransaction` it runs `findUserByEmail`, `findCredentialAccount`, `updatePassword` and `deleteUserSessions`. The API was checked in Better Auth 1.7.7 (`@better-auth/core/dist/types/context.d.mts`, `better-auth/dist/db/internal-adapter.mjs`, `@better-auth/core/dist/context/transaction.mjs`, `@better-auth/drizzle-adapter/dist/index.mjs:559`).
+  - My decision, since the spec is silent: a user with no credential account gets `NotFoundError("Credential account")` and nothing changes. `updatePassword` would otherwise change no row while sessions were still revoked and the command reported success. Better Auth's own reset endpoint would create the account instead. Today every account is email + password, so this only matters once Google login exists.
+  - No row lock: the reset is an offline step with the service stopped (spec).
+  - Tests: +6 unit tests, plus schema and barrel tests. +6 integration tests: the new password works, the old one fails, sessions are gone, unknown email, short password, no credential account, and rollback when the injected failure comes before or after both writes.
+  - Negative control in a separate worktree: with the writes outside the transaction, 2 rollback tests fail; with `transaction: false`, 3 fail (the earlier `createPasswordUser` orphan test included).
+  - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 60 files, 411 tests, 100% coverage; `test:integration` 9 files, 56 tests.
+- Owner question about Google accounts: my recommendation is that the reset keeps refusing a user without a password account rather than creating one, since that would silently add a sign-in method. An explicit flag (e.g. `--add-password`) can be decided in the Google-login spec. The CLI got a distinct message for this case.
+- **4.2** (subagent): `runSetPassword(argv, deps)` in `packages/core/src/cli/set-password.ts`, and `readHidden` (raw mode, Node built-ins only) in `cli/prompt-hidden.ts`.
+  - Order: arguments → TTY check → `loadEnvFile` → `getEnv()` → two hidden prompts → `setPassword` → success line → DB pool closed in `finally`.
+  - Exit codes: 0 on success, 2 for usage errors, 1 for every other failure. The two not-found cases are told apart by a new `NotFoundError.resource` and `SET_PASSWORD_NOT_FOUND`. Error output names settings but never shows values, the password, or raw DB errors.
+  - Bootstrap: `packages/core/scripts/set-password.ts`, two lines, type-checked through `packages/core/tsconfig.json`, outside coverage. Root script `auth:set-password` = `tsx --conditions=react-server …`; `tsx` 4.23.15 is an exact root devDependency.
+  - Spec vs reality: Node itself rejects a missing or unreadable `--env-file` (exit 9, `node: <path>: not found`) before our code runs. I reproduced this with a plain `node script.mjs --env-file /nonexistent`. The spec's requirement still holds (fails before prompting or writing, no values shown); only the message comes from Node. Our own check stays as a guard. The flag name is unchanged (spec).
+  - Notes: the npm banner echoes the command line, with the email and the env-file path but never the password; a relative `--env-file` resolves against the repo root.
+  - Tests: unit tests for every case in spec 7B bullet 3, including exported `DATABASE_URL` winning over the file. A PTY smoke test (`test/auth-set-password.integration.test.ts`) runs through `script -qec` in a clean `/bin/sh` environment, with a 0600 temp env file whose `DATABASE_URL` is unreachable, so the run only succeeds because the exported override wins. It covers success (no echo, prompt exit, sessions gone, old password 401, new 200), unknown email, piped stdin refused with nothing changed, and a missing env file.
+  - Negative controls in a separate worktree: without the TTY check, success printed before commit, raw mode removed, or the pool not closed, each fails the expected tests.
+  - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 62 files, 448 tests, 100% coverage; `test:integration` 10 files, 60 tests.
+  - Manual rehearsal on a disposable dev user (deleted afterwards): exit 0 after 1.4 s, the password did not appear in the transcript, the old password 401, the new one 200.
+- Owner decision (2026-10-29): no changes to the reset or to Google-account handling for now, since there is no Google sign-in. The current refusal for a user with no password account stays as built in 4.1–4.2, and nothing is recorded for the Google spec.
+- **4.3** (subagent):
+  - The reset Runbook in `AGENTS.md` replaces the placeholder. It adds what 4.2 learned: an absolute env-file path, Node's exit 9 for a bad path, piped input refused, an account without a password refused, npm echoing the command line, and that an already-exported variable (even an empty one) wins over the file. `auth:set-password` is now on the Commands line.
+  - Every Phase B requirement is mapped to code or a test, and no gaps were found.
+  - The spec was moved with `git mv` to `implemented/`, with Status set to implemented. Live references were updated in the tasks-and-subtasks spec and the Storybook docs (`StartHere.mdx`, `WhatIsMissing.mdx`, `epics/SignIn.mdx`); history files were left as they are.
+  - Gate: `format:check`, `typecheck`, `build` and `audit` pass; `lint` has the known warning; `npm test` 62 files, 448 tests, 100% coverage; `test:integration` 10 files, 60 tests.
+- Stopped for the owner's manual test of phase 4.
+- Owner's manual test of phase 4 passed (the failure cases, a successful reset, the old session revoked, the old password refused and the new one accepted). The test account `reset@neocraft.eu` stays in the dev DB, since deleting it was not requested.
+- With the owner's consent, I pushed both branches and opened PR #40 (Phase A → `main`, closes #24) and PR #41 (Phase B, stacked on `feat/sign-in-pages-phase-a`, closes #25). Labels: `feature`, `review`, `needs-qa`, `risk-high`.
+- CI is green on both PRs, including the integration job with Testcontainers PostgreSQL + agent-browser. That is the first Testcontainers run of this code, since Docker is not accessible locally.
+- **Outcome:** spec implemented; merging is up to the owner after a second-person review and QA.
+- Owner's code review (`.ai/runs/2026-10-29-sign-in-branch-code-review.md`): approve, with one minor finding. I verified it with a reproduction: `readHidden` drops only ESC, so Left becomes `[D`, Delete becomes `[3~` and SS3 Home becomes `OH` in the password, including when ESC and the rest arrive in separate chunks. Ctrl+U is ignored too. The review proposed discarding the sequences, but that still stores a different password than the user meant (`abc` + Left + `X` gives `abcX`, not `abXc`). Owner decision: reject instead, as task 4.4.
+- **4.4** (subagent):
+  - `readHidden` now rejects with `UnsupportedKeyError` on any control character other than Enter, Backspace, Ctrl+C and Ctrl+D. That covers C0 (ESC included) and C1 (`\x80`–`\x9f`, the 8-bit CSI/SS3 forms). There is no sequence parser.
+  - The CLI prints its own message for this case ("Only letters, digits, symbols and Backspace work in the password prompt; …"), exit 1.
+  - The Runbook gets one sentence about it.
+  - Tests: unit tests for 10 key cases, plus a PTY test where an arrow in the password gives exit 1 and nothing changes.
+  - Negative control against the old prompt: 10 unit tests fail, and the PTY test gets exit 0, meaning the wrong password was stored. That confirms the lockout scenario.
+  - Gate: `format:check`, `typecheck`, `build`, `audit` pass; `lint` passes with the known warning; `npm test` 62 files, 461 tests, 100% coverage; `test:integration` 10 files, 61 tests.
+  - The review session's lesson line was rewritten from "discard" to "reject".
