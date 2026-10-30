@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-29
 - **Spec:** .ai/specs/2026-10-16-tasks-and-subtasks.md
-- **Outcome:** implemented; spec moved to `implemented/`; awaiting the owner's Phase 3 manual test
+- **Outcome:** implemented; spec moved to `implemented/`; owner's Phase 3 manual test passed (2026-10-30); shipped as one PR
 
 ## Goal
 
@@ -505,3 +505,8 @@ Precondition: `npm run dev` (loads the repo-root `.env` since `92bb081`), open `
 ## Open points for the owner after Phase 3
 
 - Storybook E01 page: the design decision "A change shows at once and rolls back with a message…" predates the rule that only adding is optimistic (edit and delete wait for the server). Left for the owner / design-system update; not a code issue.
+
+## Phase 3 manual test result (owner, 2026-10-30)
+
+- Phase 3 manual test: passed. Owner asked to commit and open the PR. Reorder (drag and drop) was confirmed as out of scope here: E02-S01 (#17), no spec yet.
+- Shipped as one PR for the whole branch (closes #22, #15, #16) instead of the three phase PRs the tracker allowed, as the owner asked for "pr".

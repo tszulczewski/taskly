@@ -34,7 +34,7 @@ Legend: `[ ]` to do · `[x]` done
 - [x] **3.2 Subtask UI** — "Add subtask", nested rows, subtask edit/delete, summed estimate and "N subtasks without an estimate", read-only "Sum of subtasks" in the edit form, 409/404 handling, roll-up status messages, delete dialog counts subtasks; component tests.
 - [x] **3.3 Browser integration test for #16** — AC1–AC4.
 - [x] **3.4 Finish** — full gate (`format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`), lessons, `git mv` the spec to `implemented/`, grep the repo (Storybook docs) for the spec path and status words.
-- [ ] **Phase 3 gate** — owner's manual test of subtasks and the roll-up (checklist in the run log).
+- [x] **Phase 3 gate** — owner's manual test of subtasks and the roll-up (checklist in the run log).
 
 ## Notes
 
