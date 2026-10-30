@@ -937,6 +937,34 @@ describe("TaskListScreen subtasks", () => {
     await waitFor(() => expect(estimateOf(rowOf("Bathroom"))).toBe(pln("1_500_zł")));
   });
 
+  it.each([
+    ["invalid text", "abc", "2 000"],
+    ["a reversed range", "2 000", "1 500"],
+  ])(
+    "saves the title when a refetch brings the first subtask while the amounts hold %s",
+    async (_, amount, upTo) => {
+      // Regression: the first subtask was added in another tab while this edit form was open. The
+      // amounts typed before are hidden behind the sum, so they must not block the save.
+      serverTasks = [bath];
+      const { client } = await renderRows();
+      const form = await startEdit("Bathroom");
+      type(form.getByRole("textbox", { name: "Title" }), "Main bathroom");
+      type(amountField(form), amount);
+      type(upToField(form), upTo);
+
+      const summed = withSubtasks(bath, [prime], range(300, 400));
+      serverTasks = [summed];
+      await act(() => client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+      await waitFor(() => expect(form.queryByRole("textbox", { name: /^Amount/ })).toBeNull());
+
+      handlers.set(`PATCH ${taskUrl(bath.id)}`, () => saved({ ...summed, title: "Main bathroom" }));
+      await click(form.getByRole("button", { name: "Save" }));
+      expect(sent("PATCH", taskUrl(bath.id))).toEqual({ title: "Main bathroom" });
+      expect(await screen.findByText("Main bathroom")).toBeDefined();
+      expect(screen.queryByRole("form", { name: "Edit “Bathroom”" })).toBeNull();
+    },
+  );
+
   it("names the subtasks in the delete question of their task", async () => {
     serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
     await renderRows();

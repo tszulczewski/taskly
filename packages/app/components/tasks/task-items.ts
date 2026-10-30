@@ -144,12 +144,20 @@ export function toUpdateInput(
 ): UpdateTaskInput | null {
   const found = findTask(tasks, id);
   if (found === undefined) throw new Error("The edited task is not in the list");
-  const { title, description, estimate } = toCreateInput(values);
-  const prefilled = toCreateInput({ ...values, amount: opened.amount, upTo: opened.upTo });
+  // The amounts are read only while the form shows them: text typed into them before a refetch
+  // brought the first subtask is hidden behind the sum, so it is neither read nor sent.
+  const shown = found.summed ? { ...values, amount: "", upTo: "" } : values;
+  const { title, description, estimate } = toCreateInput(shown);
+  const estimateChanged =
+    !found.summed &&
+    !sameEstimate(
+      estimate,
+      toCreateInput({ ...values, amount: opened.amount, upTo: opened.upTo }).estimate,
+    );
   const changes = {
     ...(title !== opened.title && { title }),
     ...(description !== opened.description && { description }),
-    ...(!found.summed && !sameEstimate(estimate, prefilled.estimate) && { estimate }),
+    ...(estimateChanged && { estimate }),
   };
   return Object.keys(changes).length === 0 ? null : updateTaskInput.parse(changes);
 }

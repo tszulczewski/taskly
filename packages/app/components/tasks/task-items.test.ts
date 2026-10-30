@@ -244,6 +244,24 @@ describe("toUpdateInput", () => {
     ).toEqual({ title: "Paint the hall" });
   });
 
+  it.each([
+    ["invalid text", { amount: "abc", upTo: "" }],
+    ["a reversed range", { amount: "2 000", upTo: "1 500" }],
+  ])("ignores the hidden amounts of a task that has subtasks now, also %s", (_, amounts) => {
+    // Regression: amounts typed before a refetch brought the first subtask are hidden behind
+    // the sum; they and the form's prefill are not read, so nothing throws.
+    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
+    const now = { ...bare, subtasks: [subtask] };
+    const values = form({ title: "Paint the hall", ...amounts });
+    expect(toUpdateInput([now], bare.id, values, toTaskItem(bare))).toEqual({
+      title: "Paint the hall",
+    });
+    expect(toUpdateInput([now], bare.id, values, { ...toTaskItem(bare), ...amounts })).toEqual({
+      title: "Paint the hall",
+    });
+  });
+
   it("sends the estimate of a task whose only subtask was still pending when the form opened", () => {
     const temporary = { id: "pending-4", title: "Prime", description: null, estimate: null };
     const parent = view("Paint", { subtasks: [temporary] });

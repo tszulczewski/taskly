@@ -270,7 +270,7 @@ describe("TaskForm", () => {
     expect(field(description).value).toBe("Two coats.");
   });
 
-  it("shows a task's sum instead of the amounts and sends them unchanged (R12)", async () => {
+  it("shows a task's sum instead of the amounts and sends them empty (R12)", async () => {
     const onSubmit = vi.fn(ok);
     const { rerender } = render(
       <TaskForm
@@ -286,7 +286,7 @@ describe("TaskForm", () => {
     expect(sum?.textContent).toContain("Sum of subtasks:800–900 zł");
     expect(sum?.textContent).toContain("Change the amounts on the subtasks.");
     await submitForm("Save");
-    expect(onSubmit).toHaveBeenCalledWith(initialValues);
+    expect(onSubmit).toHaveBeenCalledWith({ ...initialValues, amount: "", upTo: "" });
     rerender(
       <TaskForm
         initialValues={initialValues}
@@ -298,6 +298,45 @@ describe("TaskForm", () => {
     );
     expect(screen.getByText("no estimate yet")).toBeTruthy();
   });
+
+  it.each([
+    ["invalid text", { amount: "abc", upTo: "1 500" }, "Enter an amount."],
+    ["a reversed range", { amount: "2 000", upTo: "1 500" }, "Enter a higher amount."],
+  ])(
+    "leaves hidden amounts holding %s out of validation and saving while it shows the sum",
+    async (_, amounts, message) => {
+      // Regression: a refetch brought the first subtask while the form was open.
+      const amount = (text: string) => Number(text.replaceAll(" ", ""));
+      const validate = (current: TaskFormValues) => ({
+        amount: Number.isNaN(amount(current.amount)) ? "Enter an amount." : undefined,
+        upTo: amount(current.upTo) < amount(current.amount) ? "Enter a higher amount." : undefined,
+      });
+      const onSubmit = vi.fn(async () => ({ ok: false as const, formError: "Try again." }));
+      const props = { initialValues, validate, onSubmit, onCancel: vi.fn() };
+      const { rerender } = render(<TaskForm {...props} />);
+      fireEvent.change(field("Title"), { target: { value: "Paint the hall" } });
+      fireEvent.change(field(/^Amount/), { target: { value: amounts.amount } });
+      fireEvent.change(field(/^up to/), { target: { value: amounts.upTo } });
+
+      rerender(<TaskForm {...props} summedEstimate="300–400 zł" />);
+      await submitForm("Save");
+      expect(onSubmit).toHaveBeenCalledWith({
+        title: "Paint the hall",
+        amount: "",
+        upTo: "",
+        description: "",
+      });
+      expect(screen.queryByText(message)).toBeNull();
+
+      // The subtasks are gone again: the fields come back with what was typed, and Save checks it.
+      rerender(<TaskForm {...props} />);
+      expect(field(/^Amount/).value).toBe(amounts.amount);
+      expect(field(/^up to/).value).toBe(amounts.upTo);
+      await submitForm("Save");
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(message)).toBeTruthy();
+    },
+  );
 });
 
 describe("TaskList", () => {
