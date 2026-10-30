@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { TaskView } from "@taskly/core";
+import type { SubtaskView, TaskView } from "@taskly/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Activity } from "react";
@@ -177,13 +177,12 @@ describe("TaskListScreen states", () => {
     expect(screen.getByText("White, 20 × 20.")).toBeDefined();
   });
 
-  it("offers Edit and Delete but no Add subtask (subtasks come later)", async () => {
+  it("offers Add subtask, Edit and Delete in a task's menu", async () => {
     await renderLoaded();
-    expect(screen.queryByRole("button", { name: "Seal the bath" })).toBeNull();
     openMenu("Seal the bath");
+    expect(screen.getByRole("menuitem", { name: "Add subtask" })).toBeDefined();
     expect(screen.getByRole("menuitem", { name: "Edit" })).toBeDefined();
     expect(screen.getByRole("menuitem", { name: "Delete" })).toBeDefined();
-    expect(screen.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
   });
 
   it("shows the empty state with focus in the quick-add title", async () => {
@@ -607,5 +606,391 @@ describe("TaskListScreen delete", () => {
     await click(within(dialog).getByRole("button", { name: "Delete task" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     await waitFor(() => expect(rows()).toHaveLength(1));
+  });
+});
+
+describe("TaskListScreen subtasks", () => {
+  const own = { minGrosze: 100_000, maxGrosze: 200_000 };
+  const bath = view("Bathroom", { estimate: own });
+  const subtask = (
+    title: string,
+    estimate: SubtaskView["estimate"] = null,
+    description: string | null = null,
+  ): SubtaskView => ({
+    id: crypto.randomUUID(),
+    title,
+    description,
+    estimate,
+  });
+  const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
+  const prime = subtask("Prime", range(300, 400));
+  const grout = subtask("Grout", range(500));
+  /** The server's parent: the sum of its subtasks' estimates and the count of those without. */
+  const withSubtasks = (
+    parent: TaskView,
+    subtasks: SubtaskView[],
+    estimate: TaskView["estimate"],
+  ): TaskView => ({
+    ...parent,
+    estimate: subtasks.length === 0 ? parent.estimate : estimate,
+    unestimatedSubtasks: subtasks.filter((item) => item.estimate === null).length,
+    subtasks,
+  });
+
+  /** The row of a task or subtask by its title (a task's row also holds its subtasks). */
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  const subtaskList = (title: string) =>
+    screen.getByRole("list", { name: `Subtasks of “${title}”` });
+  const subtaskForm = () =>
+    within(screen.getByRole("textbox", { name: "New subtask" }).closest("form")!);
+  const noticeOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("status")
+      .map((region) => region.textContent)
+      .join("");
+  const sumStarted = (title: string) =>
+    `The estimate of “${title}” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.`;
+
+  /** Renders the screen and waits for the server's rows. */
+  async function renderRows() {
+    const harness = renderScreen();
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0));
+    return harness;
+  }
+
+  async function startSubtask(title: string) {
+    openMenu(title);
+    await choose("Add subtask");
+    return subtaskForm();
+  }
+
+  it("shows subtasks nested under their task with their own estimates and the task's sum", async () => {
+    const tiles = subtask("Buy the tiles", null, "Matt, 30 × 60.");
+    serverTasks = [withSubtasks(bath, [prime, grout, tiles], range(800, 900))];
+    await renderRows();
+    const row = rowOf("Bathroom")!;
+    expect(estimateOf(row)).toBe(pln("800–900_zł"));
+    expect(within(row).getByText("3 subtasks")).toBeDefined();
+    expect(within(row).getByText("1 subtask without an estimate")).toBeDefined();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+    const nested = subtaskList("Bathroom");
+    expect(nested.closest("li")).toBe(row);
+    expect(estimateOf(rowOf("Prime"))).toBe(pln("300–400_zł"));
+    expect(estimateOf(rowOf("Grout"))).toBe(pln("500_zł"));
+    expect(within(rowOf("Buy the tiles")!).getByText("No estimate")).toBeDefined();
+    await click(within(nested).getByRole("button", { name: "Buy the tiles" }));
+    expect(screen.getByText("Matt, 30 × 60.")).toBeDefined();
+  });
+
+  it("shows No estimate and the count when no subtask has an estimate", async () => {
+    serverTasks = [withSubtasks(bath, [subtask("Prime"), subtask("Grout")], null)];
+    await renderRows();
+    const row = rowOf("Bathroom")!;
+    expect(estimateOf(row)).toBe("No estimate");
+    expect(within(row).getByText("2 subtasks without an estimate")).toBeDefined();
+  });
+
+  it("adds a subtask: pending under its task, the task's figure unchanged until the server's task arrives", async () => {
+    serverTasks = [bath, seal];
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    const { cached } = await renderRows();
+    const form = await startSubtask("Bathroom");
+    expect(document.activeElement).toBe(form.getByRole("textbox", { name: "New subtask" }));
+    type(form.getByRole("textbox", { name: "New subtask" }), "Prime");
+    type(amountField(form), "300");
+    type(upToField(form), "400");
+    await click(form.getByRole("button", { name: "Description" }));
+    type(form.getByRole("textbox", { name: /^Description/ }), "Two coats");
+    await click(form.getByRole("button", { name: "Add" }));
+
+    expect(sent("POST", TASKS_URL)).toEqual({
+      title: "Prime",
+      description: "Two coats",
+      estimate: range(300, 400),
+      parentId: bath.id,
+    });
+    const pending = await waitFor(() => {
+      const found = rowOf("Prime");
+      expect(found).toBeDefined();
+      return found!;
+    });
+    expect(subtaskList("Bathroom").contains(pending)).toBe(true);
+    expect(pending.querySelector("[data-pending]")).not.toBeNull();
+    expect(within(pending).getByText("Saving…")).toBeDefined();
+    const parentRow = rowOf("Bathroom")!;
+    expect(estimateOf(parentRow)).toBe(pln("1_000–2_000_zł"));
+    expect(within(parentRow).queryByText("1 subtask")).toBeNull();
+    expect(cached()?.[0]).toMatchObject({ estimate: own, unestimatedSubtasks: 0 });
+    openMenu("Prime");
+    expect(screen.getByRole("menuitem", { name: "Edit" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    const created = { ...prime, description: "Two coats" };
+    const answer = withSubtasks(bath, [created], range(300, 400));
+    serverTasks = [answer, seal];
+    post.open(ok(answer));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
+
+    expect(estimateOf(rowOf("Bathroom"))).toBe(pln("300–400_zł"));
+    expect(within(rowOf("Bathroom")!).getByText("1 subtask")).toBeDefined();
+    expect(estimateOf(rowOf("Prime"))).toBe(pln("300–400_zł"));
+    expect(rowOf("Prime")?.querySelector(".row-highlight")).not.toBeNull();
+    expect(rowOf("Prime")?.contains(scrollIntoView.mock.contexts.at(-1) as Node)).toBe(true);
+    expect(noticeOf("Bathroom")).toBe(sumStarted("Bathroom"));
+    // One subtask per opening; "Add subtask" takes focus for the next (decision F7).
+    expect(screen.queryByRole("textbox", { name: "New subtask" })).toBeNull();
+    expect(document.activeElement).toBe(
+      within(rowOf("Bathroom")!).getByRole("button", { name: "Add subtask" }),
+    );
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+  });
+
+  it("gives no first-subtask message to a task that had a subtask or no estimate of its own", async () => {
+    const hall = view("Hall");
+    serverTasks = [withSubtasks(bath, [prime], range(300, 400)), hall];
+    handlers.set(`POST ${TASKS_URL}`, (body) => {
+      const { title, parentId } = body as { title: string; parentId: string };
+      const parent = serverTasks.find((task) => task.id === parentId)!;
+      const added = subtask(title);
+      const answer = withSubtasks(parent, [...parent.subtasks, added], parent.estimate);
+      serverTasks = serverTasks.map((task) => (task.id === parentId ? answer : task));
+      return ok(answer);
+    });
+    await renderRows();
+    let form = await startSubtask("Bathroom");
+    type(form.getByRole("textbox", { name: "New subtask" }), "Grout");
+    await click(form.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(within(rowOf("Bathroom")!).getByText("2 subtasks")).toBeDefined());
+    expect(noticeOf("Bathroom")).toBe("");
+
+    form = await startSubtask("Hall");
+    type(form.getByRole("textbox", { name: "New subtask" }), "Sweep");
+    await click(form.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(within(rowOf("Hall")!).getByText("1 subtask")).toBeDefined());
+    expect(within(rowOf("Hall")!).getByText("1 subtask without an estimate")).toBeDefined();
+    expect(estimateOf(rowOf("Hall"))).toBe("No estimate");
+    expect(noticeOf("Hall")).toBe("");
+  });
+
+  it("removes the pending subtask and keeps the text when the add fails", async () => {
+    serverTasks = [bath];
+    handlers.set(`POST ${TASKS_URL}`, () => fail(500, "internal_error", "Something went wrong"));
+    const { cached } = await renderRows();
+    const form = await startSubtask("Bathroom");
+    type(form.getByRole("textbox", { name: "New subtask" }), "Prime");
+    await click(form.getByRole("button", { name: "Add" }));
+    expect((await form.findByRole("alert")).textContent).toBe("Could not add the task. Try again.");
+    expect((form.getByRole("textbox", { name: "New subtask" }) as HTMLInputElement).value).toBe(
+      "Prime",
+    );
+    expect(rowOf("Prime")).toBeUndefined();
+    expect(cached()).toEqual([bath]);
+  });
+
+  it("on a 404 shows the deleted-task message, refetches and moves focus to the list", async () => {
+    serverTasks = [bath, seal];
+    handlers.set(`POST ${TASKS_URL}`, () => {
+      serverTasks = [seal];
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderRows();
+    const get = gate();
+    handlers.set(`GET ${TASKS_URL}`, () => get.promise);
+    const form = await startSubtask("Bathroom");
+    type(form.getByRole("textbox", { name: "New subtask" }), "Prime");
+    await click(form.getByRole("button", { name: "Add" }));
+    const deleted = "This task was deleted. The list has been refreshed.";
+    expect((await form.findByRole("alert")).textContent).toBe(deleted);
+    expect(rowOf("Prime")).toBeUndefined();
+    expect(calls("GET", TASKS_URL)).toHaveLength(2);
+
+    get.open(ok(serverTasks));
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(screen.getByRole("alert").textContent).toBe(deleted);
+    expect(document.activeElement).toBe(list());
+  });
+
+  it("changes the task's figure when a subtask's estimate is edited, after the server answers", async () => {
+    serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
+    const patch = gate();
+    handlers.set(`PATCH ${taskUrl(grout.id)}`, () => patch.promise);
+    await renderRows();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+    const form = await startEdit("Grout");
+    expect(amountField(form).value).toBe("500");
+    type(amountField(form), "700");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(sent("PATCH", taskUrl(grout.id))).toEqual({ estimate: range(700) });
+    expect(estimateOf(rowOf("Bathroom"))).toBe(pln("800–900_zł"));
+
+    const answer = withSubtasks(
+      bath,
+      [prime, { ...grout, estimate: range(700) }],
+      range(1000, 1100),
+    );
+    serverTasks = [answer];
+    patch.open(ok(answer));
+    await waitFor(() => expect(estimateOf(rowOf("Bathroom"))).toBe(pln("1_000–1_100_zł")));
+    expect(estimateOf(rowOf("Grout"))).toBe(pln("700_zł"));
+  });
+
+  it("edits a task with subtasks without amount fields: their sum is shown as text", async () => {
+    const summed = withSubtasks(bath, [prime, grout], range(800, 900));
+    serverTasks = [summed];
+    handlers.set(`PATCH ${taskUrl(bath.id)}`, () => saved({ ...summed, title: "Main bathroom" }));
+    await renderRows();
+    const form = await startEdit("Bathroom");
+    expect(form.queryByRole("textbox", { name: /^Amount/ })).toBeNull();
+    expect(form.queryByRole("textbox", { name: /^up to/ })).toBeNull();
+    const sum = document.querySelector('[data-slot="summed-estimate"]');
+    expect(sum?.textContent).toBe(
+      pln("Sum of subtasks:800–900_zł") + "Change the amounts on the subtasks.",
+    );
+    type(form.getByRole("textbox", { name: "Title" }), "Main bathroom");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(sent("PATCH", taskUrl(bath.id))).toEqual({ title: "Main bathroom" });
+    expect(await screen.findByText("Main bathroom")).toBeDefined();
+  });
+
+  it("shows the sum as not there yet when no subtask has an estimate", async () => {
+    serverTasks = [withSubtasks(bath, [subtask("Prime")], null)];
+    await renderRows();
+    await startEdit("Bathroom");
+    expect(document.querySelector('[data-slot="summed-estimate"]')?.textContent).toBe(
+      "Sum of subtasks:no estimate yetChange the amounts on the subtasks.",
+    );
+  });
+
+  it("on a 409 keeps the typed title, gives the amounts way to the sum and saves only the title next", async () => {
+    serverTasks = [bath];
+    const message = "A task with subtasks takes its estimate from them";
+    handlers.set(`PATCH ${taskUrl(bath.id)}`, () => {
+      // A subtask was added in another tab.
+      serverTasks = [withSubtasks(bath, [prime], range(300, 400))];
+      return fail(409, "conflict", message);
+    });
+    await renderRows();
+    const form = await startEdit("Bathroom");
+    type(form.getByRole("textbox", { name: "Title" }), "Main bathroom");
+    type(amountField(form), "1 200");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(sent("PATCH", taskUrl(bath.id))).toEqual({
+      title: "Main bathroom",
+      estimate: range(1200, 2000),
+    });
+    expect((await form.findByRole("alert")).textContent).toBe(message);
+    await waitFor(() => expect(form.queryByRole("textbox", { name: /^Amount/ })).toBeNull());
+    expect(document.querySelector('[data-slot="summed-estimate"]')?.textContent).toContain(
+      pln("300–400_zł"),
+    );
+    expect((form.getByRole("textbox", { name: "Title" }) as HTMLInputElement).value).toBe(
+      "Main bathroom",
+    );
+
+    const answer = { ...withSubtasks(bath, [prime], range(300, 400)), title: "Main bathroom" };
+    handlers.set(`PATCH ${taskUrl(bath.id)}`, () => saved(answer));
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(calls("PATCH", taskUrl(bath.id))[1]?.[1]?.body).toBe(
+      JSON.stringify({ title: "Main bathroom" }),
+    );
+    expect(await screen.findByText("Main bathroom")).toBeDefined();
+  });
+
+  it("names the subtasks in the delete question of their task", async () => {
+    serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
+    await renderRows();
+    openMenu("Bathroom");
+    await choose("Delete");
+    expect(
+      await screen.findByRole("alertdialog", { name: "Delete “Bathroom” and its 2 subtasks?" }),
+    ).toBeDefined();
+  });
+
+  it("deletes a subtask: the task's figure follows the server, and its own amount comes back with a message", async () => {
+    serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
+    const answers = [withSubtasks(bath, [prime], range(300, 400)), withSubtasks(bath, [], null)];
+    for (const target of [grout, prime]) {
+      handlers.set(`DELETE ${taskUrl(target.id)}`, () => {
+        const answer = answers.shift()!;
+        serverTasks = [answer];
+        return ok(answer);
+      });
+    }
+    await renderRows();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+
+    openMenu("Grout");
+    await choose("Delete");
+    let dialog = await screen.findByRole("alertdialog", { name: "Delete “Grout”?" });
+    await click(within(dialog).getByRole("button", { name: "Delete task" }));
+    await waitFor(() => expect(rowOf("Grout")).toBeUndefined());
+    expect(estimateOf(rowOf("Bathroom"))).toBe(pln("300–400_zł"));
+    expect(noticeOf("Bathroom")).toBe("");
+
+    openMenu("Prime");
+    await choose("Delete");
+    dialog = await screen.findByRole("alertdialog", { name: "Delete “Prime”?" });
+    await click(within(dialog).getByRole("button", { name: "Delete task" }));
+    await waitFor(() => expect(rowOf("Prime")).toBeUndefined());
+    expect(estimateOf(rowOf("Bathroom"))).toBe(pln("1_000–2_000_zł"));
+    expect(within(rowOf("Bathroom")!).queryByText(/^\d+ subtasks?/)).toBeNull();
+    expect(noticeOf("Bathroom")).toBe(
+      pln("The estimate of “Bathroom” is back to your amount: 1_000–2_000_zł."),
+    );
+  });
+
+  it("gives no message when the last subtask of a task without its own estimate goes", async () => {
+    const hall = view("Hall");
+    const sweep = subtask("Sweep", range(50));
+    serverTasks = [withSubtasks(hall, [sweep], range(50))];
+    handlers.set(`DELETE ${taskUrl(sweep.id)}`, () => {
+      serverTasks = [hall];
+      return ok(hall);
+    });
+    await renderRows();
+    await click(screen.getByRole("button", { name: "Hall" }));
+    openMenu("Sweep");
+    await choose("Delete");
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete “Sweep”?" });
+    await click(within(dialog).getByRole("button", { name: "Delete task" }));
+    await waitFor(() => expect(rowOf("Sweep")).toBeUndefined());
+    expect(estimateOf(rowOf("Hall"))).toBe("No estimate");
+    expect(noticeOf("Hall")).toBe("");
+  });
+
+  async function addFirstSubtask() {
+    serverTasks = [bath, seal];
+    handlers.set(`POST ${TASKS_URL}`, () => {
+      const answer = withSubtasks(bath, [prime], range(300, 400));
+      serverTasks = [answer, seal];
+      return ok(answer);
+    });
+    const harness = await renderRows();
+    const form = await startSubtask("Bathroom");
+    type(form.getByRole("textbox", { name: "New subtask" }), "Prime");
+    await click(form.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(noticeOf("Bathroom")).toBe(sumStarted("Bathroom")));
+    return harness;
+  }
+
+  it("keeps a roll-up message until the next change", async () => {
+    await addFirstSubtask();
+    handlers.set(`PATCH ${taskUrl(seal.id)}`, () => saved({ ...seal, title: "Seal the shower" }));
+    const form = await startEdit("Seal the bath");
+    type(form.getByRole("textbox", { name: "Title" }), "Seal the shower");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(noticeOf("Bathroom")).toBe("");
+    expect(await screen.findByText("Seal the shower")).toBeDefined();
+  });
+
+  it("comes back without a roll-up message after the page was hidden", async () => {
+    const { show } = await addFirstSubtask();
+    act(() => show(false));
+    act(() => show(true));
+    expect(noticeOf("Bathroom")).toBe("");
   });
 });

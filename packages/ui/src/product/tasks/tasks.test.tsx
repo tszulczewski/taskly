@@ -862,6 +862,33 @@ describe("TaskList completion", () => {
     expect(screen.queryByText("1 subtask without an estimate")).toBeNull();
   });
 
+  it("counts a pending subtask only once the server has confirmed it", () => {
+    const pendingSubtask = { ...sealBath, id: "temp-1", title: "Prime", pending: true };
+    const rods: TaskItem = { ...sealBath, id: "rods", title: "Fit the rods", estimate: "450 zł" };
+    renderList({ tasks: [{ ...rods, amount: "450", subtasks: [pendingSubtask] }] });
+    // No meta line yet: the task has no confirmed subtask, so no count.
+    expect(screen.queryByText("1 subtask")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Fit the rods" }));
+    const subtasks = screen.getByRole("list", { name: "Subtasks of “Fit the rods”" });
+    expect(within(subtasks).getByText("Saving…")).toBeTruthy();
+    // Its edit form still shows the amounts, not a sum.
+    openMenu("Fit the rods");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    expect((field(/^Amount/) as HTMLInputElement).value).toBe("450");
+    expect(document.querySelector('[data-slot="summed-estimate"]')).toBeNull();
+    cleanup();
+
+    renderList({ tasks: [{ ...paint, subtasks: [...paint.subtasks!, pendingSubtask] }] });
+    expect(screen.getByText("2 subtasks")).toBeTruthy();
+    cleanup();
+
+    renderList({
+      tasks: [{ ...paint, subtasks: [...paint.subtasks!, pendingSubtask] }],
+      onToggleComplete: vi.fn(),
+    });
+    expect(screen.getByText("0 of 2 subtasks completed")).toBeTruthy();
+  });
+
   it("keeps the subtask count without completion", () => {
     renderList({ tasks: [paint] });
     expect(screen.getByText("2 subtasks")).toBeTruthy();

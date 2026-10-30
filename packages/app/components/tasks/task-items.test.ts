@@ -5,6 +5,8 @@ import { ApiError } from "../../lib/api-client";
 import {
   hasTask,
   isNotFound,
+  subtaskAdded,
+  subtaskDeleted,
   submitError,
   toCreateInput,
   toTaskItem,
@@ -71,8 +73,39 @@ describe("toTaskItem", () => {
     expect(item.pending).toBe(true);
     expect(item.unestimatedSubtasks).toBe(1);
     expect(item.subtasks).toEqual([
-      { id: subtask.id, title: "Buy", description: null, estimate: null, amount: "", upTo: "" },
+      {
+        id: subtask.id,
+        title: "Buy",
+        description: null,
+        estimate: null,
+        amount: "",
+        upTo: "",
+        pending: false,
+      },
     ]);
+  });
+
+  it("leaves the amounts of a task with subtasks empty: its form shows their sum", () => {
+    const priced = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    };
+    // A sum above the typed-amount cap must not reach the (hidden) amount fields.
+    const sum = { minGrosze: 3_000_000_000, maxGrosze: 3_000_000_000 };
+    const item = toTaskItem(view("Paint", { estimate: sum, subtasks: [priced] }));
+    expect(item).toMatchObject({ estimate: pln("30_000_000_zł"), amount: "", upTo: "" });
+    expect(item.subtasks?.[0]).toMatchObject({ amount: "300", upTo: "400", pending: false });
+    expect(validateTaskForm(form({ amount: item.amount, upTo: item.upTo }))).toEqual({});
+  });
+
+  it("keeps a task's own amounts while its only subtask is pending, and marks that one", () => {
+    const temporary = { id: "pending-3", title: "Prime", description: null, estimate: null };
+    const own = { minGrosze: 45_000, maxGrosze: 45_000 };
+    const item = toTaskItem(view("Rods", { estimate: own, subtasks: [temporary] }));
+    expect(item).toMatchObject({ estimate: pln("450_zł"), amount: "450", upTo: "" });
+    expect(item.subtasks?.[0]?.pending).toBe(true);
   });
 });
 
@@ -89,6 +122,16 @@ describe("validateTaskForm and toCreateInput", () => {
       description: null,
       estimate,
       parentId: null,
+    });
+  });
+
+  it("adds the parent's id for a subtask", () => {
+    const parentId = crypto.randomUUID();
+    expect(toCreateInput(form({ amount: "300" }), parentId)).toEqual({
+      title: "Seal the bath",
+      description: null,
+      estimate: { minGrosze: 30_000, maxGrosze: 30_000 },
+      parentId,
     });
   });
 
@@ -155,6 +198,33 @@ describe("toUpdateInput", () => {
     expect(toUpdateInput([parent], subtask.id, form({ title: "Buy" }))).toEqual(null);
   });
 
+  it("never sends an estimate for a task with subtasks, whatever its hidden amounts say", () => {
+    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const parent = view("Paint", {
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+      subtasks: [subtask],
+    });
+    // Prefilled empty (toTaskItem), so they would read as "cleared".
+    expect(toUpdateInput([parent], parent.id, form({ title: "Paint" }))).toEqual(null);
+    // Typed before a subtask arrived from another tab (a 409, then the refetch).
+    expect(
+      toUpdateInput([parent], parent.id, form({ title: "Paint the hall", amount: "900" })),
+    ).toEqual({ title: "Paint the hall" });
+  });
+
+  it("sends the estimate of a task whose only subtask is still pending, and of a subtask", () => {
+    const temporary = { id: "pending-4", title: "Prime", description: null, estimate: null };
+    const parent = view("Paint", { subtasks: [temporary] });
+    expect(toUpdateInput([parent], parent.id, form({ title: "Paint", amount: "9" }))).toEqual({
+      estimate: { minGrosze: 900, maxGrosze: 900 },
+    });
+    const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
+    const withSubtask = view("Paint", { subtasks: [subtask] });
+    expect(toUpdateInput([withSubtask], subtask.id, form({ title: "Buy", upTo: "5" }))).toEqual({
+      estimate: { minGrosze: 500, maxGrosze: 500 },
+    });
+  });
+
   it("throws for text the form would not submit and for a task that is not cached", () => {
     expect(() => toUpdateInput(tasks, exact.id, { ...prefilled, title: "" })).toThrow(
       "The task form was submitted with invalid values",
@@ -164,6 +234,77 @@ describe("toUpdateInput", () => {
     expect(() => toUpdateInput(tasks, crypto.randomUUID(), prefilled)).toThrow(
       "The edited task is not in the list",
     );
+  });
+});
+
+describe("subtaskAdded", () => {
+  const subtask = (title: string, id: string = crypto.randomUUID()) => ({
+    id,
+    title,
+    description: null,
+    estimate: null,
+  });
+  const own = { minGrosze: 100_000, maxGrosze: 200_000 };
+  const sumStarted =
+    "The estimate of “Bathroom” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.";
+
+  it("announces the first subtask of a task with its own estimate and finds the new one", () => {
+    const bathroom = view("Bathroom", { estimate: own });
+    const prime = subtask("Prime");
+    const answer = { ...bathroom, estimate: null, unestimatedSubtasks: 1, subtasks: [prime] };
+    expect(subtaskAdded([bathroom], answer)).toEqual({ id: prime.id, notice: sumStarted });
+  });
+
+  it("does not count a subtask still pending as one the task had", () => {
+    const bathroom = view("Bathroom", { estimate: own, subtasks: [subtask("Grout", "pending-9")] });
+    const prime = subtask("Prime");
+    expect(subtaskAdded([bathroom], { ...bathroom, subtasks: [prime] })).toEqual({
+      id: prime.id,
+      notice: sumStarted,
+    });
+  });
+
+  it("says nothing when the task had a subtask already or never had its own estimate", () => {
+    const first = subtask("Prime");
+    const second = subtask("Paint");
+    const summed = view("Bathroom", { estimate: own, subtasks: [first] });
+    expect(subtaskAdded([summed], { ...summed, subtasks: [first, second] })).toEqual({
+      id: second.id,
+      notice: undefined,
+    });
+    const unpriced = view("Bathroom");
+    expect(subtaskAdded([unpriced], { ...unpriced, subtasks: [first] })).toEqual({
+      id: first.id,
+      notice: undefined,
+    });
+  });
+
+  it("takes the last new subtask when the task was not cached, and none when nothing is new", () => {
+    const first = subtask("Prime");
+    const second = subtask("Paint");
+    const bathroom = view("Bathroom", { estimate: own, subtasks: [first, second] });
+    expect(subtaskAdded([], bathroom)).toEqual({ id: second.id, notice: undefined });
+    expect(subtaskAdded([bathroom], bathroom)).toEqual({ id: undefined, notice: undefined });
+  });
+});
+
+describe("subtaskDeleted", () => {
+  it("announces the task's own estimate when its last subtask went", () => {
+    const back = view("Bathroom", { estimate: { minGrosze: 100_000, maxGrosze: 200_000 } });
+    expect(subtaskDeleted(back)).toBe(
+      pln("The estimate of “Bathroom” is back to your amount: 1_000–2_000_zł."),
+    );
+  });
+
+  it("says nothing for a task, a task with subtasks left or one without its own estimate", () => {
+    const left = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    expect(subtaskDeleted(null)).toBeUndefined();
+    expect(
+      subtaskDeleted(
+        view("Bathroom", { estimate: { minGrosze: 1, maxGrosze: 1 }, subtasks: [left] }),
+      ),
+    ).toBeUndefined();
+    expect(subtaskDeleted(view("Bathroom"))).toBeUndefined();
   });
 });
 

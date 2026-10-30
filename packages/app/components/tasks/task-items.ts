@@ -26,6 +26,11 @@ export const TASK_SCREEN_TEXT = {
   addFailed: "Could not add the task. Try again.",
   saveFailed: "Could not save the task. Try again.",
   deleted: "This task was deleted. The list has been refreshed.",
+  /** Roll-up messages (spec E01, Q1), shown in the parent's row. */
+  sumStarted: (title: string) =>
+    `The estimate of “${title}” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.`,
+  sumBack: (title: string, amount: string) =>
+    `The estimate of “${title}” is back to your amount: ${amount}.`,
 } as const;
 
 type EstimateView = TaskView["estimate"];
@@ -43,6 +48,10 @@ function amountFields(estimate: EstimateView): Pick<TaskItem, "amount" | "upTo">
   };
 }
 
+/** The task's subtasks the server knows; a temporary one (an add in flight) does not count yet. */
+const savedSubtasks = (view: TaskView) =>
+  view.subtasks.filter((subtask) => !isPendingTaskId(subtask.id));
+
 function toSubtaskItem(view: SubtaskView): TaskItem {
   return {
     id: view.id,
@@ -50,6 +59,7 @@ function toSubtaskItem(view: SubtaskView): TaskItem {
     description: view.description,
     estimate: estimateText(view.estimate),
     ...amountFields(view.estimate),
+    pending: isPendingTaskId(view.id),
   };
 }
 
@@ -57,9 +67,11 @@ function toSubtaskItem(view: SubtaskView): TaskItem {
 export function toTaskItem(view: TaskView): TaskItem {
   return {
     ...toSubtaskItem(view),
+    // A task with subtasks shows their sum in its edit form, not the amounts (R12). Its fields
+    // stay empty, so a sum above the typed-amount cap never fails the form's hidden fields.
+    ...(savedSubtasks(view).length > 0 && { amount: "", upTo: "" }),
     unestimatedSubtasks: view.unestimatedSubtasks,
     subtasks: view.subtasks.map(toSubtaskItem),
-    pending: isPendingTaskId(view.id),
   };
 }
 
@@ -88,23 +100,30 @@ export function validateTaskForm(values: TaskFormValues): TaskFieldErrors {
 }
 
 /**
- * What quick add sends (`createTaskInput`). The forms submit only text `validateTaskForm`
- * accepted, so invalid text throws, which the form shows as "Something went wrong".
+ * What quick add sends (`createTaskInput`), or "Add subtask" with the parent's `parentId`. The
+ * forms submit only text `validateTaskForm` accepted, so invalid text throws, which the form
+ * shows as "Something went wrong".
  */
-export function toCreateInput(values: TaskFormValues): CreateTaskInput {
+export function toCreateInput(
+  values: TaskFormValues,
+  parentId: string | null = null,
+): CreateTaskInput {
   const read = readValues(values);
   if (!read.ok) throw new Error("The task form was submitted with invalid values");
-  return read.value;
+  return { ...read.value, parentId };
 }
 
 const sameEstimate = (a: Estimate | null, b: EstimateView) =>
   a === null || b === null ? a === b : a.minGrosze === b.minGrosze && a.maxGrosze === b.maxGrosze;
 
-function findTask(tasks: readonly TaskView[], id: string): SubtaskView | undefined {
+function findTask(
+  tasks: readonly TaskView[],
+  id: string,
+): { current: SubtaskView; summed: boolean } | undefined {
   for (const task of tasks) {
-    if (task.id === id) return task;
+    if (task.id === id) return { current: task, summed: savedSubtasks(task).length > 0 };
     const subtask = task.subtasks.find((candidate) => candidate.id === id);
-    if (subtask) return subtask;
+    if (subtask) return { current: subtask, summed: false };
   }
   return undefined;
 }
@@ -112,22 +131,56 @@ function findTask(tasks: readonly TaskView[], id: string): SubtaskView | undefin
 /**
  * What an edit sends: only the fields that differ from the cached task (`updateTaskInput`), or
  * `null` when nothing changed. Clearing both amounts sends `estimate: null`. The edited row is on
- * screen, so its task is in the cache.
+ * screen, so its task is in the cache. A task with subtasks never sends an estimate: its form
+ * shows their sum instead of the amounts, and the server refuses the whole edit (409) if it does.
  */
 export function toUpdateInput(
   tasks: readonly TaskView[],
   id: string,
   values: TaskFormValues,
 ): UpdateTaskInput | null {
-  const current = findTask(tasks, id);
-  if (current === undefined) throw new Error("The edited task is not in the list");
+  const found = findTask(tasks, id);
+  if (found === undefined) throw new Error("The edited task is not in the list");
+  const { current, summed } = found;
   const { title, description, estimate } = toCreateInput(values);
   const changes = {
     ...(title !== current.title && { title }),
     ...(description !== current.description && { description }),
-    ...(!sameEstimate(estimate, current.estimate) && { estimate }),
+    ...(!summed && !sameEstimate(estimate, current.estimate) && { estimate }),
   };
   return Object.keys(changes).length === 0 ? null : updateTaskInput.parse(changes);
+}
+
+/**
+ * What a confirmed "Add subtask" shows: the new subtask, to highlight (the one in the server's
+ * parent that the parent did not have before the add), and the first-subtask message when the
+ * parent had no subtask yet and an estimate of its own (spec E01, Roll-up messages). `before` is
+ * the list as it was before the temporary subtask went in.
+ */
+export function subtaskAdded(
+  before: readonly TaskView[],
+  parent: TaskView,
+): { id: string | undefined; notice: string | undefined } {
+  const previous = before.find((task) => task.id === parent.id);
+  const known = new Set(previous?.subtasks.map((subtask) => subtask.id));
+  const added = parent.subtasks.filter((subtask) => !known.has(subtask.id));
+  const startsSum =
+    previous !== undefined && savedSubtasks(previous).length === 0 && previous.estimate !== null;
+  return {
+    id: added.at(-1)?.id,
+    notice: startsSum ? TASK_SCREEN_TEXT.sumStarted(parent.title) : undefined,
+  };
+}
+
+/**
+ * The last-subtask message after a delete (spec E01, Roll-up messages): the server's parent has
+ * no subtask left and its own estimate is back. `null` (a task was deleted) and a parent that
+ * never had an estimate of its own give none.
+ */
+export function subtaskDeleted(parent: TaskView | null): string | undefined {
+  if (parent === null || parent.subtasks.length > 0 || parent.estimate === null) return undefined;
+  const { minGrosze, maxGrosze } = parent.estimate;
+  return TASK_SCREEN_TEXT.sumBack(parent.title, formatPlnRange(minGrosze, maxGrosze));
 }
 
 /** True when the list contains this task or subtask. */

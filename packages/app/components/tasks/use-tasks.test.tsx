@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { CreateTaskInput, TaskView } from "@taskly/core";
+import type { CreateTaskInput, SubtaskView, TaskView } from "@taskly/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -155,10 +155,7 @@ describe("useCreateTask", () => {
     expect(isPendingTaskId(temporary?.id ?? "")).toBe(true);
     expect(temporary).toEqual({ ...sealed, id: temporary?.id });
     expect(sent).toEqual(input);
-    expect(result.current.create.context).toEqual({
-      previous: [tile, paint],
-      tempId: temporary?.id,
-    });
+    await waitFor(() => expect(result.current.create.context).toEqual({ tempId: temporary?.id }));
 
     serverTasks = [tile, paint, sealed];
     post.open(ok(sealed));
@@ -291,13 +288,116 @@ describe("useCreateTask", () => {
     const { result, cached } = setup({ loaded: false });
     expect(await start(() => result.current.create.mutateAsync(input))).toEqual(sealed);
     expect(cached()).toBeUndefined();
-    await waitFor(() =>
-      expect(result.current.create.context).toHaveProperty("previous", undefined),
-    );
 
     handlers.set(`POST ${TASKS_URL}`, () => fail(409, "conflict", "Please try again"));
     expect(await start(() => result.current.create.mutateAsync(input))).toBeInstanceOf(ApiError);
     expect(cached()).toBeUndefined();
+  });
+});
+
+describe("useCreateTask for a subtask", () => {
+  const prime: SubtaskView = {
+    id: crypto.randomUUID(),
+    title: "Prime",
+    description: null,
+    estimate: null,
+  };
+  const own = { minGrosze: 150_000, maxGrosze: 200_000 };
+  const subtaskInput = (title: string, parentId = tile.id): CreateTaskInput => ({
+    title,
+    description: null,
+    estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    parentId,
+  });
+  /** The server's answer: the parent with its subtasks and their sum. */
+  const parentWith = (...subtasks: SubtaskView[]): TaskView => ({
+    ...tile,
+    estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    unestimatedSubtasks: 0,
+    subtasks,
+  });
+
+  it("puts a pending subtask under its parent, leaving the parent's figure, then the server's parent", async () => {
+    const post = gate();
+    let sent: unknown;
+    handlers.set(`POST ${TASKS_URL}`, (body) => {
+      sent = body;
+      return post.promise;
+    });
+    const { result, cached } = await setupLoaded();
+
+    const outcome = start(() => result.current.create.mutateAsync(subtaskInput("Prime")));
+    await waitFor(() => expect(cached()?.[0]?.subtasks).toHaveLength(1));
+    const [parent, other] = cached() ?? [];
+    const temporary = parent?.subtasks[0];
+    expect(isPendingTaskId(temporary?.id ?? "")).toBe(true);
+    expect(temporary).toEqual({
+      id: temporary?.id,
+      title: "Prime",
+      description: null,
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    });
+    expect(parent).toEqual({ ...tile, estimate: own, subtasks: [temporary] });
+    expect(other).toEqual(paint);
+    expect(cached()).toHaveLength(2);
+    expect(sent).toEqual(subtaskInput("Prime"));
+
+    const created = { ...prime, estimate: { minGrosze: 30_000, maxGrosze: 40_000 } };
+    serverTasks = [parentWith(created), paint];
+    post.open(ok(parentWith(created)));
+    expect(await outcome).toEqual(parentWith(created));
+    expect(cached()).toEqual([parentWith(created), paint]);
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+  });
+
+  it("removes only the pending subtask when the add fails", async () => {
+    handlers.set(`POST ${TASKS_URL}`, () => fail(404, "not_found", "Task not found"));
+    const { result, cached } = await setupLoaded();
+    const error = await start(() => result.current.create.mutateAsync(subtaskInput("Prime")));
+    expect(error).toMatchObject({ status: 404, code: "not_found" });
+    expect(cached()).toEqual([tile, paint]);
+  });
+
+  it("never sends a subtask of a pending task", async () => {
+    const { result, cached } = await setupLoaded();
+    const error = await start(() =>
+      result.current.create.mutateAsync(subtaskInput("Prime", "pending-8")),
+    );
+    expect(error).toEqual(new Error("The task is not saved yet"));
+    expect(calls("POST", TASKS_URL)).toHaveLength(0);
+    expect(cached()).toEqual([tile, paint]);
+  });
+
+  it("keeps another pending subtask of the parent when an answer replaces the parent", async () => {
+    const first = gate();
+    const second = gate();
+    const gates = [first, second];
+    handlers.set(`POST ${TASKS_URL}`, () => (gates.shift() ?? first).promise);
+    handlers.set(`PATCH ${taskUrl(prime.id)}`, () => ok(parentWith({ ...prime, title: "Prime" })));
+    serverTasks = [parentWith(prime), paint];
+    const { result, cached } = setup();
+    await waitFor(() => expect(cached()).toHaveLength(2));
+
+    const one = start(() => result.current.create.mutateAsync(subtaskInput("Sand")));
+    await waitFor(() => expect(cached()?.[0]?.subtasks).toHaveLength(2));
+    const two = start(() => result.current.create.mutateAsync(subtaskInput("Paint")));
+    await waitFor(() => expect(cached()?.[0]?.subtasks).toHaveLength(3));
+    const [, sandTemp, paintTemp] = cached()?.[0]?.subtasks ?? [];
+
+    // An edit of another subtask answers with the parent: both pending subtasks stay.
+    await start(() => result.current.update.mutateAsync({ id: prime.id, input: { title: "x" } }));
+    expect(cached()?.[0]?.subtasks).toEqual([prime, sandTemp, paintTemp]);
+
+    const sand = { ...prime, id: crypto.randomUUID(), title: "Sand" };
+    first.open(ok(parentWith(prime, sand)));
+    await one;
+    expect(cached()?.[0]?.subtasks).toEqual([prime, sand, paintTemp]);
+
+    const painted = { ...prime, id: crypto.randomUUID(), title: "Paint" };
+    serverTasks = [parentWith(prime, sand, painted), paint];
+    second.open(ok(parentWith(prime, sand, painted)));
+    await two;
+    expect(cached()).toEqual([parentWith(prime, sand, painted), paint]);
   });
 });
 

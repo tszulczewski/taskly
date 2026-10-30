@@ -13,6 +13,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import {
   hasTask,
   isNotFound,
+  subtaskAdded,
+  subtaskDeleted,
   submitError,
   TASK_SCREEN_TEXT,
   toCreateInput,
@@ -22,10 +24,17 @@ import {
 } from "./task-items";
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from "./use-tasks";
 
+/** A roll-up message in a task's row (spec E01, Roll-up messages). */
+interface Notice {
+  taskId: string;
+  text: string;
+}
+
 /**
  * The task screen of the default list (spec E01, UI/UX), under the page heading: quick add above
- * the list. An add shows at once (a pending row); an edit and a delete wait for the server.
- * Subtasks arrive in a later phase, so the list offers none yet.
+ * the list, and "Add subtask" in each task. An add shows at once (a pending row); an edit and a
+ * delete wait for the server. A subtask change can change its task's estimate (the sum of its
+ * subtasks), which the server's answer brings.
  */
 export function TaskListScreen({ listId }: { listId: string }) {
   const tasks = useTasks(listId);
@@ -33,8 +42,11 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const updateTask = useUpdateTask(listId);
   const deleteTask = useDeleteTask(listId);
   const [highlightId, setHighlightId] = useState<string>();
-  // A task whose edit got 404: once the refetch has removed its row, the message stays here.
+  // A task whose edit (or whose new subtask) got 404: once the refetch has removed its row, the
+  // message stays here.
   const [goneId, setGoneId] = useState<string | null>(null);
+  // Lasts until the next change, like the message above.
+  const [notice, setNotice] = useState<Notice | null>(null);
   // A refetch of a list that never loaded goes back to "pending"; the failure stays on screen,
   // with "Trying again…", until it answers.
   const [retrying, setRetrying] = useState(false);
@@ -50,6 +62,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
     () => () => {
       setHighlightId(undefined);
       setGoneId(null);
+      setNotice(null);
     },
     [],
   );
@@ -76,8 +89,13 @@ export function TaskListScreen({ listId }: { listId: string }) {
     void tasks.refetch().then(() => setRetrying(false));
   };
 
-  const add: TaskSubmit = async (values) => {
+  const startChange = () => {
     setGoneId(null);
+    setNotice(null);
+  };
+
+  const add: TaskSubmit = async (values) => {
+    startChange();
     const input = toCreateInput(values);
     try {
       const task = await createTask.mutateAsync(input);
@@ -88,8 +106,29 @@ export function TaskListScreen({ listId }: { listId: string }) {
     }
   };
 
+  const addSubtask = async (
+    parentId: string,
+    values: TaskFormValues,
+  ): Promise<SubmitResult<TaskField>> => {
+    startChange();
+    // The list as it is before the temporary subtask goes in: whether the parent had subtasks.
+    const before = views;
+    const input = toCreateInput(values, parentId);
+    try {
+      const parent = await createTask.mutateAsync(input);
+      const added = subtaskAdded(before, parent);
+      setHighlightId(added.id);
+      if (added.notice !== undefined) setNotice({ taskId: parent.id, text: added.notice });
+      return { ok: true };
+    } catch (error) {
+      if (!isNotFound(error)) return submitError(error, values, TASK_SCREEN_TEXT.addFailed);
+      setGoneId(parentId);
+      return { ok: false, formError: TASK_SCREEN_TEXT.deleted };
+    }
+  };
+
   const edit = async (id: string, values: TaskFormValues): Promise<SubmitResult<TaskField>> => {
-    setGoneId(null);
+    startChange();
     const input = toUpdateInput(views, id, values);
     if (input === null) return { ok: true };
     try {
@@ -105,9 +144,13 @@ export function TaskListScreen({ listId }: { listId: string }) {
   // A 404 means the task is already gone (deleted elsewhere, or no access): the dialog closes as
   // after a delete, and the refetch removes the row.
   const remove = (id: string) => {
-    setGoneId(null);
+    startChange();
     return deleteTask.mutateAsync(id).then(
-      () => true,
+      (parent) => {
+        const text = subtaskDeleted(parent);
+        if (parent !== null && text !== undefined) setNotice({ taskId: parent.id, text });
+        return true;
+      },
       (error: unknown) => isNotFound(error),
     );
   };
@@ -124,11 +167,15 @@ export function TaskListScreen({ listId }: { listId: string }) {
       <div ref={listRef}>
         <TaskList
           status={tasks.data ? "ready" : tasks.isError || retrying ? "error" : "loading"}
-          tasks={views.map(toTaskItem)}
+          tasks={views.map((view) => ({
+            ...toTaskItem(view),
+            ...(notice?.taskId === view.id && { notice: notice.text }),
+          }))}
           onRetry={retry}
           retrying={retrying}
           validate={validateTaskForm}
           onEdit={edit}
+          onAddSubtask={addSubtask}
           onDelete={remove}
           highlightId={highlightId}
         />

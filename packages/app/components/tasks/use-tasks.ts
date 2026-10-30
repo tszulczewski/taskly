@@ -3,6 +3,7 @@
 import {
   type CreateTaskInput,
   deleteTaskResponseSchema,
+  type SubtaskView,
   taskListResponseSchema,
   type TaskView,
   taskViewSchema,
@@ -27,20 +28,38 @@ export function isPendingTaskId(id: string): boolean {
 
 const tasksPath = (listId: string) => `/api/lists/${encodeURIComponent(listId)}/tasks`;
 
-function taskPath(taskId: string): string {
+function refusePending(taskId: string): void {
   if (isPendingTaskId(taskId)) throw new Error("The task is not saved yet");
+}
+
+function taskPath(taskId: string): string {
+  refusePending(taskId);
   return `/api/tasks/${encodeURIComponent(taskId)}`;
 }
 
 /**
  * Puts the server's row where the row `slotId` (or an older copy of the same task) is, dropping
- * any second copy; appends it when neither is cached.
+ * any second copy; appends it when neither is cached. Subtasks of that row still pending (other
+ * adds in flight) stay under it, except `settledId`, the one this answer confirms.
  */
-function putTask(tasks: TaskView[], view: TaskView, slotId: string): TaskView[] {
+function putTask(tasks: TaskView[], view: TaskView, slotId: string, settledId?: string) {
   const isSlot = (task: TaskView) => task.id === slotId || task.id === view.id;
-  const at = tasks.findIndex(isSlot);
-  if (at === -1) return [...tasks, view];
-  return tasks.flatMap((task, index) => (index === at ? [view] : isSlot(task) ? [] : [task]));
+  const slot = tasks.find(isSlot);
+  if (slot === undefined) return [...tasks, view];
+  const pending = slot.subtasks.filter(
+    (subtask) => isPendingTaskId(subtask.id) && subtask.id !== settledId,
+  );
+  const next = pending.length === 0 ? view : { ...view, subtasks: [...view.subtasks, ...pending] };
+  return tasks.flatMap((task) => (task === slot ? [next] : isSlot(task) ? [] : [task]));
+}
+
+/** The list without the row or subtask `id`. */
+function withoutTask(tasks: TaskView[], id: string): TaskView[] {
+  return tasks.flatMap((task) => {
+    if (task.id === id) return [];
+    if (!task.subtasks.some((subtask) => subtask.id === id)) return [task];
+    return [{ ...task, subtasks: task.subtasks.filter((subtask) => subtask.id !== id) }];
+  });
 }
 
 async function writeTasks(
@@ -74,51 +93,63 @@ export function useTasks(listId: string) {
 
 /** What `useCreateTask` keeps between `onMutate` and the server's answer. */
 export interface CreateTaskContext {
-  /**
-   * The list as cached before the temporary row was added (undefined when it had not loaded).
-   * Phase 3's first-subtask message compares the parent in it with the server's parent.
-   */
-  previous: TaskView[] | undefined;
-  /** The temporary row's id (`isPendingTaskId`). */
+  /** The temporary row's or subtask's id (`isPendingTaskId`). */
   tempId: string;
 }
 
+/** The list with a temporary row at its end, or a temporary subtask at the end of its parent's. */
+function withTemporary(tasks: TaskView[], parentId: string | null, temporary: SubtaskView) {
+  if (parentId === null) {
+    return [...tasks, { ...temporary, unestimatedSubtasks: 0, subtasks: [] }];
+  }
+  // The parent's estimate and count stay as they are until the server's parent arrives.
+  return tasks.map((task) =>
+    task.id === parentId ? { ...task, subtasks: [...task.subtasks, temporary] } : task,
+  );
+}
+
 /**
- * Adds a task (optimistic): a pending row is appended at once, then replaced in place by the
- * server's `TaskView`, or removed if the add fails. `mutateAsync` resolves with that `TaskView`,
- * whose `id` is the new task's. Errors are `ApiError` (409: show `message`) or the network error.
+ * Adds a task, or with `parentId` a subtask (optimistic): a pending row is appended at once (a
+ * subtask at the end of its parent's subtasks), then replaced by the server's answer, or removed
+ * if the add fails. `mutateAsync` resolves with the server's `TaskView`: the new task, or for a
+ * subtask its parent with all its subtasks. Errors are `ApiError` (409: show `message`; 404 on a
+ * subtask: the parent is gone) or the network error.
  */
 export function useCreateTask(listId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: queryKeys.tasks(listId),
-    mutationFn: (input: CreateTaskInput) =>
-      apiCall(tasksPath(listId), { method: "POST", body: input, response: taskViewSchema }),
+    mutationFn: async (input: CreateTaskInput) => {
+      if (input.parentId !== null) refusePending(input.parentId);
+      return apiCall(tasksPath(listId), { method: "POST", body: input, response: taskViewSchema });
+    },
     onMutate: async (input): Promise<CreateTaskContext> => {
       const queryKey = queryKeys.tasks(listId);
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<TaskView[]>(queryKey);
       pendingCount += 1;
       const tempId = `${PENDING_PREFIX}${pendingCount}`;
-      const temporary: TaskView = {
+      const temporary: SubtaskView = {
         id: tempId,
         title: input.title,
         description: input.description,
         estimate: input.estimate,
-        unestimatedSubtasks: 0,
-        subtasks: [],
       };
-      queryClient.setQueryData<TaskView[]>(queryKey, (tasks) => tasks && [...tasks, temporary]);
-      return { previous, tempId };
+      queryClient.setQueryData<TaskView[]>(
+        queryKey,
+        (tasks) => tasks && withTemporary(tasks, input.parentId, temporary),
+      );
+      return { tempId };
     },
-    // Phase 3: for a subtask the server returns its parent, which replaces the parent's row.
-    onSuccess: (task, _input, { tempId }) =>
-      writeTasks(queryClient, listId, (tasks) => putTask(tasks, task, tempId)),
+    // For a subtask the server returns its parent, which replaces the parent's row.
+    onSuccess: (task, input, { tempId }) =>
+      writeTasks(queryClient, listId, (tasks) =>
+        putTask(tasks, task, input.parentId ?? tempId, tempId),
+      ),
     // Only this add's own row goes: a snapshot would also drop other adds still in flight.
     onError: (_error, _input, context) => {
       queryClient.setQueryData<TaskView[]>(
         queryKeys.tasks(listId),
-        (tasks) => tasks && tasks.filter((task) => task.id !== context?.tempId),
+        (tasks) => tasks && context && withoutTask(tasks, context.tempId),
       );
     },
     onSettled: () => settle(queryClient, listId),
@@ -133,7 +164,7 @@ export interface UpdateTaskVariables {
 
 /**
  * Saves an edit. Not optimistic: the row changes only when the server's `TaskView` arrives (for a
- * subtask, Phase 3, that is its parent, which replaces the parent's row). Every outcome refetches
+ * subtask that is its parent, which replaces the parent's row). Every outcome refetches
  * the list, so after a 404 the deleted row disappears and after a 409 the row shows the server's
  * state.
  */
@@ -151,7 +182,7 @@ export function useUpdateTask(listId: string) {
 
 /**
  * Deletes a task by id. Not optimistic: the row goes when the server answers `null`; a parent
- * `TaskView` (a deleted subtask, Phase 3) replaces the parent's row. Every outcome refetches.
+ * `TaskView` (a deleted subtask) replaces the parent's row. Every outcome refetches.
  */
 export function useDeleteTask(listId: string) {
   const queryClient = useQueryClient();

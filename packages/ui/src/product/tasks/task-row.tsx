@@ -162,6 +162,9 @@ export function TaskRow({
   const menuMovedFocus = useRef(false);
   const focusRequest = useRef<"menu" | "add-subtask" | undefined>(undefined);
   const subtasks = task.subtasks ?? [];
+  // A subtask the server has not confirmed yet does not count until it has (spec E01, Optimistic
+  // updates): the count, the progress and the sum in the edit form change with the server's task.
+  const savedSubtasks = subtasks.filter((subtask) => !subtask.pending);
   const isSubtask = level === "subtask";
   const addSubtask = isSubtask ? undefined : onAddSubtask;
   // A row opens only when there is something to show in it.
@@ -218,7 +221,7 @@ export function TaskRow({
     ? "group-last/row:group-last/subtask:rounded-br-surface"
     : "group-first/row:rounded-t-surface group-last/row:rounded-b-surface";
   const movableSubtasks = subtasks.filter((subtask) => !subtask.pending && !subtask.completed);
-  const subtasksDone = subtasks.filter((subtask) => subtask.completed).length;
+  const subtasksDone = savedSubtasks.filter((subtask) => subtask.completed).length;
   const subtaskIds = movableSubtasks.map((subtask) => subtask.id);
   const subtaskList = (
     <ul aria-label={t.subtasksOf(task.title)} className="pl-row-indent">
@@ -244,7 +247,7 @@ export function TaskRow({
   const unestimatedSubtasks = task.unestimatedSubtasks ?? 0;
   const showMeta =
     task.pending ||
-    subtasks.length > 0 ||
+    savedSubtasks.length > 0 ||
     unestimatedSubtasks > 0 ||
     task.important ||
     task.urgent ||
@@ -387,7 +390,7 @@ export function TaskRow({
               validate={validate}
               onSubmit={save}
               onCancel={closeEditing}
-              summedEstimate={subtasks.length > 0 ? task.estimate : undefined}
+              summedEstimate={savedSubtasks.length > 0 ? task.estimate : undefined}
               text={text}
             />
           </div>
@@ -475,15 +478,15 @@ export function TaskRow({
                     importantText={t.important}
                     urgentText={t.urgent}
                   />
-                  {subtasks.length === 0 || task.pending ? null : onToggleComplete ? (
+                  {savedSubtasks.length === 0 || task.pending ? null : onToggleComplete ? (
                     <SubtaskProgress
                       done={subtasksDone}
-                      total={subtasks.length}
+                      total={savedSubtasks.length}
                       text={t.subtaskProgress}
                       label={t.subtaskProgressLabel}
                     />
                   ) : (
-                    <span>{t.subtaskCount(subtasks.length)}</span>
+                    <span>{t.subtaskCount(savedSubtasks.length)}</span>
                   )}
                   {unestimatedSubtasks > 0 && !task.pending ? (
                     <span>{t.unestimatedSubtasks(unestimatedSubtasks)}</span>
