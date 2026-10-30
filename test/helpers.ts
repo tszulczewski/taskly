@@ -258,6 +258,8 @@ export function createBrowser(session: string) {
       run("press", "Control+a");
       run("keyboard", "type", text);
     },
+    /** Clicks the element matching a CSS selector, e.g. a button scoped to one of two forms. */
+    click: (selector: string) => run("click", selector),
     /** Clicks the element with this ARIA role and exact accessible name. */
     clickRole: (role: string, name: string) =>
       run("find", "role", role, "click", "--name", name, "--exact"),

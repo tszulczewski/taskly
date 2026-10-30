@@ -32,7 +32,7 @@ Legend: `[ ]` to do · `[x]` done
 
 - [x] **3.1 Subtasks in core** — `parentId` in `createTaskInput`, parent `FOR KEY SHARE`, depth 409, nesting in `listTasks`, parent `TaskView` for subtask create/update/delete, 409 on estimate edit of a task with subtasks; integration tests for #16 AC2–AC5, R14, sum above cap, and the three lock-ordered concurrency cases plus parent-delete race.
 - [x] **3.2 Subtask UI** — "Add subtask", nested rows, subtask edit/delete, summed estimate and "N subtasks without an estimate", read-only "Sum of subtasks" in the edit form, 409/404 handling, roll-up status messages, delete dialog counts subtasks; component tests.
-- [ ] **3.3 Browser integration test for #16** — AC1–AC4.
+- [x] **3.3 Browser integration test for #16** — AC1–AC4.
 - [ ] **3.4 Finish** — full gate (`format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`), lessons, `git mv` the spec to `implemented/`, grep the repo (Storybook docs) for the spec path and status words.
 - [ ] **Phase 3 gate** — owner's manual test of subtasks and the roll-up (checklist in the run log).
 
