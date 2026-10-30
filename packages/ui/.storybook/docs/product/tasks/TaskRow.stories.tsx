@@ -172,6 +172,25 @@ export const Pending: Story = {
   },
 };
 
+/** The first subtask is on its way: the task keeps its own figure and shows no count yet. */
+export const PendingSubtask: Story = {
+  args: {
+    task: {
+      ...curtainRods,
+      subtasks: [
+        { ...sealBath, id: "temp-2", title: "Buy the brackets", estimate: "60 zł", pending: true },
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText("1 subtask")).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: curtainRods.title }));
+    const subtasks = canvas.getByRole("list", { name: `Subtasks of “${curtainRods.title}”` });
+    await expect(within(subtasks).getByText("Saving…")).toBeVisible();
+  },
+};
+
 export const ChangeFailed: Story = {
   args: { task: { ...sealBath, error: taskMessages.rolledBack } },
 };

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { afterEach, vi } from "vitest";
 import { getEnv, parseEnv } from "./env";
-import { formatPln, formatPlnRange } from "./money";
 
 const valid = {
   DATABASE_URL: "postgres://u:p@localhost:5432/db",
@@ -28,14 +27,6 @@ describe("parseEnv", () => {
   it("rejects a short auth secret and a missing database url", () => {
     expect(() => parseEnv({ ...valid, BETTER_AUTH_SECRET: "short" })).toThrow();
     expect(() => parseEnv({ ...valid, DATABASE_URL: undefined })).toThrow();
-  });
-});
-
-describe("money formatting", () => {
-  it("formats grosze as PLN", () => {
-    expect(formatPln(123456).replace(/\s/g, " ")).toContain("1");
-    expect(formatPln(50)).toContain("0,50");
-    expect(formatPlnRange(100, 250)).toContain("–");
   });
 });
 

@@ -21,7 +21,8 @@ export interface TaskFormProps {
   onCancel: () => void;
   /**
    * A task with subtasks: its estimate is their sum (R12), shown here as text instead of the
-   * amount fields, with null when none of them has one. The amounts are then sent unchanged.
+   * amount fields, with null when none of them has one. The amounts are then neither validated
+   * nor sent: `validate` and `onSubmit` get them empty.
    */
   summedEstimate?: string | null;
   /** Put focus in the title when the form opens, as it does when the row switches to it. */
@@ -44,10 +45,15 @@ export function TaskForm({
 }: TaskFormProps) {
   const t = { ...defaultTaskText, ...text };
   const [descriptionOpen, setDescriptionOpen] = useState(initialValues.description !== "");
+  // A refetch can swap the amount fields for the sum while the form is open (the first subtask
+  // was added elsewhere). What was typed into them stays in the form, so it is back if the fields
+  // return, but hidden fields take no part: invalid text there would block Save with no message.
+  const shown = (values: TaskFormValues): TaskFormValues =>
+    summedEstimate === undefined ? values : { ...values, amount: "", upTo: "" };
   const form = useForm<TaskField>({
     initialValues,
-    validate,
-    onSubmit,
+    validate: (values) => validate(shown(values)),
+    onSubmit: (values) => onSubmit(shown(values)),
     unexpectedError: t.unexpectedError,
   });
 

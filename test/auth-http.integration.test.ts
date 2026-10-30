@@ -21,7 +21,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 30 * DAY_MS;
 // Server work between "now" in the test and the write in the app; far below the 1-day renewal step.
 const CLOCK_SLACK_MS = 5 * 60 * 1000;
-const PLACEHOLDER = "Your tasks will appear here";
+// The heading of `/`, the signed-in page.
+const HEADING = "My renovation";
+// The "page did not open" state, which also shows the heading.
+const PAGE_FAILED = "Could not open your tasks.";
 
 function expectAboutThirtyDaysAhead(date: Date) {
   expect(Math.abs(date.getTime() - (Date.now() + SESSION_TTL_MS))).toBeLessThan(CLOCK_SLACK_MS);
@@ -137,7 +140,7 @@ describe("auth over HTTP (sign-up closed)", () => {
     expect(body).toContain(
       '<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=/sign-in"',
     );
-    expect(body).not.toContain(PLACEHOLDER);
+    expect(body).not.toContain(HEADING);
   });
 
   it("gives a new session an expiry about 30 days ahead", async () => {
@@ -184,14 +187,18 @@ describe("auth over HTTP (sign-up closed)", () => {
 
     const doc = await fetch(`${app.url}/`, { headers: { cookie }, redirect: "manual" });
     expect(doc.status).toBe(200);
-    expect(await doc.text()).toContain(PLACEHOLDER);
+    const html = await doc.text();
+    expect(html).toContain(HEADING);
+    expect(html).not.toContain(PAGE_FAILED);
     expect(touchesSessionCookie(doc)).toBe(false);
     expect((await sessionRow(token))?.expiresAt).toEqual(aged);
 
     const flight = await flightGet("/", cookie);
     expect(flight.status).toBe(200);
     expect(flight.headers.get("content-type")).toContain("text/x-component");
-    expect(await flight.text()).toContain(PLACEHOLDER);
+    const payload = await flight.text();
+    expect(payload).toContain(HEADING);
+    expect(payload).not.toContain(PAGE_FAILED);
     expect(touchesSessionCookie(flight)).toBe(false);
     expect((await sessionRow(token))?.expiresAt).toEqual(aged);
 

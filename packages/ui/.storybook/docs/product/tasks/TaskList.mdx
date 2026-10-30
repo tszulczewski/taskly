@@ -42,29 +42,30 @@ Shows every task of the renovation on one calm surface, with subtasks under thei
 
 ## 5. Variants
 
-None. What it shows depends on `status` and `tasks`. `onMove`, `onToggleMarker` and `places` turn on ordering, markers and places (E02); the app passes them together. `onToggleComplete` turns on completion (E03).
+None. What it shows depends on `status` and `tasks`. `onAddSubtask` turns on "Add subtask"; without it the list has tasks only, as the app had it before subtasks shipped (spec E01, PR B). `onMove`, `onToggleMarker` and `places` turn on ordering, markers and places (E02); the app passes them together. `onToggleComplete` turns on completion (E03).
 
 ## 6. States
 
 No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Task row](?path=/story/product-tasks-task-row--states), [Skeleton](?path=/story/primitives-skeleton--states) (decision M1). Its own focus state is the list taking focus after a delete ([Delete Confirmed](?path=/story/product-tasks-task-list--delete-confirmed)), or the empty state after the last one ([Delete Last](?path=/story/product-tasks-task-list--delete-last)).
 
-| State              | What the user sees                                                  | Story                       | Source                    |
-| ------------------ | ------------------------------------------------------------------- | --------------------------- | ------------------------- |
-| Loading            | Three static skeleton rows.                                         | Loading                     | spec E01, Luki 8          |
-| Load failed        | "Could not load your tasks." with "Try again".                      | Load Failed                 | spec E01                  |
-| Retrying           | "Trying again…" with a spinner.                                     | Retrying                    | C3                        |
-| Empty              | "No tasks yet." and the next step; the app puts focus in quick add. | Empty                       | spec E01                  |
-| Ready              | Rows with estimates and subtasks.                                   | Playground                  | spec E01                  |
-| Partial data       | Some tasks without an estimate or description.                      | Partial                     | R10                       |
-| Many               | 30 tasks; the page scrolls, the list does not.                      | Many                        | brief (low hundreds, Q02) |
-| Long text          | Long titles wrap; amounts stay in their column.                     | Long Text                   | —                         |
-| Asking to delete   | The dialog names the task and its subtasks; Cancel returns focus.   | Delete With Subtasks        | spec E01, Delete          |
-| Deleted            | Focus moves to the list (decision F6).                              | Delete Confirmed            | WCAG 2.4.3                |
-| Deleted the last   | Focus moves to the empty state, never the page.                     | Delete Last                 | WCAG 2.4.3, decision O4   |
-| Loading, lined up  | Skeleton bars start where titles start.                             | Loading Lines Up            | decision O3               |
-| Organized (E02)    | Handles, place tags, markers; "…" with places, markers, moves.      | Organized                   | E02, decisions G1–G3      |
-| With completion    | Checkboxes; completed rows after the open ones, muted.              | With Completion             | E03, decision 2026-10-21  |
-| Asking to complete | A task with open subtasks: the question first.                      | Complete With Open Subtasks | R09, decision I2          |
+| State              | What the user sees                                                      | Story                       | Source                      |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------- | --------------------------- |
+| Loading            | Three static skeleton rows.                                             | Loading                     | spec E01, Luki 8            |
+| Load failed        | "Could not load your tasks." with "Try again".                          | Load Failed                 | spec E01                    |
+| Retrying           | "Trying again…" with a spinner.                                         | Retrying                    | C3                          |
+| Empty              | "No tasks yet." and the next step; the app puts focus in quick add.     | Empty                       | spec E01                    |
+| Ready              | Rows with estimates and subtasks.                                       | Playground                  | spec E01                    |
+| Partial data       | Some tasks without an estimate or description.                          | Partial                     | R10                         |
+| Many               | 30 tasks; the page scrolls, the list does not.                          | Many                        | brief (low hundreds, Q02)   |
+| Tasks only         | No `onAddSubtask`: no "Add subtask"; only rows with a description open. | Tasks Only                  | spec E01 (PR B before PR C) |
+| Long text          | Long titles wrap; amounts stay in their column.                         | Long Text                   | —                           |
+| Asking to delete   | The dialog names the task and its subtasks; Cancel returns focus.       | Delete With Subtasks        | spec E01, Delete            |
+| Deleted            | Focus moves to the list (decision F6).                                  | Delete Confirmed            | WCAG 2.4.3                  |
+| Deleted the last   | Focus moves to the empty state, never the page.                         | Delete Last                 | WCAG 2.4.3, decision O4     |
+| Loading, lined up  | Skeleton bars start where titles start.                                 | Loading Lines Up            | decision O3                 |
+| Organized (E02)    | Handles, place tags, markers; "…" with places, markers, moves.          | Organized                   | E02, decisions G1–G3        |
+| With completion    | Checkboxes; completed rows after the open ones, muted.                  | With Completion             | E03, decision 2026-10-21    |
+| Asking to complete | A task with open subtasks: the question first.                          | Complete With Open Subtasks | R09, decision I2            |
 
 No-results does not exist yet: there are no filters in E01 (P03; see Patterns / List).
 
@@ -122,7 +123,8 @@ const tasks = useTasks(listId);
   onRetry={() => tasks.refetch()}
   retrying={tasks.isRefetching}
   validate={validateTaskForm}
-  onEdit={(id, values) => updateTask.mutateAsync({ id, ...values })}
+  // `opened` is the task as the form opened with it: send only what changed from it.
+  onEdit={(id, values, opened) => updateTask.mutateAsync({ id, input: changes(opened, values) })}
   onAddSubtask={(parentId, values) => createTask.mutateAsync({ ...values, parentId })}
   onDelete={(id) =>
     deleteTask.mutateAsync(id).then(

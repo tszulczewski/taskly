@@ -1,10 +1,11 @@
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
   NotImplementedError,
   UnauthorizedError,
+  ValidationError,
 } from "./errors";
 
 /** JSON envelope shared by all API routes (SSE routes are the exception). */
@@ -16,6 +17,30 @@ export type ApiFailure = {
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
 export type MappedError = { status: number; body: ApiFailure };
+
+/**
+ * The part of a Zod schema the response checks use (`apiHandler`, `apiCall`); structural, so the
+ * app needs no `zod` import. A failure carries nothing: its issues would hold the response values.
+ */
+export interface ResponseSchema<T> {
+  safeParse(value: unknown): { success: true; data: T } | { success: false };
+}
+
+/**
+ * What a client accepts as an envelope. `data` may be missing: a handler that returns nothing is
+ * serialized as `{ ok: true }`. The `data` itself is checked by the caller's response schema.
+ */
+export const apiResponseSchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), data: z.unknown().optional() }),
+  z.object({
+    ok: z.literal(false),
+    error: z.object({
+      code: z.string(),
+      message: z.string(),
+      fieldErrors: z.record(z.string(), z.array(z.string())).optional(),
+    }),
+  }),
+]);
 
 /** Maps a thrown error to an HTTP status and envelope. Unknown errors become a generic 500. */
 export function mapError(error: unknown): MappedError {
@@ -35,6 +60,7 @@ export function mapError(error: unknown): MappedError {
       (fieldErrors[issue.path.join(".") || "_"] ??= []).push(issue.message);
     return fail(400, "validation_error", "Invalid input", fieldErrors);
   }
+  if (error instanceof ValidationError) return fail(400, "validation_error", error.message);
   if (error instanceof UnauthorizedError) return fail(401, "unauthorized", "Unauthorized");
   if (error instanceof ForbiddenError) return fail(403, "forbidden", "Forbidden");
   if (error instanceof NotFoundError) return fail(404, "not_found", error.message);

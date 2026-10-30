@@ -36,16 +36,19 @@ import { SubtaskProgress } from "./subtask-progress";
 import { TaskCheckbox } from "./task-checkbox";
 import { TaskForm } from "./task-form";
 import { defaultTaskText, type TaskText } from "./text";
-import type {
-  Marker,
-  TaskField,
-  TaskFieldErrors,
-  TaskFormValues,
-  TaskItem,
-  TaskSubmit,
-} from "./types";
+import type { Marker, TaskField, TaskFieldErrors, TaskFormValues, TaskItem } from "./types";
 
 export type TaskChange = (id: string, values: TaskFormValues) => Promise<SubmitResult<TaskField>>;
+/**
+ * Saves an edit. `opened` is the task as it was when the form opened, which is what the form was
+ * prefilled with, so the app can send only what the user changed even if the task was refetched
+ * meanwhile (spec E01, Edit).
+ */
+export type TaskEdit = (
+  id: string,
+  values: TaskFormValues,
+  opened: TaskItem,
+) => Promise<SubmitResult<TaskField>>;
 
 /** Places of the list and what the app does with them (E02-S03; decisions G3–G6). */
 export interface PlaceOptions {
@@ -65,9 +68,14 @@ export interface TaskRowProps {
   task: TaskItem;
   validate: (values: TaskFormValues) => TaskFieldErrors;
   /** Saves an edit; resolve `{ ok: true }` to close the form. */
-  onEdit: TaskChange;
-  /** Adds a subtask under this task. Leave it out for a subtask: one level only (spec E01). */
+  onEdit: TaskEdit;
+  /** Adds a subtask under this task; turns on "Add subtask". A subtask has none: one level only. */
   onAddSubtask?: TaskChange;
+  /**
+   * A task or a subtask (one level only, spec E01). Left out, a row without `onAddSubtask` is a
+   * subtask; `TaskList` says "task", so a list can leave subtasks out.
+   */
+  level?: "task" | "subtask";
   /** "Delete" was chosen; the list asks first. `trigger` is this row's "…", for focus on cancel. */
   onRequestDelete: (task: TaskItem, trigger: HTMLElement | null) => void;
   /** The row just added: scrolled into view and briefly highlighted (spec E01, After an add). */
@@ -135,6 +143,7 @@ export function TaskRow({
   validate,
   onEdit,
   onAddSubtask,
+  level = onAddSubtask === undefined ? "subtask" : "task",
   onRequestDelete,
   highlightId,
   move,
@@ -146,7 +155,9 @@ export function TaskRow({
 }: TaskRowProps) {
   const t = { ...defaultTaskText, ...text };
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // The task as it was when the form opened (the form keeps its first values); null when closed.
+  const [editingFrom, setEditingFrom] = useState<TaskItem | null>(null);
+  const editing = editingFrom !== null;
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -156,8 +167,13 @@ export function TaskRow({
   const menuMovedFocus = useRef(false);
   const focusRequest = useRef<"menu" | "add-subtask" | undefined>(undefined);
   const subtasks = task.subtasks ?? [];
-  const isSubtask = onAddSubtask === undefined;
-  const hasDetails = !isSubtask || task.description !== null;
+  // A subtask the server has not confirmed yet does not count until it has (spec E01, Optimistic
+  // updates): the count, the progress and the sum in the edit form change with the server's task.
+  const savedSubtasks = subtasks.filter((subtask) => !subtask.pending);
+  const isSubtask = level === "subtask";
+  const addSubtask = isSubtask ? undefined : onAddSubtask;
+  // A row opens only when there is something to show in it.
+  const hasDetails = addSubtask !== undefined || task.description !== null || subtasks.length > 0;
   const highlighted = highlightId === task.id;
   const completed = task.completed === true;
   const columns: Columns = { handle: move !== undefined, checkbox: onToggleComplete !== undefined };
@@ -187,10 +203,10 @@ export function TaskRow({
 
   const closeEditing = () => {
     focusRequest.current = "menu";
-    setEditing(false);
+    setEditingFrom(null);
   };
-  const save: TaskSubmit = async (values) => {
-    const result = await onEdit(task.id, values);
+  const save = async (values: TaskFormValues, opened: TaskItem) => {
+    const result = await onEdit(task.id, values, opened);
     if (result.ok) closeEditing();
     return result;
   };
@@ -210,7 +226,7 @@ export function TaskRow({
     ? "group-last/row:group-last/subtask:rounded-br-surface"
     : "group-first/row:rounded-t-surface group-last/row:rounded-b-surface";
   const movableSubtasks = subtasks.filter((subtask) => !subtask.pending && !subtask.completed);
-  const subtasksDone = subtasks.filter((subtask) => subtask.completed).length;
+  const subtasksDone = savedSubtasks.filter((subtask) => subtask.completed).length;
   const subtaskIds = movableSubtasks.map((subtask) => subtask.id);
   const subtaskList = (
     <ul aria-label={t.subtasksOf(task.title)} className="pl-row-indent">
@@ -218,6 +234,7 @@ export function TaskRow({
         <TaskRow
           key={subtask.id}
           task={subtask}
+          level="subtask"
           validate={validate}
           onEdit={onEdit}
           onRequestDelete={onRequestDelete}
@@ -235,7 +252,7 @@ export function TaskRow({
   const unestimatedSubtasks = task.unestimatedSubtasks ?? 0;
   const showMeta =
     task.pending ||
-    subtasks.length > 0 ||
+    savedSubtasks.length > 0 ||
     unestimatedSubtasks > 0 ||
     task.important ||
     task.urgent ||
@@ -275,7 +292,7 @@ export function TaskRow({
           event.preventDefault();
         }}
       >
-        {isSubtask || completed ? null : (
+        {addSubtask === undefined || completed ? null : (
           <MenuItem
             disabled={task.pending}
             onSelect={() =>
@@ -288,7 +305,10 @@ export function TaskRow({
             {t.addSubtask}
           </MenuItem>
         )}
-        <MenuItem disabled={task.pending} onSelect={() => runMenuAction(() => setEditing(true))}>
+        <MenuItem
+          disabled={task.pending}
+          onSelect={() => runMenuAction(() => setEditingFrom(task))}
+        >
           {t.edit}
         </MenuItem>
         {places ? (
@@ -366,19 +386,19 @@ export function TaskRow({
         onOpenChange={setExpanded}
         className={cn(!isSubtask && ["data-[state=open]:bg-raised", edges])}
       >
-        {editing ? (
+        {editingFrom ? (
           <div className={cn("bg-raised p-inset", edges)}>
             <TaskForm
               initialValues={{
-                title: task.title,
-                amount: task.amount,
-                upTo: task.upTo,
-                description: task.description ?? "",
+                title: editingFrom.title,
+                amount: editingFrom.amount,
+                upTo: editingFrom.upTo,
+                description: editingFrom.description ?? "",
               }}
               validate={validate}
-              onSubmit={save}
+              onSubmit={(values) => save(values, editingFrom)}
               onCancel={closeEditing}
-              summedEstimate={subtasks.length > 0 ? task.estimate : undefined}
+              summedEstimate={savedSubtasks.length > 0 ? task.estimate : undefined}
               text={text}
             />
           </div>
@@ -466,15 +486,15 @@ export function TaskRow({
                     importantText={t.important}
                     urgentText={t.urgent}
                   />
-                  {subtasks.length === 0 || task.pending ? null : onToggleComplete ? (
+                  {savedSubtasks.length === 0 || task.pending ? null : onToggleComplete ? (
                     <SubtaskProgress
                       done={subtasksDone}
-                      total={subtasks.length}
+                      total={savedSubtasks.length}
                       text={t.subtaskProgress}
                       label={t.subtaskProgressLabel}
                     />
                   ) : (
-                    <span>{t.subtaskCount(subtasks.length)}</span>
+                    <span>{t.subtaskCount(savedSubtasks.length)}</span>
                   )}
                   {unestimatedSubtasks > 0 && !task.pending ? (
                     <span>{t.unestimatedSubtasks(unestimatedSubtasks)}</span>
@@ -546,13 +566,13 @@ export function TaskRow({
           ) : (
             subtaskList
           )}
-          {onAddSubtask && !completed ? (
+          {addSubtask && !completed ? (
             <UnderTitle columns={columns} className="py-row-y">
               {addingSubtask ? (
                 <QuickAdd
                   validate={validate}
                   onSubmit={async (values) => {
-                    const result = await onAddSubtask(task.id, values);
+                    const result = await addSubtask(task.id, values);
                     // One subtask per opening; "Add subtask" takes focus for the next (decision F7).
                     if (result.ok) closeAddSubtask();
                     return result;

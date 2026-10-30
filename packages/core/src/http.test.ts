@@ -6,8 +6,9 @@ import {
   NotFoundError,
   NotImplementedError,
   UnauthorizedError,
+  ValidationError,
 } from "./errors";
-import { hasCsrfHeader, mapError } from "./http";
+import { apiResponseSchema, hasCsrfHeader, mapError } from "./http";
 
 describe("mapError", () => {
   it("maps domain errors to statuses", () => {
@@ -16,6 +17,12 @@ describe("mapError", () => {
     expect(mapError(new NotFoundError("List")).status).toBe(404);
     expect(mapError(new ConflictError()).status).toBe(409);
     expect(mapError(new NotImplementedError("x")).status).toBe(501);
+  });
+  it("maps an unparseable request to 400 with its message and no field errors", () => {
+    expect(mapError(new ValidationError("Invalid JSON body"))).toEqual({
+      status: 400,
+      body: { ok: false, error: { code: "validation_error", message: "Invalid JSON body" } },
+    });
   });
   it("maps Zod errors to 400 with field errors", () => {
     const r = z.object({ name: z.string().min(2) }).safeParse({ name: "a" });
@@ -41,5 +48,27 @@ describe("hasCsrfHeader", () => {
         new Request("http://x/", { method: "POST", headers: { "x-requested-with": "taskly" } }),
       ),
     ).toBe(true);
+  });
+});
+
+describe("apiResponseSchema", () => {
+  it("accepts both envelopes, a success without data, and keeps the data untouched", () => {
+    expect(apiResponseSchema.parse({ ok: true, data: { a: 1 } })).toEqual({
+      ok: true,
+      data: { a: 1 },
+    });
+    expect(apiResponseSchema.safeParse({ ok: true }).success).toBe(true);
+    const failure = { ok: false, error: { code: "c", message: "m", fieldErrors: { t: ["x"] } } };
+    expect(apiResponseSchema.parse(failure)).toEqual(failure);
+  });
+  it("rejects malformed envelopes", () => {
+    for (const value of [
+      null,
+      { ok: 1 },
+      { ok: false },
+      { ok: false, error: { code: "c" } },
+      { ok: false, error: { code: "c", message: "m", fieldErrors: { t: "x" } } },
+    ])
+      expect(apiResponseSchema.safeParse(value).success).toBe(false);
   });
 });

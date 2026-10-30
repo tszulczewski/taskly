@@ -47,10 +47,11 @@ A one-line row is 68px on phones and 52px from 640px: the text block is at least
 
 ## 5. Variants
 
-| Variant                     | Choose it when                                    | Source   |
-| --------------------------- | ------------------------------------------------- | -------- |
-| Task (with `onAddSubtask`)  | A top-level task: arrow, "Add subtask".           | spec E01 |
-| Subtask (no `onAddSubtask`) | Inside a task: no "Add subtask" (one level only). | spec E01 |
+| Variant                                                   | Choose it when                                                                                            | Source          |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------- |
+| Task (with `onAddSubtask`)                                | A top-level task: arrow, "Add subtask".                                                                   | spec E01        |
+| Subtask (no `onAddSubtask`)                               | Inside a task: no "Add subtask" (one level only).                                                         | spec E01        |
+| Task without subtasks (`level="task"`, no `onAddSubtask`) | A list with tasks only (`TaskList` without `onAddSubtask`): the row opens only when it has a description. | spec E01 (PR B) |
 
 <Unstyled>
   <Story of={Stories.Subtask} />
@@ -78,6 +79,7 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 | Editing          | `TaskForm` in place of the line.                                                                                                                                      | Editing                                                                 | spec E01                    |
 | Adding a subtask | `QuickAdd` "New subtask" under the subtasks.                                                                                                                          | Adding Subtask                                                          | spec E01                    |
 | Pending          | Muted title, "Saving…", menu items disabled.                                                                                                                          | Pending                                                                 | spec E01, Optimistic UI     |
+| Pending subtask  | The subtask is muted with "Saving…"; its task keeps its own estimate, count and edit form until the server confirms it.                                               | Pending Subtask                                                         | spec E01, Optimistic UI     |
 | Change failed    | The message under the title in `color-text-danger`.                                                                                                                   | Change Failed                                                           | spec E01                    |
 | Sum started      | The sum as the estimate; a muted notice under the title says the typed amount is kept.                                                                                | Sum Started                                                             | R12, R15, W1                |
 | Editing a sum    | `TaskForm` with "Sum of subtasks" as text instead of the amounts.                                                                                                     | Editing Sum                                                             | R12, spec E01               |
@@ -129,6 +131,8 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 <ArgTypes of={Stories} />
 
 `TaskItem` arrives ready to show: `estimate` formatted (the sum on a task with subtasks), `amount` / `upTo` as the form shows the typed figure, `unestimatedSubtasks` counted and `notice` written by the app (P1).
+
+`onEdit(id, values, opened)` also gets `opened`, the task as it was when the form opened. The form keeps those first values even if the list is refetched while it is open, so the app compares `values` with `opened`, not with the refetched task, and sends only what the user changed (spec E01, Edit).
 
 ## 11. Code
 

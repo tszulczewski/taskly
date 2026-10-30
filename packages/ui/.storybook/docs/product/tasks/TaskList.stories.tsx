@@ -11,6 +11,7 @@ import {
   longTask,
   manyTasks,
   organizedTasks,
+  pantry,
   polishTaskText,
   polishTasks,
   progressTasks,
@@ -106,6 +107,26 @@ export const Partial: Story = {
 };
 
 export const Many: Story = { args: { tasks: manyTasks } };
+
+/**
+ * Without `onAddSubtask` the list has tasks only (spec E01: tasks ship before subtasks): no "Add
+ * subtask", and a row opens only when it has a description to show.
+ */
+export const TasksOnly: Story = {
+  args: { tasks: [sealBath, pantry], onAddSubtask: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(canvas.queryByRole("button", { name: "Seal the bath" })).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Finish the pantry shelves" }));
+    await expect(canvas.getByText(/^Oak boards/)).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Add subtask" })).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "More actions for “Seal the bath”" }));
+    await expect(await body.findByRole("menuitem", { name: "Edit" })).toBeVisible();
+    await expect(body.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+  },
+};
 
 export const LongText: Story = { args: { tasks: [longTask, wholeBathroom, sealBath] } };
 

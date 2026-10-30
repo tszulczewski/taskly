@@ -1,8 +1,9 @@
 import {
   type ApiFailure,
-  type ApiResponse,
+  apiResponseSchema,
   CSRF_HEADER,
   CSRF_HEADER_VALUE,
+  type ResponseSchema,
   type SignInInput,
   type SignUpInput,
 } from "@taskly/core";
@@ -26,16 +27,30 @@ async function readJsonSafe(res: Response): Promise<unknown> {
   }
 }
 
-function isEnvelope(value: unknown): value is ApiResponse<unknown> {
-  return typeof value === "object" && value !== null && "ok" in value;
-}
+type ApiCallInit = Omit<RequestInit, "body"> & { body?: unknown };
 
-/** The only place allowed to call `fetch('/api/…')`. Returns `data` or throws ApiError. */
-export async function apiCall<T>(
+const badResponse = (status: number) =>
+  new ApiError(status, "bad_response", "Unexpected server response");
+
+/**
+ * The only place allowed to call `fetch('/api/…')`. Returns `data` or throws ApiError. With
+ * `response`, `data` must pass that schema and the parsed value is returned; a malformed envelope
+ * or `data` throws `bad_response`, so it never reaches the Query cache.
+ */
+export function apiCall<T>(
   path: string,
-  init: Omit<RequestInit, "body"> & { body?: unknown } = {},
-): Promise<T> {
-  const { body, headers, ...rest } = init;
+  init: ApiCallInit & { response: ResponseSchema<T> },
+): Promise<T>;
+/** Without a schema, `data` is returned unchecked as `T`. */
+export function apiCall<T = unknown>(
+  path: string,
+  init?: ApiCallInit & { response?: undefined },
+): Promise<T>;
+export async function apiCall(
+  path: string,
+  init: ApiCallInit & { response?: ResponseSchema<unknown> } = {},
+): Promise<unknown> {
+  const { body, headers, response, ...rest } = init;
   const res = await fetch(path, {
     ...rest,
     headers: {
@@ -45,12 +60,17 @@ export async function apiCall<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const json = await readJsonSafe(res);
-  if (isEnvelope(json) && json.ok) return json.data as T;
-  if (isEnvelope(json) && !json.ok) {
-    throw new ApiError(res.status, json.error.code, json.error.message, json.error.fieldErrors);
+  const envelope = apiResponseSchema.safeParse(await readJsonSafe(res));
+  // A success envelope on an error status (or the reverse) is not something apiHandler sends.
+  if (!envelope.success || envelope.data.ok !== res.ok) throw badResponse(res.status);
+  if (!envelope.data.ok) {
+    const { code, message, fieldErrors } = envelope.data.error;
+    throw new ApiError(res.status, code, message, fieldErrors);
   }
-  throw new ApiError(res.status, "bad_response", "Unexpected server response");
+  if (!response) return envelope.data.data;
+  const data = response.safeParse(envelope.data.data);
+  if (!data.success) throw badResponse(res.status);
+  return data.data;
 }
 
 /** User-facing texts for the auth forms. Raw Better Auth messages are never shown. */

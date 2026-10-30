@@ -1,23 +1,64 @@
+import {
+  deleteTaskResponseSchema,
+  MAX_ESTIMATE_GROSZE,
+  type ResponseSchema,
+  taskListResponseSchema,
+  type TaskView,
+  taskViewSchema,
+} from "@taskly/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AUTH_MESSAGES, AUTH_TIMEOUT_MS, ApiError, apiCall, authCall } from "./api-client";
 
 function mockFetch(body: unknown, status = 200, raw = false) {
-  const fetchMock = vi.fn(async () => ({
-    status,
-    json: async () => {
-      if (raw) throw new Error("not json");
-      return body;
-    },
-  }));
+  const fetchMock = vi.fn(
+    async () => new Response(raw ? String(body) : JSON.stringify(body), { status }),
+  );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
+
+const task: TaskView = {
+  id: "6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f",
+  title: "Tile the wall",
+  description: null,
+  estimate: { minGrosze: 150_000, maxGrosze: 200_000 },
+  unestimatedSubtasks: 0,
+  subtasks: [],
+};
+const parent: TaskView = {
+  ...task,
+  estimate: { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: MAX_ESTIMATE_GROSZE + 1 },
+  unestimatedSubtasks: 1,
+  subtasks: [
+    {
+      id: "0a1b2c3d-4e5f-4a7b-9c8d-6f1c2d3e4b5a",
+      title: "Plaster",
+      description: "Two coats",
+      estimate: { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: MAX_ESTIMATE_GROSZE + 1 },
+    },
+    {
+      id: "9c8d6f1c-2d3e-4b5a-8e9f-0a1b2c3d4e5f",
+      title: "Paint",
+      description: null,
+      estimate: null,
+    },
+  ],
+};
+const { unestimatedSubtasks: _u, ...noUnestimated } = task;
+const ok = (data: unknown) => ({ ok: true, data });
+const fail = (error: unknown) => ({ ok: false, error });
+const badResponse = (status: number) => ({
+  status,
+  code: "bad_response",
+  message: "Unexpected server response",
+  fieldErrors: undefined,
+});
 
 describe("apiCall", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("returns data and sends the CSRF header", async () => {
-    const f = mockFetch({ ok: true, data: [1] });
+    const f = mockFetch(ok([1]));
     expect(await apiCall<number[]>("/api/x")).toEqual([1]);
     const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
     expect(init.headers).toMatchObject({ "x-requested-with": "taskly" });
@@ -25,19 +66,21 @@ describe("apiCall", () => {
   });
 
   it("serialises JSON bodies and merges headers", async () => {
-    const f = mockFetch({ ok: true, data: null });
+    const f = mockFetch(ok(null));
     await apiCall("/api/x", { method: "POST", body: { a: 1 }, headers: { "x-extra": "1" } });
     const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
     expect(init.body).toBe('{"a":1}');
     expect(init.headers).toMatchObject({ "content-type": "application/json", "x-extra": "1" });
   });
 
+  it("returns undefined for a success envelope without data when no schema is given", async () => {
+    mockFetch({ ok: true });
+    expect(await apiCall("/api/x")).toBeUndefined();
+  });
+
   it("throws ApiError with field errors from the envelope", async () => {
     mockFetch(
-      {
-        ok: false,
-        error: { code: "validation_error", message: "Invalid", fieldErrors: { n: ["bad"] } },
-      },
+      fail({ code: "validation_error", message: "Invalid", fieldErrors: { n: ["bad"] } }),
       400,
     );
     const error = await apiCall("/api/x").catch((e: unknown) => e);
@@ -45,17 +88,114 @@ describe("apiCall", () => {
     expect(error).toMatchObject({
       status: 400,
       code: "validation_error",
+      message: "Invalid",
       fieldErrors: { n: ["bad"] },
+    });
+  });
+
+  it("throws ApiError without field errors from a plain error envelope", async () => {
+    mockFetch(fail({ code: "conflict", message: "Please try again" }), 409);
+    await expect(apiCall("/api/x", { response: taskViewSchema })).rejects.toMatchObject({
+      status: 409,
+      code: "conflict",
+      message: "Please try again",
+      fieldErrors: undefined,
     });
   });
 
   it("throws bad_response for non-envelope or unparsable bodies", async () => {
     mockFetch("nope", 502);
-    await expect(apiCall("/api/x")).rejects.toMatchObject({ code: "bad_response", status: 502 });
-    mockFetch(null, 500, true);
-    await expect(apiCall("/api/x")).rejects.toMatchObject({ code: "bad_response" });
+    await expect(apiCall("/api/x")).rejects.toMatchObject(badResponse(502));
+    mockFetch("<html>Bad gateway</html>", 500, true);
+    await expect(apiCall("/api/x")).rejects.toMatchObject(badResponse(500));
     mockFetch(null, 200);
-    await expect(apiCall("/api/x")).rejects.toMatchObject({ code: "bad_response" });
+    await expect(apiCall("/api/x")).rejects.toMatchObject(badResponse(200));
+  });
+
+  describe("with a response schema", () => {
+    it.each([
+      ["a task", taskViewSchema, task],
+      ["a parent with subtasks and a sum above the input cap", taskViewSchema, parent],
+      ["a list", taskListResponseSchema, [task, parent]],
+      ["null after deleting a top-level task", deleteTaskResponseSchema, null],
+      ["the parent after deleting a subtask", deleteTaskResponseSchema, parent],
+    ] as const)("returns %s", async (_, schema, value) => {
+      mockFetch(ok(value));
+      expect(await apiCall("/api/x", { response: schema as ResponseSchema<unknown> })).toEqual(
+        value,
+      );
+    });
+
+    it("accepts additive unknown fields and returns the parsed value without them", async () => {
+      mockFetch({ ...ok([{ ...task, position: "a0" }]), meta: 1 });
+      const tasks: TaskView[] = await apiCall("/api/x", { response: taskListResponseSchema });
+      expect(tasks).toEqual([task]);
+    });
+
+    it("does not pass the schema to fetch", async () => {
+      const f = mockFetch(ok(task));
+      await apiCall("/api/x", { method: "PATCH", body: {}, response: taskViewSchema });
+      const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
+      expect(init).not.toHaveProperty("response");
+      expect(init.method).toBe("PATCH");
+    });
+
+    it.each([
+      ["no unestimatedSubtasks", taskViewSchema, noUnestimated],
+      ["no subtasks", taskViewSchema, { ...task, subtasks: undefined }],
+      ["a numeric title", taskViewSchema, { ...task, title: 42 }],
+      ["a string amount", taskViewSchema, { ...task, estimate: { minGrosze: "1", maxGrosze: 2 } }],
+      ["min above max", taskViewSchema, { ...task, estimate: { minGrosze: 3, maxGrosze: 2 } }],
+      ["a malformed subtask", taskViewSchema, { ...task, subtasks: [{ id: "x" }] }],
+      ["one bad row in a list", taskListResponseSchema, [task, noUnestimated]],
+      ["a missing data key", deleteTaskResponseSchema, undefined],
+    ] as const)("rejects %s with bad_response", async (_, schema, value) => {
+      mockFetch(ok(value));
+      const error = await apiCall("/api/x", { response: schema as ResponseSchema<unknown> }).catch(
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toMatchObject(badResponse(200));
+    });
+
+    it("rejects a non-JSON body with bad_response", async () => {
+      mockFetch("<html>Proxy error</html>", 200, true);
+      await expect(apiCall("/api/x", { response: taskViewSchema })).rejects.toMatchObject(
+        badResponse(200),
+      );
+    });
+  });
+
+  it.each([
+    ["ok as a string", { ok: "true", data: task }, 200],
+    ["no ok key", { data: task }, 200],
+    ["an array", [task], 200],
+    ["a success envelope on an error status", ok(task), 500],
+    ["an error envelope on a success status", fail({ code: "conflict", message: "x" }), 200],
+    ["an error that is not an object", fail("boom"), 500],
+    ["an error without a code", fail({ message: "Row title" }), 500],
+    ["a numeric code", fail({ code: 500, message: "x" }), 500],
+    ["an error without a message", fail({ code: "conflict" }), 409],
+    [
+      "fieldErrors as a list",
+      fail({ code: "validation_error", message: "x", fieldErrors: ["t"] }),
+      400,
+    ],
+    [
+      "a fieldErrors value that is not a list",
+      fail({ code: "v", message: "x", fieldErrors: { t: "bad" } }),
+      400,
+    ],
+    [
+      "a fieldErrors message that is not a string",
+      fail({ code: "v", message: "x", fieldErrors: { t: [1] } }),
+      400,
+    ],
+  ] as const)("rejects an envelope with %s as bad_response", async (_, body, status) => {
+    mockFetch(body, status);
+    const error = await apiCall("/api/x").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject(badResponse(status));
   });
 });
 

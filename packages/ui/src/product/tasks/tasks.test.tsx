@@ -11,7 +11,7 @@ import { TaskForm } from "./task-form";
 import { TaskList, type TaskListProps } from "./task-list";
 import { defaultTaskText } from "./text";
 import type { TaskFormValues, TaskItem } from "./types";
-import type { PlaceOptions } from "./task-row";
+import { TaskRow, type PlaceOptions } from "./task-row";
 import type { Place } from "../places/types";
 
 const scrollIntoView = vi.fn();
@@ -270,7 +270,7 @@ describe("TaskForm", () => {
     expect(field(description).value).toBe("Two coats.");
   });
 
-  it("shows a task's sum instead of the amounts and sends them unchanged (R12)", async () => {
+  it("shows a task's sum instead of the amounts and sends them empty (R12)", async () => {
     const onSubmit = vi.fn(ok);
     const { rerender } = render(
       <TaskForm
@@ -286,7 +286,7 @@ describe("TaskForm", () => {
     expect(sum?.textContent).toContain("Sum of subtasks:800–900 zł");
     expect(sum?.textContent).toContain("Change the amounts on the subtasks.");
     await submitForm("Save");
-    expect(onSubmit).toHaveBeenCalledWith(initialValues);
+    expect(onSubmit).toHaveBeenCalledWith({ ...initialValues, amount: "", upTo: "" });
     rerender(
       <TaskForm
         initialValues={initialValues}
@@ -298,6 +298,45 @@ describe("TaskForm", () => {
     );
     expect(screen.getByText("no estimate yet")).toBeTruthy();
   });
+
+  it.each([
+    ["invalid text", { amount: "abc", upTo: "1 500" }, "Enter an amount."],
+    ["a reversed range", { amount: "2 000", upTo: "1 500" }, "Enter a higher amount."],
+  ])(
+    "leaves hidden amounts holding %s out of validation and saving while it shows the sum",
+    async (_, amounts, message) => {
+      // Regression: a refetch brought the first subtask while the form was open.
+      const amount = (text: string) => Number(text.replaceAll(" ", ""));
+      const validate = (current: TaskFormValues) => ({
+        amount: Number.isNaN(amount(current.amount)) ? "Enter an amount." : undefined,
+        upTo: amount(current.upTo) < amount(current.amount) ? "Enter a higher amount." : undefined,
+      });
+      const onSubmit = vi.fn(async () => ({ ok: false as const, formError: "Try again." }));
+      const props = { initialValues, validate, onSubmit, onCancel: vi.fn() };
+      const { rerender } = render(<TaskForm {...props} />);
+      fireEvent.change(field("Title"), { target: { value: "Paint the hall" } });
+      fireEvent.change(field(/^Amount/), { target: { value: amounts.amount } });
+      fireEvent.change(field(/^up to/), { target: { value: amounts.upTo } });
+
+      rerender(<TaskForm {...props} summedEstimate="300–400 zł" />);
+      await submitForm("Save");
+      expect(onSubmit).toHaveBeenCalledWith({
+        title: "Paint the hall",
+        amount: "",
+        upTo: "",
+        description: "",
+      });
+      expect(screen.queryByText(message)).toBeNull();
+
+      // The subtasks are gone again: the fields come back with what was typed, and Save checks it.
+      rerender(<TaskForm {...props} />);
+      expect(field(/^Amount/).value).toBe(amounts.amount);
+      expect(field(/^up to/).value).toBe(amounts.upTo);
+      await submitForm("Save");
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(message)).toBeTruthy();
+    },
+  );
 });
 
 describe("TaskList", () => {
@@ -454,10 +493,41 @@ describe("TaskList", () => {
     await submitForm("Save");
     expect(screen.getByText("Enter a title")).toBeTruthy();
     await submitForm("Save");
-    expect(onEdit).toHaveBeenLastCalledWith("seal", values("Seal the bath and sink"));
+    expect(onEdit).toHaveBeenLastCalledWith("seal", values("Seal the bath and sink"), sealBath);
     expect(screen.queryByRole("form")).toBeNull();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "More actions for “Seal the bath”" }),
+    );
+  });
+
+  it("hands onEdit the task as the form opened with it, even after the task changed", async () => {
+    const onEdit = vi.fn(ok);
+    const props = {
+      onRetry: vi.fn(),
+      onDelete: vi.fn(async () => true),
+      validate: noErrors,
+      onEdit,
+    };
+    const { rerender } = render(<TaskList status="ready" tasks={[paint]} {...props} />);
+    openMenu("Paint the ceiling");
+    await choose("Edit");
+    expect(document.querySelector('[data-slot="summed-estimate"]')).not.toBeNull();
+    // A refetch: the subtasks are gone and the title changed elsewhere.
+    const refetched = { ...paint, title: "Paint the hall", subtasks: [], estimate: "900 zł" };
+    rerender(<TaskList status="ready" tasks={[refetched]} {...props} />);
+    // The form keeps the values it opened with; the amount fields now show them.
+    expect(field("Title").value).toBe("Paint the ceiling");
+    expect(field(/^Amount/).value).toBe("1 200");
+    await submitForm("Save");
+    expect(onEdit).toHaveBeenLastCalledWith(
+      "paint",
+      {
+        title: "Paint the ceiling",
+        amount: "1 200",
+        upTo: "1 500",
+        description: "Two coats, white matt.",
+      },
+      paint,
     );
   });
 
@@ -506,6 +576,45 @@ describe("TaskList", () => {
     expect(document.activeElement).toBe(addSubtask);
     fireEvent.click(addSubtask);
     expect(field("New subtask")).toBeTruthy();
+  });
+
+  it("offers no subtasks without onAddSubtask, and opens only rows with something to show", () => {
+    renderList({
+      tasks: [sealBath, { ...sealBath, id: "tiles", title: "Tile", description: "White." }, paint],
+      onAddSubtask: undefined,
+    });
+    expect(screen.queryByRole("button", { name: "Seal the bath" })).toBeNull();
+    openMenu("Seal the bath");
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Tile" }));
+    expect(screen.getByText("White.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    expect(screen.getByRole("list", { name: "Subtasks of “Paint the ceiling”" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add subtask" })).toBeNull();
+  });
+
+  it("renders a TaskRow on its own as a task with onAddSubtask and as a subtask without", () => {
+    const row = (onAddSubtask?: typeof ok) => (
+      <ul>
+        <TaskRow
+          task={sealBath}
+          validate={noErrors}
+          onEdit={ok}
+          onAddSubtask={onAddSubtask}
+          onRequestDelete={vi.fn()}
+        />
+      </ul>
+    );
+    const { rerender } = render(row(ok));
+    openMenu("Seal the bath");
+    expect(screen.getByRole("menuitem", { name: "Add subtask" })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    rerender(row());
+    openMenu("Seal the bath");
+    expect(screen.queryByRole("menuitem", { name: "Add subtask" })).toBeNull();
+    expect(screen.getByRole("listitem").className).toContain("group/subtask");
   });
 
   it("returns focus to the menu button when the menu just closes", async () => {
@@ -821,6 +930,33 @@ describe("TaskList completion", () => {
   it("hides the count of subtasks without an estimate on a pending row", () => {
     renderList({ tasks: [{ ...paint, pending: true }] });
     expect(screen.queryByText("1 subtask without an estimate")).toBeNull();
+  });
+
+  it("counts a pending subtask only once the server has confirmed it", () => {
+    const pendingSubtask = { ...sealBath, id: "temp-1", title: "Prime", pending: true };
+    const rods: TaskItem = { ...sealBath, id: "rods", title: "Fit the rods", estimate: "450 zł" };
+    renderList({ tasks: [{ ...rods, amount: "450", subtasks: [pendingSubtask] }] });
+    // No meta line yet: the task has no confirmed subtask, so no count.
+    expect(screen.queryByText("1 subtask")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Fit the rods" }));
+    const subtasks = screen.getByRole("list", { name: "Subtasks of “Fit the rods”" });
+    expect(within(subtasks).getByText("Saving…")).toBeTruthy();
+    // Its edit form still shows the amounts, not a sum.
+    openMenu("Fit the rods");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    expect((field(/^Amount/) as HTMLInputElement).value).toBe("450");
+    expect(document.querySelector('[data-slot="summed-estimate"]')).toBeNull();
+    cleanup();
+
+    renderList({ tasks: [{ ...paint, subtasks: [...paint.subtasks!, pendingSubtask] }] });
+    expect(screen.getByText("2 subtasks")).toBeTruthy();
+    cleanup();
+
+    renderList({
+      tasks: [{ ...paint, subtasks: [...paint.subtasks!, pendingSubtask] }],
+      onToggleComplete: vi.fn(),
+    });
+    expect(screen.getByText("0 of 2 subtasks completed")).toBeTruthy();
   });
 
   it("keeps the subtask count without completion", () => {

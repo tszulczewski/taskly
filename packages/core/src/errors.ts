@@ -28,3 +28,9 @@ export class ConflictError extends Error {
     super(message);
   }
 }
+/** A request that cannot be parsed at all (e.g. a body that is not JSON); schema failures stay `ZodError`. */
+export class ValidationError extends Error {
+  constructor(message = "Invalid input") {
+    super(message);
+  }
+}

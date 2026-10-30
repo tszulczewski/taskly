@@ -1,12 +1,15 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  foreignKey,
   index,
   integer,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -18,13 +21,25 @@ export const taskStatus = pgEnum("task_status", ["todo", "done"]);
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
 // Money is stored as integer grosze (1/100 PLN).
-export const lists = pgTable("lists", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  // "shopping" lists hold shopping items; each user has one global shopping list.
-  kind: listKind("kind").notNull().default("project"),
-  createdAt: createdAt(),
-});
+export const lists = pgTable(
+  "lists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // "shopping" lists hold shopping items; each user has one global shopping list.
+    kind: listKind("kind").notNull().default("project"),
+    // Marks the list created for this user on first visit; at most one per user and kind.
+    defaultForUserId: text("default_for_user_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("lists_default_for_user_kind_uq")
+      .on(t.defaultForUserId, t.kind)
+      .where(sql`${t.defaultForUserId} IS NOT NULL`),
+  ],
+);
 
 export const listMembers = pgTable(
   "list_members",
@@ -63,6 +78,7 @@ export const tasks = pgTable(
     // Subtasks point at their parent task; access is inherited from the list.
     parentId: uuid("parent_id"),
     title: text("title").notNull(),
+    description: text("description"),
     status: taskStatus("status").notNull().default("todo"),
     // Fractional-indexing key; compare with COLLATE "C".
     position: text("position").notNull(),
@@ -71,7 +87,26 @@ export const tasks = pgTable(
     costGrosze: integer("cost_grosze"),
     createdAt: createdAt(),
   },
-  (t) => [index("tasks_list_parent_idx").on(t.listId, t.parentId)],
+  (t) => [
+    index("tasks_list_parent_idx").on(t.listId, t.parentId),
+    // Target of the same-list parent FK below; must exist before it.
+    unique("tasks_list_id_id_idx").on(t.listId, t.id),
+    // MATCH SIMPLE: a top-level task (parent_id NULL) is not checked.
+    foreignKey({
+      name: "tasks_list_id_parent_id_fk",
+      columns: [t.listId, t.parentId],
+      foreignColumns: [t.listId, t.id],
+    }).onDelete("cascade"),
+    unique("tasks_sibling_position_uq").on(t.listId, t.parentId, t.position).nullsNotDistinct(),
+    check(
+      "tasks_estimate_pair_chk",
+      sql`(${t.estimateMinGrosze} IS NULL) = (${t.estimateMaxGrosze} IS NULL)`,
+    ),
+    check(
+      "tasks_estimate_range_chk",
+      sql`${t.estimateMinGrosze} IS NULL OR (${t.estimateMinGrosze} >= 0 AND ${t.estimateMinGrosze} <= ${t.estimateMaxGrosze})`,
+    ),
+  ],
 );
 
 // Shopping items live in a "shopping" list, so sharing reuses list membership and invitations.

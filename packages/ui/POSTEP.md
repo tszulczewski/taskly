@@ -64,8 +64,8 @@ Pierwsze podejście do etapu 2 zostało wycofane na prośbę product ownera 2026
 - `.ai/design/prompt-storybook.md` (zadanie)
 - `.ai/specs/product-brief.md` (D01–D21, R01–R11, N01–N04)
 - `.ai/specs/backlog.md` (E01–E04, historie E01-S01 … E03-S02)
-- `.ai/specs/2026-10-16-tasks-and-subtasks.md` (E01; UI/UX, stany, przypadki brzegowe)
-- `.ai/specs/2026-10-16-sign-in-pages.md` (prerekwizyt E01; ekrany logowania)
+- `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md` (E01; UI/UX, stany, przypadki brzegowe)
+- `.ai/specs/implemented/2026-10-16-sign-in-pages.md` (prerekwizyt E01; ekrany logowania)
 - `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md`
 - `.ai/design/reference.md` (R01.1–R02.13, A01.1–A05, Q1–Q5, P01–P15, Luki 1–10), `.ai/design/reference/` (zrzuty, kod `R02-prototype.html`)
 - `.ai/design/tokeny.md` (tokeny, kontrast, zasady 1–15, cechy komponentów, T1–T10)
@@ -456,7 +456,7 @@ Niczego nie usuwam.
 ## Sprawy do zrobienia poza design systemem
 
 - ~~Dopisać wyjątek P1 do `.ai/docs/engineering-standards.md` §5~~ (zrobione w etapie 3).
-- Poprawić UI/UX w `.ai/specs/2026-10-16-tasks-and-subtasks.md` według P2 (opis po rozwinięciu, akcje w „…”); termin do ustalenia.
+- Poprawić UI/UX w `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md` według P2 (opis po rozwinięciu, akcje w „…”); termin do ustalenia.
 
 ## Notatka techniczna
 

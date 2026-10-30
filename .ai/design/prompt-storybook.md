@@ -14,7 +14,7 @@ jakich tokenów użyć, jak zachowa się każdy stan i czego nie robić.
 - Produkt i użytkownicy: Organizer zadań podczas wykończenia/remontu domu/mieszkania dla osób mających problem z zapamiętaniem i organizacją pracy.
 Pomaga spisywać zadania i wybrać kolejność ich wykonywania, a nawet śledzć postęp prac jeśli zadanie składa się z większej ilości podzadań.
 - Brief i badania: .ai/specs/product-brief.md
-- Backlog i specyfikacje: .ai/specs/backlog.md, .ai/specs/2026-10-16-sign-in-pages.md, .ai/specs/2026-10-16-tasks-and-subtasks.md
+- Backlog i specyfikacje: .ai/specs/backlog.md, .ai/specs/implemented/2026-10-16-sign-in-pages.md, .ai/specs/implemented/2026-10-16-tasks-and-subtasks.md
 - Plik referencji z ćwiczenia 2: .ai/design/reference.md
 - Tokeny z ćwiczenia 2: .ai/design/tokeny.md
 - Raport z audytu z ćwiczenia 1: brak

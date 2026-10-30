@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-16
 - **Revised:** 2026-10-28, for the brief refresh of 2026-10-27 (R12–R18, D22–D24): subtask estimates add up into their task, an exact price is typed once, and quick add shows the amounts next to the title. Owner's answers to the revision's questions are under Open Questions.
-- **Status:** draft
+- **Status:** implemented
 - **Issue:** #11 (stories #15, #16; task #22)
 - **Depends on:** a separate spec for minimal sign-up / sign-in pages, built first (Q2; confirmed 2026-10-16): `.ai/specs/implemented/2026-10-16-sign-in-pages.md`, specifically its Phase A ("Phase 0" below); its Phase B (password reset) gates nothing here. Only PR B (steps 7–8: routes and the screen) waits for it; PR A (steps 1–6) does not.
 
@@ -307,7 +307,7 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
   - Messages: "Enter an amount like 1 500,50" and "“Up to” must not be less than the amount.". The former rule "Enter both amounts or neither" is gone (D24; supersedes screen map L03 and the old AC6 of #15).
 - **States:**
   - **Loading:** a skeleton.
-  - **Empty:** "No tasks yet. Start with one task. Only the title is required." with focus in the title field (owner, 2026-10-26, prototype map L22).
+  - **Empty:** "No tasks yet. Add the first thing you need to do." (the design-system default) with focus in the title field (owner, 2026-10-30; replaces the 2026-10-26 prototype map L22 text).
   - **Error:** a message with "Try again" (refetch).
   - **Page did not open** (the server page fails before any list exists, e.g. `ensureDefaultList` errors): the app shell stays, with a working "Sign out" and theme toggle, the heading "My renovation", and an error state "Could not open your tasks." with "Try again". There is no quick add and no list (owner, 2026-10-27, prototype map L13 and DS04, state s04.21).
   - Shared loading, empty and error components go in `packages/ui/src/components/` (standards §5).

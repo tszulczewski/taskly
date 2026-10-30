@@ -79,6 +79,7 @@ export {
   TaskRow,
   type PlaceOptions,
   type TaskChange,
+  type TaskEdit,
   type TaskRowProps,
 } from "./product/tasks/task-row";
 export { TaskList, type TaskListProps } from "./product/tasks/task-list";
