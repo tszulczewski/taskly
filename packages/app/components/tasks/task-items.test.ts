@@ -215,7 +215,7 @@ describe("toUpdateInput", () => {
     ).toEqual({ title: "Seal the shower" });
   });
 
-  it("never sends an estimate from a form opened on a task with subtasks, even once they are gone", () => {
+  it("judges a form opened on a task with subtasks by its empty prefill once the subtasks are gone", () => {
     const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
     const parent = view("Paint", {
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
@@ -223,14 +223,15 @@ describe("toUpdateInput", () => {
     });
     const openedWithSum = toTaskItem(parent);
     // The last subtask was deleted in another tab and the list refetched: the task shows its own
-    // figure again, and the amount fields appear empty.
+    // figure again, and the amount fields appear, empty as they were prefilled.
     const own = { ...parent, estimate: { minGrosze: 90_000, maxGrosze: 90_000 }, subtasks: [] };
     expect(
       toUpdateInput([own], parent.id, form({ title: "Paint the hall" }), openedWithSum),
     ).toEqual({ title: "Paint the hall" });
+    // Amounts typed into the fields that appeared are the user's change.
     expect(
       toUpdateInput([own], parent.id, form({ title: "Paint", amount: "700" }), openedWithSum),
-    ).toBeNull();
+    ).toEqual({ estimate: { minGrosze: 70_000, maxGrosze: 70_000 } });
   });
 
   it("never sends an estimate for a task that has subtasks now (after a 409 and the refetch)", () => {

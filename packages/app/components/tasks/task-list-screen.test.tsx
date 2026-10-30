@@ -922,6 +922,21 @@ describe("TaskListScreen subtasks", () => {
     expect(estimateOf(rowOf("Main bathroom"))).toBe(pln("1_000–2_000_zł"));
   });
 
+  it("saves amounts typed into the fields that appear when a refetch shows the subtasks gone", async () => {
+    serverTasks = [withSubtasks(bath, [prime], range(300, 400))];
+    const { client } = await renderRows();
+    const form = await startEdit("Bathroom");
+    serverTasks = [bath];
+    await act(() => client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(form.queryByRole("textbox", { name: /^Amount/ })).not.toBeNull());
+
+    handlers.set(`PATCH ${taskUrl(bath.id)}`, () => saved({ ...bath, estimate: range(1500) }));
+    type(amountField(form), "1 500");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(sent("PATCH", taskUrl(bath.id))).toEqual({ estimate: range(1500) });
+    await waitFor(() => expect(estimateOf(rowOf("Bathroom"))).toBe(pln("1_500_zł")));
+  });
+
   it("names the subtasks in the delete question of their task", async () => {
     serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
     await renderRows();

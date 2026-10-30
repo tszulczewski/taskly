@@ -125,16 +125,16 @@ function findTask(tasks: readonly TaskView[], id: string): { summed: boolean } |
   return undefined;
 }
 
-/** An item with saved subtasks: its edit form shows their sum instead of the amount fields. */
-const showsSum = (item: TaskItem) => (item.subtasks ?? []).some((subtask) => !subtask.pending);
-
 /**
  * What an edit sends (`updateTaskInput`): only the fields the user changed from what the form was
  * opened with (`opened`, the task as it was then), or `null` when nothing changed. A refetch
  * while the form is open changes nothing here. Clearing both amounts sends `estimate: null`.
- * The estimate goes only when the form showed the amount fields when it opened and the task has
- * no saved subtasks now: a task with subtasks takes its estimate from them, and the server refuses
- * the whole edit (409) if it is sent. The edited row is on screen, so its task is in the cache.
+ * What the form shows now decides the estimate: it goes only when the task has no saved subtasks
+ * now (the form shows the amount fields) and the amounts differ from their prefill. A task with
+ * subtasks takes its estimate from them, and the server refuses the whole edit (409) if it is
+ * sent. A form opened on a task with subtasks was prefilled with empty amounts, so empty fields
+ * that appear after a refetch send nothing, while amounts typed into them do. The edited row is on
+ * screen, so its task is in the cache.
  */
 export function toUpdateInput(
   tasks: readonly TaskView[],
@@ -146,11 +146,10 @@ export function toUpdateInput(
   if (found === undefined) throw new Error("The edited task is not in the list");
   const { title, description, estimate } = toCreateInput(values);
   const prefilled = toCreateInput({ ...values, amount: opened.amount, upTo: opened.upTo });
-  const amountsShown = !showsSum(opened) && !found.summed;
   const changes = {
     ...(title !== opened.title && { title }),
     ...(description !== opened.description && { description }),
-    ...(amountsShown && !sameEstimate(estimate, prefilled.estimate) && { estimate }),
+    ...(!found.summed && !sameEstimate(estimate, prefilled.estimate) && { estimate }),
   };
   return Object.keys(changes).length === 0 ? null : updateTaskInput.parse(changes);
 }
