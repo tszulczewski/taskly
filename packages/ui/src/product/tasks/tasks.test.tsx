@@ -454,10 +454,41 @@ describe("TaskList", () => {
     await submitForm("Save");
     expect(screen.getByText("Enter a title")).toBeTruthy();
     await submitForm("Save");
-    expect(onEdit).toHaveBeenLastCalledWith("seal", values("Seal the bath and sink"));
+    expect(onEdit).toHaveBeenLastCalledWith("seal", values("Seal the bath and sink"), sealBath);
     expect(screen.queryByRole("form")).toBeNull();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "More actions for “Seal the bath”" }),
+    );
+  });
+
+  it("hands onEdit the task as the form opened with it, even after the task changed", async () => {
+    const onEdit = vi.fn(ok);
+    const props = {
+      onRetry: vi.fn(),
+      onDelete: vi.fn(async () => true),
+      validate: noErrors,
+      onEdit,
+    };
+    const { rerender } = render(<TaskList status="ready" tasks={[paint]} {...props} />);
+    openMenu("Paint the ceiling");
+    await choose("Edit");
+    expect(document.querySelector('[data-slot="summed-estimate"]')).not.toBeNull();
+    // A refetch: the subtasks are gone and the title changed elsewhere.
+    const refetched = { ...paint, title: "Paint the hall", subtasks: [], estimate: "900 zł" };
+    rerender(<TaskList status="ready" tasks={[refetched]} {...props} />);
+    // The form keeps the values it opened with; the amount fields now show them.
+    expect(field("Title").value).toBe("Paint the ceiling");
+    expect(field(/^Amount/).value).toBe("1 200");
+    await submitForm("Save");
+    expect(onEdit).toHaveBeenLastCalledWith(
+      "paint",
+      {
+        title: "Paint the ceiling",
+        amount: "1 200",
+        upTo: "1 500",
+        description: "Two coats, white matt.",
+      },
+      paint,
     );
   });
 

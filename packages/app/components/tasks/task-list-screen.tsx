@@ -4,6 +4,7 @@ import {
   Alert,
   QuickAdd,
   type SubmitResult,
+  type TaskEdit,
   type TaskField,
   TaskList,
   type TaskFormValues,
@@ -127,9 +128,9 @@ export function TaskListScreen({ listId }: { listId: string }) {
     }
   };
 
-  const edit = async (id: string, values: TaskFormValues): Promise<SubmitResult<TaskField>> => {
+  const edit: TaskEdit = async (id, values, opened) => {
     startChange();
-    const input = toUpdateInput(views, id, values);
+    const input = toUpdateInput(views, id, values, opened);
     if (input === null) return { ok: true };
     try {
       await updateTask.mutateAsync({ id, input });

@@ -123,7 +123,8 @@ const tasks = useTasks(listId);
   onRetry={() => tasks.refetch()}
   retrying={tasks.isRefetching}
   validate={validateTaskForm}
-  onEdit={(id, values) => updateTask.mutateAsync({ id, ...values })}
+  // `opened` is the task as the form opened with it: send only what changed from it.
+  onEdit={(id, values, opened) => updateTask.mutateAsync({ id, input: changes(opened, values) })}
   onAddSubtask={(parentId, values) => createTask.mutateAsync({ ...values, parentId })}
   onDelete={(id) =>
     deleteTask.mutateAsync(id).then(

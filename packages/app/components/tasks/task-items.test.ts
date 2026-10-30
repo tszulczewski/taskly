@@ -162,76 +162,102 @@ describe("toUpdateInput", () => {
     estimate: { minGrosze: 50_000, maxGrosze: 50_000 },
   });
   const tasks = [exact];
+  /** The edit form as it opens: prefilled from the item (`toTaskItem`). */
+  const opened = toTaskItem(exact);
   const prefilled = form({ amount: "500", description: "Silicone" });
 
-  it("sends only the changed fields", () => {
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, title: "Seal the shower" })).toEqual({
-      title: "Seal the shower",
-    });
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, description: "" })).toEqual({
+  it("sends only the fields changed from what the form opened with", () => {
+    expect(
+      toUpdateInput(tasks, exact.id, { ...prefilled, title: "Seal the shower" }, opened),
+    ).toEqual({ title: "Seal the shower" });
+    expect(toUpdateInput(tasks, exact.id, { ...prefilled, description: "" }, opened)).toEqual({
       description: null,
     });
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, upTo: "600" })).toEqual({
+    expect(toUpdateInput(tasks, exact.id, { ...prefilled, upTo: "600" }, opened)).toEqual({
       estimate: { minGrosze: 50_000, maxGrosze: 60_000 },
     });
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, amount: "400" })).toEqual({
+    expect(toUpdateInput(tasks, exact.id, { ...prefilled, amount: "400" }, opened)).toEqual({
       estimate: { minGrosze: 40_000, maxGrosze: 40_000 },
     });
+    // The same amount typed differently is no change.
+    expect(toUpdateInput(tasks, exact.id, { ...prefilled, amount: "500,00" }, opened)).toBeNull();
   });
 
   it("removes the estimate when both amounts are cleared, and adds one to a task without", () => {
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, amount: "" })).toEqual({
+    expect(toUpdateInput(tasks, exact.id, { ...prefilled, amount: "" }, opened)).toEqual({
       estimate: null,
     });
     const none = view("Paint");
-    expect(toUpdateInput([none], none.id, form({ title: "Paint", amount: "10" }))).toEqual({
-      estimate: { minGrosze: 1_000, maxGrosze: 1_000 },
-    });
+    expect(
+      toUpdateInput([none], none.id, form({ title: "Paint", amount: "10" }), toTaskItem(none)),
+    ).toEqual({ estimate: { minGrosze: 1_000, maxGrosze: 1_000 } });
   });
 
   it("sends nothing when nothing changed, also for an edited subtask", () => {
-    expect(toUpdateInput(tasks, exact.id, { ...prefilled, title: " Seal the bath " })).toEqual(
-      null,
-    );
+    expect(
+      toUpdateInput(tasks, exact.id, { ...prefilled, title: " Seal the bath " }, opened),
+    ).toEqual(null);
     const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
     const parent = view("Paint", { subtasks: [subtask] });
-    expect(toUpdateInput([parent], subtask.id, form({ title: "Buy" }))).toEqual(null);
+    const subtaskItem = toTaskItem(parent).subtasks![0]!;
+    expect(toUpdateInput([parent], subtask.id, form({ title: "Buy" }), subtaskItem)).toEqual(null);
+    expect(
+      toUpdateInput([parent], subtask.id, form({ title: "Buy", upTo: "5" }), subtaskItem),
+    ).toEqual({ estimate: { minGrosze: 500, maxGrosze: 500 } });
   });
 
-  it("never sends an estimate for a task with subtasks, whatever its hidden amounts say", () => {
+  it("compares with what the form opened with, not with a task refetched meanwhile", () => {
+    // Another tab renamed the task and changed its estimate while this form was open.
+    const refetched = { ...exact, title: "Seal the tub", estimate: { minGrosze: 1, maxGrosze: 1 } };
+    expect(toUpdateInput([refetched], exact.id, prefilled, opened)).toBeNull();
+    expect(
+      toUpdateInput([refetched], exact.id, { ...prefilled, title: "Seal the shower" }, opened),
+    ).toEqual({ title: "Seal the shower" });
+  });
+
+  it("never sends an estimate from a form opened on a task with subtasks, even once they are gone", () => {
     const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
     const parent = view("Paint", {
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
       subtasks: [subtask],
     });
-    // Prefilled empty (toTaskItem), so they would read as "cleared".
-    expect(toUpdateInput([parent], parent.id, form({ title: "Paint" }))).toEqual(null);
-    // Typed before a subtask arrived from another tab (a 409, then the refetch).
+    const openedWithSum = toTaskItem(parent);
+    // The last subtask was deleted in another tab and the list refetched: the task shows its own
+    // figure again, and the amount fields appear empty.
+    const own = { ...parent, estimate: { minGrosze: 90_000, maxGrosze: 90_000 }, subtasks: [] };
     expect(
-      toUpdateInput([parent], parent.id, form({ title: "Paint the hall", amount: "900" })),
+      toUpdateInput([own], parent.id, form({ title: "Paint the hall" }), openedWithSum),
+    ).toEqual({ title: "Paint the hall" });
+    expect(
+      toUpdateInput([own], parent.id, form({ title: "Paint", amount: "700" }), openedWithSum),
+    ).toBeNull();
+  });
+
+  it("never sends an estimate for a task that has subtasks now (after a 409 and the refetch)", () => {
+    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
+    const openedBare = toTaskItem(bare);
+    const now = { ...bare, subtasks: [subtask] };
+    expect(
+      toUpdateInput([now], bare.id, form({ title: "Paint the hall", amount: "900" }), openedBare),
     ).toEqual({ title: "Paint the hall" });
   });
 
-  it("sends the estimate of a task whose only subtask is still pending, and of a subtask", () => {
+  it("sends the estimate of a task whose only subtask was still pending when the form opened", () => {
     const temporary = { id: "pending-4", title: "Prime", description: null, estimate: null };
     const parent = view("Paint", { subtasks: [temporary] });
-    expect(toUpdateInput([parent], parent.id, form({ title: "Paint", amount: "9" }))).toEqual({
-      estimate: { minGrosze: 900, maxGrosze: 900 },
-    });
-    const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
-    const withSubtask = view("Paint", { subtasks: [subtask] });
-    expect(toUpdateInput([withSubtask], subtask.id, form({ title: "Buy", upTo: "5" }))).toEqual({
-      estimate: { minGrosze: 500, maxGrosze: 500 },
-    });
+    expect(
+      toUpdateInput([parent], parent.id, form({ title: "Paint", amount: "9" }), toTaskItem(parent)),
+    ).toEqual({ estimate: { minGrosze: 900, maxGrosze: 900 } });
   });
 
   it("throws for text the form would not submit and for a task that is not cached", () => {
-    expect(() => toUpdateInput(tasks, exact.id, { ...prefilled, title: "" })).toThrow(
+    expect(() => toUpdateInput(tasks, exact.id, { ...prefilled, title: "" }, opened)).toThrow(
       "The task form was submitted with invalid values",
     );
     expect(() => toCreateInput(form({ amount: "-5" }))).toThrow();
     expect(() => toCreateInput(form({ title: " " }))).toThrow();
-    expect(() => toUpdateInput(tasks, crypto.randomUUID(), prefilled)).toThrow(
+    expect(() => toUpdateInput(tasks, crypto.randomUUID(), prefilled, opened)).toThrow(
       "The edited task is not in the list",
     );
   });

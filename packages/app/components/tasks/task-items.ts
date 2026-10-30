@@ -113,40 +113,44 @@ export function toCreateInput(
   return { ...read.value, parentId };
 }
 
-const sameEstimate = (a: Estimate | null, b: EstimateView) =>
+const sameEstimate = (a: Estimate | null, b: Estimate | null) =>
   a === null || b === null ? a === b : a.minGrosze === b.minGrosze && a.maxGrosze === b.maxGrosze;
 
-function findTask(
-  tasks: readonly TaskView[],
-  id: string,
-): { current: SubtaskView; summed: boolean } | undefined {
+/** Whether the list has this task or subtask, and whether it is a task with saved subtasks. */
+function findTask(tasks: readonly TaskView[], id: string): { summed: boolean } | undefined {
   for (const task of tasks) {
-    if (task.id === id) return { current: task, summed: savedSubtasks(task).length > 0 };
-    const subtask = task.subtasks.find((candidate) => candidate.id === id);
-    if (subtask) return { current: subtask, summed: false };
+    if (task.id === id) return { summed: savedSubtasks(task).length > 0 };
+    if (task.subtasks.some((subtask) => subtask.id === id)) return { summed: false };
   }
   return undefined;
 }
 
+/** An item with saved subtasks: its edit form shows their sum instead of the amount fields. */
+const showsSum = (item: TaskItem) => (item.subtasks ?? []).some((subtask) => !subtask.pending);
+
 /**
- * What an edit sends: only the fields that differ from the cached task (`updateTaskInput`), or
- * `null` when nothing changed. Clearing both amounts sends `estimate: null`. The edited row is on
- * screen, so its task is in the cache. A task with subtasks never sends an estimate: its form
- * shows their sum instead of the amounts, and the server refuses the whole edit (409) if it does.
+ * What an edit sends (`updateTaskInput`): only the fields the user changed from what the form was
+ * opened with (`opened`, the task as it was then), or `null` when nothing changed. A refetch
+ * while the form is open changes nothing here. Clearing both amounts sends `estimate: null`.
+ * The estimate goes only when the form showed the amount fields when it opened and the task has
+ * no saved subtasks now: a task with subtasks takes its estimate from them, and the server refuses
+ * the whole edit (409) if it is sent. The edited row is on screen, so its task is in the cache.
  */
 export function toUpdateInput(
   tasks: readonly TaskView[],
   id: string,
   values: TaskFormValues,
+  opened: TaskItem,
 ): UpdateTaskInput | null {
   const found = findTask(tasks, id);
   if (found === undefined) throw new Error("The edited task is not in the list");
-  const { current, summed } = found;
   const { title, description, estimate } = toCreateInput(values);
+  const prefilled = toCreateInput({ ...values, amount: opened.amount, upTo: opened.upTo });
+  const amountsShown = !showsSum(opened) && !found.summed;
   const changes = {
-    ...(title !== current.title && { title }),
-    ...(description !== current.description && { description }),
-    ...(!summed && !sameEstimate(estimate, current.estimate) && { estimate }),
+    ...(title !== opened.title && { title }),
+    ...(description !== opened.description && { description }),
+    ...(amountsShown && !sameEstimate(estimate, prefilled.estimate) && { estimate }),
   };
   return Object.keys(changes).length === 0 ? null : updateTaskInput.parse(changes);
 }

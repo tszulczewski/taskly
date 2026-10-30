@@ -132,6 +132,8 @@ With `move`, `onMove`, `onToggleMarker` and `places` (E02) the row gets its hand
 
 `TaskItem` arrives ready to show: `estimate` formatted (the sum on a task with subtasks), `amount` / `upTo` as the form shows the typed figure, `unestimatedSubtasks` counted and `notice` written by the app (P1).
 
+`onEdit(id, values, opened)` also gets `opened`, the task as it was when the form opened. The form keeps those first values even if the list is refetched while it is open, so the app compares `values` with `opened`, not with the refetched task, and sends only what the user changed (spec E01, Edit).
+
 ## 11. Code
 
 `TaskList` renders rows; a row on its own is only for tests and stories.

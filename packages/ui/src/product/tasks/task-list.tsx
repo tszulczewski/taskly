@@ -9,7 +9,7 @@ import { useMoveAnimation } from "../../lib/use-move-animation";
 import { CompleteTaskDialog } from "./complete-task-dialog";
 import { DeleteTaskDialog } from "./delete-task-dialog";
 import { SortableGroup, rowMove, type MovePosition } from "./sortable";
-import { TaskRow, type PlaceOptions, type TaskChange } from "./task-row";
+import { TaskRow, type PlaceOptions, type TaskChange, type TaskEdit } from "./task-row";
 import { defaultTaskText, type TaskText } from "./text";
 import type { Marker, TaskFieldErrors, TaskFormValues, TaskItem } from "./types";
 
@@ -22,7 +22,8 @@ export interface TaskListProps {
   onRetry: () => void;
   retrying?: boolean;
   validate: (values: TaskFormValues) => TaskFieldErrors;
-  onEdit: TaskChange;
+  /** Saves an edit; gets the task as it was when the form opened. */
+  onEdit: TaskEdit;
   /** Adds a subtask; turns on "Add subtask". Without it the list shows tasks only. */
   onAddSubtask?: TaskChange;
   /** Deletes after the user confirmed; resolve `false` (or throw) to show the failure in the dialog. */

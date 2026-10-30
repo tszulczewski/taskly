@@ -36,16 +36,19 @@ import { SubtaskProgress } from "./subtask-progress";
 import { TaskCheckbox } from "./task-checkbox";
 import { TaskForm } from "./task-form";
 import { defaultTaskText, type TaskText } from "./text";
-import type {
-  Marker,
-  TaskField,
-  TaskFieldErrors,
-  TaskFormValues,
-  TaskItem,
-  TaskSubmit,
-} from "./types";
+import type { Marker, TaskField, TaskFieldErrors, TaskFormValues, TaskItem } from "./types";
 
 export type TaskChange = (id: string, values: TaskFormValues) => Promise<SubmitResult<TaskField>>;
+/**
+ * Saves an edit. `opened` is the task as it was when the form opened, which is what the form was
+ * prefilled with, so the app can send only what the user changed even if the task was refetched
+ * meanwhile (spec E01, Edit).
+ */
+export type TaskEdit = (
+  id: string,
+  values: TaskFormValues,
+  opened: TaskItem,
+) => Promise<SubmitResult<TaskField>>;
 
 /** Places of the list and what the app does with them (E02-S03; decisions G3–G6). */
 export interface PlaceOptions {
@@ -65,7 +68,7 @@ export interface TaskRowProps {
   task: TaskItem;
   validate: (values: TaskFormValues) => TaskFieldErrors;
   /** Saves an edit; resolve `{ ok: true }` to close the form. */
-  onEdit: TaskChange;
+  onEdit: TaskEdit;
   /** Adds a subtask under this task; turns on "Add subtask". A subtask has none: one level only. */
   onAddSubtask?: TaskChange;
   /**
@@ -152,7 +155,9 @@ export function TaskRow({
 }: TaskRowProps) {
   const t = { ...defaultTaskText, ...text };
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // The task as it was when the form opened (the form keeps its first values); null when closed.
+  const [editingFrom, setEditingFrom] = useState<TaskItem | null>(null);
+  const editing = editingFrom !== null;
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -198,10 +203,10 @@ export function TaskRow({
 
   const closeEditing = () => {
     focusRequest.current = "menu";
-    setEditing(false);
+    setEditingFrom(null);
   };
-  const save: TaskSubmit = async (values) => {
-    const result = await onEdit(task.id, values);
+  const save = async (values: TaskFormValues, opened: TaskItem) => {
+    const result = await onEdit(task.id, values, opened);
     if (result.ok) closeEditing();
     return result;
   };
@@ -300,7 +305,10 @@ export function TaskRow({
             {t.addSubtask}
           </MenuItem>
         )}
-        <MenuItem disabled={task.pending} onSelect={() => runMenuAction(() => setEditing(true))}>
+        <MenuItem
+          disabled={task.pending}
+          onSelect={() => runMenuAction(() => setEditingFrom(task))}
+        >
           {t.edit}
         </MenuItem>
         {places ? (
@@ -378,17 +386,17 @@ export function TaskRow({
         onOpenChange={setExpanded}
         className={cn(!isSubtask && ["data-[state=open]:bg-raised", edges])}
       >
-        {editing ? (
+        {editingFrom ? (
           <div className={cn("bg-raised p-inset", edges)}>
             <TaskForm
               initialValues={{
-                title: task.title,
-                amount: task.amount,
-                upTo: task.upTo,
-                description: task.description ?? "",
+                title: editingFrom.title,
+                amount: editingFrom.amount,
+                upTo: editingFrom.upTo,
+                description: editingFrom.description ?? "",
               }}
               validate={validate}
-              onSubmit={save}
+              onSubmit={(values) => save(values, editingFrom)}
               onCancel={closeEditing}
               summedEstimate={savedSubtasks.length > 0 ? task.estimate : undefined}
               text={text}

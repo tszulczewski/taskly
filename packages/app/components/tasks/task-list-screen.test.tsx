@@ -900,6 +900,28 @@ describe("TaskListScreen subtasks", () => {
     expect(await screen.findByText("Main bathroom")).toBeDefined();
   });
 
+  it("never sends an estimate from a form opened with the sum, even when a refetch shows the subtasks gone", async () => {
+    // Regression: the last subtask was deleted in another tab while this edit form was open.
+    serverTasks = [withSubtasks(bath, [prime], range(300, 400))];
+    const { client } = await renderRows();
+    const form = await startEdit("Bathroom");
+    expect(form.queryByRole("textbox", { name: /^Amount/ })).toBeNull();
+
+    serverTasks = [bath];
+    await act(() => client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(form.queryByRole("textbox", { name: /^Amount/ })).not.toBeNull());
+    // The amount fields are back, empty, though the task's own figure is 1 000–2 000 zł.
+    expect(amountField(form).value).toBe("");
+    expect(upToField(form).value).toBe("");
+
+    handlers.set(`PATCH ${taskUrl(bath.id)}`, () => saved({ ...bath, title: "Main bathroom" }));
+    type(form.getByRole("textbox", { name: "Title" }), "Main bathroom");
+    await click(form.getByRole("button", { name: "Save" }));
+    expect(sent("PATCH", taskUrl(bath.id))).toEqual({ title: "Main bathroom" });
+    expect(await screen.findByText("Main bathroom")).toBeDefined();
+    expect(estimateOf(rowOf("Main bathroom"))).toBe(pln("1_000–2_000_zł"));
+  });
+
   it("names the subtasks in the delete question of their task", async () => {
     serverTasks = [withSubtasks(bath, [prime, grout], range(800, 900))];
     await renderRows();
