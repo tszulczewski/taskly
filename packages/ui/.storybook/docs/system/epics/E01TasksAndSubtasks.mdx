@@ -41,7 +41,7 @@ The full state map is on [Tasks screens](?path=/docs/product-tasks-screens--docs
 - The title is the row's one disclosure; the arrow from 640px is decorative (decision J1).
 - An estimate is "1 200–1 500 zł", or "450 zł" for an exact price; "No estimate" when empty (R18, D24, tokens rule 5, F11).
 - A task with subtasks shows their sum, unmarked (R12, decision W2); its typed figure is kept (R15).
-- A change shows at once and rolls back with a message where it happened, never a toast (spec E01, P4).
+- An add shows a pending row at once; an edit and a delete wait for the server, busy, and the row changes on its answer. A refusal shows its message where it happened, never a toast (spec E01, Optimistic updates; decision F2; P4).
 
 ## Remaining product work
 
