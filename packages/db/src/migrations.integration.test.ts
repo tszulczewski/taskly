@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
@@ -34,19 +34,22 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
   () => {
     const name = `taskly_upgrade_${randomBytes(6).toString("hex")}`;
     const admin = new Pool({ connectionString: url, max: 1 });
-    let pool: Pool;
+    // A Client, not a Pool: pg-pool resolves `end()` before its sockets close, so a following
+    // DROP DATABASE could still see (and, with FORCE, kill) the connection.
+    let client: Client;
     let only0000: string;
 
     const query = async <T extends object>(text: string, values: unknown[] = []) =>
-      (await pool.query<T>(text, values)).rows;
+      (await client.query<T>(text, values)).rows;
 
     beforeAll(async () => {
       await admin.query(`CREATE DATABASE "${name}"`);
       const target = new URL(url!);
       target.pathname = `/${name}`;
-      pool = new Pool({ connectionString: target.toString(), max: 1 });
+      client = new Client({ connectionString: target.toString() });
+      await client.connect();
       only0000 = await migrationsUpTo(1);
-      await migrate(drizzle(pool), { migrationsFolder: only0000 });
+      await migrate(drizzle(client), { migrationsFolder: only0000 });
 
       await query(
         `INSERT INTO "user" (id, name, email) VALUES
@@ -79,8 +82,8 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
     });
 
     afterAll(async () => {
-      await pool?.end();
-      await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      await client?.end();
+      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
       await admin.end();
       if (only0000) await rm(only0000, { recursive: true, force: true });
     });
@@ -100,7 +103,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       const before = await snapshot();
       expect(before.tasks).toHaveLength(4);
 
-      await migrate(drizzle(pool), { migrationsFolder: MIGRATIONS });
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
 
       expect(await snapshot()).toEqual(before);
       expect(await query(`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`)).toEqual([

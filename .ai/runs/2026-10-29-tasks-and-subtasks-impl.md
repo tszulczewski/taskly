@@ -510,3 +510,9 @@ Precondition: `npm run dev` (loads the repo-root `.env` since `92bb081`), open `
 
 - Phase 3 manual test: passed. Owner asked to commit and open the PR. Reorder (drag and drop) was confirmed as out of scope here: E02-S01 (#17), no spec yet.
 - Shipped as one PR for the whole branch (closes #22, #15, #16) instead of the three phase PRs the tracker allowed, as the owner asked for "pr".
+
+## PR #43 review fixes (2026-10-30)
+
+Owner's review comment on PR #43 (head `34296ba`): 1 blocker, 1 major. The owner approved the proposed fixes.
+
+- **Blocker: `test:integration` exits 1 on an unhandled `57P01` during `migrations.integration.test.ts` teardown.** Cause confirmed in `pg-pool` 3.14 (`_remove` filters `_clients` synchronously and ends the client asynchronously, so `pool.end()` resolves before the socket closes) and `DROP DATABASE … WITH (FORCE)` then killed the still-open backend. Fix: the temporary upgrade database uses one `pg.Client` (`await client.end()` waits for the socket) and is dropped without `FORCE`. Verified: the file alone 5 runs in a row, exit 0, no unhandled error; the full integration gate runs after both fixes (below).
