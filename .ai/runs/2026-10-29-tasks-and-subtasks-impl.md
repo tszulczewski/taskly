@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-29
 - **Spec:** .ai/specs/2026-10-16-tasks-and-subtasks.md
-- **Outcome:** in progress
+- **Outcome:** implemented; spec moved to `implemented/`; awaiting the owner's Phase 3 manual test
 
 ## Goal
 
@@ -96,6 +96,7 @@ Implement the E01 spec task by task (tracker: `track.md`), one subagent and one 
   - **AC4:** "Kitchen" 2 000 zł + "Cabinets" 1 000 / 1 500 + "Sink" 400 → "1 400–1 900 zł". The subtask's menu holds exactly "Edit" and "Delete"; its edit form opens with Amount "400" and up to empty; up to "600" → Save → subtask "400–600 zł", task "1 400–2 100 zł"; DB 40 000/60 000, the task row unchanged. The task's edit form has one input (the title), no `amount`/`upTo`, and `[data-slot="summed-estimate"]` reads "Sum of subtasks:1 400–2 100 zł" + "Change the amounts on the subtasks."; renaming it to "Kitchen units" sends exactly one PATCH (request log), the row keeps "1 400–2 100 zł", and the DB row changed only in the title (own 200 000/200 000 kept). Finally "Delete “Kitchen units” and its 2 subtasks?" → the task goes and the list has no rows left.
   - **DB rule (R15)** throughout AC2–AC4: the task's own `estimate_min_grosze`/`estimate_max_grosze` are compared with the row as stored right after the task was added, after every subtask add, edit and delete.
   - **AC5** stays at the HTTP/core level (`tasks-http`, `tasks.integration.test.ts`), as AC5 of #15 did in 2.7. No app bug found; no app or UI code changed.
+- **Task 3.4 (finish, spec step 11).** Checked every requirement of the spec against Steps taken / Problems of tasks 1.1–3.3: #15 AC1–AC4, AC6, AC7 (browser, 2.7) and AC5 (HTTP/core); #16 AC1–AC4 (browser, 3.3) and AC5 (HTTP/core, 3.1); the step 9 integration and concurrency cases (3.1), the step 10 component tests (3.2 and its follow-ups), Q3 (`engineering-standards.md` §6 has the roll-up rule) and Q4 (`backlog.md` carries R14 as #20's AC6). Issue #16 carries the rewritten AC1–AC5. Nothing unimplemented; the recorded choices and the owner-accepted deviations (DS wording "…and its subtask?" for one, the deleted-elsewhere `Alert`, the first-subtask snapshot from the screen's closure) are under Problems. Ran the full gate from a clean `packages/app/.next` (Verification). `git mv` of the spec to `.ai/specs/implemented/` and its **Status** `draft` → `implemented`, the same metadata-only change as the sign-in spec in `66ebd09`; no requirement edited. Rewrote the old spec path in live docs (Files changed), and in `packages/ui/POSTEP.md` and `.ai/design/prompt-storybook.md` also the stale sign-in spec path on the neighbouring line. Storybook status words: `epics/E01TasksAndSubtasks.mdx` (spec "implemented", the app's `/` uses these components, "Remaining product work" → none, with what was done), `WhatIsMissing.mdx` (E01-S01/E01-S02 "Designed and built; spec E01 is implemented"; the intro no longer says the app shows the starter page; the "spec E01 UI/UX fix" and "starter page, nothing built" rows marked Done, as the existing Done row). Lessons index checked: the Phase 3 lessons (3.1, 3.2, 3.2 follow-up, 3.3) are there, no duplicate or contradiction among the 2026-10-30 entries; nothing changed. Ticked 3.4 in `track.md`; the Phase 3 gate stays open for the owner.
 
 ## Files changed
 
@@ -116,6 +117,7 @@ Implement the E01 spec task by task (tracker: `track.md`), one subagent and one 
 - Task 3.2: `packages/app/components/tasks/use-tasks.ts`, `packages/app/components/tasks/use-tasks.test.tsx`, `packages/app/components/tasks/task-items.ts`, `packages/app/components/tasks/task-items.test.ts`, `packages/app/components/tasks/task-list-screen.tsx`, `packages/app/components/tasks/task-list-screen.test.tsx`, `packages/ui/src/product/tasks/task-row.tsx`, `packages/ui/src/product/tasks/tasks.test.tsx`, `packages/ui/.storybook/docs/product/tasks/TaskRow.stories.tsx`, `packages/ui/.storybook/docs/product/tasks/TaskRow.mdx`, `packages/ui/.storybook/docs/product/tasks/TaskList.mdx`, `track.md`, this run log, `.ai/lessons.md`.
 - Task 3.2 follow-up: `packages/ui/src/product/tasks/task-row.tsx`, `packages/ui/src/product/tasks/task-list.tsx`, `packages/ui/src/index.ts`, `packages/ui/src/product/tasks/tasks.test.tsx`, `packages/ui/.storybook/docs/product/tasks/TaskRow.mdx`, `packages/ui/.storybook/docs/product/tasks/TaskList.mdx`, `packages/app/components/tasks/task-items.ts`, `packages/app/components/tasks/task-items.test.ts`, `packages/app/components/tasks/task-list-screen.tsx`, `packages/app/components/tasks/task-list-screen.test.tsx`, this run log, `.ai/lessons.md`.
 - Task 3.3: `test/subtasks-browser.integration.test.ts` (new), `test/helpers.ts` (`click(selector)`), `track.md`, this run log, `.ai/lessons.md`.
+- Task 3.4: `.ai/specs/2026-10-16-tasks-and-subtasks.md` → `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md` (`git mv`, Status line), `track.md`, `.ai/specs/implemented/2026-10-16-sign-in-pages.md` (path), `.ai/specs/product-brief.md` (path), `.ai/specs/research/decisions/2026-10-21-completed-tasks-order.md` (path), `.ai/lessons/2026-10-16-cross-actor-list-locks.md` (path), `.ai/design/prompt-storybook.md` (paths), `packages/ui/POSTEP.md` (paths), `packages/ui/.storybook/docs/system/StartHere.mdx` (path), `packages/ui/.storybook/docs/system/WhatIsMissing.mdx`, `packages/ui/.storybook/docs/system/epics/E01TasksAndSubtasks.mdx`, this run log.
 
 ## Verification (commands run and results)
 
@@ -400,6 +402,21 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - `AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab npm run test:integration` (Testcontainers, `TEST_DATABASE_URL` unset): 15 files, 163 tests passed.
 - Mutation checks: not done (each needs a rebuilt standalone app). The "no message" checks are non-vacuous because the same reader returns the message text in the AC2/AC3 cases that expect it, and they wait for a signal (form or dialog closed) that comes after the screen sets the message.
 
+### Task 3.4
+
+- After `rm -rf packages/app/.next`, each command run in turn (Docker available, `TEST_DATABASE_URL` unset):
+  - `npm run format:check`: exit 0, "All matched files use Prettier code style!".
+  - `npm run lint`: exit 0; 0 errors, the 1 pre-existing warning (`tmpdir` unused in `.agents/skills/om-share-this-session/scripts/prepare-share-bundle.mjs`).
+  - `npm run typecheck`: exit 0.
+  - `npm test`: exit 0; 72 files, 944 tests passed; coverage 100% statements (1541/1541), branches (993/993), functions (524/524), lines (1362/1362).
+  - `npm run build`: exit 0 ("Compiled successfully").
+  - `npm audit --audit-level=high`: exit 0; 4 moderate (esbuild ≤ 0.24.2 through `@esbuild-kit/*` in `drizzle-kit`, dev only, the fix is a breaking drizzle-kit downgrade), no high or critical.
+  - `AGENT_BROWSER_SOCKET_DIR=/tmp/claude-1000/ab npm run test:integration` (Testcontainers): exit 0; 15 files, 163 tests passed.
+  - `npm run check:tokens`: exit 0, "no values outside the token system".
+  - `npm run test:storybook`: exit 0; 120 files, 922 tests passed (started after the doc edits).
+- After the doc edits: `npm run format:check` exit 0; `storybook build` (to a scratch folder) exit 0, so the edited MDX compiles. The edited pages were not opened in a browser (the edits add no `{…}` expressions; `grep -n "{[a-zA-Z]*}"` on both pages has no hits).
+- `grep -rn 2026-10-16-tasks-and-subtasks` (without `node_modules`, `.next`, `storybook-static`): no live doc keeps the old path; the remaining hits are listed under Problems.
+
 ## Problems / open questions
 
 - Task 1.1: in this session's sandbox agent-browser cannot create its socket directory under `XDG_RUNTIME_DIR` (`Permission denied (os error 13)`), so the browser integration tests fail until `AGENT_BROWSER_SOCKET_DIR` points at a short writable path. Running outside the sandbox was refused. Not a code problem; CI is unaffected.
@@ -425,6 +442,7 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - Task 3.2 follow-up: 3.2's open question 1 is fixed (above). Question 2 (the delete dialog counts a pending subtask) was accepted by the owner as is. A consequence of the coordinator's rule "a form opened for a task with subtasks never sends `estimate`": if a refetch shows that task without subtasks while the form is open, amounts typed into the fields that appear are not saved; the title and description are. The user can reopen Edit to set an amount. No deviation from the spec.
 - Task 3.2 second follow-up: the consequence in the previous line no longer holds. Amounts typed into amount fields that appear after a refetch are saved; only empty, untouched fields send nothing.
 - Task 3.3: no deviation from the spec. Choices: a new test file per story (own port and session); one user per test; AC5 not repeated in the browser (an API rule, covered over HTTP and in core); the pending state while a subtask saves is not checked in the browser (it lasts only until the local server answers, so it cannot be observed deterministically without holding the request; the component tests cover it). Open: none.
+- Task 3.4: spec fully implemented, moved. Old-path references left on purpose (historical): the run logs `.ai/runs/2026-10-16-sign-in-spec-grilling.md`, `2026-10-16-sign-in-spec-review-corrections.md`, `2026-10-16-task-spec-grilling.md`, `2026-10-16-task-spec-review-corrections.md`, `2026-10-16-tasks-and-subtasks-review.md`, `2026-10-26-clickable-prototype-task-list.md`, `2026-10-26-screen-map-e01.md`, `2026-10-27-clickable-prototype-task-list-stage-2.md`, `2026-10-27-prototype-task-list-v1-revision-002.md`, `2026-10-27-spec-updates-from-prototype.md`, `2026-10-28-e01-subtask-rollup-alignment.md`, and this log's header and earlier entries (the sign-in run log kept its header path too); prototype material `.ai/prototypes/discovery/task-list-v1/revision-002/README.md`, `prototypes/konta-i-role/mapa-ekranow.md`, `lekcja-07/prompty/prompt-klikalny-prototyp.md`, `lekcja-07/prompty/prompt-mapa-ekranow.md`. Also left: bare file names (no folder) on `POSTEP.md` line 904, its stage-log to-dos about the P2 spec fix (lines 452, 459; the fix is done, recorded on the E01 and What is missing pages), the spec's own TLDR wording "proposes (not yet built)" (the sign-in spec kept it too), and the brief's sentence that specs describing R06 "must follow before their implementation" (path updated only). Open: the tracker's Phase 3 gate says "checklist in the run log", but this log has no Phase 3 manual test checklist yet (Phases 1 and 2 got theirs in the main session). The E01 page's decision "A change shows at once and rolls back…" predates L08 (only add is optimistic); not a status word, left for the design-system owner.
 
 ## Lessons recorded (links into .ai/lessons.md)
 
@@ -445,6 +463,7 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - Task 3.2: TanStack Query per-call mutate callbacks fire only for the observer's last call (take per-call state in the caller's closure), a server answer that replaces a parent row must keep that row's other pending subtasks, and the hidden amount fields of a task with subtasks must be empty, not the formatted sum (2026-10-30 entry).
 - Task 3.2 follow-up: an edit must be diffed against what the form opened with, not against the refetched cache; `TaskRow` hands `onEdit` the opened snapshot (2026-10-30 entry).
 - Task 3.3: browser checks of the subtask screen: wait on a signal that follows the roll-up message (subtask form, dialog or edit form closed), and scope or CSS-click controls that the quick add above the list repeats (2026-10-30 entry).
+- Task 3.4: none (no new insight; the existing index needed no correction).
 
 ## Addendum 2026-10-30: `npm run dev` broken (after the Phase 2 gate)
 

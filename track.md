@@ -1,6 +1,6 @@
 # Implementation tracker — Tasks and subtasks (E01)
 
-- **Spec:** `.ai/specs/2026-10-16-tasks-and-subtasks.md`
+- **Spec:** `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`
 - **Run log:** `.ai/runs/2026-10-29-tasks-and-subtasks-impl.md`
 - **Branch:** `feat/e01-tasks-and-subtasks` (one commit per task; the three PRs from the spec's Phasing can be cut at the phase boundaries)
 - **Rule:** every task ends with `npm test` at 100% coverage, `lint` and `typecheck` green, and its own commit. Every phase ends with `npm run build && npm run test:integration` and a manual test by the owner.
@@ -33,7 +33,7 @@ Legend: `[ ]` to do · `[x]` done
 - [x] **3.1 Subtasks in core** — `parentId` in `createTaskInput`, parent `FOR KEY SHARE`, depth 409, nesting in `listTasks`, parent `TaskView` for subtask create/update/delete, 409 on estimate edit of a task with subtasks; integration tests for #16 AC2–AC5, R14, sum above cap, and the three lock-ordered concurrency cases plus parent-delete race.
 - [x] **3.2 Subtask UI** — "Add subtask", nested rows, subtask edit/delete, summed estimate and "N subtasks without an estimate", read-only "Sum of subtasks" in the edit form, 409/404 handling, roll-up status messages, delete dialog counts subtasks; component tests.
 - [x] **3.3 Browser integration test for #16** — AC1–AC4.
-- [ ] **3.4 Finish** — full gate (`format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`), lessons, `git mv` the spec to `implemented/`, grep the repo (Storybook docs) for the spec path and status words.
+- [x] **3.4 Finish** — full gate (`format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`), lessons, `git mv` the spec to `implemented/`, grep the repo (Storybook docs) for the spec path and status words.
 - [ ] **Phase 3 gate** — owner's manual test of subtasks and the roll-up (checklist in the run log).
 
 ## Notes

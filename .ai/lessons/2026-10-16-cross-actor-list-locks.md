@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-16
 - **Trigger:** review
-- **Related:** .ai/specs/2026-10-16-tasks-and-subtasks.md; packages/core/src/access.ts; packages/core/src/lists.ts
+- **Related:** .ai/specs/implemented/2026-10-16-tasks-and-subtasks.md; packages/core/src/access.ts; packages/core/src/lists.ts
 
 ## Context
 The tasks spec proposes taking the actor's membership lock before the list-row append lock and relies on membership-first ordering to coexist with list deletion.

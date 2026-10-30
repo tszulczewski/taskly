@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-16
 - **Revised:** 2026-10-28, for the brief refresh of 2026-10-27 (R12–R18, D22–D24): subtask estimates add up into their task, an exact price is typed once, and quick add shows the amounts next to the title. Owner's answers to the revision's questions are under Open Questions.
-- **Status:** draft
+- **Status:** implemented
 - **Issue:** #11 (stories #15, #16; task #22)
 - **Depends on:** a separate spec for minimal sign-up / sign-in pages, built first (Q2; confirmed 2026-10-16): `.ai/specs/implemented/2026-10-16-sign-in-pages.md`, specifically its Phase A ("Phase 0" below); its Phase B (password reset) gates nothing here. Only PR B (steps 7–8: routes and the screen) waits for it; PR A (steps 1–6) does not.
 

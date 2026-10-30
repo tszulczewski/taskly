@@ -4,7 +4,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # E01 Tasks and subtasks
 
-Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (#15), E01-S02 subtasks with their own estimate, and the task's estimate becomes their sum (#16; brief refresh 2026-10-27, R12–R18, D22–D24). Spec: `.ai/specs/2026-10-16-tasks-and-subtasks.md` (PR A: data and services; PR B: routes and the screen; PR C: subtasks). Screens S5 and S6.
+Backlog E01 (#11): E01-S01 add a task with a description and an estimate range (#15), E01-S02 subtasks with their own estimate, and the task's estimate becomes their sum (#16; brief refresh 2026-10-27, R12–R18, D22–D24). Spec: `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md` (implemented; PR A: data and services; PR B: routes and the screen; PR C: subtasks). Screens S5 and S6. The app's task list at `/` uses the components designed here.
 
 ## Flow
 
@@ -45,6 +45,4 @@ The full state map is on [Tasks screens](?path=/docs/product-tasks-screens--docs
 
 ## Remaining product work
 
-- Correct the spec's UI/UX to Luki 6 (description only in the open row, actions in "…"), decision P2.
-- Compute the sum on read with `rollUpEstimate` in `@taskly/core` (spec E01, PR C).
-- Build PR A–C; in the app, wrap these components with TanStack Query (optimistic updates and rollback) and the shared Zod schema.
+None for E01. Done: the spec's UI/UX follows Luki 6 (description only in the open row, actions in "…"), decision P2; the sum is computed on read with `rollUpEstimate` in `@taskly/core` (spec E01, PR C); PR A–C are built, and the app wraps these components with TanStack Query (only adding is optimistic, with rollback; edit and delete wait for the server) and the shared Zod schemas.

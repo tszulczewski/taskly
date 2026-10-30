@@ -18,7 +18,7 @@
   5. Completed tasks and subtasks cannot be dragged in the UI.
   6. Given a completed task, when a move request for it reaches the server, then it is rejected and no `position` changes.
   7. Completing a task that has subtasks (R09) changes no row's `position`.
-- Affects: E03-S01 (#20, completion and reopening), E02-S01 (#17, reorder and `moveTask`), and `listTasks` (sorted today by `position` only, per `.ai/specs/2026-10-16-tasks-and-subtasks.md`).
+- Affects: E03-S01 (#20, completion and reopening), E02-S01 (#17, reorder and `moveTask`), and `listTasks` (sorted today by `position` only, per `.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`).
 - Open: the error code and message for rejecting a move of a completed task (decide in the E02-S01 spec; the existing pattern is `ConflictError`).
 - Source: conversation of 2026-10-21; `.ai/design/reference.md` (R02.2, Luki pkt 10).
 - Status: active (owner accepted on 2026-10-21).
