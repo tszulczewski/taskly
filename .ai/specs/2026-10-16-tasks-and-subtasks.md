@@ -307,7 +307,7 @@ There is one screen, at `/`, for a signed-in user. A signed-out user is redirect
   - Messages: "Enter an amount like 1 500,50" and "“Up to” must not be less than the amount.". The former rule "Enter both amounts or neither" is gone (D24; supersedes screen map L03 and the old AC6 of #15).
 - **States:**
   - **Loading:** a skeleton.
-  - **Empty:** "No tasks yet. Start with one task. Only the title is required." with focus in the title field (owner, 2026-10-26, prototype map L22).
+  - **Empty:** "No tasks yet. Add the first thing you need to do." (the design-system default) with focus in the title field (owner, 2026-10-30; replaces the 2026-10-26 prototype map L22 text).
   - **Error:** a message with "Try again" (refetch).
   - **Page did not open** (the server page fails before any list exists, e.g. `ensureDefaultList` errors): the app shell stays, with a working "Sign out" and theme toggle, the heading "My renovation", and an error state "Could not open your tasks." with "Try again". There is no quick add and no list (owner, 2026-10-27, prototype map L13 and DS04, state s04.21).
   - Shared loading, empty and error components go in `packages/ui/src/components/` (standards §5).

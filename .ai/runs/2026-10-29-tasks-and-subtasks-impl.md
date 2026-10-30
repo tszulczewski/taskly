@@ -347,3 +347,10 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - Verified: `npm run dev` → `GET /sign-in` 200 with the sign-in form, `GET /` 200, no `ZodError`; `format:check`, `lint` (0 errors, 1 pre-existing warning), `typecheck`, `build` exit 0. `next.config.ts` is outside unit coverage; `npm test` and `test:integration` not re-run (no covered code changed; integration tests use the standalone build).
 - The Phase 2 checklist precondition about an empty `ANTHROPIC_API_KEY` no longer applies to the owner's `.env` (it is set now).
 - Lesson: 2026-10-30 entry in `.ai/lessons.md`.
+
+## Phase 2 checkpoint answers (owner, 2026-10-30)
+
+- Phase 2 manual test: passed; continue with Phase 3.
+- Empty-state wording: use the design-system text "No tasks yet. Add the first thing you need to do." The app's `emptyBody` override was removed and the spec's States line updated with the owner's approval (commit after `92bb081`).
+- `TaskRow.level` and optional `TaskList.onAddSubtask`: keep.
+- Deleted-elsewhere message in an `Alert` above the list (not in the form): accepted.

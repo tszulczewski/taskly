@@ -26,8 +26,6 @@ export const TASK_SCREEN_TEXT = {
   addFailed: "Could not add the task. Try again.",
   saveFailed: "Could not save the task. Try again.",
   deleted: "This task was deleted. The list has been refreshed.",
-  /** Spec E01, States (owner, 2026-10-26, prototype map L22), under the DS title "No tasks yet." */
-  emptyBody: "Start with one task. Only the title is required.",
 } as const;
 
 type EstimateView = TaskView["estimate"];

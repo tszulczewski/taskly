@@ -190,9 +190,7 @@ describe("TaskListScreen states", () => {
     serverTasks = [];
     renderScreen();
     const empty = await screen.findByText("No tasks yet.");
-    expect(empty.parentElement?.textContent).toContain(
-      "Start with one task. Only the title is required.",
-    );
+    expect(empty.parentElement?.textContent).toContain("Add the first thing you need to do.");
     expect(document.activeElement).toBe(titleField());
   });
 

@@ -22,8 +22,6 @@ import {
 } from "./task-items";
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from "./use-tasks";
 
-const listText = { emptyBody: TASK_SCREEN_TEXT.emptyBody };
-
 /**
  * The task screen of the default list (spec E01, UI/UX), under the page heading: quick add above
  * the list. An add shows at once (a pending row); an edit and a delete wait for the server.
@@ -133,7 +131,6 @@ export function TaskListScreen({ listId }: { listId: string }) {
           onEdit={edit}
           onDelete={remove}
           highlightId={highlightId}
-          text={listText}
         />
       </div>
     </div>
