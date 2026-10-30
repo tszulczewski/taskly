@@ -179,7 +179,6 @@ describe("task routes over HTTP", () => {
       body: {
         title: "Mirror",
         listId: stranger.listId,
-        parentId: UNKNOWN_ID,
         position: "zzz",
         costGrosze: 999,
       },
@@ -207,6 +206,78 @@ describe("task routes over HTTP", () => {
     expect(await taskRow(task.id)).toBeUndefined();
     const again = await api(`/tasks/${task.id}`, { method: "DELETE", cookie: owner.cookie });
     expect(await failure(again, 404)).toMatchObject({ code: "not_found" });
+  });
+
+  it("adds, edits and deletes a subtask, answering with its parent, and answers 409 and 404 where the subtask rules say so", async () => {
+    const parent = await createOwnerTask("Bathroom", { minGrosze: 100_000, maxGrosze: 200_000 });
+    const added = await api(tasksPath(owner.listId), {
+      method: "POST",
+      cookie: owner.cookie,
+      body: {
+        title: "Plaster",
+        estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+        parentId: parent.id,
+      },
+    });
+    const withSubtask = taskViewSchema.parse(await okData(added));
+    expect(withSubtask).toEqual({
+      ...parent,
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+      subtasks: [
+        {
+          id: expect.any(String),
+          title: "Plaster",
+          description: null,
+          estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+        },
+      ],
+    });
+    const subtaskId = withSubtask.subtasks[0]!.id;
+
+    const deeper = await api(tasksPath(owner.listId), {
+      method: "POST",
+      cookie: owner.cookie,
+      body: { title: "Too deep", parentId: subtaskId },
+    });
+    expect(await failure(deeper, 409)).toEqual({
+      code: "conflict",
+      message: "Subtasks cannot have subtasks",
+    });
+    const parentEstimate = await api(`/tasks/${parent.id}`, {
+      method: "PATCH",
+      cookie: owner.cookie,
+      body: { title: "Bathroom walls", estimate: null },
+    });
+    expect(await failure(parentEstimate, 409)).toEqual({
+      code: "conflict",
+      message: "A task with subtasks takes its estimate from them",
+    });
+    expect(await taskRow(parent.id)).toMatchObject({
+      title: "Bathroom",
+      estimateMinGrosze: 100_000,
+      estimateMaxGrosze: 200_000,
+    });
+    const foreignParent = await api(tasksPath(stranger.listId), {
+      method: "POST",
+      cookie: stranger.cookie,
+      body: { title: "Hacked", parentId: parent.id },
+    });
+    expect(await failure(foreignParent, 404)).toMatchObject({ code: "not_found" });
+
+    const edited = await api(`/tasks/${subtaskId}`, {
+      method: "PATCH",
+      cookie: owner.cookie,
+      body: { estimate: { minGrosze: 50_000, maxGrosze: 50_000 } },
+    });
+    expect(taskViewSchema.parse(await okData(edited))).toEqual({
+      ...withSubtask,
+      estimate: { minGrosze: 50_000, maxGrosze: 50_000 },
+      subtasks: [
+        { ...withSubtask.subtasks[0], estimate: { minGrosze: 50_000, maxGrosze: 50_000 } },
+      ],
+    });
+    const deleted = await api(`/tasks/${subtaskId}`, { method: "DELETE", cookie: owner.cookie });
+    expect(deleteTaskResponseSchema.parse(await okData(deleted))).toEqual(parent);
   });
 
   it("rejects every mutation without the CSRF header and changes nothing", async () => {

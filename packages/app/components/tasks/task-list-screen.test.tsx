@@ -255,6 +255,7 @@ describe("TaskListScreen quick add", () => {
       title: "Fit the mirror",
       description: null,
       estimate: { minGrosze: 150_000, maxGrosze: 200_000 },
+      parentId: null,
     });
     await waitFor(() => expect(rows()).toHaveLength(3));
     const pending = rows()[2]!;
@@ -322,6 +323,7 @@ describe("TaskListScreen quick add", () => {
       title: "Fit the mirror",
       description: null,
       estimate,
+      parentId: null,
     });
     await waitFor(() => expect(estimateOf(rows()[2])).toBe(pln(shown)));
     expect(rows()[2]?.querySelector("[data-pending]")).toBeNull();

@@ -62,11 +62,12 @@ export const taskFields = z.object({
   estimate: estimateSchema.nullable(),
 });
 
-/** The list comes from the route param, never from the body. */
+/** The list comes from the route param, never from the body. `parentId` makes it a subtask. */
 export const createTaskInput = z.object({
   title: taskFields.shape.title,
   description: taskFields.shape.description.default(null),
   estimate: taskFields.shape.estimate.default(null),
+  parentId: z.uuid().nullable().default(null),
 });
 export type CreateTaskInput = z.infer<typeof createTaskInput>;
 

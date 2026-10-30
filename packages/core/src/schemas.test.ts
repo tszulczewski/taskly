@@ -170,11 +170,12 @@ describe("taskFields", () => {
 });
 
 describe("createTaskInput", () => {
-  it("defaults description and estimate to null", () => {
-    expect(createTaskInput.parse({ title: "Paint" })).toEqual({
+  it("defaults description, estimate and parentId to null", () => {
+    expect(createTaskInput.parse({ title: "Paint" })).toStrictEqual({
       title: "Paint",
       description: null,
       estimate: null,
+      parentId: null,
     });
   });
 
@@ -185,18 +186,30 @@ describe("createTaskInput", () => {
         description: "   ",
         estimate: { minGrosze: 100, maxGrosze: 100 },
       }),
-    ).toEqual({ title: "Paint", description: null, estimate: { minGrosze: 100, maxGrosze: 100 } });
+    ).toEqual({
+      title: "Paint",
+      description: null,
+      estimate: { minGrosze: 100, maxGrosze: 100 },
+      parentId: null,
+    });
     expect(createTaskInput.parse({ title: "Paint", description: " Two coats " }).description).toBe(
       "Two coats",
     );
   });
 
-  it("drops fields it does not own, such as listId and parentId", () => {
+  it("keeps a parentId, which makes the task a subtask", () => {
+    const parentId = "3f1c1e7e-8f5a-4c55-9a59-0f3cc5b4a2d1";
+    expect(createTaskInput.parse({ title: "Paint", parentId }).parentId).toBe(parentId);
+    expect(createTaskInput.parse({ title: "Paint", parentId: null }).parentId).toBeNull();
+  });
+
+  it("drops fields it does not own, such as listId and position", () => {
     const listId = "3f1c1e7e-8f5a-4c55-9a59-0f3cc5b4a2d1";
-    expect(createTaskInput.parse({ title: "Paint", listId, parentId: listId })).toEqual({
+    expect(createTaskInput.parse({ title: "Paint", listId, position: "a0" })).toStrictEqual({
       title: "Paint",
       description: null,
       estimate: null,
+      parentId: null,
     });
   });
 
@@ -215,6 +228,11 @@ describe("createTaskInput", () => {
     [
       { title: "x", estimate: { minGrosze: 2, maxGrosze: 1 } },
       [["estimate.maxGrosze", "“Up to” must not be less than the amount."]],
+    ],
+    [{ title: "x", parentId: "not-a-uuid" }, [["parentId", "Invalid UUID"]]],
+    [
+      { title: "x", parentId: 7 },
+      [["parentId", "Invalid input: expected string, received number"]],
     ],
   ])("rejects %j", (input, expected) => {
     expect(issues(createTaskInput.safeParse(input))).toEqual(expected);

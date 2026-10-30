@@ -544,6 +544,87 @@ describe.skipIf(!url)("lists service (real PostgreSQL)", () => {
       expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
     });
 
+    /** A top-level task in `listId`; returns its id. */
+    async function topLevelTask(listId: string) {
+      const [task] = await db
+        .insert(schema.tasks)
+        .values({ listId, title: "Porch", position: "a0" })
+        .returning({ id: schema.tasks.id });
+      return task!.id;
+    }
+
+    it("lets a subtask add finish before a delete that started while it held only its membership", async () => {
+      const listId = await sharedList("Carport");
+      const parentId = await topLevelTask(listId);
+      // Holds the list row, so createTask stops after requireRole, before its append lock.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.lists.id })
+          .from(schema.lists)
+          .where(eq(schema.lists.id, listId))
+          .for("share"),
+      );
+      let creating: Promise<Settled<unknown>> | undefined;
+      let deleting: Promise<Settled<void>> | undefined;
+      let createResult: Settled<unknown> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        creating = settle(createTask(editorDb, ids.ed, listId, { title: "Steps", parentId }));
+        await waitUntilBlockedBy(editorPid, holderPid);
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        // The delete waits for the editor's membership, not the other way round.
+        await waitUntilBlockedBy(ownerPid, editorPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        createResult = await creating;
+        deleteResult = await deleting;
+      }
+
+      expect(createResult).toEqual({
+        value: expect.objectContaining({
+          id: parentId,
+          subtasks: [expect.objectContaining({ title: "Steps" })],
+        }),
+      });
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
+    it("makes a subtask add wait for a delete that locked the members first, then report the list as not found", async () => {
+      const listId = await sharedList("Shed roof");
+      const parentId = await topLevelTask(listId);
+      // Holds the parent, so the delete stops in its cascade, after locking every membership.
+      const holder = holdInTransaction((tx) =>
+        tx
+          .select({ id: schema.tasks.id })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.id, parentId))
+          .for("update"),
+      );
+      let deleting: Promise<Settled<void>> | undefined;
+      let creating: Promise<Settled<unknown>> | undefined;
+      let deleteResult: Settled<void> | undefined;
+      let createResult: Settled<unknown> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        deleting = settle(deleteList(ownerDb, ids.alice, listId));
+        await waitUntilBlockedBy(ownerPid, holderPid);
+        creating = settle(createTask(editorDb, ids.ed, listId, { title: "Too late", parentId }));
+        await waitUntilBlockedBy(editorPid, ownerPid);
+      } finally {
+        holder.release();
+        await holder.done;
+        deleteResult = await deleting;
+        createResult = await creating;
+      }
+
+      expect(deleteResult).toEqual({ value: undefined });
+      expect(createResult).toEqual({ error: new NotFoundError("List") });
+      expect(await leftovers(listId)).toEqual({ lists: 0, members: 0, tasks: 0 });
+    });
+
     /** A task with one subtask in `listId`; returns the task's id. */
     async function taskWithSubtask(listId: string) {
       const [task] = await db

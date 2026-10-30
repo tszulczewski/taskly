@@ -35,6 +35,7 @@ const input: CreateTaskInput = {
   title: "Seal the bath",
   description: "Silicone",
   estimate: { minGrosze: 5_000, maxGrosze: 5_000 },
+  parentId: null,
 };
 const sealed = view("Seal the bath", { description: "Silicone", estimate: input.estimate });
 

@@ -88,6 +88,7 @@ describe("validateTaskForm and toCreateInput", () => {
       title: "Seal the bath",
       description: null,
       estimate,
+      parentId: null,
     });
   });
 

@@ -122,6 +122,15 @@ export async function requireTaskRole(
   return task;
 }
 
+async function hasSubtasks(tx: Tx, task: { id: string; listId: string }): Promise<boolean> {
+  const [subtask] = await tx
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.listId, task.listId), eq(tasks.parentId, task.id)))
+    .limit(1);
+  return subtask !== undefined;
+}
+
 /** The `TaskView` of a top-level task: its row and its subtasks, read in list order. */
 async function topLevelView(tx: Tx, topLevelId: string): Promise<TaskView> {
   const rows = await tx
@@ -158,14 +167,17 @@ export async function listTasks(db: Db, userId: string, listId: string): Promise
   });
 }
 
-/** Appends a top-level task to the list and returns its `TaskView`. */
+/**
+ * Appends a task to the list, or a subtask to its parent's subtasks, and returns the `TaskView` of
+ * the top-level task that holds it: the new task, or the parent with its new effective estimate.
+ */
 export async function createTask(
   db: Db,
   userId: string,
   listId: string,
   input: unknown,
 ): Promise<TaskView> {
-  const { title, description, estimate } = createTaskInput.parse(input);
+  const { title, description, estimate, parentId } = createTaskInput.parse(input);
   return inTransaction(db, async (tx) => {
     await requireRole(tx, userId, listId, "write");
     // Serializes appends to this list, so concurrent creates never pick the same position.
@@ -174,16 +186,33 @@ export async function createTask(
       .from(schema.lists)
       .where(eq(schema.lists.id, listId))
       .for("no key update");
+    if (parentId !== null) {
+      // A concurrent delete of the parent waits for this transaction, then cascades the subtask;
+      // an estimate edit of the parent (FOR UPDATE) waits too, then sees the subtask.
+      const [parent] = await tx
+        .select({ parentId: tasks.parentId })
+        .from(tasks)
+        .where(and(eq(tasks.id, parentId), eq(tasks.listId, listId)))
+        .for("key share");
+      if (!parent) throw new NotFoundError("Task");
+      if (parent.parentId !== null) throw new ConflictError("Subtasks cannot have subtasks");
+    }
     const [last] = await tx
       .select({ position: tasks.position })
       .from(tasks)
-      .where(and(eq(tasks.listId, listId), isNull(tasks.parentId)))
+      .where(
+        and(
+          eq(tasks.listId, listId),
+          parentId === null ? isNull(tasks.parentId) : eq(tasks.parentId, parentId),
+        ),
+      )
       .orderBy(desc(byPosition))
       .limit(1);
     const [row] = await tx
       .insert(tasks)
       .values({
         listId,
+        parentId,
         title,
         description,
         estimateMinGrosze: estimate?.minGrosze ?? null,
@@ -191,13 +220,14 @@ export async function createTask(
         position: positionBetween(last?.position ?? null, null),
       })
       .returning(viewColumns);
-    return taskView(row!, []);
+    return parentId === null ? taskView(row!, []) : topLevelView(tx, parentId);
   });
 }
 
 /**
- * Writes only the keys present in the input (`estimate: null` clears both bounds) and returns
- * the task's `TaskView`.
+ * Writes only the keys present in the input (`estimate: null` clears both bounds) and returns the
+ * `TaskView` of the top-level task that holds it: the task, or a subtask's parent. A task with
+ * subtasks takes its estimate from them, so an estimate edit of one is refused.
  */
 export async function updateTask(
   db: Db,
@@ -215,8 +245,13 @@ export async function updateTask(
   }
   return inTransaction(db, async (tx) => {
     const task = await requireTaskRole(tx, userId, taskId, "write");
+    // A separate statement after the FOR UPDATE: under READ COMMITTED it sees a subtask whose
+    // insert held this row FOR KEY SHARE and committed while we waited for the lock.
+    if (estimate !== undefined && task.parentId === null && (await hasSubtasks(tx, task))) {
+      throw new ConflictError("A task with subtasks takes its estimate from them");
+    }
     await tx.update(tasks).set(changes).where(eq(tasks.id, task.id));
-    return topLevelView(tx, task.id);
+    return topLevelView(tx, task.parentId ?? task.id);
   });
 }
 
@@ -229,11 +264,15 @@ export async function moveTask(
   throw new NotImplementedError("moveTask");
 }
 
-/** Deletes the task; its subtasks go with it through the parent FK's cascade. */
+/**
+ * Deletes the task; its subtasks go with it through the parent FK's cascade. Returns null for a
+ * top-level task and the parent's `TaskView` for a subtask: after the last one, the parent's own
+ * figure is its estimate again, with no write to the parent.
+ */
 export async function deleteTask(db: Db, userId: string, taskId: string): Promise<TaskView | null> {
   return inTransaction(db, async (tx) => {
     const task = await requireTaskRole(tx, userId, taskId, "write");
     await tx.delete(tasks).where(eq(tasks.id, task.id));
-    return null;
+    return task.parentId === null ? null : topLevelView(tx, task.parentId);
   });
 }

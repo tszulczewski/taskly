@@ -80,7 +80,7 @@ const lastTopLevel = {
   params: [listId, 1],
 };
 const insertSql =
-  'insert into "tasks" ("id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at") values (default, $1, default, $2, $3, default, $4, $5, $6, default, default) returning "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze"';
+  'insert into "tasks" ("id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at") values (default, $1, $2, $3, $4, default, $5, $6, $7, default, default) returning "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze"';
 
 // requireTaskRole's queries, also the start of updateTask and deleteTask.
 const readListId = {
@@ -93,6 +93,25 @@ const lockTask = {
 };
 const createdAt = "2026-10-29T10:00:00.000Z";
 const taskRow = [taskId, listId, null, "Tiles", null, "todo", "a0", 100, 200, null, createdAt];
+/** The same id as a subtask of ids.a. */
+const subtaskRow = [
+  taskId,
+  listId,
+  ids.a,
+  "Plaster",
+  null,
+  "todo",
+  "a0",
+  300,
+  400,
+  null,
+  createdAt,
+];
+/** `topLevelView`'s query for the top-level task `id`. */
+const viewQueryOf = (id: string) => ({
+  sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze" from "tasks" where ("tasks"."id" = $1 or "tasks"."parent_id" = $2) order by "tasks"."position" COLLATE "C", "tasks"."id" asc',
+  params: [id, id],
+});
 
 describe("createTask", () => {
   it("authorizes write, locks the list row, appends after the last top-level task and returns its view", async () => {
@@ -124,7 +143,7 @@ describe("createTask", () => {
       "requireRole write",
       lockList,
       lastTopLevel,
-      { sql: insertSql, params: [listId, "Tiles", "Grey ones", "a1", 150000, 200000] },
+      { sql: insertSql, params: [listId, null, "Tiles", "Grey ones", "a1", 150000, 200000] },
       "commit",
     ]);
   });
@@ -141,7 +160,10 @@ describe("createTask", () => {
       unestimatedSubtasks: 0,
       subtasks: [],
     });
-    expect(log[4]).toEqual({ sql: insertSql, params: [listId, "Paint", null, "a0", null, null] });
+    expect(log[4]).toEqual({
+      sql: insertSql,
+      params: [listId, null, "Paint", null, "a0", null, null],
+    });
   });
 
   it("stores an exact price as min = max", async () => {
@@ -154,7 +176,10 @@ describe("createTask", () => {
     });
 
     expect(view.estimate).toEqual({ minGrosze: 5000, maxGrosze: 5000 });
-    expect(log[4]).toEqual({ sql: insertSql, params: [listId, "Rod", null, "a0", 5000, 5000] });
+    expect(log[4]).toEqual({
+      sql: insertSql,
+      params: [listId, null, "Rod", null, "a0", 5000, 5000],
+    });
   });
 
   it("never writes keys outside the parsed input (listId comes from the argument)", async () => {
@@ -164,12 +189,14 @@ describe("createTask", () => {
     await createTask(db, userId, listId, {
       title: "Rod",
       listId: "99999999-9999-4999-8999-999999999999",
-      parentId: ids.a,
       position: "zzz",
       costGrosze: 1,
     });
 
-    expect(log[4]).toEqual({ sql: insertSql, params: [listId, "Rod", null, "a0", null, null] });
+    expect(log[4]).toEqual({
+      sql: insertSql,
+      params: [listId, null, "Rod", null, "a0", null, null],
+    });
   });
 
   it("rejects invalid input before opening a transaction", async () => {
@@ -181,8 +208,128 @@ describe("createTask", () => {
         estimate: { minGrosze: 2, maxGrosze: 1 },
       }),
     ).rejects.toBeInstanceOf(ZodError);
+    await expect(
+      createTask(db, userId, listId, { title: "x", parentId: "not-a-uuid" }),
+    ).rejects.toBeInstanceOf(ZodError);
     expect(log).toEqual([]);
     expect(mockedRequireRole).not.toHaveBeenCalled();
+  });
+
+  describe("with a parentId", () => {
+    const newId = "66666666-6666-4666-8666-666666666666";
+    const lockParent = {
+      sql: 'select "parent_id" from "tasks" where ("tasks"."id" = $1 and "tasks"."list_id" = $2) for key share',
+      params: [ids.a, listId],
+    };
+    const lastSubtask = {
+      sql: 'select "position" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" = $2) order by "tasks"."position" COLLATE "C" desc limit $3',
+      params: [listId, ids.a, 1],
+    };
+
+    it("locks the list, then the parent FOR KEY SHARE, appends after the last subtask and returns the parent's view", async () => {
+      const { db, log } = fakeDb(
+        [[listId]],
+        [[null]],
+        [["a0"]],
+        [[newId, ids.a, "Paint", "White", 50000, 50000]],
+        [
+          [ids.a1, ids.a, "Plaster", null, 30000, 40000],
+          [ids.a, null, "Bathroom", "Walls", 100000, 200000],
+          [newId, ids.a, "Paint", "White", 50000, 50000],
+        ],
+      );
+      grantRole(log);
+
+      const view = await createTask(db, userId, listId, {
+        title: "Paint",
+        description: "White",
+        estimate: { minGrosze: 50000, maxGrosze: 50000 },
+        parentId: ids.a,
+      });
+
+      expect(view).toEqual({
+        id: ids.a,
+        title: "Bathroom",
+        description: "Walls",
+        estimate: { minGrosze: 80000, maxGrosze: 90000 },
+        unestimatedSubtasks: 0,
+        subtasks: [
+          {
+            id: ids.a1,
+            title: "Plaster",
+            description: null,
+            estimate: { minGrosze: 30000, maxGrosze: 40000 },
+          },
+          {
+            id: newId,
+            title: "Paint",
+            description: "White",
+            estimate: { minGrosze: 50000, maxGrosze: 50000 },
+          },
+        ],
+      });
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(log).toEqual([
+        "begin",
+        "requireRole write",
+        lockList,
+        lockParent,
+        lastSubtask,
+        { sql: insertSql, params: [listId, ids.a, "Paint", "White", "a1", 50000, 50000] },
+        viewQueryOf(ids.a),
+        "commit",
+      ]);
+    });
+
+    it("gives the first subtask the first key", async () => {
+      const { db, log } = fakeDb(
+        [[listId]],
+        [[null]],
+        [],
+        [[newId, ids.a, "Paint", null, null, null]],
+        [
+          [ids.a, null, "Bathroom", null, 100000, 200000],
+          [newId, ids.a, "Paint", null, null, null],
+        ],
+      );
+      grantRole(log);
+
+      const view = await createTask(db, userId, listId, { title: "Paint", parentId: ids.a });
+
+      expect(log[5]).toEqual({
+        sql: insertSql,
+        params: [listId, ids.a, "Paint", null, "a0", null, null],
+      });
+      // The parent's own figure is hidden by its subtask, not changed (no write to the parent).
+      expect(view).toEqual(expect.objectContaining({ estimate: null, unestimatedSubtasks: 1 }));
+      expect(log.filter((entry) => typeof entry !== "string" && /^update/.test(entry.sql))).toEqual(
+        [],
+      );
+    });
+
+    it("reports a parent that is missing or in another list as a missing task", async () => {
+      const { db, log } = fakeDb([[listId]], []);
+      grantRole(log);
+
+      const error: unknown = await createTask(db, userId, listId, {
+        title: "x",
+        parentId: ids.a,
+      }).catch((e: unknown) => e);
+
+      expect(error).toEqual(new NotFoundError("Task"));
+      expect((error as NotFoundError).resource).toBe("Task");
+      expect(log).toEqual(["begin", "requireRole write", lockList, lockParent, "rollback"]);
+    });
+
+    it("refuses a subtask under a subtask", async () => {
+      const { db, log } = fakeDb([[listId]], [[ids.b]]);
+      grantRole(log);
+
+      await expect(createTask(db, userId, listId, { title: "x", parentId: ids.a })).rejects.toEqual(
+        new ConflictError("Subtasks cannot have subtasks"),
+      );
+      expect(log).toEqual(["begin", "requireRole write", lockList, lockParent, "rollback"]);
+    });
   });
 
   it.each([new ForbiddenError(), new NotFoundError("List")])(
@@ -439,9 +586,10 @@ describe("requireTaskRole", () => {
 });
 
 describe("updateTask", () => {
-  const viewQuery = {
-    sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze" from "tasks" where ("tasks"."id" = $1 or "tasks"."parent_id" = $2) order by "tasks"."position" COLLATE "C", "tasks"."id" asc',
-    params: [taskId, taskId],
+  const viewQuery = viewQueryOf(taskId);
+  const subtaskCheck = {
+    sql: 'select "id" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" = $2) limit $3',
+    params: [listId, taskId, 1],
   };
   const update = (set: string, params: unknown[]) => ({
     sql: `update "tasks" set ${set} where "tasks"."id" = $${params.length + 1}`,
@@ -452,6 +600,7 @@ describe("updateTask", () => {
     const { db, log } = fakeDb(
       [[listId]],
       [taskRow],
+      [],
       [],
       [[taskId, null, "Tiles", "Grey ones", 150000, 200000]],
     );
@@ -478,6 +627,7 @@ describe("updateTask", () => {
       readListId,
       "requireRole write",
       lockTask,
+      subtaskCheck,
       update(
         '"title" = $1, "description" = $2, "estimate_min_grosze" = $3, "estimate_max_grosze" = $4',
         ["Tiles", "Grey ones", 150000, 200000],
@@ -524,11 +674,13 @@ describe("updateTask", () => {
       [[listId]],
       [taskRow],
       [],
+      [],
       [[taskId, null, "Tiles", null, 5000, 5000]],
     );
     grantRole(log);
     await updateTask(db, userId, taskId, { estimate: { minGrosze: 5000, maxGrosze: 5000 } });
-    expect(log[4]).toEqual(
+    expect(log[4]).toEqual(subtaskCheck);
+    expect(log[5]).toEqual(
       update('"estimate_min_grosze" = $1, "estimate_max_grosze" = $2', [5000, 5000]),
     );
   });
@@ -538,13 +690,15 @@ describe("updateTask", () => {
       [[listId]],
       [taskRow],
       [],
+      [],
       [[taskId, null, "Tiles", null, null, null]],
     );
     grantRole(log);
 
     const view = await updateTask(db, userId, taskId, { description: "", estimate: null });
 
-    expect(log[4]).toEqual(
+    expect(log[4]).toEqual(subtaskCheck);
+    expect(log[5]).toEqual(
       update('"description" = $1, "estimate_min_grosze" = $2, "estimate_max_grosze" = $3', [
         null,
         null,
@@ -604,6 +758,96 @@ describe("updateTask", () => {
         { id: ids.a2, title: "Paint", description: null, estimate: null },
       ],
     });
+  });
+
+  it.each([
+    ["a new estimate", { estimate: { minGrosze: 5000, maxGrosze: 5000 } }],
+    ["a cleared estimate", { estimate: null }],
+    ["a title and an estimate", { title: "secret title", estimate: null }],
+  ])(
+    "refuses %s on a task with subtasks, after locking it, and writes nothing",
+    async (_name, input) => {
+      const { db, log } = fakeDb([[listId]], [taskRow], [[ids.a1]]);
+      grantRole(log);
+
+      await expect(updateTask(db, userId, taskId, input)).rejects.toEqual(
+        new ConflictError("A task with subtasks takes its estimate from them"),
+      );
+      expect(log).toEqual([
+        "begin",
+        readListId,
+        "requireRole write",
+        lockTask,
+        subtaskCheck,
+        "rollback",
+      ]);
+    },
+  );
+
+  it("does not look for subtasks when the estimate is not changed", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [
+        [taskId, null, "Bathroom", null, 100, 200],
+        [ids.a1, taskId, "Plaster", null, 30000, 40000],
+      ],
+    );
+    grantRole(log);
+
+    await updateTask(db, userId, taskId, { title: "Bathroom", description: null });
+
+    expect(log).not.toContainEqual(subtaskCheck);
+  });
+
+  it("updates a subtask's estimate without a subtask check and returns its parent's view", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [subtaskRow],
+      [],
+      [
+        [ids.a, null, "Bathroom", "Walls", 100000, 200000],
+        [taskId, ids.a, "Plaster", null, 5000, 6000],
+        [ids.a2, ids.a, "Paint", null, 1000, 1000],
+      ],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, {
+      estimate: { minGrosze: 5000, maxGrosze: 6000 },
+    });
+
+    expect(view).toEqual({
+      id: ids.a,
+      title: "Bathroom",
+      description: "Walls",
+      estimate: { minGrosze: 6000, maxGrosze: 7000 },
+      unestimatedSubtasks: 0,
+      subtasks: [
+        {
+          id: taskId,
+          title: "Plaster",
+          description: null,
+          estimate: { minGrosze: 5000, maxGrosze: 6000 },
+        },
+        {
+          id: ids.a2,
+          title: "Paint",
+          description: null,
+          estimate: { minGrosze: 1000, maxGrosze: 1000 },
+        },
+      ],
+    });
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      update('"estimate_min_grosze" = $1, "estimate_max_grosze" = $2', [5000, 6000]),
+      viewQueryOf(ids.a),
+      "commit",
+    ]);
   });
 
   it.each([
@@ -668,6 +912,59 @@ describe("deleteTask", () => {
       deleteQuery,
       "commit",
     ]);
+  });
+
+  it("deletes a subtask and returns its parent's view with the remaining subtasks", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [subtaskRow],
+      [],
+      [
+        [ids.a, null, "Bathroom", null, 100000, 200000],
+        [ids.a2, ids.a, "Paint", null, null, null],
+      ],
+    );
+    grantRole(log);
+
+    await expect(deleteTask(db, userId, taskId)).resolves.toEqual({
+      id: ids.a,
+      title: "Bathroom",
+      description: null,
+      estimate: null,
+      unestimatedSubtasks: 1,
+      subtasks: [{ id: ids.a2, title: "Paint", description: null, estimate: null }],
+    });
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      deleteQuery,
+      viewQueryOf(ids.a),
+      "commit",
+    ]);
+  });
+
+  it("gives the parent its own figure back when its last subtask is deleted", async () => {
+    const { db } = fakeDb(
+      [[listId]],
+      [subtaskRow],
+      [],
+      [[ids.a, null, "Bathroom", null, 100000, 200000]],
+    );
+    grantRole([]);
+
+    const view = await deleteTask(db, userId, taskId);
+
+    expect(view).toEqual(
+      expect.objectContaining({
+        id: ids.a,
+        estimate: { minGrosze: 100000, maxGrosze: 200000 },
+        unestimatedSubtasks: 0,
+        subtasks: [],
+      }),
+    );
+    expect(taskViewSchema.parse(view)).toEqual(view);
   });
 
   it("deletes nothing for a viewer", async () => {
