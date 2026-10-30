@@ -339,3 +339,11 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - Task 2.5: TanStack Query concurrent mutations: cache-level `onError` order, `isMutating` in `onSettled`, cancelling before writing a server result, snapshot vs. removing the own row (2026-10-29 entry).
 - Task 2.6: Testing Library string matchers fold whitespace in the DOM text but not in the expected string (NBSP amounts), TanStack Query 5 resets a never-loaded errored query to `pending` on refetch, and its notifications land after `act` flushes (2026-10-29 entry); dev `.env` without `ANTHROPIC_API_KEY` breaks the standalone pages (same entry).
 - Task 2.7: agent-browser cookie and request-log reading, and reading a field's error through FormField's `<id>-error` rather than `aria-describedby` (2026-10-29 entry).
+
+## Addendum 2026-10-30: `npm run dev` broken (after the Phase 2 gate)
+
+- Owner reported that `npm run dev` did not work. Reproduced: every page logged `ZodError` with `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ANTHROPIC_API_KEY` all `undefined`. Cause: `next dev` runs in `packages/app` and reads `.env` only there; the dev `.env` is at the repo root. Not from this branch (pre-existing since the skeleton); earlier manual checks ran on the standalone build with env passed explicitly.
+- Fix: `packages/app/next.config.ts` exports a config function that loads the root `.env` with `process.loadEnvFile` in `PHASE_DEVELOPMENT_SERVER` when the file exists.
+- Verified: `npm run dev` → `GET /sign-in` 200 with the sign-in form, `GET /` 200, no `ZodError`; `format:check`, `lint` (0 errors, 1 pre-existing warning), `typecheck`, `build` exit 0. `next.config.ts` is outside unit coverage; `npm test` and `test:integration` not re-run (no covered code changed; integration tests use the standalone build).
+- The Phase 2 checklist precondition about an empty `ANTHROPIC_API_KEY` no longer applies to the owner's `.env` (it is set now).
+- Lesson: 2026-10-30 entry in `.ai/lessons.md`.
