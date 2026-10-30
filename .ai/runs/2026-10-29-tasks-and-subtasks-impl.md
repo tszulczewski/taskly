@@ -479,3 +479,29 @@ Precondition: the dev `.env` has `ANTHROPIC_API_KEY=` empty, which fails env val
 - Empty-state wording: use the design-system text "No tasks yet. Add the first thing you need to do." The app's `emptyBody` override was removed and the spec's States line updated with the owner's approval (commit after `92bb081`).
 - `TaskRow.level` and optional `TaskList.onAddSubtask`: keep.
 - Deleted-elsewhere message in an `Alert` above the list (not in the form): accepted.
+
+## Phase 3 gate (main session, after `1ed90e6`)
+
+- The task 3.4 full gate is the Phase 3 gate (see `### Task 3.4`): `format:check`, `lint` (0 errors, 1 pre-existing warning), `typecheck`, `npm test` (72 files, 944 tests, 100% coverage), `build`, `npm audit --audit-level=high` (passes; 4 pre-existing moderate findings via `drizzle-kit`), `test:integration` (15 files, 163 tests), `check:tokens`, `test:storybook` (120 files, 922 tests): all exit 0.
+
+## Phase 3 manual test checklist (owner)
+
+Precondition: `npm run dev` (loads the repo-root `.env` since `92bb081`), open `http://localhost:3000` and sign in. To create an account, see the Runbook (`ALLOW_SIGN_UP=true` in `.env`, restart, `/sign-up`, then remove the line and restart).
+
+1. Add "Bathroom" with 1 000 / 2 000. "…" → Add subtask: focus is in "New subtask". Add "Prime" 300 / 400 → the task shows "300–400 zł", "1 subtask" and "The estimate of “Bathroom” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks."; the subtask is highlighted and focus is on "Add subtask".
+2. Add subtasks "Grout" (only Amount 500) and "Buy tiles" (no amount) → "800–900 zł", "3 subtasks", "1 subtask without an estimate", no message.
+3. On a task without its own estimate, add a subtask with no amount → "No estimate", "1 subtask", "1 subtask without an estimate", no message.
+4. Open the task (click its title): subtasks are indented with their own estimates; a subtask's description shows when you open that subtask.
+5. Edit "Grout" to 700 → after "Saving…" the task shows "1 000–1 100 zł".
+6. Edit "Bathroom": no amount fields, "Sum of subtasks: 1 000–1 100 zł" and "Change the amounts on the subtasks."; change the title → saved.
+7. Delete "Bathroom" and cancel: the dialog reads "Delete “Bathroom” and its 3 subtasks?".
+8. Delete the subtasks one by one: the task's estimate follows each time; after the last one "1 000–2 000 zł" and "The estimate of “Bathroom” is back to your amount: 1 000–2 000 zł."
+9. Two tabs: delete a task in one, then add a subtask to it in the other → "This task was deleted. The list has been refreshed." and the row disappears.
+10. Two tabs: in A open Edit on a task without subtasks; in B add a subtask to it; in A change the title and amount and save → either "A task with subtasks takes its estimate from them" with the typed title kept and the amounts replaced by the sum (saving again saves the title), or, if A refetched on focus first, the form already shows the sum and only the title is saved.
+11. Two tabs: in A open Edit on a task with its own estimate and exactly one subtask (form shows "Sum of subtasks"); in B delete that subtask; back in A the form shows empty Amount / up to fields. Change only the title and save → title saved, the task still shows its own amount (e.g. "1 000–2 000 zł"), not "No estimate".
+12. Repeat 11 but type 1 500 into the Amount field that appeared and save → the task shows "1 500 zł".
+13. At 320 px a long subtask title wraps and nothing scrolls sideways; the Phase 2 basics (quick add, edit, delete, reload keeps order) still work.
+
+## Open points for the owner after Phase 3
+
+- Storybook E01 page: the design decision "A change shows at once and rolls back with a message…" predates the rule that only adding is optimistic (edit and delete wait for the server). Left for the owner / design-system update; not a code issue.
