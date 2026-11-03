@@ -137,15 +137,22 @@ export const ChangeFailed: Story = {
 export const EstimateAdded: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "2 tasks without an estimate" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "2 tasks and 1 subtask without an estimate" }),
+    );
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
     // Quick add has amount fields too; the ones under test are in the list.
-    const list = within(canvas.getByRole("list", { name: "2 tasks without an estimate" }));
+    const list = within(
+      canvas.getByRole("list", { name: "2 tasks and 1 subtask without an estimate" }),
+    );
     await userEvent.type(list.getByRole("textbox", { name: "Amount" }), "150");
     await userEvent.type(list.getByRole("textbox", { name: /^up to/ }), "200{Enter}");
     await waitFor(() => expect(total(canvas)).toHaveTextContent("880–1 150 zł"));
+    // Next is a subtask: its task "Paint the bathroom ceiling" is only partly priced (D27).
     await expect(
-      canvas.getByRole("button", { name: "Add estimate for “Fix the dripping kitchen tap”" }),
+      canvas.getByRole("button", {
+        name: "Add estimate for “Mask the lamp and the sockets” in “Paint the bathroom ceiling”",
+      }),
     ).toHaveFocus();
   },
 };

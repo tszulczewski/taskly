@@ -10,7 +10,7 @@ import {
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { answer } from "../../../blocks/fake-api";
 import { DoDont, Narrow, Stack, StateRow } from "../../../blocks/Primitives";
-import { placeNameRule, somePlaces } from "../../../blocks/place-data";
+import { placeNameRule, predefinedPlaces } from "../../../blocks/place-data";
 import {
   curtainRods,
   organizedTasks,
@@ -44,9 +44,9 @@ const organized = {
   onMove: fn(),
   onToggleMarker: fn(),
   places: {
-    all: somePlaces,
+    all: predefinedPlaces,
     atLimit: false,
-    validateName: placeNameRule(somePlaces),
+    validateName: placeNameRule(predefinedPlaces),
     onToggle: fn(),
     onCreate: fn(answer({ ok: true })),
     onUpdate: fn(answer({ ok: true })),
@@ -226,7 +226,7 @@ export const PlacesAndMarkers: Story = {
   args: { task: organizedTasks[3]! },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Living room")).toBeVisible();
+    await expect(canvas.getByText("Salon")).toBeVisible();
     await expect(canvas.getByText("Urgent")).toBeVisible();
   },
 };
@@ -279,7 +279,7 @@ export const PlacesPopover: Story = {
     const panel = await body.findByRole("dialog", {
       name: `Places for “${organizedTasks[2]!.title}”`,
     });
-    await expect(within(panel).getByRole("checkbox", { name: "Bedroom" })).toBeChecked();
+    await expect(within(panel).getByRole("checkbox", { name: "Sypialnia" })).toBeChecked();
   },
 };
 

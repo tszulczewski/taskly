@@ -16,6 +16,7 @@ Plik roboczy prowadzony według `.ai/design/prompt-storybook.md`. Nowa sesja zac
 | 4. Strony, które uczą      | zakończony i sprawdzony; L1–L4 rozstrzygnięte i wdrożone                      | 2026-10-23 |
 | 5. Sprawdzenie i raport    | sprawdzenie zrobione; M1–M5 przyjęte, M1–M3 wdrożone; test agentem czeka      | 2026-10-23 |
 | 9. Rozmiary po przeglądzie prototypu | V1–V2 przyjęte i wdrożone (K1 → wariant B od 640 px; karta 400 px) | 2026-10-26 |
+| 11. Miejsca i lista do wyceny | D26, D27 z briefu wdrożone; zastępują G4 (wybór koloru od siódmego miejsca), G5 (limit 10) i W3 | 2026-11-03 |
 
 **Następny krok:** test agentem w nowej sesji z promptem `.ai/design/prompt-agent-test.md` (2026-10-23), potem uzupełnienie dokumentacji o miejsca, w których agent zgadywał. M4 zrobione: PR #28 scalony; design system scalony w PR #30.
 
@@ -933,3 +934,21 @@ Odświeżenie briefu z 2026-10-27 (R12–R18, D22–D24, prototyp C1) zastępuje
 - Kod: `types.ts` (`amount` / `upTo` zamiast `min` / `max`, `unestimatedSubtasks`, `notice`), nowy `task-fields.tsx` (`EstimateFields`, `DescriptionField`), `QuickAdd` w jednym wierszu od 640 px (tytuł, kwoty na 2/5 szerokości, „Add”; odstępy `h-lh` wyrównują pola pod legendą), `TaskForm` (`summedEstimate`), `TaskRow` (licznik podzadań bez szacunku, linia komunikatu), `UnestimatedTasks` (`subtasksWithoutEstimate`, fokus po zapisie pomija zadania bez przycisku), teksty.
 - Storybook: dane i ekran (`task-data.ts`: `rollUp`, R17 w przyszłych wydatkach, teksty polskie; `TaskScreen.tsx`: komunikaty W1), historie QuickAdd, TaskForm, TaskRow, EstimateRange (Exact Price), UnestimatedTasks (Priced Through Subtasks), wzorce, strony MDX komponentów, wzorców, epików E01 i E03 oraz zasad (Usage and accessibility, Start here, Content, How to choose), prymitywy (Collapsible, Input, FormField, Textarea).
 - `.ai/docs/design-system.md`: tabela komponentów, Content (pieniądze), legenda źródeł.
+
+## Etap 11: miejsca (D26) i lista do wyceny (D27) (2026-11-03)
+
+Product owner, porządkując epiki E02 i E03 (`.ai/specs/research/decisions/2026-11-03-e02-e03-epic-alignment.md`, brief D26 i D27), zmienił zasady, na których stały G4, G5 i W3. Kod zmieniono w PR #48 na prośbę product ownera; log: `.ai/runs/2026-11-03-ds-places-unestimated-d26-d27.md`.
+
+### Co zastąpiono
+
+- **G4 (kolor od siódmego miejsca) → D26.** Nowe miejsce ma tylko nazwę; kolor nadaje aplikacja po kolei z dziesięciu, także ośmiu gotowym miejscom (Salon, Sypialnia, Łazienka, Kuchnia, Garaż, Ogródek, Strych, Biuro), a od jedenastego miejsca kolory się powtarzają. Kolor można zmienić w „Edit places”, każdy z dziesięciu, także zajęty. Zasada nazwy z G4 (niepusta, do 30 znaków, bez powtórzeń bez względu na wielkość liter) zostaje.
+- **G5 (najwyżej 10 miejsc) → D26:** najwyżej 20.
+- **W3 („Add estimates to its N subtasks”) → D27.** Lista pod przyszłymi wydatkami pokazuje pozycje do wyceny: otwarte zadania bez podzadań i otwarte podzadania bez szacunku, podzadanie z nazwą zadania („Tiles · Bathroom tiles”), każda z „Add estimate”. Zadanie z podzadaniami nie jest pokazywane samo. Licznik: „2 tasks and 1 subtask without an estimate”. Linia znika, gdy niczego nie brakuje.
+- Nazwy miejsc w historiach są polskie także w wersji angielskiej, bo to dane właściciela (D26).
+
+### Wdrożenie
+
+- Kod: `places/types.ts` (bez `freePlaceColors` i `placeColorIsAutomatic`), `PlaceColorPicker` (bez `places`, `placeId` i „used by”), `PlacePicker` (`onCreate({ name })`, typ `NewPlaceValues`; kolor tylko w edycji), `PlaceText` (bez `usedBy`, limit 20), `TaskRow` (`PlaceOptions.onCreate`), `UnestimatedTasks` (`items: UnestimatedItem[]` z `taskTitle` zamiast `tasks` z `subtasksWithoutEstimate`; prostszy fokus po zapisie), `FutureExpenses`, `ExpensesText` (`unestimated(tasks, subtasks)`, `addEstimateFor(title, taskTitle?)`, bez `addSubtaskEstimates`).
+- Storybook: dane (`place-data.ts`: gotowe miejsca, `twentyPlaces`, `nextPlaceColor` jako atrapa serwera; `task-data.ts`: lista do wyceny według D27, teksty polskie), `PlacePickerDemo`, `TaskScreen`, katalog, historie miejsc, list i ekranów, strony MDX (Place picker, Place color picker, Unestimated tasks, Future expenses, epiki E02 i E03, Start here, How to choose, Usage and accessibility, What is missing, Color, Popover, Radio group, Screens).
+- `.ai/docs/design-system.md`: tabela komponentów i legenda źródeł.
+

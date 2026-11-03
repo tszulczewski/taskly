@@ -34,7 +34,7 @@ The one summary of version 1 (D19): what the open main tasks may still cost, as 
 | Surface     | yes      | `Surface` with `space-inset`: `color-surface-list`, `radius-surface`, the same in every state (tokens: the sum line)                                                                |
 | Label       | yes      | "Future expenses", muted, in the same `role="status"` line as the amount                                                                                                            |
 | Amount      | yes      | The range as the server formats it ("12 000–15 000 zł", tokens rule 5), `text-heading`, `font-weight-strong`, tabular figures; "No estimates yet" in muted text when nothing counts |
-| Unestimated | optional | `UnestimatedTasks` under it, only when an open main task has no estimate (Luki 9, R10)                                                                                              |
+| Unestimated | optional | `UnestimatedTasks` under it, only when an open task or subtask has no estimate (Luki 9, R10, D27)                                                                                   |
 
 Who counts: open main tasks with an estimate, each once; a task with subtasks counts with the sum of its subtasks, so a subtask is never counted twice (R17, R12, R13). The app computes the range on the server (standards §6); the component only shows it (P1).
 
@@ -63,7 +63,7 @@ After a change the range updates at once with the list (Optimistic change); ther
 ## 7. Behaviour and accessibility
 
 - The line is a polite `role="status"`: a new total is read once after completing, reopening or adding an estimate.
-- When the last task without an estimate gets one, its list disappears; focus moves to this line (`tabIndex={-1}`), so it is not lost (decision J4).
+- When the last item without an estimate gets one, its list disappears; focus moves to this line (`tabIndex={-1}`), so it is not lost (decision J4).
 - The range is text, never colour alone; the dash is read as "to" by screen readers.
 
 ## 8. Content

@@ -3,7 +3,7 @@ import { expect, within } from "storybook/test";
 import { PlaceTag, placeColors, defaultPlaceText } from "../../../../src";
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { DoDont, Narrow, Stack, StateRow } from "../../../blocks/Primitives";
-import { bathroom, kitchen, longPlace, polishPlaces, somePlaces } from "../../../blocks/place-data";
+import { bathroom, kitchen, longPlace, predefinedPlaces } from "../../../blocks/place-data";
 
 const meta = {
   title: "Product/Places/Place tag",
@@ -19,8 +19,8 @@ type Story = StoryObj<typeof meta>;
 export const Playground: Story = {
   play: async ({ canvasElement }) => {
     // The dot is decoration; the name is what is read out (WCAG 1.4.1).
-    const tag = within(canvasElement).getByText("Bathroom");
-    await expect(tag.querySelector("[aria-hidden='true']")).toHaveClass("bg-place-1");
+    const tag = within(canvasElement).getByText("Łazienka");
+    await expect(tag.querySelector("[aria-hidden='true']")).toHaveClass("bg-place-3");
   },
 };
 
@@ -46,7 +46,7 @@ export const States: Story = {
             state: "Several in the meta line",
             node: (
               <span className="flex flex-wrap items-center gap-x-group text-meta text-muted">
-                {somePlaces.map((place) => (
+                {predefinedPlaces.map((place) => (
                   <PlaceTag key={place.id} place={place} />
                 ))}
               </span>
@@ -64,7 +64,7 @@ export const Narrow320: Story = {
   render: () => (
     <Narrow>
       <span className="flex flex-wrap items-center gap-x-group text-meta text-muted">
-        {[...somePlaces, longPlace].map((place) => (
+        {[...predefinedPlaces, longPlace].map((place) => (
           <PlaceTag key={place.id} place={place} />
         ))}
       </span>
@@ -75,7 +75,7 @@ export const Narrow320: Story = {
 export const Polish: Story = {
   render: () => (
     <span className="flex flex-wrap items-center gap-x-group text-meta text-muted">
-      {polishPlaces.map((place) => (
+      {predefinedPlaces.map((place) => (
         <PlaceTag key={place.id} place={place} />
       ))}
     </span>

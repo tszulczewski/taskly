@@ -8,9 +8,9 @@ import type {
   TaskFormValues,
   TaskItem,
   TaskText,
-  UnestimatedTask,
+  UnestimatedItem,
 } from "../../src";
-import { bathroom, bedroom, hall, kitchen, livingRoom, polishPlaces } from "./place-data";
+import { bathroom, bedroom, hall, kitchen, livingRoom } from "./place-data";
 
 /**
  * Example tasks and simulated rules for the E01 stories (P1: the app supplies the real ones from
@@ -186,11 +186,12 @@ export function validateEstimate(values: EstimateValues): FieldErrors<EstimateFi
 /**
  * Future expenses as the server would compute them (R17, R10, R13): the sums of the minimums and of
  * the maximums of open main tasks, each with its estimate from `rollUp`, so a subtask is counted
- * once, inside its task.
+ * once, inside its task. `unestimated` is what still needs a price (D27): open tasks without
+ * subtasks and without an estimate, and open subtasks without one, named with their task.
  */
 export function futureExpenses(tasks: TaskItem[]): {
   total: string | null;
-  unestimated: UnestimatedTask[];
+  unestimated: UnestimatedItem[];
 } {
   const open = tasks.filter((item) => item.completed !== true).map(rollUp);
   const ranges = open.flatMap((item) => {
@@ -205,13 +206,18 @@ export function futureExpenses(tasks: TaskItem[]): {
   const sum = ranges.reduce<Range>(([min, max], [low, high]) => [min + low, max + high], [0, 0]);
   return {
     total: ranges.length === 0 ? null : estimateText(...sum),
-    unestimated: open
-      .filter((item) => item.estimate === null)
-      .map(({ id, title, subtasks }) =>
-        subtasks && subtasks.length > 0
-          ? { id, title, subtasksWithoutEstimate: subtasks.length }
-          : { id, title },
-      ),
+    unestimated: open.flatMap(({ id, title, estimate, subtasks = [] }) =>
+      subtasks.length === 0
+        ? estimate === null
+          ? [{ id, title }]
+          : []
+        : subtasks
+            .filter(
+              (subtask) =>
+                subtask.completed !== true && typedRange(subtask.amount, subtask.upTo) === null,
+            )
+            .map((subtask) => ({ id: subtask.id, title: subtask.title, taskTitle: title })),
+    ),
   };
 }
 
@@ -408,8 +414,6 @@ export const polishTaskText: Partial<TaskText> = {
   completeConfirm: "Ukończ zadanie",
 };
 
-const [lazienka, kuchnia, przedpokoj, sypialnia] = polishPlaces as [Place, Place, Place, Place];
-
 export const polishTasks: TaskItem[] = [
   task("pl-sufit", "Pomalować sufit w łazience", {
     estimate: [1200, 1500],
@@ -428,23 +432,23 @@ export const polishOrganizedTasks: TaskItem[] = [
   task("pl-wanna", "Uszczelnić wannę silikonem sanitarnym", {
     important: true,
     urgent: true,
-    places: [lazienka],
+    places: [bathroom],
   }),
   task("pl-sufit", "Pomalować sufit w łazience", {
     estimate: [1200, 1500],
     important: true,
-    places: [lazienka],
+    places: [bathroom],
     subtasks: [
       task("pl-rysy", "Zaszpachlować rysy nad oknem", { estimate: [150, 200] }),
-      task("pl-farba", "Kupić farbę i wałki", { estimate: [400, 500], places: [przedpokoj] }),
+      task("pl-farba", "Kupić farbę i wałki", { estimate: [400, 500], places: [hall] }),
     ],
   }),
   task("pl-karnisze", "Powiesić karnisze w sypialni", {
     estimate: [180, 250],
     urgent: true,
-    places: [sypialnia, przedpokoj],
+    places: [bedroom, hall],
   }),
-  task("pl-polki", "Dokończyć półki w spiżarni", { estimate: [900, 1400], places: [kuchnia] }),
+  task("pl-polki", "Dokończyć półki w spiżarni", { estimate: [900, 1400], places: [kitchen] }),
 ];
 
 /**
@@ -497,13 +501,23 @@ export const polishExpensesText: Partial<ExpensesText> = {
   loadError: "Nie udało się wczytać przyszłych wydatków.",
   retry: "Spróbuj ponownie",
   retrying: "Ponawianie…",
-  unestimated: (count) => `${count} ${polishTaskWord(count)} bez szacunku`,
+  unestimated: (tasks, subtasks) =>
+    `${[
+      tasks > 0 ? `${tasks} ${polishTaskWord(tasks)}` : "",
+      subtasks > 0 ? `${subtasks} ${subtaskWord(subtasks)}` : "",
+    ]
+      .filter(Boolean)
+      .join(" i ")} bez szacunku`,
   unestimatedRule: "Nie liczą się do przyszłych wydatków, dopóki nie mają szacunku.",
   addEstimate: "Dodaj szacunek",
-  addEstimateFor: (title) => `Dodaj szacunek dla „${title}”`,
-  addSubtaskEstimates: (count) =>
-    count === 1 ? "Dodaj szacunek do jego podzadania" : `Dodaj szacunki do jego ${count} podzadań`,
-  estimateFor: (title) => `Szacunek dla „${title}”`,
+  addEstimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Dodaj szacunek dla „${title}”`
+      : `Dodaj szacunek dla „${title}” w zadaniu „${taskTitle}”`,
+  estimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Szacunek dla „${title}”`
+      : `Szacunek dla „${title}” w zadaniu „${taskTitle}”`,
   amount: "Kwota",
   upTo: "do",
   optional: "(opcjonalnie)",

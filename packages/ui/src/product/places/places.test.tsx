@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlaceColorPicker } from "./place-color-picker";
 import { PlacePicker, type PlacePickerProps } from "./place-picker";
 import { PlaceTag } from "./place-tag";
-import { freePlaceColors, placeColorIsAutomatic, type Place, type PlaceColor } from "./types";
+import type { Place, PlaceColor } from "./types";
 
 afterEach(cleanup);
 
@@ -27,13 +27,6 @@ const sixPlaces: Place[] = [
   { id: "bedroom", name: "Bedroom", color: 4 },
   { id: "pantry", name: "Pantry", color: 5 },
   { id: "balcony", name: "Balcony", color: 6 },
-];
-const tenPlaces: Place[] = [
-  ...sixPlaces,
-  { id: "attic", name: "Attic", color: 7 },
-  { id: "garage", name: "Garage", color: 8 },
-  { id: "study", name: "Study", color: 9 },
-  { id: "garden", name: "Garden", color: 10 },
 ];
 
 const ok = async () => ({ ok: true as const });
@@ -67,18 +60,6 @@ function renderPicker(props: Partial<PlacePickerProps> = {}) {
   return { ...handlers, ...result };
 }
 
-describe("place types", () => {
-  it("lists the colours no other place uses", () => {
-    expect(freePlaceColors(sixPlaces)).toEqual([7, 8, 9, 10]);
-    expect(freePlaceColors(sixPlaces, "kitchen")).toEqual([2, 7, 8, 9, 10]);
-  });
-
-  it("gives the first six places their colours without asking", () => {
-    expect(placeColorIsAutomatic(sixPlaces.slice(0, 5))).toBe(true);
-    expect(placeColorIsAutomatic(sixPlaces)).toBe(false);
-  });
-});
-
 describe("PlaceTag", () => {
   it("shows the name beside a coloured dot", () => {
     render(<PlaceTag place={kitchen} className="extra" />);
@@ -89,24 +70,20 @@ describe("PlaceTag", () => {
 });
 
 describe("PlaceColorPicker", () => {
-  it("names every colour and disables the ones another place uses", () => {
+  it("names every colour and lets any of them be chosen, even one in use (D26)", () => {
     const onValueChange = vi.fn();
     render(
       <PlaceColorPicker
         value={2}
         onValueChange={onValueChange}
-        places={sixPlaces}
-        placeId="kitchen"
         label="Colour"
         text={{ colorNames: { ...defaultNames(), 7: "Olive green" } }}
       />,
     );
     const group = screen.getByRole("radiogroup", { name: "Colour" });
-    expect(within(group).getAllByRole("radio")).toHaveLength(10);
-    expect(screen.getByRole("radio", { name: "Blue, used by Bathroom" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    const radios = within(group).getAllByRole("radio");
+    expect(radios).toHaveLength(10);
+    expect(radios.every((radio) => !(radio as HTMLButtonElement).disabled)).toBe(true);
     expect(screen.getByRole("radio", { name: "Ochre" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "Olive green" }));
     expect(onValueChange).toHaveBeenCalledWith(7);
@@ -147,12 +124,12 @@ describe("PlacePicker", () => {
     expect(screen.queryByRole("button", { name: "Edit places" })).toBeNull();
   });
 
-  it("creates a place with the next colour without asking, then clears the name", async () => {
-    const { onCreate } = renderPicker();
+  it("creates a place by name only, never asking for a colour, then clears the name", async () => {
+    const { onCreate } = renderPicker({ places: sixPlaces });
     expect(screen.queryByRole("radiogroup")).toBeNull();
-    type("New place", "Hall");
+    type("New place", "Hall 2");
     await click("Create");
-    expect(onCreate).toHaveBeenCalledWith({ name: "Hall", color: 3 });
+    expect(onCreate).toHaveBeenCalledWith({ name: "Hall 2" });
     expect((screen.getByRole("textbox", { name: "New place" }) as HTMLInputElement).value).toBe("");
   });
 
@@ -170,38 +147,11 @@ describe("PlacePicker", () => {
     expect(screen.getByText("Could not create.")).toBeTruthy();
   });
 
-  it("asks for a colour from the seventh place, the first free one chosen", async () => {
-    const { onCreate, rerender } = renderPicker({ places: sixPlaces });
-    expect(screen.getByRole("radio", { name: "Olive" }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: "Teal" }));
-    type("New place", "Attic");
-    await click("Create");
-    expect(onCreate).toHaveBeenCalledWith({ name: "Attic", color: 9 });
-    // Teal was taken meanwhile: the choice falls back to the first free colour.
-    rerender(
-      <PlacePicker
-        taskTitle="Seal the bath"
-        places={[...sixPlaces, { id: "attic", name: "Attic", color: 9 }]}
-        selectedIds={[]}
-        validateName={noErrors}
-        atLimit={false}
-        onToggle={vi.fn()}
-        onCreate={onCreate}
-        onUpdate={vi.fn(ok)}
-        onDelete={vi.fn(async () => true)}
-      />,
-    );
-    expect(screen.getByRole("radio", { name: "Olive" }).getAttribute("aria-checked")).toBe("true");
-  });
-
   it("explains the limit instead of New place", () => {
     renderPicker({ atLimit: true });
     expect(
-      screen.getByText("You can have up to 10 places. Delete one to add another."),
+      screen.getByText("You can have up to 20 places. Delete one to add another."),
     ).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: "New place" })).toBeNull();
-    cleanup();
-    renderPicker({ places: tenPlaces });
     expect(screen.queryByRole("textbox", { name: "New place" })).toBeNull();
   });
 
@@ -223,10 +173,11 @@ describe("PlacePicker", () => {
     expect(name.value).toBe("Kitchen");
     expect(document.activeElement).toBe(name);
     expect(screen.getByRole("radio", { name: "Ochre" }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: "Plum" }));
+    // Blue is Bathroom's colour; colours repeat, so it can be chosen (D26).
+    fireEvent.click(screen.getByRole("radio", { name: "Blue" }));
     type("Name", "Kitchen and dining");
     await click("Save");
-    expect(onUpdate).toHaveBeenCalledWith("kitchen", { name: "Kitchen and dining", color: 8 });
+    expect(onUpdate).toHaveBeenCalledWith("kitchen", { name: "Kitchen and dining", color: 1 });
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     await click("Edit Hall");
     await click("Cancel");

@@ -6,14 +6,16 @@ import { defaultExpensesText } from "./text";
 import {
   UnestimatedTasks,
   type EstimateValues,
-  type UnestimatedTask,
+  type UnestimatedItem,
   type UnestimatedTasksProps,
 } from "./unestimated-tasks";
 
 afterEach(cleanup);
 
-const seal: UnestimatedTask = { id: "seal", title: "Seal the bath" };
-const tap: UnestimatedTask = { id: "tap", title: "Fix the dripping kitchen tap" };
+const seal: UnestimatedItem = { id: "seal", title: "Seal the bath" };
+const tap: UnestimatedItem = { id: "tap", title: "Fix the dripping kitchen tap" };
+/** A subtask without an estimate, named with its task (D27). */
+const tiles: UnestimatedItem = { id: "tiles", title: "Tiles", taskTitle: "Bathroom tiles" };
 /** "Add estimate" needs one amount; the other may stay empty (R18). */
 const oneAmount = (values: EstimateValues) =>
   values.amount === "" && values.upTo === "" ? { amount: "Enter an amount." } : {};
@@ -49,11 +51,20 @@ const save = async () => {
 };
 
 describe("defaultExpensesText", () => {
-  it("counts tasks without an estimate", () => {
-    expect(defaultExpensesText.unestimated(1)).toBe("1 task without an estimate");
-    expect(defaultExpensesText.unestimated(3)).toBe("3 tasks without an estimate");
-    expect(defaultExpensesText.addSubtaskEstimates(1)).toBe("Add an estimate to its subtask");
-    expect(defaultExpensesText.addSubtaskEstimates(3)).toBe("Add estimates to its 3 subtasks");
+  it("counts tasks and subtasks without an estimate (D27)", () => {
+    const { unestimated, addEstimateFor } = defaultExpensesText;
+    expect(unestimated(1, 0)).toBe("1 task without an estimate");
+    expect(unestimated(3, 0)).toBe("3 tasks without an estimate");
+    expect(unestimated(0, 1)).toBe("1 subtask without an estimate");
+    expect(unestimated(0, 3)).toBe("3 subtasks without an estimate");
+    expect(unestimated(2, 1)).toBe("2 tasks and 1 subtask without an estimate");
+    expect(addEstimateFor("Seal the bath")).toBe("Add estimate for “Seal the bath”");
+    expect(addEstimateFor("Tiles", "Bathroom tiles")).toBe(
+      "Add estimate for “Tiles” in “Bathroom tiles”",
+    );
+    expect(defaultExpensesText.estimateFor("Tiles", "Bathroom tiles")).toBe(
+      "Estimate for “Tiles” in “Bathroom tiles”",
+    );
   });
 });
 
@@ -118,12 +129,12 @@ describe("FutureExpenses", () => {
 describe("UnestimatedTasks", () => {
   function renderList(onAddEstimate: Mock<UnestimatedTasksProps["onAddEstimate"]> = vi.fn(ok)) {
     const result = render(
-      <UnestimatedTasks tasks={[seal, tap]} validate={oneAmount} onAddEstimate={onAddEstimate} />,
+      <UnestimatedTasks items={[seal, tap]} validate={oneAmount} onAddEstimate={onAddEstimate} />,
     );
     return { onAddEstimate, ...result };
   }
 
-  it("opens to the rule and an Add estimate per task", () => {
+  it("opens to the rule and an Add estimate per item", () => {
     renderList();
     open();
     expect(screen.getByText(defaultExpensesText.unestimatedRule)).toBeTruthy();
@@ -132,30 +143,38 @@ describe("UnestimatedTasks", () => {
     );
   });
 
-  it("names a task priced through its subtasks without offering Add estimate (R13)", () => {
+  it("names a subtask with its task, and counts it apart from tasks (D27)", () => {
     render(
-      <UnestimatedTasks
-        tasks={[{ ...seal, subtasksWithoutEstimate: 3 }, tap]}
-        validate={oneAmount}
-        onAddEstimate={vi.fn(ok)}
-      />,
+      <UnestimatedTasks items={[seal, tiles]} validate={oneAmount} onAddEstimate={vi.fn(ok)} />,
     );
-    open();
-    expect(screen.getByText("Add estimates to its 3 subtasks")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add estimate for “Seal the bath”" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "1 task and 1 subtask without an estimate" }),
+    );
+    const line = screen.getByText("Tiles").closest("li")!;
+    expect(line.textContent).toBe("Tiles · Bathroom tilesAdd estimate");
+    expect(
+      screen.getByRole("button", { name: "Add estimate for “Tiles” in “Bathroom tiles”" }),
+    ).toBeTruthy();
   });
 
-  it("skips a task priced through its subtasks when moving focus after a save", async () => {
-    const onEmptied = vi.fn();
-    const priced = { ...seal, subtasksWithoutEstimate: 2 };
-    const props = { validate: oneAmount, onAddEstimate: vi.fn(ok), onEmptied };
-    const { rerender } = render(<UnestimatedTasks tasks={[tap, priced]} {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "2 tasks without an estimate" }));
-    addEstimate("Fix the dripping kitchen tap");
+  it("moves focus to the item before when the last one got its estimate", async () => {
+    const props = { validate: oneAmount, onAddEstimate: vi.fn(ok) };
+    const { rerender } = render(<UnestimatedTasks items={[seal, tiles]} {...props} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "1 task and 1 subtask without an estimate" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add estimate for “Tiles” in “Bathroom tiles”" }),
+    );
+    expect(
+      screen.getByRole("group", { name: "Estimate for “Tiles” in “Bathroom tiles”" }),
+    ).toBeTruthy();
     type("Amount", "80");
     await save();
-    rerender(<UnestimatedTasks tasks={[priced]} {...props} />);
-    expect(onEmptied).toHaveBeenCalledOnce();
+    rerender(<UnestimatedTasks items={[seal]} {...props} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Add estimate for “Seal the bath”" }),
+    );
   });
 
   it("asks for an amount in place and returns focus on Cancel or Escape", async () => {
@@ -203,27 +222,27 @@ describe("UnestimatedTasks", () => {
     expect((screen.getByRole("textbox", { name: /^up to/ }) as HTMLInputElement).value).toBe("200");
   });
 
-  it("moves focus to the next task after a save", async () => {
+  it("moves focus to the next item after a save", async () => {
     const { rerender, onAddEstimate } = renderList();
     open();
     addEstimate("Seal the bath");
     type("Amount", "150");
     typeUpTo("200");
     await save();
-    rerender(<UnestimatedTasks tasks={[tap]} validate={oneAmount} onAddEstimate={onAddEstimate} />);
+    rerender(<UnestimatedTasks items={[tap]} validate={oneAmount} onAddEstimate={onAddEstimate} />);
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Add estimate for “Fix the dripping kitchen tap”" }),
     );
   });
 
-  it("renders nothing without tasks, and needs no onEmptied", async () => {
+  it("renders nothing when nothing is missing, and needs no onEmptied", async () => {
     const { container, rerender, onAddEstimate } = renderList();
     open();
     addEstimate("Fix the dripping kitchen tap");
     type("Amount", "80");
     typeUpTo("120");
     await save();
-    rerender(<UnestimatedTasks tasks={[]} validate={oneAmount} onAddEstimate={onAddEstimate} />);
+    rerender(<UnestimatedTasks items={[]} validate={oneAmount} onAddEstimate={onAddEstimate} />);
     expect(container.textContent).toBe("");
   });
 });

@@ -148,7 +148,7 @@ export const catalog: CatalogEntry[] = [
     imports: ["Collapsible", "CollapsibleTrigger", "CollapsibleContent", "CollapsibleIndicator"],
     title: "Primitives/Collapsible",
     summary: "Opens rarely needed details in place.",
-    when: "Quick-add Description, a task row's details, “N tasks without an estimate”.",
+    when: "Quick-add Description, a task row's details, “2 tasks and 1 subtask without an estimate”.",
     whenNot: "Details in a drawer or window; switching views; a rule the user needs to act.",
   },
   {
@@ -388,9 +388,9 @@ export const catalog: CatalogEntry[] = [
     group: "Product · Places",
     imports: ["PlaceColorPicker"],
     title: "Product/Places/Place color picker",
-    summary: "One of the ten place colours; colours in use cannot be chosen.",
-    when: "Creating the seventh and later places; editing a place.",
-    whenNot: "The first six places (automatic); any colour outside the ten.",
+    summary: "One of the ten place colours; any can be chosen, colours repeat (D26).",
+    when: "Editing a place's colour; any of the ten, also one in use (D26).",
+    whenNot: "Creating a place (the app picks the colour); any colour outside the ten.",
   },
   {
     name: "Future expenses",
@@ -406,8 +406,9 @@ export const catalog: CatalogEntry[] = [
     group: "Product · Expenses",
     imports: ["UnestimatedTasks"],
     title: "Product/Expenses/Unestimated tasks",
-    summary: "Which tasks the total leaves out, with “Add estimate” in place.",
+    summary: "Which tasks and subtasks the total leaves out, with “Add estimate” in place.",
     when: "Under the future expenses total; FutureExpenses renders it.",
-    whenNot: "Changing an existing estimate (Edit); subtasks; a separate summary page.",
+    whenNot:
+      "Changing an existing estimate (Edit); a task with subtasks itself; a separate summary page.",
   },
 ];

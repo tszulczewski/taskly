@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { FutureExpenses, type FutureExpensesProps } from "../../../../src";
 import { withDocFrame } from "../../../blocks/DocFrame";
@@ -15,11 +16,28 @@ import {
 const progress = futureExpenses(progressTasks);
 const polish = futureExpenses(polishProgressTasks);
 
+/** An item leaves the list once the server has its estimate, as in the app; the total is static here. */
+function Demo(props: FutureExpensesProps) {
+  const [unestimated, setUnestimated] = useState(props.unestimated);
+  return (
+    <FutureExpenses
+      {...props}
+      unestimated={unestimated}
+      onAddEstimate={async (id, values) => {
+        const result = await props.onAddEstimate(id, values);
+        if (result.ok) setUnestimated((list) => list.filter((item) => item.id !== id));
+        return result;
+      }}
+    />
+  );
+}
+
 const meta = {
   title: "Product/Expenses/Future expenses",
   component: FutureExpenses,
   decorators: [withDocFrame],
   parameters: { a11y: { context: "body" } },
+  render: (args) => <Demo {...args} />,
   args: {
     status: "ready",
     total: progress.total,
@@ -45,7 +63,7 @@ export const Playground: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("status")).toHaveTextContent("Future expenses730–950 zł");
     await expect(
-      canvas.getByRole("button", { name: "2 tasks without an estimate" }),
+      canvas.getByRole("button", { name: "2 tasks and 1 subtask without an estimate" }),
     ).toHaveAttribute("aria-expanded", "false");
   },
 };
@@ -77,7 +95,7 @@ export const States: Story = {
         title="Future expenses"
         cells={[
           {
-            state: "Range, some tasks without an estimate",
+            state: "Range, some tasks and subtasks without an estimate",
             node: <FutureExpenses {...args} />,
             wide: true,
           },

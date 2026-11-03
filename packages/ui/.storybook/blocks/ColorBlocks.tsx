@@ -63,17 +63,18 @@ export function ColorRoleTable({ roles }: { roles: ColorRole[] }) {
   );
 }
 
+/** The predefined places, then two of the owner's own, in the order they get colours (D26). */
 const names = [
-  "Bathroom",
-  "Living room",
-  "Dining room",
-  "Garden",
-  "Kitchen",
-  "Bedroom",
-  "Pantry",
-  "Lawn",
-  "Perimeter strip",
-  "Hallway",
+  "Salon",
+  "Sypialnia",
+  "Łazienka",
+  "Kuchnia",
+  "Garaż",
+  "Ogródek",
+  "Strych",
+  "Biuro",
+  "Przedpokój",
+  "Jadalnia",
 ];
 
 /** Place dots always stand next to the place name: colour is never the only carrier (Luki 3). */

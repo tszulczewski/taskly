@@ -59,7 +59,7 @@ import { OrderDemo } from "./OrderDemo";
 import { PlacePickerDemo } from "./PlacePickerDemo";
 import { catalog, docsId, type CatalogGroup } from "./catalog";
 import { answer, validateSignIn, validateSignUp } from "./fake-api";
-import { bathroom, hall, kitchen, somePlaces } from "./place-data";
+import { bathroom, hall, kitchen, predefinedPlaces } from "./place-data";
 import {
   curtainRods,
   futureExpenses,
@@ -121,9 +121,7 @@ function DialogPreview({
 
 function PlaceColorPreview() {
   const [color, setColor] = useState<PlaceColor>(7);
-  return (
-    <PlaceColorPicker value={color} onValueChange={setColor} places={somePlaces} label="Colour" />
-  );
+  return <PlaceColorPicker value={color} onValueChange={setColor} label="Colour" />;
 }
 
 const progress = futureExpenses(progressTasks);
@@ -222,7 +220,7 @@ const previews: Record<string, ReactNode> = {
         <TextAction>Places</TextAction>
       </PopoverTrigger>
       <PopoverContent aria-label="Places for “Seal the bath”">
-        <p>Bathroom, Hall</p>
+        <p>Łazienka, Przedpokój</p>
       </PopoverContent>
     </Popover>
   ),
@@ -315,7 +313,9 @@ const previews: Record<string, ReactNode> = {
       <PlaceTag place={hall} />
     </span>
   ),
-  "Place picker": <PlacePickerDemo initialPlaces={somePlaces} initialSelected={["bathroom"]} />,
+  "Place picker": (
+    <PlacePickerDemo initialPlaces={predefinedPlaces} initialSelected={["bathroom"]} />
+  ),
   "Place color picker": <PlaceColorPreview />,
   "Future expenses": (
     <FutureExpenses
@@ -328,7 +328,7 @@ const previews: Record<string, ReactNode> = {
     />
   ),
   "Unestimated tasks": (
-    <UnestimatedTasks tasks={progress.unestimated} validate={validateEstimate} onAddEstimate={ok} />
+    <UnestimatedTasks items={progress.unestimated} validate={validateEstimate} onAddEstimate={ok} />
   ),
 };
 

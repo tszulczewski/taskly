@@ -98,3 +98,9 @@ Isolated dependencies installed with `npm ci` (lockfile unchanged). All configur
 Final instruction review found no blockers or majors. The change is documentation/process-only and risk-low, with no application contract, code, migration or UI changes. QA is not applicable (`skip-qa`). Manual contract scenarios and overlay shape checks above passed. GitHub CI will additionally exercise Testcontainers migrations on a fresh database and the design-system gate before merge. The owner authorized commit and merge; publication proceeds on `docs/author-account-pr-review`, separate from PR #48. Final PR, head-pinned review and merge outcome are recorded on GitHub so no post-review documentation push stales the reviewed SHA.
 
 **Final implementation outcome:** success; the local eight-command gate is green. The earlier failures remain above as append-only history.
+
+### Base advance before merge
+
+After publication as PR #50, `main` advanced to `274ecd3` through the separately merged PR #48. Integrated that base into the policy branch and resolved the sole conflict by preserving all lessons index entries. The PR diff against main remains the nine policy/log files. Re-running the full configured gate on the combined tree before publishing the merge commit and a new SHA-pinned review.
+
+Updated-base gate (`/tmp/taskly-policy-updated-base-gate-8y0gIJ/`): all eight configured commands passed again. Unit: 72 files, 947 tests, all coverage measures 100%. Integration: 162 passed, one migration test/file skipped under the documented existing-DB fallback. `git diff origin/main --check` passed; merge-stage whitespace warnings originated solely in files already on main and were not changed by this policy PR. No additional instruction findings; preserving both lessons entries resolves the base conflict. Publishing the merge commit, then a fresh review report for its SHA; CI and the actual merge result will be recorded on PR #50.

@@ -7,15 +7,15 @@ export interface ExpensesText {
   loadError: string;
   retry: string;
   retrying: string;
-  unestimated: (count: number) => string;
+  /** Counts what the list names: open tasks without subtasks, and open subtasks (D27). */
+  unestimated: (tasks: number, subtasks: number) => string;
   /** The rule in one sentence, where it changes the number (Luki 5). */
   unestimatedRule: string;
   addEstimate: string;
-  /** The accessible name of a task's "Add estimate"; it starts with the visible words. */
-  addEstimateFor: (title: string) => string;
-  /** Instead of "Add estimate" for a task whose subtasks all lack one (R13): it has no own amount. */
-  addSubtaskEstimates: (count: number) => string;
-  estimateFor: (title: string) => string;
+  /** The accessible name of an item's "Add estimate"; it starts with the visible words. `taskTitle` is a subtask's task. */
+  addEstimateFor: (title: string, taskTitle?: string) => string;
+  /** Names the form; `taskTitle` is a subtask's task, so two subtasks of the same name differ (D27). */
+  estimateFor: (title: string, taskTitle?: string) => string;
   amount: string;
   upTo: string;
   optional: string;
@@ -34,14 +34,23 @@ export const defaultExpensesText: ExpensesText = {
   loadError: "Could not load future expenses.",
   retry: "Try again",
   retrying: "Trying again…",
-  unestimated: (count) =>
-    count === 1 ? "1 task without an estimate" : `${count} tasks without an estimate`,
+  unestimated: (tasks, subtasks) =>
+    `${[
+      tasks > 0 ? `${tasks} ${tasks === 1 ? "task" : "tasks"}` : "",
+      subtasks > 0 ? `${subtasks} ${subtasks === 1 ? "subtask" : "subtasks"}` : "",
+    ]
+      .filter(Boolean)
+      .join(" and ")} without an estimate`,
   unestimatedRule: "They are not counted in future expenses until they have an estimate.",
   addEstimate: "Add estimate",
-  addEstimateFor: (title) => `Add estimate for “${title}”`,
-  addSubtaskEstimates: (count) =>
-    count === 1 ? "Add an estimate to its subtask" : `Add estimates to its ${count} subtasks`,
-  estimateFor: (title) => `Estimate for “${title}”`,
+  addEstimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Add estimate for “${title}”`
+      : `Add estimate for “${title}” in “${taskTitle}”`,
+  estimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Estimate for “${title}”`
+      : `Estimate for “${title}” in “${taskTitle}”`,
   amount: "Amount",
   upTo: "up to",
   optional: "(optional)",
