@@ -12,8 +12,8 @@ Filed 2026-10-16 with `om-backlog` through `om-prepare-issue`. Each issue carrie
 | E01-S02 | #16 | The owner can add subtasks with their own estimate, and the task's estimate becomes their sum | medium, high | E01-S01 |
 | E02 | #12 | Order, markers and spaces | medium, medium | none |
 | E02-S01 | #17 | The owner can reorder tasks and the order persists | medium, medium | E01-S01, E03-S01 |
-| E02-S02 | #18 | The owner can mark a task or subtask important and/or urgent, independently | medium, low | E01-S01 |
-| E02-S03 | #19 | The owner can assign a task or subtask to several spaces at once | medium, low | E01-S01 |
+| E02-S02 | #18 | The owner can mark a task or subtask important and/or urgent, independently | medium, high | E01-S01 |
+| E02-S03 | #19 | The owner can assign a task or subtask to several spaces at once | medium, high | E01-S01 |
 | E03 | #13 | Completion and future expenses | medium, high | none |
 | E03-S01 | #20 | The owner can complete and reopen tasks and subtasks | medium, medium | E01-S02 |
 | E03-S02 | #21 | The owner sees future expenses as one min–max range | medium, high | E01-S01, E03-S01 |
@@ -38,4 +38,4 @@ Decisions made after filing (2026-11-03, epic alignment): `research/decisions/20
 - **E03-S03 #47 (new):** the list of what still has no estimate, with "Add estimate": tasks without subtasks and subtasks, never a task with subtasks; partly estimated tasks list their unpriced subtasks; completed subtasks are not listed; the line hides when nothing is missing (brief D27).
 - **E02-S01 #17:** depends on E03-S01; subtasks reorder within their own task only, by drag and drop too; "Move up / Move down" and the keyboard; the refused move; 2026-10-21 criteria 5–6, the server refusing with 409.
 - **E02-S02 #18, E02-S03 #19:** no inheritance of markers or spaces between a task and its subtasks. #19 adds the predefined, editable spaces (Polish names, rename, delete with confirmation, colour assigned by the app, case-insensitive unique names).
-- **Brief:** R11 and Q18 confirmed; D25 (subtask reordering), D26 (spaces), D27 (the list of what has no estimate) added. Still open in #19: place colours (owner's "the app assigns" against Luki pkt 3 and decision G4) and the limit of 10 places (G5) with 8 predefined.
+- **Brief:** R11 and Q18 confirmed; D25 (subtask reordering), D26 (spaces), D27 (the list of what has no estimate) added. Place colours: the app assigns them in turn from 10 colours, repeating from the eleventh, and the owner can change one; at most 20 places (replacing G4's picker and G5's limit of 10). #18 and #19 raised to `risk-high` (schema migrations, SDLC.md).

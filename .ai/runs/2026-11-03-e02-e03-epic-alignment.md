@@ -41,3 +41,9 @@ Before writing the E03 spec, bring the open epics and stories (#12, #13, #17–#
 - **Correction:** question 7d (colours) was asked without citing Luki pkt 3 and the design system's `PlacePicker` (10 place colours, first six assigned in turn, owner may change one, a picker from the seventh place, G4) or its limit of 10 places (G5). The decision record and #19 were corrected: the delete question uses the design system's wording (G6), and colours and the limit are open questions for the owner.
 - Verification: `npm run format:check` and `npm run check:agents` re-run, see the commit.
 
+## Follow-up (same day, owner's fourth round)
+
+- Owner chose the recommendations: colours assigned by the app in turn from 10, repeating from the eleventh, changeable by the owner; at most 20 places. Applied to the decision record (nothing open), brief D26, `.ai/design/reference.md` Luki pkt 3, `backlog.md` and #19 (AC8, AC10, open questions closed). The design system's `PlacePicker` (picker from the seventh place, limit 10, "up to 10 places" text) and `WhatIsMissing.mdx` change in the E02 work.
+- #18 and #19 raised from `risk-low` to `risk-high` (schema migrations, SDLC.md), with a comment on each.
+- Pushed the branch and opened the docs PR (`documentation`, `skip-qa`, `priority-low`, `risk-low`).
+
