@@ -42,7 +42,7 @@ Applied automatically by `om-code-review` (and so `om-auto-review-pr`). Full rat
 
 ## Validation gate
 
-Run in order (from `.ai/agentic.config.json`): `format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`. A failing command is a blocker.
+Run in order (from `.ai/agentic.config.json`): `format:check`, `lint`, `check:agents`, `typecheck`, `test`, `build`, `audit`, `test:integration`. A failing command is a blocker.
 
 ## Severity
 

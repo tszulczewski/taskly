@@ -14,66 +14,54 @@ Taskly is a web app for planning and tracking home renovation work. Task lists (
 
 Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest, 100% coverage), `npm run test:integration`, `npm run typecheck`, `npm run db:generate` / `db:migrate`, `npm run auth:set-password` (offline password reset; see `.ai/docs/runbook.md`).
 
+## Task Router
+
+Read `.ai/lessons.md` first, then what the task needs. Rules only one package needs live in that package's `AGENTS.md`.
+
+| Task | Read |
+| --- | --- |
+| Bug fix | `.ai/lessons.md`, `.ai/lessons/_template.md`, `.ai/docs/engineering-standards.md` (§9 Testing) |
+| New feature | `.ai/specs/product-brief.md`, `.ai/specs/backlog.md`, `.ai/specs/_template.md`, `.ai/docs/engineering-standards.md` |
+| Refactor | `.ai/docs/engineering-standards.md`, `BACKWARD_COMPATIBILITY.md` |
+| Review | `CODE_REVIEW.md`, `BACKWARD_COMPATIBILITY.md`, `.ai/docs/engineering-standards.md` (§11) |
+| Security, auth, validation | `.ai/docs/engineering-standards.md` (§7), `packages/core/AGENTS.md` |
+| Money, estimates, totals | `.ai/docs/engineering-standards.md` (§6), `.ai/specs/product-brief.md` |
+| UI, screens, Storybook | `.ai/docs/design-system.md`, `packages/ui/AGENTS.md` |
+| Integration or browser tests | `test/AGENTS.md`, `test/helpers.ts` |
+| CI failure | `.github/workflows/ci.yml` |
+| Deployment, operations | `packages/app/AGENTS.md`, `.ai/docs/runbook.md` |
+| Tickets, labels, PR flow | `SDLC.md`, `.ai/agentic.config.json` |
+| `packages/app` — Next.js pages, Route Handlers, client data, PWA, SSE | `packages/app/AGENTS.md` |
+| `packages/core` — Zod schemas, services, authorization, Better Auth, Claude client | `packages/core/AGENTS.md` |
+| `packages/db` — Drizzle schema, migrations, client | `packages/db/AGENTS.md` |
+| `packages/ui` — design system (shadcn/ui), Storybook | `packages/ui/AGENTS.md` |
+
 ## Project assumptions (binding)
 
 These are decisions already made. Do not swap technologies or deviate without asking the user.
 
-### Stack
-- **Next.js (latest, App Router)** + **React** + **TypeScript**. Package manager: **npm** only (no yarn/pnpm/bun; commit `package-lock.json`).
-- **Web only.** On phones it runs as a **PWA** (web app manifest + service worker, e.g. Serwist). No native apps.
-- **PostgreSQL + Drizzle ORM.** Schema changes are **SQL migrations kept in the repo** (generated with drizzle-kit, reviewed, committed). Never edit an applied migration; add a new one.
-- **Authentication: Better Auth**, email + password, sessions stored in our database. Google login comes **after the MVP** — don't add it now.
-- **Frontend:** Tailwind CSS, shadcn/ui, **dnd-kit** for drag and drop, **TanStack Query**.
-- **Live updates:** shared lists use **Server-Sent Events** from a Route Handler (not WebSockets).
-- **AI:** the Claude API is called **only from server code**, never from the browser; responses are structured JSON. API keys live in server-only env vars.
-
-### Monorepo (npm workspaces)
-Sub-packages live in `packages/`. Minimum structure:
-
-| Package | Purpose |
-| --- | --- |
-| `packages/app` | The main Next.js application: UI and API Route Handlers. |
-| `packages/core` | Reusable parts: Zod schemas, domain logic, authorization, the server-side Claude client. |
-| `packages/db` | Data management: Drizzle schema, migrations, client. |
-| `packages/ui` | Reusable UI components (shadcn/ui). |
-
-Rules:
-- Business rules and authorization (role checks for owner/editor/viewer, inheritance from list to task) live in `core`, not in route handlers or components.
-- Every access to lists/tasks/shopping items must go through the authorization layer in `core`.
-- Browser bundles must never import server-only code (`db`, the Claude client, secrets). Mark such modules `server-only`.
-- Install dependencies at the repo root with workspace flags (`npm install -w packages/app <pkg>`); keep a single lockfile.
-- Workspace packages are named `@taskly/<name>` and consumed as TypeScript source (`transpilePackages` in `packages/app/next.config.ts`). Shared tsconfig: `tsconfig.base.json`.
-- The standalone server entry is `packages/app/.next/standalone/packages/app/server.js` (copy `public/` and `.next/static` into `packages/app/.next/standalone/packages/app/`).
-
-### Deployment target and resource limits
-- Small **Ubuntu 24.04 VPS, ~1 GB RAM, no swap.** Keep memory use low: avoid heavy dependencies, no in-process caches of unbounded size, stream large responses, keep DB pool small, avoid running `next build` alongside other heavy processes on the VPS (build in CI/locally and ship the artifact when possible).
-- Next.js with **`output: 'standalone'`** and **`outputFileTracingRoot`** pointing to the **repository root** (required so workspace packages are traced).
-- Run by **systemd** on **127.0.0.1:3000** (set `HOSTNAME=127.0.0.1`, `PORT=3000`); never bind publicly.
-- **Apache reverse proxy** in a separate vhost, **TLS via Let's Encrypt**, and **no buffering for the SSE route** (no response buffering/compression, long proxy timeout; the SSE handler sends `Cache-Control: no-cache, no-transform` and periodic heartbeat comments).
-- **Client IP for rate limiting:** the app trusts `X-Forwarded-For` only from `127.0.0.1`/`::1` and uses the right-most untrusted address (`advanced.ipAddress` in `packages/core/src/auth.ts`). Two failure modes: if Apache stops sending XFF, every client is seen as 127.0.0.1 and shares one bucket, so a stranger's failed sign-ins can lock the owner out; if the app is ever exposed without Apache, a client can forge a fresh XFF per request and bypass the rate limit — the 127.0.0.1-only bind prevents that.
-- **Local PostgreSQL** tuned for low RAM (small `shared_buffers`, `work_mem`, `max_connections`). Development also uses a locally installed PostgreSQL (not Docker).
+- **Stack:** Next.js (latest, App Router) + React + TypeScript; PostgreSQL + Drizzle ORM; Better Auth (email + password); Tailwind CSS, shadcn/ui, **dnd-kit** for drag and drop, **TanStack Query**; Server-Sent Events for live updates; the Claude API from server code only.
+- **Web only.** On phones it runs as a PWA. No native apps.
+- Package manager: **npm** only (no yarn/pnpm/bun; commit `package-lock.json`). Install dependencies at the repo root with workspace flags (`npm install -w packages/app <pkg>`); keep a single lockfile.
+- **Monorepo (npm workspaces):** packages live in `packages/` (see the Task Router). Workspace packages are named `@taskly/<name>` and consumed as TypeScript source. Shared tsconfig: `tsconfig.base.json`.
+- Business rules and authorization (role checks for owner/editor/viewer, inheritance from list to task) live in `core`, not in route handlers or components. Every access to lists/tasks/shopping items must go through the authorization layer in `core`.
+- **Resource limits:** the target is a small **Ubuntu 24.04 VPS, ~1 GB RAM, no swap.** Keep memory use low: avoid heavy dependencies, no in-process caches of unbounded size, stream large responses, keep DB pool small, avoid running `next build` alongside other heavy processes on the VPS (build in CI/locally and ship the artifact when possible).
 - Configuration via environment variables (`DATABASE_URL`, Better Auth secret/URL, Anthropic API key, `ALLOW_SIGN_UP`); never commit secrets; keep a `.env.example`.
-
-Operator procedures (Apache vhost check, creating the owner account, resetting a password): `.ai/docs/runbook.md`.
 
 ### Engineering standards (digest)
 
-Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before writing code. For any UI, also read `.ai/docs/design-system.md` (the design system in `packages/ui` and its Storybook). The essentials:
+Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before writing code. The essentials:
 
-- **Layering:** `app` → `ui`, `core`, `db`; `core` → `db` only where it must; `ui` imports no `@taskly/*`; `db` never imports `app`. Client code imports only `@taskly/core` (isomorphic), never `@taskly/core/server` or `@taskly/db`. `core` never imports `next`/`react`. Enforced by ESLint `no-restricted-imports`.
-- **Services = plain functions** `(db, actorUserId, input)`; no DI container, no classes. Order: Zod-parse → `requireRole` → work → publish event. Non-member → `NotFoundError`, insufficient role → `ForbiddenError`; fail closed. Check-then-write runs in a transaction.
-- **Routes** are wiring only: parse → `requireUser` → call core → envelope, wrapped in `apiHandler` (no inline try/catch). Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }`.
-- **Client:** server state only via TanStack Query (optimistic updates, rollback); the single fetch helper `packages/app/lib/api-client.ts` is the only `fetch('/api…')` call site; one SSE hook; reorder sends only `{afterId, beforeId}`.
+- **Layering:** `app` → `ui`, `core`, `db`; `core` → `db` only where it must; `ui` imports no `@taskly/*`; `db` never imports `app`. Client code imports only `@taskly/core` (isomorphic), never `@taskly/core/server` or `@taskly/db`; browser bundles never get server-only code (`db`, the Claude client, secrets), so mark such modules `server-only`. `core` never imports `next`/`react`. Enforced by ESLint `no-restricted-imports`.
 - **Money** is integer grosze end-to-end, never floats; totals computed server-side, formatted to PLN only at the UI edge. **Order** uses fractional-index `position` compared with `COLLATE "C"`; never renumber siblings, only the moved row changes.
 - **Security:** Better Auth owns passwords/sessions/cookies (min password length 10, rate limiting on); authorize the specific record; Zod validates every API input and output (Zod-parsed input only, no mass assignment); AI output is untrusted (Zod-validate; invalid output is an error and is never stored); no secrets in logs or client bundles.
-- **Quality:** no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency). Gate before calling work done (plus a manual check of the running app where relevant; report real results in the run log, including failures and anything skipped): `npm run format:check`, `lint`, `typecheck`, `test`, `build`, `audit`, `test:integration`. Use `npm run format` to fix formatting.
+- **Quality:** no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency). Gate before calling work done (plus a manual check of the running app where relevant; report real results in the run log, including failures and anything skipped): `npm run format:check`, `lint`, `check:agents`, `typecheck`, `test`, `build`, `audit`, `test:integration`. Use `npm run format` to fix formatting.
 
-### Testing and CI (mandatory)
+### Testing (mandatory)
 
 - **Every new feature must be 100% covered by unit tests** (statements, branches, functions, lines). `npm test` runs Vitest with coverage and **fails below 100%** (thresholds in `vitest.config.mts`). A feature is not done, and a PR must not be opened, until `npm test` passes. Never lower the thresholds or widen the coverage `exclude` list to get green; only framework glue with no logic (`app/layout.tsx`, `app/page.tsx`) is excluded, and it is covered by the browser integration tests instead. Bug fixes ship a regression test.
 - Unit tests (`*.test.ts[x]`, next to the code) must not touch the network or a database; mock external modules. Components use `// @vitest-environment jsdom`.
-- **Integration tests** (`*.integration.test.ts`, run with `npm run test:integration`) use a real PostgreSQL (no DB mocks) started by Testcontainers (`test/global-setup.ts`; needs Docker) and drive the production build with the **agent-browser** CLI (`test/helpers.ts`). Set `TEST_DATABASE_URL` to use an existing database when Docker is unavailable. Run `npm run build` first. New user-facing pages/flows get an integration test.
-- **GitHub Actions** (`.github/workflows/ci.yml`) runs these checks on every pull request (and pushes to `main`). All jobs must pass before merging.
+- New user-facing pages/flows get an integration test (`test/AGENTS.md`).
 
 ## The `.ai/` directory (mandatory)
 

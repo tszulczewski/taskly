@@ -28,3 +28,23 @@ Retain qualifying friction even if it is later fixed or worked around; record th
 Before the final response, run one reporting pass. If candidates remain, from this file's directory run `npx --no-install next internal agent-feedback-instructions` once without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
 
 <!-- END:nextjs-agent-feedback -->
+
+# packages/app — Next.js application
+
+UI pages and API Route Handlers. Project-wide rules and the Task Router: root `AGENTS.md`.
+
+## Routes and client
+
+- **Routes** are wiring only: parse → `requireUser` → call core → envelope, wrapped in `apiHandler` (no inline try/catch). Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }`.
+- **Client:** server state only via TanStack Query (optimistic updates, rollback); the single fetch helper `packages/app/lib/api-client.ts` is the only `fetch('/api…')` call site; one SSE hook; reorder sends only `{afterId, beforeId}`.
+- **PWA:** web app manifest + service worker (e.g. Serwist).
+- **Live updates:** shared lists use **Server-Sent Events** from a Route Handler (not WebSockets).
+
+## Build and deployment
+
+- Workspace packages are consumed as TypeScript source via `transpilePackages` in `packages/app/next.config.ts`.
+- Next.js with **`output: 'standalone'`** and **`outputFileTracingRoot`** pointing to the **repository root** (required so workspace packages are traced).
+- The standalone server entry is `packages/app/.next/standalone/packages/app/server.js` (copy `public/` and `.next/static` into `packages/app/.next/standalone/packages/app/`).
+- Run by **systemd** on **127.0.0.1:3000** (set `HOSTNAME=127.0.0.1`, `PORT=3000`); never bind publicly.
+- **Apache reverse proxy** in a separate vhost, **TLS via Let's Encrypt**, and **no buffering for the SSE route** (no response buffering/compression, long proxy timeout; the SSE handler sends `Cache-Control: no-cache, no-transform` and periodic heartbeat comments).
+- Operator procedures (Apache vhost check, creating the owner account, resetting a password): `.ai/docs/runbook.md`. Deployment contract changes: `BACKWARD_COMPATIBILITY.md`.

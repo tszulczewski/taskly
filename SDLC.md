@@ -124,6 +124,7 @@ Every PR passes the full validation gate before review sign-off, in this order:
 
 - `npm run format:check`
 - `npm run lint`
+- `npm run check:agents`
 - `npm run typecheck`
 - `npm test`
 - `npm run build`
