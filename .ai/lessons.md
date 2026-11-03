@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-03 — A Storybook fixture that assigns places must pass every assigned place to the picker (`organizedPlaces`, not `predefinedPlaces`): otherwise the place shows on the row but the owner cannot see or remove it in the picker, and no test notices (PR #48 review, finding 1).
+
 - 2026-11-03 — For Next/Turbopack builds in a worktree outside the checkout, install dependencies inside that worktree (`npm ci`): symlinking `node_modules` outside `turbopack.root` fails the hermetic build with a Next resolution error. Package-level dependency symlinks alone do not solve this.
 
 - 2026-11-03 — Author-account PR reviews use the SHA-pinned report contract in `SDLC.md` (Author-account review and merge) and `.ai/trackers/github.md`; GitHub cannot accept self-approval. Low/medium-risk comment reviews can satisfy the project review gate, but never formal branch protection, QA, high-risk second-person review, or explicit merge authorization. Local overlays in `.ai/skills/` keep installed skills unchanged.

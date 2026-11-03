@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { withDocFrame } from "../../blocks/DocFrame";
 import { TaskScreen } from "../../blocks/TaskScreen";
-import { predefinedPlaces } from "../../blocks/place-data";
+import { organizedPlaces } from "../../blocks/place-data";
 import { organizedTasks, taskMessages } from "../../blocks/task-data";
 
 /** The reorder pattern on the task list (E02-S01, decisions G1–G2). Every state is its own story. */
@@ -11,7 +11,7 @@ const meta = {
   component: TaskScreen,
   decorators: [withDocFrame],
   parameters: { a11y: { context: "body" } },
-  args: { initialTasks: organizedTasks, initialPlaces: predefinedPlaces },
+  args: { initialTasks: organizedTasks, initialPlaces: organizedPlaces },
   argTypes: {
     initialTasks: { control: false },
     initialPlaces: { control: false },
