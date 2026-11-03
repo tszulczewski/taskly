@@ -31,7 +31,7 @@ type Session = {
 };
 
 /**
- * The reset command as the Runbook gives it, in `/bin/sh` with a clean environment: no app secret
+ * The reset command as the Runbook (`.ai/docs/runbook.md`) gives it, in `/bin/sh` with a clean environment: no app secret
  * of the test runner, only the temporary env file and the explicit `DATABASE_URL` override.
  * `tty` runs it inside a PTY made by util-linux `script`; otherwise stdin is a pipe.
  */
