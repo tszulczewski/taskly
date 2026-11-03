@@ -62,6 +62,9 @@ describe("defaultExpensesText", () => {
     expect(addEstimateFor("Tiles", "Bathroom tiles")).toBe(
       "Add estimate for “Tiles” in “Bathroom tiles”",
     );
+    expect(defaultExpensesText.estimateFor("Tiles", "Bathroom tiles")).toBe(
+      "Estimate for “Tiles” in “Bathroom tiles”",
+    );
   });
 });
 
@@ -163,6 +166,9 @@ describe("UnestimatedTasks", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Add estimate for “Tiles” in “Bathroom tiles”" }),
     );
+    expect(
+      screen.getByRole("group", { name: "Estimate for “Tiles” in “Bathroom tiles”" }),
+    ).toBeTruthy();
     type("Amount", "80");
     await save();
     rerender(<UnestimatedTasks items={[seal]} {...props} />);

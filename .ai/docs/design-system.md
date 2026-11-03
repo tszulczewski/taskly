@@ -37,7 +37,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Surface | `Surface` | The task list, the future expenses line, the sign-in card. | Inside another Surface; one card per task; tiles with numbers. |
 | Alert | `Alert` | A failed sign-in or sign-out; a refused save above a form. | An error about one field (FormField); success; a notice that disappears (no toasts). |
 | Skeleton | `Skeleton` | The first load of the task list or the future expenses line. | Waiting for a button (Button loading); a change already shown optimistically. |
-| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “N tasks without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
+| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “2 tasks and 1 subtask without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
 | Confirm dialog | `ConfirmDialog` | Deleting (danger); completing a task with open subtasks (primary). | An action undone in one tap; details or a form; reporting a failure. |
 | Menu | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete. | The main action of a screen; one value of several (RadioGroup); navigation. |
 | Popover | `Popover, PopoverTrigger, PopoverContent, PopoverAnchor` | The place picker of a task row. | A list of actions (Menu); a whole form (in the row); a question before deleting. |
@@ -65,7 +65,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Place picker | `PlacePicker` | The popover that “Places…” in a row's menu opens. | Showing places (PlaceTag); markers; a separate page to manage places. |
 | Place color picker | `PlaceColorPicker` | Editing a place's colour; any of the ten, also one in use (D26). | Creating a place (the app picks the colour); any colour outside the ten. |
 | Future expenses | `FutureExpenses` | Once, under the list's name, above quick add. | Tiles with several numbers; spent or budget (version 2); one task's estimate. |
-| Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); subtasks; a separate summary page. |
+| Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); a task with subtasks itself; a separate summary page. |
 
 Not built on purpose (ask the product owner first): Avatar, Tabs, Toast, StatusBadge, Select, Switch, a general-purpose Dialog, a list with filters, bottom navigation on phones (decisions P4, E1).
 

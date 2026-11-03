@@ -161,6 +161,9 @@ export const Subtasks: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Add estimate for “Tiles” in “Bathroom tiles”" }),
     );
+    await expect(
+      canvas.getByRole("group", { name: "Estimate for “Tiles” in “Bathroom tiles”" }),
+    ).toBeVisible();
     await userEvent.type(canvas.getByRole("textbox", { name: "Amount" }), "600{Enter}");
     await expect(args.onAddEstimate).toHaveBeenCalledWith("tiles", { amount: "600", upTo: "" });
     await waitFor(() =>

@@ -269,6 +269,29 @@ export const CreatePlacePhone: Story = {
   },
 };
 
+/** Twenty places on a phone: the popover stays on screen and scrolls inside (D26, WCAG 1.4.10). */
+export const PlacesAtLimitPhone: Story = {
+  globals: phone,
+  render: screen({ ...organized, initialPlaces: twentyPlaces }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await more(canvas, "Seal the bath");
+    await userEvent.click(body(canvasElement).getByRole("menuitem", { name: "Places…" }));
+    const panel = await body(canvasElement).findByRole("dialog", {
+      name: "Places for “Seal the bath”",
+    });
+    await waitFor(() => {
+      const box = panel.getBoundingClientRect();
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.bottom).toBeLessThanOrEqual(window.innerHeight);
+    });
+    await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+    const editPlaces = within(panel).getByRole("button", { name: "Edit places" });
+    editPlaces.scrollIntoView();
+    await expect(editPlaces).toBeVisible();
+  },
+};
+
 export const PlacesAtLimit: Story = {
   globals: tablet,
   render: screen({ ...organized, initialPlaces: twentyPlaces }),

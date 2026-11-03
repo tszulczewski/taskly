@@ -14,7 +14,8 @@ export interface ExpensesText {
   addEstimate: string;
   /** The accessible name of an item's "Add estimate"; it starts with the visible words. `taskTitle` is a subtask's task. */
   addEstimateFor: (title: string, taskTitle?: string) => string;
-  estimateFor: (title: string) => string;
+  /** Names the form; `taskTitle` is a subtask's task, so two subtasks of the same name differ (D27). */
+  estimateFor: (title: string, taskTitle?: string) => string;
   amount: string;
   upTo: string;
   optional: string;
@@ -46,7 +47,10 @@ export const defaultExpensesText: ExpensesText = {
     taskTitle === undefined
       ? `Add estimate for “${title}”`
       : `Add estimate for “${title}” in “${taskTitle}”`,
-  estimateFor: (title) => `Estimate for “${title}”`,
+  estimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Estimate for “${title}”`
+      : `Estimate for “${title}” in “${taskTitle}”`,
   amount: "Amount",
   upTo: "up to",
   optional: "(optional)",

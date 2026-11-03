@@ -514,7 +514,10 @@ export const polishExpensesText: Partial<ExpensesText> = {
     taskTitle === undefined
       ? `Dodaj szacunek dla „${title}”`
       : `Dodaj szacunek dla „${title}” w zadaniu „${taskTitle}”`,
-  estimateFor: (title) => `Szacunek dla „${title}”`,
+  estimateFor: (title, taskTitle) =>
+    taskTitle === undefined
+      ? `Szacunek dla „${title}”`
+      : `Szacunek dla „${title}” w zadaniu „${taskTitle}”`,
   amount: "Kwota",
   upTo: "do",
   optional: "(opcjonalnie)",

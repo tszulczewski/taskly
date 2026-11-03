@@ -44,12 +44,14 @@ export interface UnestimatedTasksProps {
 
 function EstimateForm({
   title,
+  taskTitle,
   validate,
   onSubmit,
   onCancel,
   t,
 }: {
   title: string;
+  taskTitle?: string;
   validate: UnestimatedTasksProps["validate"];
   onSubmit: (values: EstimateValues) => Promise<SubmitResult<EstimateField>>;
   onCancel: () => void;
@@ -90,7 +92,9 @@ function EstimateForm({
     >
       {form.formError ? <Alert title={form.formError} /> : null}
       <fieldset className="flex min-w-0 flex-col gap-inline">
-        <legend className="mb-inline font-strong break-words">{t.estimateFor(title)}</legend>
+        <legend className="mb-inline font-strong break-words">
+          {t.estimateFor(title, taskTitle)}
+        </legend>
         <div className="flex gap-group">
           {amount("amount", t.amount, "")}
           {amount("upTo", t.upTo, t.optional)}
@@ -164,6 +168,7 @@ export function UnestimatedTasks({
                 {adding === item.id ? (
                   <EstimateForm
                     title={item.title}
+                    taskTitle={item.taskTitle}
                     validate={validate}
                     onSubmit={async (values) => {
                       const result = await onAddEstimate(item.id, values);

@@ -69,7 +69,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 - The trigger is a disclosure button (`aria-expanded`); the list is named by the same count.
 - "Add estimate" is named with the item: "Add estimate for “Seal the bath”", and for a subtask with its task too: "Add estimate for “Tiles” in “Bathroom tiles”".
-- The form is a group named `Estimate for “{title}”`; Enter saves, Escape or Cancel closes it and returns focus to that item's "Add estimate". Escape does nothing while saving.
+- The form is a group named `Estimate for “{title}”`, for a subtask `Estimate for “{title}” in “{task}”` (D27); Enter saves, Escape or Cancel closes it and returns focus to that item's "Add estimate". Escape does nothing while saving.
 - After a save focus moves to the next item's "Add estimate" (the one before when the last was saved); after the only one, to the total (`FutureExpenses`).
 - One amount saves an exact price; both, a range (R18).
 
