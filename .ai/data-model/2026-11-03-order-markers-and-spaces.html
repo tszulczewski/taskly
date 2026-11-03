@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Data model: order, markers and spaces (E02)</title>
+    <style>
+      body {
+        margin: 0;
+        font:
+          14px system-ui,
+          sans-serif;
+        background: #fafafa;
+        color: #111;
+      }
+      header {
+        padding: 8px 12px;
+        border-bottom: 1px solid #ddd;
+      }
+      svg {
+        width: 100vw;
+        height: calc(100vh - 42px);
+        cursor: grab;
+      }
+      .node rect {
+        rx: 6;
+        stroke-width: 1.5;
+      }
+      .new rect {
+        fill: #2f6feb;
+        stroke: #1b4fb0;
+      }
+      .new text {
+        fill: #fff;
+      }
+      .existing rect {
+        fill: #e5e7eb;
+        stroke: #9ca3af;
+      }
+      .existing text {
+        fill: #111;
+      }
+      .dim {
+        opacity: 0.15;
+      }
+      line {
+        stroke: #6b7280;
+        stroke-width: 1.5;
+      }
+      .edge-label {
+        font-size: 12px;
+        fill: #374151;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      Spec: .ai/specs/2026-11-03-order-markers-and-spaces.md — drag to pan, wheel to zoom, click a
+      node to focus (click empty space to reset). The Mermaid diagram in the spec is authoritative.
+    </header>
+    <svg id="canvas"><g id="view"></g></svg>
+    <script type="application/json" id="graph">
+      {
+        "nodes": [
+          {
+            "id": "entity_1",
+            "label": "places: id, user_id, name, name_key, color, position",
+            "kind": "new",
+            "x": 360,
+            "y": 80
+          },
+          {
+            "id": "entity_2",
+            "label": "task_places: task_id, place_id",
+            "kind": "new",
+            "x": 360,
+            "y": 260
+          },
+          {
+            "id": "entity_3",
+            "label": "tasks (changed): + important, + urgent",
+            "kind": "new",
+            "x": 360,
+            "y": 440
+          },
+          { "id": "entity_4", "label": "user: id", "kind": "existing", "x": 40, "y": 80 },
+          { "id": "entity_5", "label": "lists: id", "kind": "existing", "x": 40, "y": 440 },
+          {
+            "id": "entity_6",
+            "label": "place_owners: user_id, created_at",
+            "kind": "new",
+            "x": 40,
+            "y": 260
+          }
+        ],
+        "edges": [
+          { "from": "entity_4", "to": "entity_1", "label": "1-n" },
+          { "from": "entity_1", "to": "entity_2", "label": "1-n" },
+          { "from": "entity_3", "to": "entity_2", "label": "1-n" },
+          { "from": "entity_5", "to": "entity_3", "label": "1-n" },
+          { "from": "entity_4", "to": "entity_6", "label": "1-1" }
+        ]
+      }
+    </script>
+    <script>
+      (function () {
+        var NS = "http://www.w3.org/2000/svg";
+        var graph = JSON.parse(document.getElementById("graph").textContent);
+        var view = document.getElementById("view");
+        var svg = document.getElementById("canvas");
+        var W = 300,
+          H = 44,
+          byId = {},
+          edgeEls = [];
+        graph.nodes.forEach(function (n) {
+          byId[n.id] = n;
+        });
+        function el(name, attrs) {
+          var e = document.createElementNS(NS, name);
+          Object.keys(attrs).forEach(function (k) {
+            e.setAttribute(k, attrs[k]);
+          });
+          return e;
+        }
+        graph.edges.forEach(function (e) {
+          var a = byId[e.from],
+            b = byId[e.to],
+            g = el("g", {});
+          var x1 = a.x + W / 2,
+            y1 = a.y + H / 2,
+            x2 = b.x + W / 2,
+            y2 = b.y + H / 2;
+          g.appendChild(el("line", { x1: x1, y1: y1, x2: x2, y2: y2 }));
+          var t = el("text", { x: (x1 + x2) / 2 + 6, y: (y1 + y2) / 2 - 4, class: "edge-label" });
+          t.textContent = e.label;
+          g.appendChild(t);
+          view.appendChild(g);
+          edgeEls.push({ edge: e, el: g });
+        });
+        var nodeEls = {};
+        graph.nodes.forEach(function (n) {
+          var g = el("g", {
+            class: "node " + (n.kind === "new" ? "new" : "existing"),
+            transform: "translate(" + n.x + "," + n.y + ")",
+          });
+          g.appendChild(el("rect", { width: W, height: H }));
+          var t = el("text", { x: 10, y: 27 });
+          t.textContent = n.label;
+          g.appendChild(t);
+          g.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            focus(n.id);
+          });
+          view.appendChild(g);
+          nodeEls[n.id] = g;
+        });
+        function focus(id) {
+          var keep = {};
+          keep[id] = true;
+          edgeEls.forEach(function (x) {
+            var on = x.edge.from === id || x.edge.to === id;
+            if (on) {
+              keep[x.edge.from] = true;
+              keep[x.edge.to] = true;
+            }
+            x.el.classList.toggle("dim", id !== null && !on);
+          });
+          Object.keys(nodeEls).forEach(function (k) {
+            nodeEls[k].classList.toggle("dim", id !== null && !keep[k]);
+          });
+        }
+        var tx = 40,
+          ty = 20,
+          s = 1,
+          drag = null;
+        function apply() {
+          view.setAttribute("transform", "translate(" + tx + "," + ty + ") scale(" + s + ")");
+        }
+        svg.addEventListener("click", function () {
+          focus(null);
+        });
+        svg.addEventListener("mousedown", function (e) {
+          drag = { x: e.clientX - tx, y: e.clientY - ty };
+        });
+        window.addEventListener("mousemove", function (e) {
+          if (drag) {
+            tx = e.clientX - drag.x;
+            ty = e.clientY - drag.y;
+            apply();
+          }
+        });
+        window.addEventListener("mouseup", function () {
+          drag = null;
+        });
+        svg.addEventListener(
+          "wheel",
+          function (e) {
+            e.preventDefault();
+            s = Math.min(3, Math.max(0.3, s * (e.deltaY < 0 ? 1.1 : 0.9)));
+            apply();
+          },
+          { passive: false },
+        );
+        apply();
+      })();
+    </script>
+  </body>
+</html>

@@ -3,6 +3,7 @@
 - **Date:** 2026-11-03
 - **Status:** draft
 - **Revised:** 2026-11-03, for the spec review (`.ai/runs/2026-11-03-e03-spec-review.md`, request changes): the future-expenses rule and its service are separate modules (R1), and optimistic completion is shown as server data with the pending completions replayed on top (R2). See Review changes.
+- **Superseded in part:** 2026-11-03, by the E02 spec (`2026-11-03-order-markers-and-spaces.md`, audit finding F4): completions do not use a per-tree scope (`completion:<topLevelId>`) but the one queue every task mutation of a list shares (`scope: tasks:<listId>`), because every answer replaces a whole tree. The replay of pending completions is unchanged.
 - **Issue:** #13 (stories #20, #21, #47)
 - **Depends on:** E01, shipped (`.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`, #43). E02 (#12) is specified after this spec and builds on it (#17 needs E03-S01).
 
