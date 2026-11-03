@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-03 — TanStack Query mutation `scope` serializes requests, but queued mutations still run `onMutate` immediately (`query-core/src/mutation.ts`). When quick toggles share a cache entry, replay pending operations over each server response and rollback; replacing the row with the first response overwrites the newer optimistic toggle. Confirmed with the installed QueryClient during the E03 spec review.
+
 - 2026-11-03 — A Storybook fixture that assigns places must pass every assigned place to the picker (`organizedPlaces`, not `predefinedPlaces`): otherwise the place shows on the row but the owner cannot see or remove it in the picker, and no test notices (PR #48 review, finding 1).
 
 - 2026-11-03 — For Next/Turbopack builds in a worktree outside the checkout, install dependencies inside that worktree (`npm ci`): symlinking `node_modules` outside `turbopack.root` fails the hermetic build with a Next resolution error. Package-level dependency symlinks alone do not solve this.
