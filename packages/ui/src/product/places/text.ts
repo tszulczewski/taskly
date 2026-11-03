@@ -9,7 +9,6 @@ export interface PlaceText {
   creating: string;
   color: string;
   colorNames: Record<PlaceColor, string>;
-  usedBy: (name: string) => string;
   atLimit: string;
   editPlaces: string;
   back: string;
@@ -47,8 +46,7 @@ export const defaultPlaceText: PlaceText = {
     9: "Teal",
     10: "Slate",
   },
-  usedBy: (name) => `used by ${name}`,
-  atLimit: "You can have up to 10 places. Delete one to add another.",
+  atLimit: "You can have up to 20 places. Delete one to add another.",
   editPlaces: "Edit places",
   back: "Back to choosing",
   edit: "Edit",

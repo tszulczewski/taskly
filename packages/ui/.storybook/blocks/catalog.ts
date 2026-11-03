@@ -389,8 +389,8 @@ export const catalog: CatalogEntry[] = [
     imports: ["PlaceColorPicker"],
     title: "Product/Places/Place color picker",
     summary: "One of the ten place colours; colours in use cannot be chosen.",
-    when: "Creating the seventh and later places; editing a place.",
-    whenNot: "The first six places (automatic); any colour outside the ten.",
+    when: "Editing a place's colour; any of the ten, also one in use (D26).",
+    whenNot: "Creating a place (the app picks the colour); any colour outside the ten.",
   },
   {
     name: "Future expenses",

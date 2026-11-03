@@ -826,7 +826,7 @@ describe("TaskList ordering, markers and places", () => {
     await act(async () => {
       fireEvent.click(within(panel).getByRole("button", { name: "Create" }));
     });
-    expect(places.onCreate).toHaveBeenCalledWith("seal", { name: "Hall", color: 3 });
+    expect(places.onCreate).toHaveBeenCalledWith("seal", { name: "Hall" });
     fireEvent.keyDown(panel, { key: "Escape" });
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(

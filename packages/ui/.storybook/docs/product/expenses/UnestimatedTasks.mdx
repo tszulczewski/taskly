@@ -9,7 +9,7 @@ import * as Stories from "./UnestimatedTasks.stories";
 
 ## 1. What it is for
 
-Says which open tasks future expenses leaves out because they have no estimate (R10), and lets the owner add the amounts right there, so the total can be trusted (Luki 9, R02.10).
+Says what future expenses leaves out because it has no estimate, open tasks and open subtasks (R10, R13, D27), and lets the owner add the amounts right there, so the total can be trusted (Luki 9, R02.10).
 
 <Unstyled>
   <Story of={Stories.Opened} />
@@ -17,50 +17,49 @@ Says which open tasks future expenses leaves out because they have no estimate (
 
 ## 2. When to use
 
-- Under the future expenses total; `FutureExpenses` renders it when at least one open main task has no estimate.
+- Under the future expenses total; `FutureExpenses` renders it when something open has no estimate, and hides it otherwise (D27).
 
 ## 3. When not to use
 
-| Situation                        | Use instead                                               | Source      |
-| -------------------------------- | --------------------------------------------------------- | ----------- |
-| Changing an estimate that exists | Edit in the task's "…" (`TaskForm`)                       | spec E01    |
-| A subtask without an estimate    | the "N subtasks without an estimate" meta of its task row | R13         |
-| A separate summary page          | this collapsed line                                       | P04, Luki 9 |
+| Situation                                  | Use instead                                                                              | Source      |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- | ----------- |
+| Changing an estimate that exists           | Edit in the task's "…" (`TaskForm`)                                                      | spec E01    |
+| A subtask without an estimate, in the list | the "N subtasks without an estimate" meta of its task row; here it is an item of its own | R13, D27    |
+| A separate summary page                    | this collapsed line                                                                      | P04, Luki 9 |
 
 ## 4. Anatomy
 
-| Part          | Required | Notes                                                                                                                               |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Trigger       | yes      | `TextAction` with the chevron: "3 tasks without an estimate", collapsed by default (Luki 9)                                         |
-| Rule          | yes      | One muted sentence: they are not counted until they have an estimate (Luki 5)                                                       |
-| Task line     | yes      | The title (wraps) and "Add estimate" at the end; lines divided by 1px `color-border-divider`                                        |
-| Estimate form | optional | In place of the line: "Amount" and "up to (optional)" with "zł", Save (primary) and Cancel (decision I4, R18)                       |
-| Subtask note  | optional | Instead of "Add estimate", for a task whose subtasks all lack one: muted "Add estimates to its 2 subtasks", no action (decision W3) |
+| Part          | Required | Notes                                                                                                                                                                            |
+| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trigger       | yes      | `TextAction` with the chevron: "2 tasks and 1 subtask without an estimate", collapsed by default; not shown when nothing is missing (Luki 9, D27)                                |
+| Rule          | yes      | One muted sentence: they are not counted until they have an estimate (Luki 5)                                                                                                    |
+| Item line     | yes      | The title (wraps), for a subtask followed by its task in muted text ("Tiles · Bathroom tiles"), and "Add estimate" at the end; lines divided by 1px `color-border-divider` (D27) |
+| Estimate form | optional | In place of the line: "Amount" and "up to (optional)" with "zł", Save (primary) and Cancel (decision I4, R18)                                                                    |
 
 ## 5. Variants
 
-None. A task priced through its subtasks gets the subtask note in place of the button (`subtasksWithoutEstimate`): its own amount would be hidden by the sum, so the fix is on the subtasks (R12, R13).
+None. The list names what really has to be priced (D27): an open task without subtasks, and each open subtask without an estimate, with its task. A task with subtasks is never listed itself, since its amounts come from them (R12); a partly priced task lists its unpriced subtasks, so the total never looks complete when it is not (R13). Completed subtasks and the subtasks of completed tasks are not listed. This replaces the earlier "Add estimates to its N subtasks" note (decision W3).
 
 <Unstyled>
-  <Story of={Stories.PricedThroughSubtasks} />
+  <Story of={Stories.Subtasks} />
 </Unstyled>
 
 ## 6. States
 
 No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Input](?path=/story/primitives-input--states), [Form field](?path=/story/primitives-form-field--states), [Text action](?path=/story/primitives-text-action-and-link--states), [Collapsible](?path=/story/primitives-collapsible--states) (decision M1).
 
-| State            | What the user sees                                                   | Story                   | Source        |
-| ---------------- | -------------------------------------------------------------------- | ----------------------- | ------------- |
-| Collapsed        | The count with a chevron.                                            | Collapsed               | Luki 9        |
-| Open             | The rule and one line per task.                                      | Opened                  | Luki 9        |
-| Adding           | The form in place; focus in Amount.                                  | Adding Estimate         | decision I4   |
-| Field errors     | Under each field, as in `TaskForm`; the amount is required here.     | Field Errors            | spec E01, R10 |
-| Saving           | "Saving…"; the form stays busy until the task leaves the list.       | Saving                  | Form pattern  |
-| Saved            | The task is gone; the count drops; focus on the next "Add estimate". | Saved                   | decision I4   |
-| Through subtasks | "Add estimates to its 2 subtasks" in place of the button.            | Priced Through Subtasks | R13, W3       |
-| Save failed      | An `Alert` above the fields; the amounts stay.                       | Save Failed             | spec E01      |
-| One task         | "1 task without an estimate".                                        | One Task                | —             |
-| Long title       | The title wraps; "Add estimate" goes under it when needed.           | Long Title              | —             |
+| State        | What the user sees                                                   | Story           | Source        |
+| ------------ | -------------------------------------------------------------------- | --------------- | ------------- |
+| Collapsed    | The count with a chevron.                                            | Collapsed       | Luki 9        |
+| Open         | The rule and one line per item.                                      | Opened          | Luki 9        |
+| Adding       | The form in place; focus in Amount.                                  | Adding Estimate | decision I4   |
+| Field errors | Under each field, as in `TaskForm`; the amount is required here.     | Field Errors    | spec E01, R10 |
+| Saving       | "Saving…"; the form stays busy until the item leaves the list.       | Saving          | Form pattern  |
+| Saved        | The item is gone; the count drops; focus on the next "Add estimate". | Saved           | decision I4   |
+| Subtasks     | Subtasks named with their task, each with "Add estimate".            | Subtasks        | D27           |
+| Save failed  | An `Alert` above the fields; the amounts stay.                       | Save Failed     | spec E01      |
+| One task     | "1 task without an estimate".                                        | One Task        | —             |
+| Long title   | The title wraps; "Add estimate" goes under it when needed.           | Long Title      | —             |
 
 <Unstyled>
   <Story of={Stories.Saved} />
@@ -69,16 +68,15 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 ## 7. Behaviour and accessibility
 
 - The trigger is a disclosure button (`aria-expanded`); the list is named by the same count.
-- "Add estimate" is named with the task: "Add estimate for “Seal the bath”".
-- The form is a group named `Estimate for “{title}”`; Enter saves, Escape or Cancel closes it and returns focus to that task's "Add estimate". Escape does nothing while saving.
-- After a save focus moves to the next task's "Add estimate", skipping tasks priced through their subtasks; after the last one, to the total (`FutureExpenses`).
+- "Add estimate" is named with the item: "Add estimate for “Seal the bath”", and for a subtask with its task too: "Add estimate for “Tiles” in “Bathroom tiles”".
+- The form is a group named `Estimate for “{title}”`; Enter saves, Escape or Cancel closes it and returns focus to that item's "Add estimate". Escape does nothing while saving.
+- After a save focus moves to the next item's "Add estimate" (the one before when the last was saved); after the only one, to the total (`FutureExpenses`).
 - One amount saves an exact price; both, a range (R18).
 
 ## 8. Content
 
-- "N tasks without an estimate", "Add estimate", "They are not counted in future expenses until they have an estimate." (decision J9; not "count as zero", R10).
-- "Add an estimate to its subtask" / "Add estimates to its 2 subtasks" (decision W3).
-- Polish: "2 zadania bez szacunku", "Dodaj szacunek", "Kwota", "do", "Dodaj szacunki do jego 2 podzadań" (decision J9).
+- The count names what is listed: "1 task without an estimate", "3 subtasks without an estimate", "2 tasks and 1 subtask without an estimate" (D27); then "Add estimate" and "They are not counted in future expenses until they have an estimate." (decision J9; not "count as zero", R10).
+- Polish: "2 zadania i 1 podzadanie bez szacunku", "Dodaj szacunek", "Kwota", "do" (decision J9, D27).
 
 <Unstyled>
   <Story of={Stories.Polish} />
@@ -105,7 +103,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 `FutureExpenses` renders it; on its own it is only for tests and stories.
 
 ```tsx
-<UnestimatedTasks tasks={unestimated} validate={validateEstimate} onAddEstimate={addEstimate} />
+<UnestimatedTasks items={unestimated} validate={validateEstimate} onAddEstimate={addEstimate} />
 ```
 
 ## 12. Do and don't

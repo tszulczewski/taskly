@@ -1,9 +1,12 @@
 export type PlaceColor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
-/** The ten place colours, in the order the first places get them (Luki 3, tokens). */
+/**
+ * The ten place colours, in the order the app hands them out: every new place gets the next one
+ * and from the eleventh place they repeat (D26, Luki 3, tokens). The owner can change a colour.
+ */
 export const placeColors: PlaceColor[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-/** A room or space a task belongs to, e.g. "Bathroom" (D09). */
+/** A room or space a task belongs to, e.g. "Łazienka" (D09, D26). */
 export interface Place {
   id: string;
   name: string;
@@ -23,15 +26,3 @@ export const placeDotClass: Record<PlaceColor, string> = {
   9: "bg-place-9",
   10: "bg-place-10",
 };
-
-/** Colours no other place uses; `exceptId` keeps that place's own colour free (editing it). */
-export function freePlaceColors(places: Place[], exceptId?: string): PlaceColor[] {
-  const used = new Set(places.filter((place) => place.id !== exceptId).map((place) => place.color));
-  return placeColors.filter((color) => !used.has(color));
-}
-
-/**
- * The first six places get colours 1–6 in turn, without asking (tokens, Luki 3, decision G4);
- * from the seventh the user picks a free colour.
- */
-export const placeColorIsAutomatic = (places: Place[]) => places.length < 6;

@@ -3,7 +3,7 @@ import { useGlobals } from "storybook/preview-api";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppShell, type Theme } from "../../../../src";
 import { TaskScreen, type TaskScreenProps } from "../../../blocks/TaskScreen";
-import { polishPlaceText, polishPlaces, somePlaces, tenPlaces } from "../../../blocks/place-data";
+import { polishPlaceText, predefinedPlaces, twentyPlaces } from "../../../blocks/place-data";
 import {
   doneTasks,
   manyTasks,
@@ -177,7 +177,7 @@ export const TaskOpenedPhone: Story = {
   },
 };
 
-const organized = { initialTasks: organizedTasks, initialPlaces: somePlaces };
+const organized = { initialTasks: organizedTasks, initialPlaces: predefinedPlaces };
 const body = (canvasElement: HTMLElement) => within(canvasElement.ownerDocument.body);
 
 export const OrganizedDesktop: Story = { globals: desktop, render: screen(organized) };
@@ -249,8 +249,8 @@ export const ChoosePlaces: Story = {
     const panel = await body(canvasElement).findByRole("dialog", {
       name: "Places for “Hang the curtain rods”",
     });
-    await userEvent.click(within(panel).getByRole("checkbox", { name: "Hall" }));
-    await expect(within(panel).getByRole("checkbox", { name: "Hall" })).toBeChecked();
+    await userEvent.click(within(panel).getByRole("checkbox", { name: "Biuro" }));
+    await expect(within(panel).getByRole("checkbox", { name: "Biuro" })).toBeChecked();
   },
 };
 
@@ -264,21 +264,21 @@ export const CreatePlacePhone: Story = {
     const panel = await body(canvasElement).findByRole("dialog", {
       name: "Places for “Seal the bath”",
     });
-    await userEvent.type(within(panel).getByLabelText("New place"), "Balcony{Enter}");
-    await expect(await within(panel).findByRole("checkbox", { name: "Balcony" })).toBeChecked();
+    await userEvent.type(within(panel).getByLabelText("New place"), "Jadalnia{Enter}");
+    await expect(await within(panel).findByRole("checkbox", { name: "Jadalnia" })).toBeChecked();
   },
 };
 
 export const PlacesAtLimit: Story = {
   globals: tablet,
-  render: screen({ ...organized, initialPlaces: tenPlaces }),
+  render: screen({ ...organized, initialPlaces: twentyPlaces }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await more(canvas, "Seal the bath");
     await userEvent.click(body(canvasElement).getByRole("menuitem", { name: "Places…" }));
     await expect(
       await body(canvasElement).findByText(
-        "You can have up to 10 places. Delete one to add another.",
+        "You can have up to 20 places. Delete one to add another.",
       ),
     ).toBeVisible();
   },
@@ -288,7 +288,7 @@ export const OrganizedPolishPhone: Story = {
   globals: phone,
   render: screen({
     initialTasks: polishOrganizedTasks,
-    initialPlaces: polishPlaces,
+    initialPlaces: predefinedPlaces,
     heading: "Mój remont",
     text: polishTaskText,
     placeText: polishPlaceText,
@@ -349,9 +349,13 @@ export const AddEstimatePhone: Story = {
   render: screen(progress),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "2 tasks without an estimate" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "2 tasks and 1 subtask without an estimate" }),
+    );
     await userEvent.click(canvas.getByRole("button", { name: "Add estimate for “Seal the bath”" }));
-    const list = within(canvas.getByRole("list", { name: "2 tasks without an estimate" }));
+    const list = within(
+      canvas.getByRole("list", { name: "2 tasks and 1 subtask without an estimate" }),
+    );
     await expect(list.getByRole("textbox", { name: "Amount" })).toHaveFocus();
   },
 };

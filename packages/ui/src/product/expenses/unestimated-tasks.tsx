@@ -19,24 +19,25 @@ export type EstimateField = "amount" | "upTo";
 /** The amounts as typed; one filled field is an exact price (R18, `estimateFromAmounts`). */
 export type EstimateValues = Record<EstimateField, string>;
 
-export interface UnestimatedTask {
+/** Something that still needs a price: an open task without subtasks, or an open subtask (D27). */
+export interface UnestimatedItem {
   id: string;
   title: string;
-  /**
-   * Set for a task whose subtasks all lack an estimate (R13): its estimate is their sum, so it
-   * gets none of its own and the line says to price the subtasks instead.
-   */
-  subtasksWithoutEstimate?: number;
+  /** Set for a subtask: the title of its task, shown after it ("Tiles · Bathroom tiles"). */
+  taskTitle?: string;
 }
 
 export interface UnestimatedTasksProps {
-  /** Open main tasks without an estimate, in list order (R10, R13, R17). */
-  tasks: UnestimatedTask[];
+  /**
+   * What has no estimate, in list order (R10, R13, D27): open tasks without subtasks and open
+   * subtasks of open tasks, never a task with subtasks itself (its amounts come from them, R12).
+   */
+  items: UnestimatedItem[];
   /** The app's rules for the two amounts (the shared Zod schema). */
   validate: (values: EstimateValues) => FieldErrors<EstimateField>;
-  /** Saves the estimate; on `{ ok: true }` the form stays busy until the task leaves `tasks`. */
+  /** Saves the estimate; on `{ ok: true }` the form stays busy until the item leaves `items`. */
   onAddEstimate: (id: string, values: EstimateValues) => Promise<SubmitResult<EstimateField>>;
-  /** No "Add estimate" is left after a save (the list is gone or names only tasks priced through their subtasks); the parent takes focus. */
+  /** No "Add estimate" is left after a save (the list is gone); the parent takes focus. */
   onEmptied?: () => void;
   text?: Partial<ExpensesText>;
 }
@@ -108,13 +109,13 @@ function EstimateForm({
 }
 
 /**
- * The collapsed line under future expenses, "3 tasks without an estimate" (Luki 9, R02.10, R10).
- * Open, it says why they are not counted and offers "Add estimate" for each; the amounts are
- * typed in place (decision I4) and the task leaves the list once it has them. A task whose
- * subtasks all lack an estimate says to price them instead (R13; owner, 2026-10-28).
+ * The collapsed line under future expenses, "2 tasks and 1 subtask without an estimate" (Luki 9,
+ * R02.10, R10, D27), shown only when something is missing. Open, it says why they are not counted
+ * and offers "Add estimate" for each item, a subtask named with its task; the amounts are typed in
+ * place (decision I4) and the item leaves the list once it has them.
  */
 export function UnestimatedTasks({
-  tasks,
+  items,
   validate,
   onAddEstimate,
   onEmptied,
@@ -123,7 +124,7 @@ export function UnestimatedTasks({
   const t = { ...defaultExpensesText, ...text };
   const [adding, setAdding] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  // After Cancel focus returns to that task's "Add estimate"; after a save, once the task has left
+  // After Cancel focus returns to that item's "Add estimate"; after a save, once the item has left
   // the list, to the next one (or the parent, when none is left).
   const focusRequest = useRef<{ id: string } | { index: number } | null>(null);
 
@@ -136,66 +137,61 @@ export function UnestimatedTasks({
     );
     const button = (id: string) =>
       buttons.find((candidate) => candidate.dataset.addEstimate === id);
-    // A task priced through its subtasks has no button, so look for the next one that has.
     const target =
-      "id" in request
-        ? button(request.id)
-        : (tasks
-            .slice(request.index)
-            .map((task) => button(task.id))
-            .find(Boolean) ?? buttons.at(-1));
+      "id" in request ? button(request.id) : (buttons[request.index] ?? buttons.at(-1));
     if (target) target.focus();
     else onEmptied?.();
-  }, [adding, tasks, onEmptied]);
+  }, [adding, items, onEmptied]);
 
-  if (tasks.length === 0) return null;
+  if (items.length === 0) return null;
+  const tasks = items.filter((item) => item.taskTitle === undefined).length;
+  const count = t.unestimated(tasks, items.length - tasks);
 
   return (
     <Collapsible data-slot="unestimated-tasks">
       <CollapsibleTrigger asChild>
         <TextAction>
           <CollapsibleIndicator />
-          {t.unestimated(tasks.length)}
+          {count}
         </TextAction>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="flex flex-col gap-group pt-inline">
           <p className="max-w-measure text-muted">{t.unestimatedRule}</p>
-          <ul ref={listRef} aria-label={t.unestimated(tasks.length)} className="flex flex-col">
-            {tasks.map((task, index) => (
-              <li key={task.id} className="border-t border-divider py-row-y first:border-t-0">
-                {adding === task.id ? (
+          <ul ref={listRef} aria-label={count} className="flex flex-col">
+            {items.map((item, index) => (
+              <li key={item.id} className="border-t border-divider py-row-y first:border-t-0">
+                {adding === item.id ? (
                   <EstimateForm
-                    title={task.title}
+                    title={item.title}
                     validate={validate}
                     onSubmit={async (values) => {
-                      const result = await onAddEstimate(task.id, values);
-                      // The form stays busy until the task leaves the list; focus then moves on.
+                      const result = await onAddEstimate(item.id, values);
+                      // The form stays busy until the item leaves the list; focus then moves on.
                       if (result.ok) focusRequest.current = { index };
                       return result;
                     }}
                     onCancel={() => {
-                      focusRequest.current = { id: task.id };
+                      focusRequest.current = { id: item.id };
                       setAdding(null);
                     }}
                     t={t}
                   />
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-x-group">
-                    <span className="min-w-0 break-words">{task.title}</span>
-                    {task.subtasksWithoutEstimate ? (
-                      <span className="text-meta text-muted">
-                        {t.addSubtaskEstimates(task.subtasksWithoutEstimate)}
-                      </span>
-                    ) : (
-                      <TextAction
-                        data-add-estimate={task.id}
-                        aria-label={t.addEstimateFor(task.title)}
-                        onClick={() => setAdding(task.id)}
-                      >
-                        {t.addEstimate}
-                      </TextAction>
-                    )}
+                    <span className="min-w-0 break-words">
+                      {item.title}
+                      {item.taskTitle === undefined ? null : (
+                        <span className="text-muted"> · {item.taskTitle}</span>
+                      )}
+                    </span>
+                    <TextAction
+                      data-add-estimate={item.id}
+                      aria-label={t.addEstimateFor(item.title, item.taskTitle)}
+                      onClick={() => setAdding(item.id)}
+                    >
+                      {t.addEstimate}
+                    </TextAction>
                   </div>
                 )}
               </li>

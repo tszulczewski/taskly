@@ -18,7 +18,7 @@ Lets the user pick exactly one of a few options while seeing all of them.
 ## 2. When to use
 
 - The theme switch in the header: Dark / Light, two positions (P4, Q1, Luki 2), `variant="segmented"`.
-- Choosing a place's colour from the free colours (Luki 3, backlog E02) — the swatch picker in stage 3 builds on this group.
+- Choosing a place's colour among the ten (Luki 3, D26) — the swatch picker in stage 3 builds on this group.
 
 ## 3. When not to use
 
@@ -51,15 +51,15 @@ Lets the user pick exactly one of a few options while seeing all of them.
   <Story of={Stories.States} />
 </Unstyled>
 
-| State          | List item                                                                                     | Segment                                                     | Source                |
-| -------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------- |
-| Default        | Empty circle                                                                                  | Muted, regular weight                                       | R02 code              |
-| Selected       | Green border and dot                                                                          | Raised tone, primary text, **bold**, so not by colour alone | R02.3, WCAG 1.4.1     |
-| Hover          | Circle on `color-surface-raised`                                                              | Text becomes primary                                        | proposal C1, R02 code |
-| Focus          | 2px outline around the circle                                                                 | 2px outline around the segment                              | R02 code, K3          |
-| Pressed        | Same as hover                                                                                 | Same as hover                                               | K4                    |
-| Disabled       | `opacity-disabled`                                                                            | `opacity-disabled`                                          | K3                    |
-| Loading, error | Do not apply: the theme switches at once; the colour picker shows only free colours (Luki 3). | —                                                           |
+| State          | List item                                                                                 | Segment                                                     | Source                |
+| -------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------- |
+| Default        | Empty circle                                                                              | Muted, regular weight                                       | R02 code              |
+| Selected       | Green border and dot                                                                      | Raised tone, primary text, **bold**, so not by colour alone | R02.3, WCAG 1.4.1     |
+| Hover          | Circle on `color-surface-raised`                                                          | Text becomes primary                                        | proposal C1, R02 code |
+| Focus          | 2px outline around the circle                                                             | 2px outline around the segment                              | R02 code, K3          |
+| Pressed        | Same as hover                                                                             | Same as hover                                               | K4                    |
+| Disabled       | `opacity-disabled`                                                                        | `opacity-disabled`                                          | K3                    |
+| Loading, error | Do not apply: the theme switches at once; the colour picker offers all ten colours (D26). | —                                                           |
 
 ## 7. Behaviour and accessibility
 

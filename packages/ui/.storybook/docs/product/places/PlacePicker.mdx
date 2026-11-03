@@ -9,7 +9,7 @@ import * as Stories from "./PlacePicker.stories";
 
 ## 1. What it is for
 
-Puts a task or subtask in one or more places, such as "Bathroom" and "Hall", and lets the owner create, rename, recolour or delete places without leaving the list (D09, D21).
+Puts a task or subtask in one or more places, such as "Łazienka" and "Przedpokój", and lets the owner create, rename, recolour or delete places without leaving the list (D09, D21). The owner starts with eight predefined places, Salon, Sypialnia, Łazienka, Kuchnia, Garaż, Ogródek, Strych and Biuro, and can have up to 20 (D26). Place names are the owner's data, so they stay Polish in the English interface.
 
 <Unstyled>
   <Story of={Stories.Playground} />
@@ -34,20 +34,20 @@ Puts a task or subtask in one or more places, such as "Bathroom" and "Hall", and
 | --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Title           | yes      | "Places for “Hang the curtain rods”"; also names the popover                                                           |
 | Places          | one of   | A `Checkbox` per place with its `PlaceTag` as the label; or "No places yet." in muted text                             |
-| New place       | one of   | A field and "Create" (secondary) on one line; a `PlaceColorPicker` under it from the seventh place (decision G4)       |
-| Limit message   | one of   | "You can have up to 10 places. Delete one to add another." instead of New place (decision G5)                          |
+| New place       | one of   | A field and "Create" (secondary) on one line; no colour choice: the app gives the next colour (D26)                    |
+| Limit message   | one of   | "You can have up to 20 places. Delete one to add another." instead of New place (D26)                                  |
 | Edit places     | optional | Muted `TextAction`; opens the edit view (decision G6)                                                                  |
 | Edit view       | —        | "Back to choosing", then each place with "Edit"; the place being edited shows Name, Colour, Save, Cancel, Delete place |
-| Delete question | —        | "Delete “Hall”? It is removed from every task." with Delete place (danger) and Cancel, in place                        |
+| Delete question | —        | "Delete “Garaż”? It is removed from every task." with Delete place (danger) and Cancel, in place                       |
 
 Parts are `space-between-groups` apart; the panel is the popover's raised surface with its 1px edge (K2).
 
 ## 5. Variants
 
-None. Colour choice appears by itself from the seventh place.
+None. A new place never asks for a colour: the app hands the ten colours out in turn, and from the eleventh place they repeat; the owner can change a colour in Edit places (D26).
 
 <Unstyled>
-  <Story of={Stories.SeventhPlace} />
+  <Story of={Stories.OwnPlaces} />
 </Unstyled>
 
 ## 6. States
@@ -60,18 +60,18 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 | Choosing        | Ticked places are the task's; a tick saves at once                  | Playground     | G3, Optimistic change |
 | Creating        | "Creating…" on the button; the field keeps its text                 | Creating       | Form pattern          |
 | Created         | The new place is ticked; the field is empty with focus for the next | Playground     | decision H3           |
-| Name invalid    | Under the field: empty, over 30 characters, or taken                | Name Errors    | decision G4           |
+| Name invalid    | Under the field: empty, over 30 characters, or taken (any case)     | Name Errors    | decision G4, D26      |
 | Create failed   | Message above the field, the name kept                              | Create Failed  | Form pattern          |
-| At the limit    | The limit message instead of New place                              | At Limit       | decision G5           |
+| At the limit    | The limit message instead of New place (20 places)                  | At Limit       | D26                   |
 | Edit view       | Places with "Edit"; focus on "Back to choosing"                     | Edit Places    | decision G6           |
-| Editing a place | Name and Colour, focus in Name                                      | Edit Place     | decision G6           |
+| Editing a place | Name and Colour (any of the ten), focus in Name                     | Edit Place     | decision G6, D26      |
 | Delete question | The question, Delete place and Cancel                               | Confirm Delete | Delete confirmation   |
 | Delete failed   | The message under the question; the place stays                     | Delete Failed  | Delete confirmation   |
 | Long names      | Names and the title wrap                                            | Long Names     | WCAG 1.4.10           |
 
 ## 7. Behaviour and accessibility
 
-- **Order:** places (checkboxes) → New place → Create → (Colour) → Edit places. In the edit view: Back to choosing → each place's Edit.
+- **Order:** places (checkboxes) → New place → Create → Edit places. In the edit view: Back to choosing → each place's Edit; editing one: Name → Colour → Save → Cancel → Delete place.
 - **Focus:** opening the popover from the menu moves focus into it; switching views puts focus on the first control of the new view ("Back to choosing" or "Edit places"); after a create focus stays in New place. Escape closes the popover and focus returns to "…".
 - **Ticks** save at once and roll back with a message in the row if the server refuses (Optimistic change pattern).
 - **Delete** asks once, in place, because it removes the place from every task (Delete confirmation pattern, decision G6).
@@ -80,7 +80,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 ## 8. Content
 
 - "New place", "Create", "Edit places", "Back to choosing", "Delete place" (decisions G3–G6; wording is a proposal).
-- Name rules: not empty, at most 30 characters, unique in the list (decision G4). Messages are examples from the app.
+- Name rules: not empty, at most 30 characters, unique ignoring case, so "kuchnia" is taken by "Kuchnia" (decision G4, D26). Messages are examples from the app.
 
 <Unstyled>
   <Story of={Stories.Polish} />
@@ -102,18 +102,18 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 `PlacePicker` props (the demo above wraps it with a simulated server):
 
-| Prop           | Type                                                 | Notes                                    |
-| -------------- | ---------------------------------------------------- | ---------------------------------------- |
-| `taskTitle`    | `string`                                             | Names the panel.                         |
-| `places`       | `Place[]`                                            | Every place of the list.                 |
-| `selectedIds`  | `string[]`                                           | The task's places.                       |
-| `onToggle`     | `(placeId, assigned) => void`                        | Saves at once (optimistic).              |
-| `onCreate`     | `(values) => Promise<SubmitResult<"name">>`          | Creates a place and puts the task in it. |
-| `onUpdate`     | `(placeId, values) => Promise<SubmitResult<"name">>` | Rename and recolour.                     |
-| `onDelete`     | `(placeId) => Promise<boolean>`                      | `false` or a throw shows the failure.    |
-| `validateName` | `(name, placeId?) => string \| undefined`            | The app's rules (G4).                    |
-| `atLimit`      | `boolean`                                            | The app's limit is reached (G5).         |
-| `text`         | `Partial<PlaceText>`                                 | Translations.                            |
+| Prop           | Type                                                 | Notes                                                                    |
+| -------------- | ---------------------------------------------------- | ------------------------------------------------------------------------ |
+| `taskTitle`    | `string`                                             | Names the panel.                                                         |
+| `places`       | `Place[]`                                            | Every place of the owner.                                                |
+| `selectedIds`  | `string[]`                                           | The task's places.                                                       |
+| `onToggle`     | `(placeId, assigned) => void`                        | Saves at once (optimistic).                                              |
+| `onCreate`     | `({ name }) => Promise<SubmitResult<"name">>`        | Creates a place and puts the task in it; the app picks its colour (D26). |
+| `onUpdate`     | `(placeId, values) => Promise<SubmitResult<"name">>` | Rename and recolour.                                                     |
+| `onDelete`     | `(placeId) => Promise<boolean>`                      | `false` or a throw shows the failure.                                    |
+| `validateName` | `(name, placeId?) => string \| undefined`            | The app's rules (G4, D26).                                               |
+| `atLimit`      | `boolean`                                            | The app's limit of 20 is reached (D26).                                  |
+| `text`         | `Partial<PlaceText>`                                 | Translations.                                                            |
 
 <ArgTypes of={Stories} />
 
@@ -126,7 +126,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
   {...listProps}
   places={{
     all: places,
-    atLimit: places.length >= 10,
+    atLimit: places.length >= 20,
     validateName: placeNameRule(places),
     onToggle: (taskId, placeId, on) => toggle.mutate({ taskId, placeId, on }),
     onCreate: (taskId, values) => createPlace(taskId, values),

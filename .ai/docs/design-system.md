@@ -63,7 +63,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Complete task dialog | `CompleteTaskDialog` | Checking a task with at least one open subtask; TaskList opens it. | A task without open subtasks, a subtask, reopening: act at once. |
 | Place tag | `PlaceTag` | The meta line of a row; next to a place in the picker. | Choosing places (PlacePicker); markers; filtering (not in version 1). |
 | Place picker | `PlacePicker` | The popover that “Places…” in a row's menu opens. | Showing places (PlaceTag); markers; a separate page to manage places. |
-| Place color picker | `PlaceColorPicker` | Creating the seventh and later places; editing a place. | The first six places (automatic); any colour outside the ten. |
+| Place color picker | `PlaceColorPicker` | Editing a place's colour; any of the ten, also one in use (D26). | Creating a place (the app picks the colour); any colour outside the ten. |
 | Future expenses | `FutureExpenses` | Once, under the list's name, above quick add. | Tiles with several numbers; spent or budget (version 2); one task's estimate. |
 | Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); subtasks; a separate summary page. |
 
@@ -179,7 +179,7 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | --- | --- |
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
-| D01–D24, R06–R18, N01–N04 (R06–R08, D15, D16 superseded by R12–R18, D22–D24) | `.ai/specs/product-brief.md` |
+| D01–D27, R06–R18, N01–N04 (R06–R08, D15, D16 superseded by R12–R18, D22–D24; decisions G4, G5, W3 by D26, D27) | `.ai/specs/product-brief.md` |
 | P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4, W1–W4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

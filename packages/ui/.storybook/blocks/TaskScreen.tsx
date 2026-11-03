@@ -11,7 +11,7 @@ import {
   type Place,
   type PlaceOptions,
   type PlaceText,
-  type PlaceValues,
+  type NewPlaceValues,
   type SubmitResult,
   type TaskField,
   type TaskFormValues,
@@ -19,7 +19,7 @@ import {
   type TaskText,
 } from "../../src";
 import { never } from "./fake-api";
-import { placeMessages, placeNameRule } from "./place-data";
+import { nextPlaceColor, placeMessages, placeNameRule } from "./place-data";
 import {
   fromValues,
   futureExpenses,
@@ -51,7 +51,7 @@ export interface TaskScreenProps {
 }
 
 /** The app's limit of places (decision G5). */
-const placeLimit = 10;
+const placeLimit = 20;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -305,13 +305,13 @@ export function TaskScreen({
       const place = places.find((own) => own.id === placeId);
       if (place) void optimistic(taskId, assign(taskId, place, on), taskMessages.changeFailed);
     },
-    onCreate: async (taskId, values: PlaceValues) => {
+    onCreate: async (taskId, values: NewPlaceValues) => {
       if (!(await confirmed())) return { ok: false, formError: placeMessages.createFailed };
       nextId.current += 1;
       const place: Place = {
         id: `place-${nextId.current}`,
         name: values.name.trim(),
-        color: values.color,
+        color: nextPlaceColor(places),
       };
       setPlaces((list) => [...list, place]);
       setTasks(assign(taskId, place, true));

@@ -45,7 +45,7 @@ export const Playground: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("status")).toHaveTextContent("Future expenses730–950 zł");
     await expect(
-      canvas.getByRole("button", { name: "2 tasks without an estimate" }),
+      canvas.getByRole("button", { name: "2 tasks and 1 subtask without an estimate" }),
     ).toHaveAttribute("aria-expanded", "false");
   },
 };
@@ -77,7 +77,7 @@ export const States: Story = {
         title="Future expenses"
         cells={[
           {
-            state: "Range, some tasks without an estimate",
+            state: "Range, some tasks and subtasks without an estimate",
             node: <FutureExpenses {...args} />,
             wide: true,
           },

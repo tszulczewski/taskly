@@ -1,8 +1,10 @@
-import type { Place, PlaceText } from "../../src";
+import { placeColors, type Place, type PlaceColor, type PlaceText } from "../../src";
 
 /**
  * Example places and simulated rules for the E02 stories (P1: the app supplies the real ones from
- * `@taskly/core`). The name rules are decision G4; the message texts are examples (E3).
+ * `@taskly/core`). The places are the predefined Polish ones and the owner's own (D26: names are the
+ * owner's data, so they stay Polish in the English stories). The name rules are decision G4; the
+ * message texts are examples (E3).
  */
 
 export const placeMessages = {
@@ -13,7 +15,7 @@ export const placeMessages = {
   saveFailed: "Could not save the place. Try again.",
 } as const;
 
-/** Not empty, at most 30 characters, unique ignoring case (decision G4). */
+/** Not empty, at most 30 characters, unique ignoring case (decision G4, D26). */
 export const placeNameRule =
   (places: Place[]) =>
   (name: string, placeId?: string): string | undefined => {
@@ -26,32 +28,61 @@ export const placeNameRule =
     return taken ? placeMessages.taken : undefined;
   };
 
-export const bathroom: Place = { id: "bathroom", name: "Bathroom", color: 1 };
-export const kitchen: Place = { id: "kitchen", name: "Kitchen", color: 2 };
-export const hall: Place = { id: "hall", name: "Hall", color: 3 };
-export const bedroom: Place = { id: "bedroom", name: "Bedroom", color: 4 };
-export const livingRoom: Place = { id: "living", name: "Living room", color: 5 };
-export const balcony: Place = { id: "balcony", name: "Balcony", color: 6 };
+/** The predefined places every owner starts with, coloured in turn (D26). */
+export const livingRoom: Place = { id: "living", name: "Salon", color: 1 };
+export const bedroom: Place = { id: "bedroom", name: "Sypialnia", color: 2 };
+export const bathroom: Place = { id: "bathroom", name: "Łazienka", color: 3 };
+export const kitchen: Place = { id: "kitchen", name: "Kuchnia", color: 4 };
+export const garage: Place = { id: "garage", name: "Garaż", color: 5 };
+export const garden: Place = { id: "garden", name: "Ogródek", color: 6 };
+export const attic: Place = { id: "attic", name: "Strych", color: 7 };
+export const office: Place = { id: "office", name: "Biuro", color: 8 };
 
-/** A typical flat: five places, colours given automatically. */
-export const somePlaces: Place[] = [bathroom, kitchen, hall, bedroom, livingRoom];
-
-/** Six places: the seventh asks for a colour (decision G4). */
-export const sixPlaces: Place[] = [...somePlaces, balcony];
-
-/** Ten places: the limit (decision G5). */
-export const tenPlaces: Place[] = [
-  ...sixPlaces,
-  { id: "pantry-room", name: "Pantry", color: 7 },
-  { id: "attic", name: "Attic", color: 8 },
-  { id: "garage", name: "Garage", color: 9 },
-  { id: "kids", name: "Kids' room", color: 10 },
+export const predefinedPlaces: Place[] = [
+  livingRoom,
+  bedroom,
+  bathroom,
+  kitchen,
+  garage,
+  garden,
+  attic,
+  office,
 ];
+
+/** Places the owner added: the ninth and tenth colours, then the colours repeat (D26). */
+export const hall: Place = { id: "hall", name: "Przedpokój", color: 9 };
+export const diningRoom: Place = { id: "dining", name: "Jadalnia", color: 10 };
+
+/** Twenty places: the limit (D26); from the eleventh the colours repeat. */
+export const twentyPlaces: Place[] = [
+  ...predefinedPlaces,
+  hall,
+  diningRoom,
+  { id: "pantry", name: "Spiżarnia", color: 1 },
+  { id: "kids", name: "Pokój dziecięcy", color: 2 },
+  { id: "toilet", name: "Toaleta", color: 3 },
+  { id: "laundry", name: "Pralnia", color: 4 },
+  { id: "balcony", name: "Balkon", color: 5 },
+  { id: "terrace", name: "Taras", color: 6 },
+  { id: "boiler", name: "Kotłownia", color: 7 },
+  { id: "cellar", name: "Piwnica", color: 8 },
+  { id: "porch", name: "Wiatrołap", color: 9 },
+  { id: "study", name: "Gabinet", color: 10 },
+];
+
+/**
+ * The colour the simulated server gives a new place: the least used one, the lowest number on a
+ * tie, so the colours go round in turn and a deleted place's colour is reused first (D26).
+ */
+export function nextPlaceColor(places: Place[]): PlaceColor {
+  const uses = (color: PlaceColor) => places.filter((place) => place.color === color).length;
+  return placeColors.reduce((best, color) => (uses(color) < uses(best) ? color : best));
+}
 
 /** The longest name the rules allow (30 characters). */
 export const longPlace: Place = {
   id: "long",
-  name: "Downstairs bathroom by the gym",
+  name: "Łazienka na parterze przy holu",
   color: 9,
 };
 
@@ -75,8 +106,7 @@ export const polishPlaceText: Partial<PlaceText> = {
     9: "Turkusowy",
     10: "Szaroniebieski",
   },
-  usedBy: (name) => `używa go ${name}`,
-  atLimit: "Możesz mieć najwyżej 10 miejsc. Usuń jedno, aby dodać kolejne.",
+  atLimit: "Możesz mieć najwyżej 20 miejsc. Usuń jedno, aby dodać kolejne.",
   editPlaces: "Edytuj miejsca",
   back: "Wróć do wyboru",
   edit: "Edytuj",
@@ -91,10 +121,3 @@ export const polishPlaceText: Partial<PlaceText> = {
   deleteError: "Nie udało się usunąć miejsca. Spróbuj ponownie.",
   unexpectedError: "Coś poszło nie tak. Spróbuj ponownie.",
 };
-
-export const polishPlaces: Place[] = [
-  { id: "pl-lazienka", name: "Łazienka", color: 1 },
-  { id: "pl-kuchnia", name: "Kuchnia", color: 2 },
-  { id: "pl-przedpokoj", name: "Przedpokój", color: 3 },
-  { id: "pl-sypialnia", name: "Sypialnia", color: 4 },
-];
