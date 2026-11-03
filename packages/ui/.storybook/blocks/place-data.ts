@@ -53,6 +53,12 @@ export const predefinedPlaces: Place[] = [
 export const hall: Place = { id: "hall", name: "Przedpokój", color: 9 };
 export const diningRoom: Place = { id: "dining", name: "Jadalnia", color: 10 };
 
+/**
+ * The places of an owner whose organized list uses `hall`: a picker must list every place a task
+ * already has, or the owner could not see or remove it.
+ */
+export const organizedPlaces: Place[] = [...predefinedPlaces, hall];
+
 /** Twenty places: the limit (D26); from the eleventh the colours repeat. */
 export const twentyPlaces: Place[] = [
   ...predefinedPlaces,

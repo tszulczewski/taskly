@@ -3,7 +3,7 @@ import { useGlobals } from "storybook/preview-api";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppShell, type Theme } from "../../../../src";
 import { TaskScreen, type TaskScreenProps } from "../../../blocks/TaskScreen";
-import { polishPlaceText, predefinedPlaces, twentyPlaces } from "../../../blocks/place-data";
+import { organizedPlaces, polishPlaceText, twentyPlaces } from "../../../blocks/place-data";
 import {
   doneTasks,
   manyTasks,
@@ -177,7 +177,7 @@ export const TaskOpenedPhone: Story = {
   },
 };
 
-const organized = { initialTasks: organizedTasks, initialPlaces: predefinedPlaces };
+const organized = { initialTasks: organizedTasks, initialPlaces: organizedPlaces };
 const body = (canvasElement: HTMLElement) => within(canvasElement.ownerDocument.body);
 
 export const OrganizedDesktop: Story = { globals: desktop, render: screen(organized) };
@@ -254,6 +254,26 @@ export const ChoosePlaces: Story = {
   },
 };
 
+/** An own place a task already has is listed, checked and can be removed (D26). */
+export const RemoveOwnPlace: Story = {
+  globals: desktop,
+  render: screen(organized),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const title = "Replace the light switches";
+    const row = canvas.getByRole("button", { name: `More actions for “${title}”` }).closest("li");
+    await expect(within(row!).getByText("Przedpokój")).toBeVisible();
+    await more(canvas, title);
+    await userEvent.click(body(canvasElement).getByRole("menuitem", { name: "Places…" }));
+    const panel = await body(canvasElement).findByRole("dialog", { name: `Places for “${title}”` });
+    const hall = within(panel).getByRole("checkbox", { name: "Przedpokój" });
+    await expect(hall).toBeChecked();
+    await userEvent.click(hall);
+    await expect(hall).not.toBeChecked();
+    await waitFor(() => expect(within(row!).queryByText("Przedpokój")).toBeNull());
+  },
+};
+
 export const CreatePlacePhone: Story = {
   globals: phone,
   render: screen(organized),
@@ -311,7 +331,7 @@ export const OrganizedPolishPhone: Story = {
   globals: phone,
   render: screen({
     initialTasks: polishOrganizedTasks,
-    initialPlaces: predefinedPlaces,
+    initialPlaces: organizedPlaces,
     heading: "Mój remont",
     text: polishTaskText,
     placeText: polishPlaceText,

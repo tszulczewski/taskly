@@ -10,7 +10,7 @@ import {
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { answer } from "../../../blocks/fake-api";
 import { DoDont, Narrow, Stack, StateRow } from "../../../blocks/Primitives";
-import { placeNameRule, predefinedPlaces } from "../../../blocks/place-data";
+import { organizedPlaces, placeNameRule } from "../../../blocks/place-data";
 import {
   curtainRods,
   organizedTasks,
@@ -44,9 +44,9 @@ const organized = {
   onMove: fn(),
   onToggleMarker: fn(),
   places: {
-    all: predefinedPlaces,
+    all: organizedPlaces,
     atLimit: false,
-    validateName: placeNameRule(predefinedPlaces),
+    validateName: placeNameRule(organizedPlaces),
     onToggle: fn(),
     onCreate: fn(answer({ ok: true })),
     onUpdate: fn(answer({ ok: true })),
