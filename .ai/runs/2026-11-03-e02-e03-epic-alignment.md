@@ -32,4 +32,12 @@ Before writing the E03 spec, bring the open epics and stories (#12, #13, #17–#
 - Labels of #19 (risk-low) were left as filed although its scope now includes new tables and seeding; SDLC.md treats schema migrations as risk-high, to re-evaluate when the spec is written.
 
 ## Lessons recorded (links into .ai/lessons.md)
-- None: no new pitfall; the existing 2026-10-21 lesson (decisions before a spec go to `research/decisions/` with a pointer in `backlog.md`) was followed.
+- 2026-11-03 index line in `.ai/lessons.md`: grep the design system before asking a UI product question (from the colour question correction). The 2026-10-21 lesson (decisions before a spec go to `research/decisions/` with a pointer in `backlog.md`) was followed.
+
+## Follow-up (same day, owner's third round)
+
+- Owner: completed subtasks without an estimate are not listed; the line hides when nothing is missing; the agent decides the wording. Recorded as decision 10 and applied to #47 (AC7–AC9, open questions closed).
+- Owner approved the brief and reference changes: brief R11 and Q18 confirmed, D25–D27 added, Now scope updated (Coverage counts not recounted); `.ai/design/reference.md` Luki pkt 5, `.ai/docs/design-system.md` and Storybook `system/Content.mdx` now say version 1 is English to the end.
+- **Correction:** question 7d (colours) was asked without citing Luki pkt 3 and the design system's `PlacePicker` (10 place colours, first six assigned in turn, owner may change one, a picker from the seventh place, G4) or its limit of 10 places (G5). The decision record and #19 were corrected: the delete question uses the design system's wording (G6), and colours and the limit are open questions for the owner.
+- Verification: `npm run format:check` and `npm run check:agents` re-run, see the commit.
+

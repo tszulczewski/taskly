@@ -155,7 +155,7 @@ Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-rin
 
 ## Content
 
-- English first in stories (specs are in English); Polish is the main language of the product, with **ty** form and imperative buttons. Glossary: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, place → miejsce.
+- English first in stories (specs are in English; version 1 ships in English and is translated to Polish at its end, `.ai/design/reference.md` Luki 5); Polish is the main language of the product, with **ty** form and imperative buttons. Glossary: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, place → miejsce.
 - Buttons are verbs, with the object when not obvious ("Delete task"); pending labels "Saving…"; icon-button names say action and object ("More actions for “Seal the bath”").
 - Errors say what happened and what to do, next to where it happened; empty states say why and the next step.
 - Money: integer grosze end to end, formatted by the server; an estimate is "1 200–1 500 zł", or one amount, "450 zł", when min equals max (non-breaking spaces, en dash without spaces, grosze only when not zero; R18). A task with subtasks shows their sum, computed on the server (R12, standards §6). `formatPln` / `formatPlnRange` in `@taskly/core` produce exactly this (decision F11).

@@ -35,6 +35,7 @@ Decisions made after filing (2026-11-03, epic alignment): `research/decisions/20
 
 - **E03-S01 #20:** new AC7 (reopening a task whose subtasks are all completed brings its full summed estimate back), AC8 (confirmation before completing a task with open subtasks), AC9–AC13 (the 2026-10-21 completed-tasks criteria 1–4 and 7). R11's "reopening a task does not reopen its subtasks" is confirmed by the owner.
 - **E03-S02 #21:** the list of what still has no estimate moved out to E03-S03.
-- **E03-S03 #47 (new):** the list of what still has no estimate, with "Add estimate": tasks without subtasks and subtasks, never a task with subtasks; partly estimated tasks list their unpriced subtasks.
+- **E03-S03 #47 (new):** the list of what still has no estimate, with "Add estimate": tasks without subtasks and subtasks, never a task with subtasks; partly estimated tasks list their unpriced subtasks; completed subtasks are not listed; the line hides when nothing is missing (brief D27).
 - **E02-S01 #17:** depends on E03-S01; subtasks reorder within their own task only, by drag and drop too; "Move up / Move down" and the keyboard; the refused move; 2026-10-21 criteria 5–6, the server refusing with 409.
 - **E02-S02 #18, E02-S03 #19:** no inheritance of markers or spaces between a task and its subtasks. #19 adds the predefined, editable spaces (Polish names, rename, delete with confirmation, colour assigned by the app, case-insensitive unique names).
+- **Brief:** R11 and Q18 confirmed; D25 (subtask reordering), D26 (spaces), D27 (the list of what has no estimate) added. Still open in #19: place colours (owner's "the app assigns" against Luki pkt 3 and decision G4) and the limit of 10 places (G5) with 8 predefined.

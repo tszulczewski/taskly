@@ -88,7 +88,7 @@ Wszystkie punkty rozstrzygnął product owner 2026-10-21. Jedyna otwarta rzecz t
    Odcienie do trybu jasnego ustalono w kroku tokenów 2026-10-21; wartości i kontrast w `tokeny.md`.
 4. **Markery „ważne” i „pilne” (D07).** Rozstrzygnięte: krótkie słowa „Ważne” i „Pilne” w kolorze tekstu drugorzędnego, obok miejsc. Bez ikon i bez koloru akcentu.
 5. **Ton wypowiedzi.** Rozstrzygnięte:
-   - Język (Q5): interfejs głównie po polsku, z wersją angielską; Epic 1 (E01, #11) powstaje najpierw po angielsku.
+   - Język (Q5): interfejs głównie po polsku, z wersją angielską. Cała wersja 1 (E01–E03) powstaje po angielsku, a tłumaczenie na polski robimy raz, na końcu wersji 1 (product owner, 2026-11-03; wcześniej: najpierw po angielsku tylko E01). Nazwy gotowych miejsc są po polsku od razu, bo to dane właściciela (D26).
    - Ton: krótko, na „ty”. Przyciski to czasownik w trybie rozkazującym („Dodaj zadanie”, „Ukończ”). Stany puste nazwane wprost („Brak szacunku”). Zasada wyjaśniona jednym zdaniem tam, gdzie zmienia liczbę („Zadania bez szacunku nie wliczają się do sumy.”).
    - Nazwy: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, space → **miejsce**.
 6. **Wiersz zadania.** Rozstrzygnięte 2026-10-21:

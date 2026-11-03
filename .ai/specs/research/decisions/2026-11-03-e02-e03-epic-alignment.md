@@ -1,7 +1,7 @@
 # Aligning epics E02 and E03 with D22–D24 and the 2026-10-21 decisions
 
 - Date, owner: 2026-11-03, product owner.
-- Context: before the E03 and E02 specs are written, the agent compared the open epics and stories (#12, #13, #17–#21) with D22–D24 (R12–R18), the completed-tasks decision (`2026-10-21-completed-tasks-order.md`), the prototype states s04.22–s04.29 and `.ai/design/reference.md`, and asked the owner nine questions. The answers below are the owner's, given in the conversation of 2026-11-03 (two rounds).
+- Context: before the E03 and E02 specs are written, the agent compared the open epics and stories (#12, #13, #17–#21) with D22–D24 (R12–R18), the completed-tasks decision (`2026-10-21-completed-tasks-order.md`), the prototype states s04.22–s04.29 and `.ai/design/reference.md`, and asked the owner nine questions. The answers below are the owner's, given in the conversation of 2026-11-03 (three rounds).
 - Decisions:
   1. **Reopening a task whose subtasks are all completed.** Reopening a task does not reopen its subtasks (R11 confirmed by the owner, no longer only the agent's reading). Its full summed estimate, completed subtasks included (R14), returns to future expenses. Goes into #20 as an acceptance criterion.
   2. **Confirmation when completing a task with open subtasks.** Completing a task that has open subtasks asks first: "Complete “…” and its N open subtasks?" (prototype state s04.26). Goes into #20.
@@ -11,8 +11,8 @@
   6. **Spaces.** The owner gets a ready, simple list of spaces and can edit it and add new ones. Predefined: Salon, Sypialnia, Łazienka, Kuchnia, Garaż, Ogródek, Strych, Biuro ("Kuchani" in the owner's message read as "Kuchnia").
      - The predefined names are Polish from the start, although the UI stays English: they are the owner's data, like task titles, and the final UI translation does not touch them.
      - Editing covers renaming and deleting a space, predefined ones included.
-     - Deleting a space that is assigned to tasks or subtasks removes it from them after a confirmation ("Remove “Garaż” from 4 tasks?"); deleting is not blocked.
-     - The app assigns each space's dot colour itself, in turn from the six design-system colours; no colour picker in version 1.
+     - Deleting a space that is assigned to tasks or subtasks removes it from them after a confirmation; deleting is not blocked. The question is the design system's existing one, "Delete “Garaż”? It is removed from every task." (`PlacePicker`, decision G6), not the agent's earlier draft "Remove “Garaż” from 4 tasks?".
+     - The app assigns each space's dot colour itself (owner: "na razie aplikacja przydziela sama"). Correction: the agent asked this without citing `.ai/design/reference.md` Luki pkt 3 and the design system (10 place colours, the first six assigned in turn, the owner may change a colour, a picker from the seventh place, decision G4) or the limit of 10 places (G5). How this answer and those decisions fit together is open, see below.
      - Two spaces with the same name are refused, ignoring letter case ("łazienka" = "Łazienka").
      - Each user gets their own copy of the predefined list, since each owner edits their own (agent's reading, follows from "editable").
   7. **No inheritance.** A subtask does not inherit markers or spaces from its task; each has its own (D21). #18 and #19 each get one acceptance criterion for a subtask.
@@ -21,6 +21,9 @@
      - The list shows what really has to be priced: a task without subtasks and without an estimate, and each subtask without an estimate, labelled with its task ("Tiles · Bathroom tiles"). A task with subtasks is never listed itself, because it has no amount fields (R12).
      - A partly estimated task (some subtasks priced) is covered too: its unpriced subtasks are listed, so the total never looks complete when it is not (R13).
      - This is a separate story, E03-S03, not part of #21.
-- Open: none.
+  10. **The list's details (third round).** A completed subtask without an estimate is not listed, even inside an open task. The collapsed line is hidden when nothing is missing. Wording, decided by the agent at the owner's request (English for version 1, decision 8): the line counts what is listed, "1 task without an estimate", "3 subtasks without an estimate", "2 tasks and 1 subtask without an estimate"; under it the existing rule sentence "They are not counted in future expenses until they have an estimate."; a subtask's line reads "Tiles · Bathroom tiles" with "Add estimate". The design system's `UnestimatedTasks` ("N tasks without an estimate", and "Add estimates to its N subtasks" for a task priced through subtasks, decision W3) changes accordingly in the E03 work.
+- Open:
+  - Place colours: the owner's "the app assigns" against Luki pkt 3 and G4 (the owner may change a colour, a picker from the seventh place).
+  - The limit of 10 places (G5) with 8 predefined, which leaves room for 2 of the owner's own.
 - Affects: new story E03-S03; issues #12, #13, #17, #18, #19, #20, #21; `backlog.md`; the E03 and E02 specs.
-- Status: active (owner's answers of 2026-11-03); issues and `backlog.md` not yet updated.
+- Status: active (owner's answers of 2026-11-03); applied to the issues and `backlog.md` the same day, and to the brief (R11, Q18, D25–D27) and `.ai/design/reference.md` Luki pkt 5 with the owner's approval.
