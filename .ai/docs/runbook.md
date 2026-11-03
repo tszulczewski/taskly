@@ -1,6 +1,6 @@
 # Runbook
 
-Operator procedures for the production deployment described in `AGENTS.md` (Deployment target and resource limits).
+Operator procedures for the production deployment described in `packages/app/AGENTS.md` (Build and deployment).
 
 - **Check the Apache vhost:** `ProxyAddHeaders` stays at its default `On`, so the client IP is appended to `X-Forwarded-For`.
 - **Create the owner account** (public sign-up is off unless `ALLOW_SIGN_UP=true`; while it is on, the app logs a warning on the first auth request): set `ALLOW_SIGN_UP=true` in the systemd `EnvironmentFile` → `systemctl restart taskly` → sign up in the browser → remove the line (don't leave it empty: an empty value fails env validation) → restart again.

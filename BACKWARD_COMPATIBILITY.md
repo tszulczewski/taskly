@@ -15,7 +15,7 @@ Taskly is a single deployed web app (plus PWA clients that may run a cached olde
 | **Workspace package APIs** (`@taskly/core` `.` and `./server`, `@taskly/db` `.` and `./schema`, `@taskly/ui`) | Removing or changing an export's signature | Internal packages: update all consumers in the same PR; keep the isomorphic (`.`) vs server-only (`./server`) split intact. |
 | **Environment variables** (`.env.example`) | Renaming/removing a variable or making an optional one required | Update `.env.example`, document in the PR, and note the deploy step; never commit secrets. |
 | **PWA manifest / service worker** | Changing the cache scheme or scope in a way that strands old clients | Version the cache; ensure old clients update cleanly. |
-| **Deployment contract** (standalone output path, `127.0.0.1:3000`, SSE proxy behavior) | Changing entrypoint path, bind address, or SSE buffering assumptions | Update the deployment notes in `AGENTS.md` in the same PR. |
+| **Deployment contract** (standalone output path, `127.0.0.1:3000`, SSE proxy behavior) | Changing entrypoint path, bind address, or SSE buffering assumptions | Update the deployment notes in `packages/app/AGENTS.md` in the same PR. |
 
 ## Process
 

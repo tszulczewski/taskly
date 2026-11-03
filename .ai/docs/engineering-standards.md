@@ -110,7 +110,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 - TypeScript `strict`, plus `noUncheckedIndexedAccess` (already in `tsconfig.base.json`). **No `any`**, no `@ts-ignore` (use `@ts-expect-error` with a reason). Narrow `unknown` with Zod.
 - ESLint: `no-restricted-imports` boundaries (§1), `@typescript-eslint/no-explicit-any` as error, unused vars warn with `_` prefix, `no-console` (use the logger), `no-restricted-syntax` on direct `fetch(` outside the client helper.
 - Prettier with the committed `.prettierrc.json` (`npm run format` / `format:check`); formatting is never mixed into behaviour changes.
-- **Gate before "done":** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test` (100% coverage), `npm run build`, `npm run audit` (production deps, fails on high), `npm run test:integration`.
+- **Gate before "done":** `npm run format:check`, `npm run lint`, `npm run check:agents` (routed paths and line budgets of the `AGENTS.md` files), `npm run typecheck`, `npm test` (100% coverage), `npm run build`, `npm run audit` (production deps, fails on high), `npm run test:integration`.
 - Commits: imperative subject, one purpose each, no drive-by refactors. Branch per change; never commit `.env`, `node_modules`, `.next` (checked by `.gitignore`).
 - Comments only for non-obvious *why*. No commented-out code, no `console.log`, no dead code. No magic numbers: name the constant and say why (e.g. `INVITATION_TTL_MS = 7 days`).
 - Functions do one thing, use early returns, no nesting beyond ~3 levels. No boolean-flag parameters at call sites: use an options object.
