@@ -325,15 +325,31 @@ gh pr checkout {prNumber} --recurse-submodules=no
 ```
 
 #### review-pr
-`{prNumber}`, verdict (approve / request changes), body.
+`{prNumber}`, verdict (approve / request changes), full review body, reviewed head SHA.
+
+Resolve **current-user** and fetch the PR's `author` and `headRefOid` through **get-pr** before submission. If the head changed since review, stop and re-review the new head before submitting a positive verdict.
+
+When the current account matches `author.login`, GitHub cannot accept a formal self-approval or self-request-changes. Follow `SDLC.md` → **Author-account review and merge**: append the following metadata to the complete review body and submit it through **comment-pr** with a body file. Record the actual reviewed SHA and verdict, never a placeholder. Report explicitly that the result is a comment review, not a formal GitHub approval. Keep normal verdict-driven labels and autofix behavior; a high-risk report records findings but does not satisfy the author-account approval exception.
+
+```markdown
+<!-- taskly-author-review -->
+Review head: <full reviewed SHA>
+Review verdict: APPROVED
+```
+
+Use `Review verdict: CHANGES REQUESTED` for a negative verdict. Preserve comment history by appending a new report for each review; do not update an old report into an approval. On other authors' PRs, submit the formal review:
 ```bash
 gh pr review {prNumber} --approve --body "<body>"
 gh pr review {prNumber} --request-changes --body "<body>"
 ```
-GitHub rejects self-approval (reviewing your own PR); surface that instead of working around it.
+An unexpected rejection of a formal review is an error to report, not permission to fabricate an approval or bypass required reviews.
 
 #### merge-pr
-`{prNumber}`; squash is the default merge strategy. `--auto` merges when checks pass; `--delete-branch` only when asked.
+`{prNumber}`; squash is the default merge strategy. `--auto` merges when checks pass; `--delete-branch` only when asked. For the author-account path, require `{reviewedHeadSha}` and use the head-pinned variant after all SDLC gates pass:
+```bash
+gh pr merge {prNumber} --squash --match-head-commit {reviewedHeadSha}
+```
+Otherwise:
 ```bash
 gh pr merge {prNumber} --squash
 ```
