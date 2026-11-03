@@ -9,7 +9,7 @@ import * as Stories from "./PlaceColorPicker.stories";
 
 ## 1. What it is for
 
-Lets the owner give a place one of the ten place colours, so places stay easy to tell apart in small dots. A colour another place uses cannot be chosen (Luki 3).
+Lets the owner change a place's colour to one of the ten place colours, so places stay easy to tell apart in small dots (Luki 3). Any colour can be chosen, also one another place has: the app hands the colours out in turn and from the eleventh place they repeat, and the name always stands beside the dot (D26).
 
 <Unstyled>
   <Story of={Stories.Playground} />
@@ -17,16 +17,15 @@ Lets the owner give a place one of the ten place colours, so places stay easy to
 
 ## 2. When to use
 
-- Creating the seventh and later places: the first six get their colours without asking (decision G4).
-- Editing a place: changing its colour (decision G6).
+- Editing a place: changing its colour (decision G6, D26).
 
 ## 3. When not to use
 
-| Situation                     | Use instead          | Source     |
-| ----------------------------- | -------------------- | ---------- |
-| Creating one of the first six | no choice: automatic | Luki 3, G4 |
-| Any colour outside the ten    | not offered          | Luki 3     |
-| Choosing the theme            | `ThemeToggle`        | Luki 2     |
+| Situation                  | Use instead                              | Source |
+| -------------------------- | ---------------------------------------- | ------ |
+| Creating a place           | no choice: the app picks the next colour | D26    |
+| Any colour outside the ten | not offered                              | Luki 3 |
+| Choosing the theme         | `ThemeToggle`                            | Luki 2 |
 
 ## 4. Anatomy
 
@@ -35,14 +34,10 @@ Lets the owner give a place one of the ten place colours, so places stay easy to
 | Group  | yes      | A radio group named by `label` ("Colour"); the place form puts it in a `fieldset` with that legend                               |
 | Swatch | yes      | A 44 × 44 px (36 × 36 px from 640px) target (`size-touch`) around a `size-icon` dot in `color-place-N`; named in words ("Olive") |
 | Chosen | yes      | An outline in `color-text-primary` around the dot (`swatch-selected`, `focus-ring-width` / `focus-ring-offset`)                  |
-| In use | optional | Disabled at `opacity-disabled`; the name says who uses it ("Blue, used by Bathroom")                                             |
 
 ## 5. Variants
 
-| Variant   | Choose it when                                     | Source      |
-| --------- | -------------------------------------------------- | ----------- |
-| New place | No `placeId`: every used colour is disabled.       | decision G4 |
-| Editing   | `placeId`: the place's own colour stays available. | decision G6 |
+None: it is used only when editing a place, with the place's colour chosen and every colour available (decision G6, D26). Until 2026-11-03 it also appeared from the seventh new place and blocked colours in use (G4, G5); D26 replaced both.
 
 <Unstyled>
   <Story of={Stories.EditingAPlace} />
@@ -54,16 +49,15 @@ Lets the owner give a place one of the ten place colours, so places stay easy to
   <Story of={Stories.States} />
 </Unstyled>
 
-| State    | What the user sees                                     | Story      | Source |
-| -------- | ------------------------------------------------------ | ---------- | ------ |
-| Chosen   | Outline around the dot; `aria-checked`.                | Playground | Luki 3 |
-| Focus    | Focus ring around the dot.                             | Playground | T6     |
-| In use   | Faded, not focusable, "used by …" in its name.         | States     | G4, G6 |
-| Only own | At ten places, editing offers only the place's colour. | States     | G5, G6 |
+| State    | What the user sees                                                    | Story      | Source |
+| -------- | --------------------------------------------------------------------- | ---------- | ------ |
+| Chosen   | Outline around the dot; `aria-checked`.                               | Playground | Luki 3 |
+| Focus    | Focus ring around the dot.                                            | Playground | T6     |
+| Repeated | A colour another place has can be chosen, as from the eleventh place. | States     | D26    |
 
 ## 7. Behaviour and accessibility
 
-- One Tab stop; arrow keys move to the next free colour and choose it (radio group, WCAG 2.1.1). Disabled colours are skipped.
+- One Tab stop; arrow keys move to the next colour and choose it (radio group, WCAG 2.1.1).
 - The chosen colour is shown by an outline, not by colour alone, and each swatch is named in words (WCAG 1.4.1).
 - Every colour has at least 3:1 contrast on the surface in both themes (WCAG 1.4.11, `tokeny.md`).
 
@@ -96,7 +90,7 @@ Lets the owner give a place one of the ten place colours, so places stay easy to
 `PlacePicker` renders it; on its own only in stories and tests.
 
 ```tsx
-<PlaceColorPicker value={color} onValueChange={setColor} places={places} label="Colour" />
+<PlaceColorPicker value={color} onValueChange={setColor} label="Colour" />
 ```
 
 ## 12. Do and don't

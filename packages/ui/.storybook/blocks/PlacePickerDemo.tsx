@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { PlacePicker, type Place, type PlaceText, type PlaceValues } from "../../src";
+import { PlacePicker, type NewPlaceValues, type Place, type PlaceText } from "../../src";
 import { never } from "./fake-api";
-import { placeMessages, placeNameRule } from "./place-data";
+import { nextPlaceColor, placeMessages, placeNameRule } from "./place-data";
 import type { ServerMode } from "./TaskScreen";
 
 export interface PlacePickerDemoProps {
@@ -18,7 +18,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The place picker as the row's popover shows it (the overlay's raised panel and edge), with the places of the list
- * and the server simulated (P1): ticks apply at once; create, rename and delete wait for it.
+ * and the server simulated (P1): ticks apply at once; create, rename and delete wait for it. The
+ * server colours a new place (D26, `nextPlaceColor`).
  */
 export function PlacePickerDemo({
   taskTitle = "Hang the curtain rods",
@@ -47,11 +48,14 @@ export function PlacePickerDemo({
         onToggle={(placeId, assigned) =>
           setSelected((ids) => (assigned ? [...ids, placeId] : ids.filter((id) => id !== placeId)))
         }
-        onCreate={async (values: PlaceValues) => {
+        onCreate={async (values: NewPlaceValues) => {
           if (!(await confirmed())) return { ok: false, formError: placeMessages.createFailed };
           nextId.current += 1;
           const id = `new-place-${nextId.current}`;
-          setPlaces((list) => [...list, { id, name: values.name.trim(), color: values.color }]);
+          setPlaces((list) => [
+            ...list,
+            { id, name: values.name.trim(), color: nextPlaceColor(list) },
+          ]);
           setSelected((ids) => [...ids, id]);
           return { ok: true };
         }}
@@ -73,7 +77,7 @@ export function PlacePickerDemo({
           return true;
         }}
         validateName={placeNameRule(places)}
-        atLimit={places.length >= 10}
+        atLimit={places.length >= 20}
         text={text}
       />
     </div>

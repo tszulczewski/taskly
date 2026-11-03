@@ -28,7 +28,7 @@ export function PopoverContent({
         data-slot="popover-content"
         className={cn(
           overlaySurfaceClass,
-          "flex max-w-overlay flex-col gap-group p-inset outline-none",
+          "flex max-h-overlay max-w-overlay flex-col gap-group p-inset outline-none",
           className,
         )}
       />

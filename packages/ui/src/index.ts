@@ -96,19 +96,14 @@ export {
   type SortableGroupProps,
   type SortableText,
 } from "./product/tasks/sortable";
-export {
-  freePlaceColors,
-  placeColorIsAutomatic,
-  placeColors,
-  type Place,
-  type PlaceColor,
-} from "./product/places/types";
+export { placeColors, type Place, type PlaceColor } from "./product/places/types";
 export { defaultPlaceText, type PlaceText } from "./product/places/text";
 export { PlaceTag, type PlaceTagProps } from "./product/places/place-tag";
 export { PlaceColorPicker, type PlaceColorPickerProps } from "./product/places/place-color-picker";
 export {
   PlacePicker,
   type PlacePickerProps,
+  type NewPlaceValues,
   type PlaceSubmit,
   type PlaceValues,
 } from "./product/places/place-picker";
@@ -123,7 +118,7 @@ export {
   UnestimatedTasks,
   type EstimateField,
   type EstimateValues,
-  type UnestimatedTask,
+  type UnestimatedItem,
   type UnestimatedTasksProps,
 } from "./product/expenses/unestimated-tasks";
 export { FutureExpenses, type FutureExpensesProps } from "./product/expenses/future-expenses";

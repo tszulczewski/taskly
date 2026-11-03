@@ -6,7 +6,7 @@ import { tokenPx } from "../../../../src/lib/token-px";
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { answer } from "../../../blocks/fake-api";
 import { DoDont, Narrow } from "../../../blocks/Primitives";
-import { placeNameRule, somePlaces } from "../../../blocks/place-data";
+import { placeNameRule, predefinedPlaces } from "../../../blocks/place-data";
 import {
   longTask,
   manyTasks,
@@ -196,9 +196,9 @@ export const Organized: Story = {
     onMove: fn(),
     onToggleMarker: fn(),
     places: {
-      all: somePlaces,
+      all: predefinedPlaces,
       atLimit: false,
-      validateName: placeNameRule(somePlaces),
+      validateName: placeNameRule(predefinedPlaces),
       onToggle: fn(),
       onCreate: fn(answer({ ok: true })),
       onUpdate: fn(answer({ ok: true })),

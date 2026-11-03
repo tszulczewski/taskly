@@ -37,7 +37,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Surface | `Surface` | The task list, the future expenses line, the sign-in card. | Inside another Surface; one card per task; tiles with numbers. |
 | Alert | `Alert` | A failed sign-in or sign-out; a refused save above a form. | An error about one field (FormField); success; a notice that disappears (no toasts). |
 | Skeleton | `Skeleton` | The first load of the task list or the future expenses line. | Waiting for a button (Button loading); a change already shown optimistically. |
-| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “N tasks without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
+| Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “2 tasks and 1 subtask without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
 | Confirm dialog | `ConfirmDialog` | Deleting (danger); completing a task with open subtasks (primary). | An action undone in one tap; details or a form; reporting a failure. |
 | Menu | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete. | The main action of a screen; one value of several (RadioGroup); navigation. |
 | Popover | `Popover, PopoverTrigger, PopoverContent, PopoverAnchor` | The place picker of a task row. | A list of actions (Menu); a whole form (in the row); a question before deleting. |
@@ -63,9 +63,9 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Complete task dialog | `CompleteTaskDialog` | Checking a task with at least one open subtask; TaskList opens it. | A task without open subtasks, a subtask, reopening: act at once. |
 | Place tag | `PlaceTag` | The meta line of a row; next to a place in the picker. | Choosing places (PlacePicker); markers; filtering (not in version 1). |
 | Place picker | `PlacePicker` | The popover that “Places…” in a row's menu opens. | Showing places (PlaceTag); markers; a separate page to manage places. |
-| Place color picker | `PlaceColorPicker` | Creating the seventh and later places; editing a place. | The first six places (automatic); any colour outside the ten. |
+| Place color picker | `PlaceColorPicker` | Editing a place's colour; any of the ten, also one in use (D26). | Creating a place (the app picks the colour); any colour outside the ten. |
 | Future expenses | `FutureExpenses` | Once, under the list's name, above quick add. | Tiles with several numbers; spent or budget (version 2); one task's estimate. |
-| Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); subtasks; a separate summary page. |
+| Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); a task with subtasks itself; a separate summary page. |
 
 Not built on purpose (ask the product owner first): Avatar, Tabs, Toast, StatusBadge, Select, Switch, a general-purpose Dialog, a list with filters, bottom navigation on phones (decisions P4, E1).
 
@@ -155,7 +155,7 @@ Other utilities from `packages/ui/src/styles/base.css`: `focus-ring`, `focus-rin
 
 ## Content
 
-- English first in stories (specs are in English); Polish is the main language of the product, with **ty** form and imperative buttons. Glossary: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, place → miejsce.
+- English first in stories (specs are in English; version 1 ships in English and is translated to Polish at its end, `.ai/design/reference.md` Luki 5); Polish is the main language of the product, with **ty** form and imperative buttons. Glossary: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, place → miejsce.
 - Buttons are verbs, with the object when not obvious ("Delete task"); pending labels "Saving…"; icon-button names say action and object ("More actions for “Seal the bath”").
 - Errors say what happened and what to do, next to where it happened; empty states say why and the next step.
 - Money: integer grosze end to end, formatted by the server; an estimate is "1 200–1 500 zł", or one amount, "450 zł", when min equals max (non-breaking spaces, en dash without spaces, grosze only when not zero; R18). A task with subtasks shows their sum, computed on the server (R12, standards §6). `formatPln` / `formatPlnRange` in `@taskly/core` produce exactly this (decision F11).
@@ -179,7 +179,7 @@ Every rule in Storybook names its source; a rule without one is marked "proposal
 | --- | --- |
 | R01.x, R02.x, A01.x–A05, Q1–Q5, P01–P15, Luki 1–10 | `.ai/design/reference.md` (and screenshots in `.ai/design/reference/`) |
 | T1–T10, tokens rule 1–15 | `.ai/design/tokeny.md` |
-| D01–D24, R06–R18, N01–N04 (R06–R08, D15, D16 superseded by R12–R18, D22–D24) | `.ai/specs/product-brief.md` |
+| D01–D27, R06–R18, N01–N04 (R06–R08, D15, D16 superseded by R12–R18, D22–D24; decisions G4, G5, W3 by D26, D27) | `.ai/specs/product-brief.md` |
 | P1–P5, K1–K5, B–J, L1–L4, M1–M5, N1–N11, O1–O7, U1–U4, V1–V4, W1–W4 decisions | `packages/ui/POSTEP.md` |
 | task rule N | `.ai/design/prompt-storybook.md` |
 | standards §N | `.ai/docs/engineering-standards.md` |

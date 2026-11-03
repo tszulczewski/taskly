@@ -77,10 +77,10 @@ Wszystkie punkty rozstrzygnął product owner 2026-10-21. Jedyna otwarta rzecz t
    - Przełącznik ma dwie pozycje: Ciemny i Jasny; domyślnie Ciemny. Bez pozycji „jak w systemie”.
 3. **Kolor: kropki miejsc.** Rozstrzygnięte:
    - Sześć barw z R02: niebieska `#4F86B8`, ochra `#C79A2B`, terakota `#B8674A`, zielona `#4E9A6B`, fioletowa `#8A6BB0`, różowa `#C2586F`. Kropka zawsze stoi obok nazwy, więc kolor nie jest jedynym nośnikiem informacji.
-   - Dla kolejnych miejsc użytkownik wybiera dowolną barwę z palety kolorów, której nie ma jeszcze żadne miejsce.
+   - ~~Dla kolejnych miejsc użytkownik wybiera dowolną barwę z palety kolorów, której nie ma jeszcze żadne miejsce.~~ Od 2026-11-03 (D26): aplikacja przydziela barwę każdemu miejscu po kolei z 10 barw palety, także gotowym miejscom; od jedenastego miejsca barwy się powtarzają (nazwa zawsze stoi obok kropki). Miejsc może być najwyżej 20 (wcześniej 10, decyzja G5).
 
    - Paleta to ustalony zestaw 10 barw, nie dowolny selektor: sześć z R02 i cztery dodatkowe: oliwkowa `#8E9B3F`, śliwkowa `#9C5B8E`, ~~piaskowa `#B0976A`~~ turkusowa `#2F9AA8`, szaroniebieska `#6F8798`. Więcej barw zaczyna się mylić w małych kropkach. Piaskową zastąpiła turkusowa 2026-10-21 (decyzja T4 w `tokeny.md`): w motywie jasnym piaskowa myliła się z ochrą i oliwkową.
-   - Sześć barw z R02 dostają automatycznie, po kolei, pierwsze miejsca; użytkownik może barwę zmienić.
+   - Sześć barw z R02 dostają automatycznie, po kolei, pierwsze miejsca; użytkownik może barwę zmienić. Od 2026-11-03 automatycznie dostają barwę wszystkie miejsca (punkt wyżej); zmiana barwy w edycji miejsca zostaje.
    - Każda barwa ma kontrast co najmniej 3:1 (WCAG 1.4.11) na powierzchni obu motywów. Każda dostaje osobny odcień do trybu jasnego, tak jak akcent.
 
    Kontrast policzony 2026-10-21 (ciemna powierzchnia `#181F1C` / jasna powierzchnia `#FFFFFF`): niebieska 4,3 / 3,9; ochra 6,5 / **2,6**; terakota 4,1 / 4,1; zielona 4,9 / 3,4; fioletowa 3,8 / 4,4; różowa 3,9 / 4,3; oliwkowa 5,5 / 3,0; śliwkowa 3,4 / 4,9; piaskowa 6,0 / **2,8**; szaroniebieska 4,5 / 3,8. Na jasnym tle `#F2F4F1` wartości są niższe o 0,3–0,4.
@@ -88,7 +88,7 @@ Wszystkie punkty rozstrzygnął product owner 2026-10-21. Jedyna otwarta rzecz t
    Odcienie do trybu jasnego ustalono w kroku tokenów 2026-10-21; wartości i kontrast w `tokeny.md`.
 4. **Markery „ważne” i „pilne” (D07).** Rozstrzygnięte: krótkie słowa „Ważne” i „Pilne” w kolorze tekstu drugorzędnego, obok miejsc. Bez ikon i bez koloru akcentu.
 5. **Ton wypowiedzi.** Rozstrzygnięte:
-   - Język (Q5): interfejs głównie po polsku, z wersją angielską; Epic 1 (E01, #11) powstaje najpierw po angielsku.
+   - Język (Q5): interfejs głównie po polsku, z wersją angielską. Cała wersja 1 (E01–E03) powstaje po angielsku, a tłumaczenie na polski robimy raz, na końcu wersji 1 (product owner, 2026-11-03; wcześniej: najpierw po angielsku tylko E01). Nazwy gotowych miejsc są po polsku od razu, bo to dane właściciela (D26).
    - Ton: krótko, na „ty”. Przyciski to czasownik w trybie rozkazującym („Dodaj zadanie”, „Ukończ”). Stany puste nazwane wprost („Brak szacunku”). Zasada wyjaśniona jednym zdaniem tam, gdzie zmienia liczbę („Zadania bez szacunku nie wliczają się do sumy.”).
    - Nazwy: task → zadanie, subtask → podzadanie, future expenses → przyszłe wydatki, completed → ukończone, estimate → szacunek, space → **miejsce**.
 6. **Wiersz zadania.** Rozstrzygnięte 2026-10-21:

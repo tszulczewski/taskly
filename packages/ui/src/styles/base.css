@@ -78,6 +78,14 @@
   max-width: min(var(--layout-text-measure), var(--radix-popper-available-width));
 }
 
+/* A popover never taller than the space Radix measures on its side (gutter already left free,
+   D3); longer content scrolls inside it, so every control stays reachable, e.g. 20 places (D26,
+   WCAG 1.4.10). */
+@utility max-h-overlay {
+  max-height: var(--radix-popper-available-height);
+  overflow-y: auto;
+}
+
 @utility collapsible-content {
   overflow: hidden;
 
