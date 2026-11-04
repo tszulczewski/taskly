@@ -1,5 +1,5 @@
 import { schema } from "@taskly/db";
-import { and, asc, desc, DrizzleQueryError, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, DrizzleQueryError, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireRole } from "./access";
 import type { Action } from "./authorization";
@@ -7,8 +7,10 @@ import { rollUpEstimate } from "./estimate";
 import { ConflictError, NotFoundError, NotImplementedError } from "./errors";
 import { positionBetween } from "./position";
 import {
+  completionInput,
   createTaskInput,
   type Estimate,
+  TASK_COMPLETED_MESSAGE,
   type SubtaskView,
   type TaskView,
   updateTaskInput,
@@ -110,16 +112,27 @@ async function inTransaction<T>(db: Db, work: (tx: Tx) => Promise<T>): Promise<T
   }
 }
 
+/** Serializes the list's appends and completions (`createTask`, `setTaskCompleted`). */
+async function lockList(tx: Tx, listId: string): Promise<void> {
+  await tx
+    .select({ id: schema.lists.id })
+    .from(schema.lists)
+    .where(eq(schema.lists.id, listId))
+    .for("no key update");
+}
+
 /**
  * Authorizes `action` on the task's list and returns the task row locked `FOR UPDATE`. Lock order
- * as in `deleteList`: membership first (via `requireRole`), then the task. An unknown or malformed
- * id, a list the user is not a member of, or a task deleted meanwhile → NotFoundError("Task").
+ * as in `deleteList`: membership first (via `requireRole`), then, with `withListLock`, the list row
+ * (as `createTask` takes it), then the task. An unknown or malformed id, a list the user is not a
+ * member of, or a task deleted meanwhile → NotFoundError("Task").
  */
 export async function requireTaskRole(
   tx: Tx,
   userId: string,
   taskId: string,
   action: Action,
+  { withListLock = false } = {},
 ): Promise<typeof tasks.$inferSelect> {
   if (!uuid.safeParse(taskId).success) throw new NotFoundError("Task");
   // Unlocked: list_id never changes, and locking the task here would precede the membership.
@@ -130,6 +143,7 @@ export async function requireTaskRole(
   } catch (error) {
     throw error instanceof NotFoundError ? new NotFoundError("Task") : error;
   }
+  if (withListLock) await lockList(tx, ref.listId);
   const [task] = await tx.select().from(tasks).where(eq(tasks.id, taskId)).for("update");
   if (!task) throw new NotFoundError("Task");
   return task;
@@ -199,22 +213,20 @@ export async function createTask(
   const { title, description, estimate, parentId } = createTaskInput.parse(input);
   return inTransaction(db, async (tx) => {
     await requireRole(tx, userId, listId, "write");
-    // Serializes appends to this list, so concurrent creates never pick the same position.
-    await tx
-      .select({ id: schema.lists.id })
-      .from(schema.lists)
-      .where(eq(schema.lists.id, listId))
-      .for("no key update");
+    // Serializes appends to this list, so concurrent creates never pick the same position. A
+    // completion takes the same lock first, so the parent's status read below is committed.
+    await lockList(tx, listId);
     if (parentId !== null) {
       // A concurrent delete of the parent waits for this transaction, then cascades the subtask;
       // an estimate edit of the parent (FOR UPDATE) waits too, then sees the subtask.
       const [parent] = await tx
-        .select({ parentId: tasks.parentId })
+        .select({ parentId: tasks.parentId, status: tasks.status })
         .from(tasks)
         .where(and(eq(tasks.id, parentId), eq(tasks.listId, listId)))
         .for("key share");
       if (!parent) throw new NotFoundError("Task");
       if (parent.parentId !== null) throw new ConflictError("Subtasks cannot have subtasks");
+      if (parent.status === "done") throw new ConflictError(TASK_COMPLETED_MESSAGE);
     }
     const [last] = await tx
       .select({ position: tasks.position })
@@ -270,6 +282,62 @@ export async function updateTask(
       throw new ConflictError("A task with subtasks takes its estimate from them");
     }
     await tx.update(tasks).set(changes).where(eq(tasks.id, task.id));
+    return topLevelView(tx, task.parentId ?? task.id);
+  });
+}
+
+/** The row and, for a task, its subtasks (R09). Positions are not touched. */
+async function completeWithSubtasks(tx: Tx, taskId: string): Promise<void> {
+  await tx
+    .update(tasks)
+    .set({ status: "done" })
+    .where(or(eq(tasks.id, taskId), eq(tasks.parentId, taskId)));
+}
+
+/** Only this row: open, and keyed before its first sibling; with no sibling the key stays. */
+async function reopen(tx: Tx, task: typeof tasks.$inferSelect): Promise<void> {
+  const [first] = await tx
+    .select({ position: tasks.position })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.listId, task.listId),
+        task.parentId === null ? isNull(tasks.parentId) : eq(tasks.parentId, task.parentId),
+        ne(tasks.id, task.id),
+      ),
+    )
+    .orderBy(byPosition)
+    .limit(1);
+  await tx
+    .update(tasks)
+    .set({
+      status: "todo",
+      position: first ? positionBetween(null, first.position) : task.position,
+    })
+    .where(eq(tasks.id, task.id));
+}
+
+/**
+ * Completes or reopens a task or subtask and returns the `TaskView` of the top-level task that holds
+ * it (spec E03). Completing a task completes its subtasks in one statement (R09) and writes no
+ * position. Reopening writes only that row, with a position before its first sibling (completed
+ * ones included), so it reads first among the open rows (decision 2026-10-21); its subtasks, or a
+ * subtask's task, keep their state (R11, Q2). A row already in the target state is not written.
+ * The list lock comes before the task's, the order of `createTask`, which holds the list while it
+ * waits for the parent: the other order would deadlock against a concurrent subtask add.
+ */
+export async function setTaskCompleted(
+  db: Db,
+  userId: string,
+  taskId: string,
+  input: unknown,
+): Promise<TaskView> {
+  const { completed } = completionInput.parse(input);
+  return inTransaction(db, async (tx) => {
+    const task = await requireTaskRole(tx, userId, taskId, "write", { withListLock: true });
+    if (task.status !== (completed ? "done" : "todo")) {
+      await (completed ? completeWithSubtasks(tx, task.id) : reopen(tx, task));
+    }
     return topLevelView(tx, task.parentId ?? task.id);
   });
 }

@@ -7,7 +7,14 @@ import { ZodError } from "zod";
 import { requireRole } from "./access";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { taskViewSchema } from "./schemas";
-import { createTask, deleteTask, listTasks, requireTaskRole, updateTask } from "./tasks";
+import {
+  createTask,
+  deleteTask,
+  listTasks,
+  requireTaskRole,
+  setTaskCompleted,
+  updateTask,
+} from "./tasks";
 import type { Db } from "./types";
 
 vi.mock("./access", () => ({ requireRole: vi.fn() }));
@@ -234,7 +241,7 @@ describe("createTask", () => {
   describe("with a parentId", () => {
     const newId = "66666666-6666-4666-8666-666666666666";
     const lockParent = {
-      sql: 'select "parent_id" from "tasks" where ("tasks"."id" = $1 and "tasks"."list_id" = $2) for key share',
+      sql: 'select "parent_id", "status" from "tasks" where ("tasks"."id" = $1 and "tasks"."list_id" = $2) for key share',
       params: [ids.a, listId],
     };
     const lastSubtask = {
@@ -245,7 +252,7 @@ describe("createTask", () => {
     it("locks the list, then the parent FOR KEY SHARE, appends after the last subtask and returns the parent's view", async () => {
       const { db, log } = fakeDb(
         [[listId]],
-        [[null]],
+        [[null, "todo"]],
         [["a0"]],
         [[newId, ids.a, "Paint", "White", 50000, 50000, "todo", "a1"]],
         [
@@ -306,7 +313,7 @@ describe("createTask", () => {
     it("gives the first subtask the first key", async () => {
       const { db, log } = fakeDb(
         [[listId]],
-        [[null]],
+        [[null, "todo"]],
         [],
         [[newId, ids.a, "Paint", null, null, null]],
         [
@@ -344,11 +351,21 @@ describe("createTask", () => {
     });
 
     it("refuses a subtask under a subtask", async () => {
-      const { db, log } = fakeDb([[listId]], [[ids.b]]);
+      const { db, log } = fakeDb([[listId]], [[ids.b, "todo"]]);
       grantRole(log);
 
       await expect(createTask(db, userId, listId, { title: "x", parentId: ids.a })).rejects.toEqual(
         new ConflictError("Subtasks cannot have subtasks"),
+      );
+      expect(log).toEqual(["begin", "requireRole write", lockList, lockParent, "rollback"]);
+    });
+
+    it("refuses a subtask under a completed task and writes nothing (Q3)", async () => {
+      const { db, log } = fakeDb([[listId]], [[null, "done"]]);
+      grantRole(log);
+
+      await expect(createTask(db, userId, listId, { title: "x", parentId: ids.a })).rejects.toEqual(
+        new ConflictError("Task is completed"),
       );
       expect(log).toEqual(["begin", "requireRole write", lockList, lockParent, "rollback"]);
     });
@@ -1087,5 +1104,182 @@ describe("deleteTask", () => {
     grantRole(log);
     await expect(deleteTask(db, userId, taskId)).rejects.toEqual(new NotFoundError("Task"));
     expect(log.at(-1)).toBe("rollback");
+  });
+});
+
+describe("setTaskCompleted", () => {
+  const lockTaskList = { ...lockList, params: [listId] };
+  const start = ["begin", readListId, "requireRole write", lockTaskList, lockTask];
+  const viewRow = (status: "todo" | "done", position = "a0") => [
+    taskId,
+    null,
+    "Tiles",
+    null,
+    100,
+    200,
+    status,
+    position,
+  ];
+  const completeTree = {
+    sql: 'update "tasks" set "status" = $1 where ("tasks"."id" = $2 or "tasks"."parent_id" = $3)',
+    params: ["done", taskId, taskId],
+  };
+  const firstSibling = (parent: string | null) => ({
+    sql:
+      parent === null
+        ? 'select "position" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" is null and "tasks"."id" <> $2) order by "tasks"."position" COLLATE "C" limit $3'
+        : 'select "position" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" = $2 and "tasks"."id" <> $3) order by "tasks"."position" COLLATE "C" limit $4',
+    params: parent === null ? [listId, taskId, 1] : [listId, parent, taskId, 1],
+  });
+  const reopenRow = (position: string) => ({
+    sql: 'update "tasks" set "status" = $1, "position" = $2 where "tasks"."id" = $3',
+    params: ["todo", position, taskId],
+  });
+  const doneRow = taskRow.map((value, i) => (i === 5 ? "done" : value));
+
+  it("authorizes write, locks the list then the task, completes it with its subtasks and returns its view", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [[listId]],
+      [taskRow],
+      [],
+      [viewRow("done"), [ids.a1, taskId, "Plaster", null, 30, 40, "done", "a0"]],
+    );
+    grantRole(log);
+
+    const view = await setTaskCompleted(db, userId, taskId, { completed: true });
+
+    expect(view).toEqual(
+      expect.objectContaining({
+        id: taskId,
+        completed: true,
+        // A completed subtask still counts in its task's sum (R14).
+        estimate: { minGrosze: 30, maxGrosze: 40 },
+        subtasks: [expect.objectContaining({ id: ids.a1, completed: true })],
+      }),
+    );
+    expect(log).toEqual([...start, completeTree, viewQueryOf(taskId), "commit"]);
+  });
+
+  it("completes a subtask alone and returns its parent's view (R11)", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [[listId]],
+      [subtaskRow],
+      [],
+      [
+        [ids.a, null, "Bathroom", null, null, null, "todo", "a0"],
+        [taskId, ids.a, "Plaster", null, 300, 400, "done", "a0"],
+      ],
+    );
+    grantRole(log);
+
+    const view = await setTaskCompleted(db, userId, taskId, { completed: true });
+
+    expect(view).toEqual(expect.objectContaining({ id: ids.a, completed: false }));
+    expect(log).toEqual([...start, completeTree, viewQueryOf(ids.a), "commit"]);
+  });
+
+  it("reopens a task before its first sibling and writes only that row", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [[listId]],
+      [doneRow],
+      [["a0"]],
+      [],
+      [viewRow("todo", "Zz")],
+    );
+    grantRole(log);
+
+    const view = await setTaskCompleted(db, userId, taskId, { completed: false });
+
+    expect(view).toEqual(expect.objectContaining({ completed: false, position: "Zz" }));
+    expect(log).toEqual([
+      ...start,
+      firstSibling(null),
+      reopenRow("Zz"),
+      viewQueryOf(taskId),
+      "commit",
+    ]);
+  });
+
+  it("reopens a subtask among its own siblings, and keeps the key of an only child", async () => {
+    const doneSubtask = subtaskRow.map((value, i) => (i === 5 ? "done" : value));
+    const { db, log } = fakeDb(
+      [[listId]],
+      [[listId]],
+      [doneSubtask],
+      [],
+      [],
+      [
+        [ids.a, null, "Bathroom", null, null, null, "done", "a0"],
+        [taskId, ids.a, "Plaster", null, 300, 400, "todo", "a0"],
+      ],
+    );
+    grantRole(log);
+
+    const view = await setTaskCompleted(db, userId, taskId, { completed: false });
+
+    // The task stays completed (Q2).
+    expect(view).toEqual(expect.objectContaining({ id: ids.a, completed: true }));
+    expect(log).toEqual([
+      ...start,
+      firstSibling(ids.a),
+      reopenRow("a0"),
+      viewQueryOf(ids.a),
+      "commit",
+    ]);
+  });
+
+  it.each([
+    { stored: taskRow, completed: false },
+    { stored: doneRow, completed: true },
+  ])(
+    "writes nothing when the row is already in that state (completed: $completed)",
+    async ({ stored, completed }) => {
+      const status = completed ? "done" : "todo";
+      const { db, log } = fakeDb([[listId]], [[listId]], [stored], [viewRow(status)]);
+      grantRole(log);
+
+      const view = await setTaskCompleted(db, userId, taskId, { completed });
+
+      expect(view.completed).toBe(completed);
+      expect(log).toEqual([...start, viewQueryOf(taskId), "commit"]);
+    },
+  );
+
+  it.each([{}, { completed: "yes" }, { completed: true, position: "a0" }, null])(
+    "rejects %j before opening a transaction",
+    async (input) => {
+      const { db, log } = fakeDb();
+      await expect(setTaskCompleted(db, userId, taskId, input)).rejects.toBeInstanceOf(ZodError);
+      expect(log).toEqual([]);
+    },
+  );
+
+  it("reports an unknown task as missing and locks nothing", async () => {
+    const { db, log } = fakeDb([]);
+    grantRole(log);
+    await expect(setTaskCompleted(db, userId, taskId, { completed: true })).rejects.toEqual(
+      new NotFoundError("Task"),
+    );
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+
+  it("reports another user's task as missing and writes nothing", async () => {
+    const { db, log } = fakeDb([[listId]]);
+    mockedRequireRole.mockRejectedValue(new NotFoundError("List"));
+    await expect(setTaskCompleted(db, userId, taskId, { completed: true })).rejects.toEqual(
+      new NotFoundError("Task"),
+    );
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+
+  it("passes ForbiddenError through for a viewer and writes nothing", async () => {
+    const forbidden = new ForbiddenError();
+    const { db, log } = fakeDb([[listId]]);
+    mockedRequireRole.mockRejectedValue(forbidden);
+    await expect(setTaskCompleted(db, userId, taskId, { completed: true })).rejects.toBe(forbidden);
+    expect(log).toEqual(["begin", readListId, "rollback"]);
   });
 });

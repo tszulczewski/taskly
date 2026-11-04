@@ -79,6 +79,13 @@ export const updateTaskInput = taskFields
   });
 export type UpdateTaskInput = z.infer<typeof updateTaskInput>;
 
+/** `PUT /api/tasks/[taskId]/completion`: the state to set, so a retry is harmless. */
+export const completionInput = z.strictObject({ completed: z.boolean() });
+export type CompletionInput = z.infer<typeof completionInput>;
+
+/** The 409 for a subtask added under a completed task (spec E03, Q3); the app recognizes it. */
+export const TASK_COMPLETED_MESSAGE = "Task is completed";
+
 // Response shapes: no defaults (a missing field fails), and unknown fields are accepted (stripped)
 // so an older client keeps working against a newer server.
 export const subtaskViewSchema = z.object({

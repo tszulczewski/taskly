@@ -9,7 +9,14 @@ import { createList, ensureDefaultList } from "./lists";
 import { MAX_ESTIMATE_GROSZE } from "./money";
 import { positionBetween } from "./position";
 import { taskListResponseSchema, type TaskView, taskViewSchema } from "./schemas";
-import { createTask, deleteTask, listTasks, requireTaskRole, updateTask } from "./tasks";
+import {
+  createTask,
+  deleteTask,
+  listTasks,
+  requireTaskRole,
+  setTaskCompleted,
+  updateTask,
+} from "./tasks";
 import type { Tx } from "./types";
 
 const url = process.env.DATABASE_URL;
@@ -17,6 +24,7 @@ const run = `tsk${Date.now()}`;
 const ids = { alice: `${run}-alice`, bob: `${run}-bob`, ed: `${run}-ed`, vi: `${run}-vi` };
 const unknownId = "00000000-0000-4000-8000-000000000000";
 const parentWithSubtasks = new ConflictError("A task with subtasks takes its estimate from them");
+const parentCompleted = new ConflictError("Task is completed");
 
 type Settled<T> = { value: T } | { error: unknown };
 /** Never rejects, so a failure cannot surface as an unhandled rejection before it is awaited. */
@@ -448,6 +456,179 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       expect(error).toBeInstanceOf(NotFoundError);
       expect((error as NotFoundError).resource).toBe("Task");
       expect(await rowsOf(listId)).toEqual([row]);
+    });
+  });
+
+  describe("setTaskCompleted", () => {
+    const complete = (taskId: string, userId: string = ids.alice) =>
+      setTaskCompleted(db, userId, taskId, { completed: true });
+    const reopen = (taskId: string, userId: string = ids.alice) =>
+      setTaskCompleted(db, userId, taskId, { completed: false });
+    const titles = (views: readonly { title: string }[]) => views.map((view) => view.title);
+    const stored = async (listId: string) =>
+      new Map((await rowsOf(listId)).map((row) => [row.title, row]));
+
+    /** Tasks A, B, C in this order; A has subtasks s1, s2, s3 with estimates. */
+    async function planned(name: string) {
+      const listId = await sharedList(name);
+      const a = await createTask(db, ids.alice, listId, { title: "A" });
+      for (const [title, amount] of [
+        ["s1", 10000],
+        ["s2", 20000],
+        ["s3", 30000],
+      ] as const) {
+        await createTask(db, ids.alice, listId, { title, estimate: est(amount), parentId: a.id });
+      }
+      const b = await createTask(db, ids.alice, listId, { title: "B" });
+      const c = await createTask(db, ids.alice, listId, { title: "C" });
+      const view = (await listTasks(db, ids.alice, listId))[0]!;
+      const [s1, s2, s3] = view.subtasks.map((subtask) => subtask.id) as [string, string, string];
+      return { listId, a: a.id, b: b.id, c: c.id, s1, s2, s3 };
+    }
+
+    it("completes a task with its subtasks, keeps every position and lists it last (#20 AC1, AC9, AC13)", async () => {
+      const { listId, a } = await planned("Completion AC1");
+      const before = await stored(listId);
+
+      const view = await complete(a, ids.ed);
+
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(view.completed).toBe(true);
+      expect(view.subtasks.map((subtask) => subtask.completed)).toEqual([true, true, true]);
+      const after = await stored(listId);
+      for (const [title, row] of before) expect(after.get(title)!.position).toBe(row.position);
+      expect(titles(await listTasks(db, ids.vi, listId))).toEqual(["B", "C", "A"]);
+    });
+
+    it("completes a subtask alone: the task stays open, the subtask goes last, the figure stays (#20 AC2, AC6, AC10, R14)", async () => {
+      const { listId, a, s1 } = await planned("Completion AC2");
+
+      const view = await complete(s1);
+
+      expect(view).toEqual(
+        expect.objectContaining({ id: a, completed: false, estimate: est(60000) }),
+      );
+      expect(titles(view.subtasks)).toEqual(["s2", "s3", "s1"]);
+      expect(view.subtasks.map((subtask) => subtask.completed)).toEqual([false, false, true]);
+      expect(await listTasks(db, ids.alice, listId)).toEqual(expect.arrayContaining([view]));
+    });
+
+    it("does not complete a task whose subtasks are all completed (#20 AC3, AC6)", async () => {
+      const { a, s1, s2, s3 } = await planned("Completion AC3");
+      await complete(s1);
+      await complete(s2);
+
+      const view = await complete(s3);
+
+      expect(view).toEqual(
+        expect.objectContaining({ id: a, completed: false, estimate: est(60000) }),
+      );
+      expect(view.subtasks.every((subtask) => subtask.completed)).toBe(true);
+    });
+
+    it("reopens a task first in the list, writing only its row; its subtasks stay completed (#20 AC4, AC7, AC11)", async () => {
+      const { listId, a, b } = await planned("Completion AC4");
+      await complete(b);
+      await complete(a);
+      expect(titles(await listTasks(db, ids.alice, listId))).toEqual(["C", "A", "B"]);
+      const before = await stored(listId);
+
+      const view = await reopen(a);
+
+      expect(view).toEqual(
+        expect.objectContaining({ completed: false, estimate: est(60000), unestimatedSubtasks: 0 }),
+      );
+      expect(view.subtasks.map((subtask) => subtask.completed)).toEqual([true, true, true]);
+      expect(titles(await listTasks(db, ids.alice, listId))).toEqual(["A", "C", "B"]);
+      const after = await stored(listId);
+      for (const [title, row] of before) {
+        if (title === "A") continue;
+        expect(after.get(title)).toEqual(row);
+      }
+      // Before its first sibling in stored order, completed ones included.
+      expect(after.get("A")!.position).toBe(positionBetween(null, before.get("B")!.position));
+    });
+
+    it("reopens a subtask first among its task's subtasks (#20 AC5, AC12)", async () => {
+      const { s3 } = await planned("Completion AC5");
+      await complete(s3);
+
+      const view = await reopen(s3);
+
+      expect(titles(view.subtasks)).toEqual(["s3", "s1", "s2"]);
+      expect(view.subtasks.every((subtask) => !subtask.completed)).toBe(true);
+    });
+
+    it("reopens one subtask of a completed task and leaves the task completed (Q2-1)", async () => {
+      const { a, s2 } = await planned("Completion Q2");
+      await complete(a);
+
+      const view = await reopen(s2);
+
+      expect(view).toEqual(
+        expect.objectContaining({ id: a, completed: true, estimate: est(60000) }),
+      );
+      expect(titles(view.subtasks)).toEqual(["s2", "s1", "s3"]);
+      expect(view.subtasks.map((subtask) => subtask.completed)).toEqual([false, true, true]);
+    });
+
+    it("keeps the key of a task with no sibling when it is reopened", async () => {
+      const listId = await sharedList("Completion alone");
+      const task = await createTask(db, ids.alice, listId, { title: "Only" });
+      await complete(task.id);
+
+      expect(await reopen(task.id)).toEqual(task);
+    });
+
+    it("writes nothing for a request in the state the row already has", async () => {
+      const { listId, a, b } = await planned("Completion same state");
+      await complete(b);
+      const before = await rowsOf(listId);
+
+      expect((await reopen(a)).completed).toBe(false);
+      expect((await complete(b)).completed).toBe(true);
+      expect(await rowsOf(listId)).toEqual(before);
+    });
+
+    it("forbids a viewer and hides the task from a non-member and for an unknown id", async () => {
+      const { listId, a } = await planned("Completion access");
+      const before = await rowsOf(listId);
+
+      await expect(complete(a, ids.vi)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(complete(a, ids.bob)).rejects.toEqual(new NotFoundError("Task"));
+      await expect(complete(unknownId)).rejects.toEqual(new NotFoundError("Task"));
+      await expect(complete("not-a-uuid")).rejects.toEqual(new NotFoundError("Task"));
+      expect(await rowsOf(listId)).toEqual(before);
+    });
+
+    it("gives two concurrent reopens distinct keys before their first sibling", async () => {
+      const listId = await sharedList("Completion two reopens");
+      const created = [];
+      for (const title of ["A", "B", "C"]) {
+        created.push(await createTask(db, ids.alice, listId, { title }));
+      }
+      const [a, b, c] = created as [TaskView, TaskView, TaskView];
+      await complete(b.id);
+      await complete(c.id);
+
+      await Promise.all([reopen(b.id, ids.alice), reopen(c.id, ids.ed)]);
+
+      const rows = await rowsOf(listId);
+      expect(new Set(rows.map((row) => row.position)).size).toBe(3);
+      expect(rows.map((row) => row.title).slice(2)).toEqual(["A"]);
+      expect(rows.every((row) => row.status === "todo")).toBe(true);
+      expect(rows[0]!.position < a.position && rows[1]!.position < a.position).toBe(true);
+    });
+
+    it("refuses a subtask under a completed task and writes no row (Q3-1)", async () => {
+      const { listId, a } = await planned("Completion Q3");
+      await complete(a);
+      const before = await rowsOf(listId);
+
+      await expect(createTask(db, ids.ed, listId, { title: "Late", parentId: a })).rejects.toEqual(
+        parentCompleted,
+      );
+      expect(await rowsOf(listId)).toEqual(before);
     });
   });
 
@@ -1014,6 +1195,63 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       });
       expect(deleteResult).toEqual({ value: null });
       expect(await rowsOf(listId)).toEqual([]);
+    });
+
+    describe("a completion racing a subtask add on the same task (C-1)", () => {
+      /**
+       * Holds the list row, queues `first` (owner) and then `second` (editor) behind it, and
+       * releases: waiters on a row lock are served in order, so `first` commits before `second`
+       * reads the parent.
+       */
+      async function race<A, B>(listId: string, first: () => Promise<A>, second: () => Promise<B>) {
+        const holder = lockRow("lists", listId, "no key update");
+        let firstRun: Promise<Settled<A>> | undefined;
+        let secondRun: Promise<Settled<B>> | undefined;
+        try {
+          const holderPid = await holder.pid;
+          firstRun = settle(first());
+          await waitUntilBlockedBy(ownerPid, holderPid);
+          secondRun = settle(second());
+          await waitUntilBlockedBy(editorPid, ownerPid);
+        } finally {
+          holder.release();
+          await holder.done;
+        }
+        return { first: await firstRun, second: await secondRun };
+      }
+
+      it("completes the new subtask too when the add commits first", async () => {
+        const { listId, parentId } = await parentTask("Race add then complete");
+
+        const result = await race(
+          listId,
+          () => createTask(ownerDb, ids.alice, listId, { title: "Grout", parentId }),
+          () => setTaskCompleted(editorDb, ids.ed, parentId, { completed: true }),
+        );
+
+        expect(result.first).toEqual({ value: expect.objectContaining({ id: parentId }) });
+        expect(result.second).toEqual({
+          value: expect.objectContaining({
+            completed: true,
+            subtasks: [expect.objectContaining({ title: "Grout", completed: true })],
+          }),
+        });
+        expect((await rowsOf(listId)).map((row) => row.status)).toEqual(["done", "done"]);
+      });
+
+      it("refuses the add with 409 when the completion commits first", async () => {
+        const { listId, parentId } = await parentTask("Race complete then add");
+
+        const result = await race(
+          listId,
+          () => setTaskCompleted(ownerDb, ids.alice, parentId, { completed: true }),
+          () => createTask(editorDb, ids.ed, listId, { title: "Grout", parentId }),
+        );
+
+        expect(result.first).toEqual({ value: expect.objectContaining({ completed: true }) });
+        expect(result.second).toEqual({ error: parentCompleted });
+        expect(await rowsOf(listId)).toEqual([expect.objectContaining({ status: "done" })]);
+      });
     });
   });
 });
