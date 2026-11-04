@@ -59,8 +59,8 @@ The owner sees one "Future expenses" min–max range under the list's name: the 
 
 ### Phase 3: app wiring
 
-- [ ] 3.1 useFutureExpenses and invalidation from every task mutation
-- [ ] 3.2 FutureExpenses on the task screen
+- [x] 3.1 useFutureExpenses and invalidation from every task mutation — 3709bdb
+- [x] 3.2 FutureExpenses on the task screen — 807cc6c
 
 ### Phase 4: browser test and wrap-up
 
