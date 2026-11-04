@@ -19,6 +19,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     title,
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
     ...extra,
@@ -621,6 +623,8 @@ describe("TaskListScreen subtasks", () => {
     title,
     description,
     estimate,
+    completed: false,
+    position: "a0",
   });
   const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
   const prime = subtask("Prime", range(300, 400));
@@ -671,7 +675,7 @@ describe("TaskListScreen subtasks", () => {
     await renderRows();
     const row = rowOf("Bathroom")!;
     expect(estimateOf(row)).toBe(pln("800–900_zł"));
-    expect(within(row).getByText("3 subtasks")).toBeDefined();
+    expect(within(row).getByText("0 of 3 subtasks completed")).toBeDefined();
     expect(within(row).getByText("1 subtask without an estimate")).toBeDefined();
     await click(screen.getByRole("button", { name: "Bathroom" }));
     const nested = subtaskList("Bathroom");
@@ -721,7 +725,7 @@ describe("TaskListScreen subtasks", () => {
     expect(within(pending).getByText("Saving…")).toBeDefined();
     const parentRow = rowOf("Bathroom")!;
     expect(estimateOf(parentRow)).toBe(pln("1_000–2_000_zł"));
-    expect(within(parentRow).queryByText("1 subtask")).toBeNull();
+    expect(within(parentRow).queryByText("0 of 1 subtask completed")).toBeNull();
     expect(cached()?.[0]).toMatchObject({ estimate: own, unestimatedSubtasks: 0 });
     openMenu("Prime");
     expect(screen.getByRole("menuitem", { name: "Edit" }).getAttribute("aria-disabled")).toBe(
@@ -736,7 +740,7 @@ describe("TaskListScreen subtasks", () => {
     await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
 
     expect(estimateOf(rowOf("Bathroom"))).toBe(pln("300–400_zł"));
-    expect(within(rowOf("Bathroom")!).getByText("1 subtask")).toBeDefined();
+    expect(within(rowOf("Bathroom")!).getByText("0 of 1 subtask completed")).toBeDefined();
     expect(estimateOf(rowOf("Prime"))).toBe(pln("300–400_zł"));
     expect(rowOf("Prime")?.querySelector(".row-highlight")).not.toBeNull();
     expect(rowOf("Prime")?.contains(scrollIntoView.mock.contexts.at(-1) as Node)).toBe(true);
@@ -764,13 +768,17 @@ describe("TaskListScreen subtasks", () => {
     let form = await startSubtask("Bathroom");
     type(form.getByRole("textbox", { name: "New subtask" }), "Grout");
     await click(form.getByRole("button", { name: "Add" }));
-    await waitFor(() => expect(within(rowOf("Bathroom")!).getByText("2 subtasks")).toBeDefined());
+    await waitFor(() =>
+      expect(within(rowOf("Bathroom")!).getByText("0 of 2 subtasks completed")).toBeDefined(),
+    );
     expect(noticeOf("Bathroom")).toBe("");
 
     form = await startSubtask("Hall");
     type(form.getByRole("textbox", { name: "New subtask" }), "Sweep");
     await click(form.getByRole("button", { name: "Add" }));
-    await waitFor(() => expect(within(rowOf("Hall")!).getByText("1 subtask")).toBeDefined());
+    await waitFor(() =>
+      expect(within(rowOf("Hall")!).getByText("0 of 1 subtask completed")).toBeDefined(),
+    );
     expect(within(rowOf("Hall")!).getByText("1 subtask without an estimate")).toBeDefined();
     expect(estimateOf(rowOf("Hall"))).toBe("No estimate");
     expect(noticeOf("Hall")).toBe("");
@@ -1057,5 +1065,200 @@ describe("TaskListScreen subtasks", () => {
     act(() => show(false));
     act(() => show(true));
     expect(noticeOf("Bathroom")).toBe("");
+  });
+});
+
+describe("TaskListScreen completion", () => {
+  const completionUrl = (id: string) => `/api/tasks/${id}/completion`;
+  const plaster: SubtaskView = {
+    id: crypto.randomUUID(),
+    title: "Plaster",
+    description: null,
+    estimate: null,
+    completed: false,
+    position: "a0",
+  };
+  const bath = view("Bathroom", { position: "a2", subtasks: [plaster] });
+  const titles = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('ul[aria-label="Tasks"] > li')).map(
+      (item) => item.querySelector('[data-slot="task-title"]')?.textContent,
+    );
+  const box = (title: string) =>
+    screen.getByRole("checkbox", { name: `Complete “${title}”` }) as HTMLButtonElement;
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  const alertOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("alert")
+      .map((region) => region.textContent)
+      .join("");
+  const statusOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("status")
+      .map((region) => region.textContent)
+      .join("");
+  /** Renders the screen and waits for the server's rows. */
+  async function renderRows() {
+    const harness = renderScreen();
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0));
+    return harness;
+  }
+  const openRow = (title: string) => click(screen.getByRole("button", { name: title }));
+  const checked = (title: string) => box(title).getAttribute("aria-checked");
+  /** The server answers a completion with the task that holds the row and keeps it. */
+  const answer = (task: TaskView) => () => saved(task);
+
+  beforeEach(() => {
+    serverTasks = [tile, { ...seal, position: "a1" }];
+  });
+
+  it("completes a task without open subtasks at once: checked, last, then the server's row", async () => {
+    const put = gate();
+    handlers.set(`PUT ${completionUrl(tile.id)}`, () => put.promise);
+    await renderLoaded();
+
+    await click(box("Tile the wall"));
+
+    await waitFor(() => expect(checked("Tile the wall")).toBe("true"));
+    expect(titles()).toEqual(["Seal the bath", "Tile the wall"]);
+    await waitFor(() => expect(sent("PUT", completionUrl(tile.id))).toEqual({ completed: true }));
+
+    await act(async () => put.open(saved({ ...tile, completed: true })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(titles()).toEqual(["Seal the bath", "Tile the wall"]);
+    expect(box("Tile the wall").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("asks before completing a task with open subtasks; Cancel sends nothing (#20 AC8)", async () => {
+    serverTasks = [bath];
+    const completed = { ...bath, completed: true, subtasks: [{ ...plaster, completed: true }] };
+    handlers.set(`PUT ${completionUrl(bath.id)}`, answer(completed));
+    await renderRows();
+
+    await click(box("Bathroom"));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Complete “Bathroom” and its open subtask?",
+    });
+    await click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(calls("PUT", completionUrl(bath.id))).toHaveLength(0);
+    expect(box("Bathroom").getAttribute("aria-checked")).toBe("false");
+
+    await click(box("Bathroom"));
+    const again = await screen.findByRole("alertdialog");
+    await click(within(again).getByRole("button", { name: "Complete task" }));
+    await waitFor(() => expect(checked("Bathroom")).toBe("true"));
+    await openRow("Bathroom");
+    expect(checked("Plaster")).toBe("true");
+    expect(sent("PUT", completionUrl(bath.id))).toEqual({ completed: true });
+  });
+
+  it("handles a task removed by a refetch while its completion question is open", async () => {
+    serverTasks = [bath, tile];
+    const { client } = await renderRows();
+    await click(box("Bathroom"));
+    const dialog = await screen.findByRole("alertdialog");
+
+    serverTasks = [tile];
+    await act(() => client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(rowOf("Bathroom")).toBeUndefined());
+    await click(within(dialog).getByRole("button", { name: "Complete task" }));
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(calls("PUT", completionUrl(bath.id))).toHaveLength(0);
+    await waitFor(() => expect(document.activeElement).toBe(list()));
+  });
+
+  it("reopens a completed task first in the list", async () => {
+    const done = { ...seal, position: "a1", completed: true };
+    serverTasks = [tile, done];
+    handlers.set(
+      `PUT ${completionUrl(seal.id)}`,
+      answer({ ...done, completed: false, position: "Zz" }),
+    );
+    await renderLoaded();
+    expect(titles()).toEqual(["Tile the wall", "Seal the bath"]);
+
+    await click(box("Seal the bath"));
+
+    await waitFor(() => expect(titles()).toEqual(["Seal the bath", "Tile the wall"]));
+    expect(sent("PUT", completionUrl(seal.id))).toEqual({ completed: false });
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(titles()).toEqual(["Seal the bath", "Tile the wall"]);
+  });
+
+  it("puts a refused completion back with a message in its row until the next change (s04.28)", async () => {
+    serverTasks = [tile, { ...seal, position: "a1" }];
+    handlers.set(`PUT ${completionUrl(tile.id)}`, () =>
+      fail(500, "internal_error", "Something went wrong"),
+    );
+    await renderLoaded();
+
+    await click(box("Tile the wall"));
+
+    await waitFor(() =>
+      expect(alertOf("Tile the wall")).toBe(
+        "Could not save “Tile the wall”. It is back as it was.",
+      ),
+    );
+    expect(box("Tile the wall").getAttribute("aria-checked")).toBe("false");
+    expect(titles()).toEqual(["Tile the wall", "Seal the bath"]);
+
+    handlers.set(`PUT ${completionUrl(seal.id)}`, answer({ ...seal, completed: true }));
+    await click(box("Seal the bath"));
+    expect(alertOf("Tile the wall")).toBe("");
+  });
+
+  it("shows a refused subtask toggle in the subtask's row", async () => {
+    serverTasks = [bath];
+    handlers.set(`PUT ${completionUrl(plaster.id)}`, () =>
+      fail(409, "conflict", "Please try again"),
+    );
+    await renderRows();
+    await openRow("Bathroom");
+
+    await click(box("Plaster"));
+
+    await waitFor(() =>
+      expect(alertOf("Plaster")).toBe("Could not save “Plaster”. It is back as it was."),
+    );
+    expect(box("Plaster").getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("treats a 404 as deleted elsewhere: the refetch removes the row and the message shows", async () => {
+    serverTasks = [tile, { ...seal, position: "a1" }];
+    handlers.set(`PUT ${completionUrl(tile.id)}`, () => {
+      serverTasks = [{ ...seal, position: "a1" }];
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderLoaded();
+
+    await click(box("Tile the wall"));
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(titles()).toEqual(["Seal the bath"]);
+  });
+
+  it("explains a subtask add refused because the task was completed elsewhere (Q3)", async () => {
+    serverTasks = [bath];
+    handlers.set(`POST ${TASKS_URL}`, () => {
+      serverTasks = [{ ...bath, completed: true, subtasks: [{ ...plaster, completed: true }] }];
+      return fail(409, "conflict", "Task is completed");
+    });
+    await renderRows();
+    openMenu("Bathroom");
+    await choose("Add subtask");
+    const form = within(screen.getByRole("textbox", { name: "New subtask" }).closest("form")!);
+    type(form.getByRole("textbox", { name: "New subtask" }), "Grout");
+    await click(form.getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(statusOf("Bathroom")).toBe("Could not add “Grout”. “Bathroom” is completed."),
+    );
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "New subtask" })).toBeNull());
+    expect(box("Bathroom").getAttribute("aria-checked")).toBe("true");
   });
 });

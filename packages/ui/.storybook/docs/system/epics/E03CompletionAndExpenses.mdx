@@ -4,7 +4,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # E03 Completion and future expenses
 
-Backlog E03 (#13): E03-S01 complete and reopen tasks and subtasks (#20), E03-S02 see future expenses as one range (#21), E03-S03 see what has no estimate and add one (#47). Spec: `.ai/specs/2026-11-03-completion-and-future-expenses.md` (ready; implementation pending). The design decisions below (I1–I4, J1–J10, POSTEP.md) inform its UI/UX. Screen S8.
+Backlog E03 (#13): E03-S01 complete and reopen tasks and subtasks (#20), E03-S02 see future expenses as one range (#21), E03-S03 see what has no estimate and add one (#47). Spec: `.ai/specs/2026-11-03-completion-and-future-expenses.md` (Phase 1 complete and reopen implemented; Phases 2 and 3 pending). The design decisions below (I1–I4, J1–J10, POSTEP.md) inform its UI/UX. Screen S8.
 
 ## Flow
 
@@ -41,6 +41,6 @@ Pattern: [Complete and reopen](?path=/docs/patterns-complete-and-reopen--docs).
 
 ## Remaining product work
 
-- Implement the ready E03 spec in three phases: completion (#20), future expenses (#21), then missing estimates (#47). The server returns integer grosze; the UI formats them (R17).
+- Completion (#20, Phase 1) is implemented. Next: future expenses (#21, Phase 2), then missing estimates (#47, Phase 3). The server returns integer grosze; the UI formats them (R17).
 - The total uses `formatPlnRange`, the same format as a task's estimate (decision F11).
-- In the app: completion is optimistic with rollback; the total is refetched after every change that affects it.
+- Completion in the app is optimistic with rollback. Phase 2 will refetch the total after every change that affects it.

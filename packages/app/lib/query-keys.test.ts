@@ -5,6 +5,14 @@ describe("queryKeys", () => {
   it("builds stable keys", () => {
     expect(queryKeys.lists()).toEqual(["lists"]);
     expect(queryKeys.tasks("l1")).toEqual(["lists", "l1", "tasks"]);
+    expect(queryKeys.taskChanges("l1")).toEqual(["lists", "l1", "tasks", "change"]);
+    expect(queryKeys.taskChange("l1", "completion")).toEqual([
+      "lists",
+      "l1",
+      "tasks",
+      "change",
+      "completion",
+    ]);
     expect(queryKeys.shopping("l1")).toEqual(["lists", "l1", "shopping"]);
     expect(queryKeys.summary()).toEqual(["summary"]);
     expect(queryKeys.summary("l1")).toEqual(["lists", "l1", "summary"]);

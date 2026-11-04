@@ -9,22 +9,27 @@ import {
   taskViewSchema,
   type UpdateTaskInput,
 } from "@taskly/core";
-import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type Mutation,
+  type QueryClient,
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useMemo } from "react";
 import { apiCall } from "../../lib/api-client";
 import { queryKeys } from "../../lib/query-keys";
+import { isPendingTaskId, PENDING_PREFIX, type PendingChange, replayChanges } from "./task-items";
 
-// Server ids are UUIDs (`taskViewSchema`), so an id with this prefix can only be a temporary row.
-const PENDING_PREFIX = "pending-";
 let pendingCount = 0;
 
 /**
- * True for a row the server has not confirmed yet (an optimistic add). The screen renders it as
- * pending (dimmed, actions disabled); the update and delete hooks refuse it, so no request is ever
- * sent with a temporary id (spec E01, Optimistic updates).
+ * One queue for every task mutation of a list (spec E03 and E02, Order of requests): a request is
+ * sent only after the previous one settled, so answers reach the cache in the order the changes
+ * were made, and an earlier change's tree never replaces one a later change confirmed.
  */
-export function isPendingTaskId(id: string): boolean {
-  return id.startsWith(PENDING_PREFIX);
-}
+const listQueue = (listId: string) => ({ id: `tasks:${listId}` });
 
 const tasksPath = (listId: string) => `/api/lists/${encodeURIComponent(listId)}/tasks`;
 
@@ -119,6 +124,7 @@ export function useCreateTask(listId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: queryKeys.tasks(listId),
+    scope: listQueue(listId),
     mutationFn: async (input: CreateTaskInput) => {
       if (input.parentId !== null) refusePending(input.parentId);
       return apiCall(tasksPath(listId), { method: "POST", body: input, response: taskViewSchema });
@@ -133,6 +139,9 @@ export function useCreateTask(listId: string) {
         title: input.title,
         description: input.description,
         estimate: input.estimate,
+        completed: false,
+        // Unknown until the server answers; pending rows are never sent or completed.
+        position: "",
       };
       queryClient.setQueryData<TaskView[]>(
         queryKey,
@@ -172,6 +181,7 @@ export function useUpdateTask(listId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: queryKeys.tasks(listId),
+    scope: listQueue(listId),
     mutationFn: async ({ id, input }: UpdateTaskVariables) =>
       apiCall(taskPath(id), { method: "PATCH", body: input, response: taskViewSchema }),
     onSuccess: (task, { id }) =>
@@ -188,6 +198,7 @@ export function useDeleteTask(listId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: queryKeys.tasks(listId),
+    scope: listQueue(listId),
     mutationFn: async (id: string) =>
       apiCall(taskPath(id), { method: "DELETE", response: deleteTaskResponseSchema }),
     onSuccess: (parent, id) =>
@@ -196,4 +207,63 @@ export function useDeleteTask(listId: string) {
       ),
     onSettled: () => settle(queryClient, listId),
   });
+}
+
+export interface SetCompletedVariables {
+  id: string;
+  completed: boolean;
+  /** For the row message if the server refuses it. */
+  title: string;
+}
+
+/**
+ * Completes or reopens a task or subtask (`PUT …/completion`). Optimistic without touching the
+ * cache: the screen shows the pending variables replayed over the server's data
+ * (`useTaskViews`), so a failure needs no rollback and a newer toggle is never overwritten by an
+ * older answer. The answer, the task that holds the row, replaces that task in the cache before
+ * the mutation stops being pending, so the screen never shows a gap. `onError` is a hook-level
+ * option: per-call callbacks fire only for the last call (lesson 2026-10-30).
+ */
+export function useSetCompleted(
+  listId: string,
+  { onError }: { onError?: (error: unknown, variables: SetCompletedVariables) => void } = {},
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.taskChange(listId, "completion"),
+    scope: listQueue(listId),
+    mutationFn: async ({ id, completed }: SetCompletedVariables) =>
+      apiCall(`${taskPath(id)}/completion`, {
+        method: "PUT",
+        body: { completed },
+        response: taskViewSchema,
+      }),
+    onSuccess: (task) => writeTasks(queryClient, listId, (tasks) => putTask(tasks, task, task.id)),
+    onError: (error, variables) => onError?.(error, variables),
+    onSettled: () => settle(queryClient, listId),
+  });
+}
+
+/** A pending change mutation as the replay reads it; the last key part names its kind. */
+function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange {
+  const kind = mutation.options.mutationKey!.at(-1) as PendingChange["kind"];
+  return { kind, ...(mutation.state.variables as Omit<PendingChange, "kind">) } as PendingChange;
+}
+
+/**
+ * The tasks of a list as the screen shows them: the cached server data in read order, with the
+ * pending changes (completions) applied in submission order (spec E03, UI/UX). `views` is
+ * undefined until the list has loaded.
+ */
+export function useTaskViews(listId: string) {
+  const query = useTasks(listId);
+  const changes = useMutationState({
+    filters: { mutationKey: queryKeys.taskChanges(listId), status: "pending" },
+    select: toChange,
+  });
+  const views = useMemo(
+    () => (query.data === undefined ? undefined : replayChanges(query.data, changes)),
+    [query.data, changes],
+  );
+  return { query, views };
 }

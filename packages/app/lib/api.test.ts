@@ -66,6 +66,8 @@ const SECRET = "Row title 7f3a";
 const ID = "6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f";
 const SUB_ID = "0a1b2c3d-4e5f-4a7b-9c8d-6f1c2d3e4b5a";
 const task: TaskView = {
+  completed: false,
+  position: "a0",
   id: ID,
   title: SECRET,
   description: "Behind the sink",
@@ -79,12 +81,16 @@ const parent: TaskView = {
   unestimatedSubtasks: 1,
   subtasks: [
     {
+      completed: false,
+      position: "a0",
       id: SUB_ID,
       title: "Plaster",
       description: null,
       estimate: { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: MAX_ESTIMATE_GROSZE + 1 },
     },
     {
+      completed: false,
+      position: "a0",
       id: "9c8d6f1c-2d3e-4b5a-8e9f-0a1b2c3d4e5f",
       title: "Paint",
       description: null,

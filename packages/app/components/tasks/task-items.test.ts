@@ -3,11 +3,17 @@ import type { TaskFormValues } from "@taskly/ui";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../lib/api-client";
 import {
+  applyCompletion,
   hasTask,
   isNotFound,
+  isPendingTaskId,
+  replayChanges,
+  sortTasks,
   subtaskAdded,
   subtaskDeleted,
   submitError,
+  TASK_SCREEN_TEXT,
+  titleOf,
   toCreateInput,
   toTaskItem,
   toUpdateInput,
@@ -23,6 +29,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     title,
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
     ...extra,
@@ -45,6 +53,7 @@ describe("toTaskItem", () => {
       title: "Tile",
       description: null,
       estimate: pln("1_500,50–2_000_zł"),
+      completed: false,
       amount: pln("1_500,50"),
       upTo: pln("2_000"),
       unestimatedSubtasks: 0,
@@ -65,7 +74,14 @@ describe("toTaskItem", () => {
   });
 
   it("marks a temporary row pending and maps subtasks with their own estimate", () => {
-    const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Buy",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const item = toTaskItem({
       ...view("Paint", { unestimatedSubtasks: 1, subtasks: [subtask] }),
       id: "pending-7",
@@ -78,11 +94,27 @@ describe("toTaskItem", () => {
         title: "Buy",
         description: null,
         estimate: null,
+        completed: false,
         amount: "",
         upTo: "",
         pending: false,
       },
     ]);
+  });
+
+  it("maps completed for a task and for its subtasks", () => {
+    const done = {
+      id: crypto.randomUUID(),
+      title: "Buy",
+      description: null,
+      estimate: null,
+      completed: true,
+      position: "a1",
+    };
+    const item = toTaskItem(view("Paint", { completed: true, subtasks: [done] }));
+    expect(item.completed).toBe(true);
+    expect(item.subtasks![0]!.completed).toBe(true);
+    expect(toTaskItem(view("Seal")).completed).toBe(false);
   });
 
   it("leaves the amounts of a task with subtasks empty: its form shows their sum", () => {
@@ -91,6 +123,8 @@ describe("toTaskItem", () => {
       title: "Prime",
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+      completed: false,
+      position: "a0",
     };
     // A sum above the typed-amount cap must not reach the (hidden) amount fields.
     const sum = { minGrosze: 3_000_000_000, maxGrosze: 3_000_000_000 };
@@ -101,7 +135,14 @@ describe("toTaskItem", () => {
   });
 
   it("keeps a task's own amounts while its only subtask is pending, and marks that one", () => {
-    const temporary = { id: "pending-3", title: "Prime", description: null, estimate: null };
+    const temporary = {
+      id: "pending-3",
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const own = { minGrosze: 45_000, maxGrosze: 45_000 };
     const item = toTaskItem(view("Rods", { estimate: own, subtasks: [temporary] }));
     expect(item).toMatchObject({ estimate: pln("450_zł"), amount: "450", upTo: "" });
@@ -197,7 +238,14 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(tasks, exact.id, { ...prefilled, title: " Seal the bath " }, opened),
     ).toEqual(null);
-    const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Buy",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const parent = view("Paint", { subtasks: [subtask] });
     const subtaskItem = toTaskItem(parent).subtasks![0]!;
     expect(toUpdateInput([parent], subtask.id, form({ title: "Buy" }), subtaskItem)).toEqual(null);
@@ -216,7 +264,14 @@ describe("toUpdateInput", () => {
   });
 
   it("judges a form opened on a task with subtasks by its empty prefill once the subtasks are gone", () => {
-    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const parent = view("Paint", {
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
       subtasks: [subtask],
@@ -235,7 +290,14 @@ describe("toUpdateInput", () => {
   });
 
   it("never sends an estimate for a task that has subtasks now (after a 409 and the refetch)", () => {
-    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
     const openedBare = toTaskItem(bare);
     const now = { ...bare, subtasks: [subtask] };
@@ -250,7 +312,14 @@ describe("toUpdateInput", () => {
   ])("ignores the hidden amounts of a task that has subtasks now, also %s", (_, amounts) => {
     // Regression: amounts typed before a refetch brought the first subtask are hidden behind
     // the sum; they and the form's prefill are not read, so nothing throws.
-    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
     const now = { ...bare, subtasks: [subtask] };
     const values = form({ title: "Paint the hall", ...amounts });
@@ -263,7 +332,14 @@ describe("toUpdateInput", () => {
   });
 
   it("sends the estimate of a task whose only subtask was still pending when the form opened", () => {
-    const temporary = { id: "pending-4", title: "Prime", description: null, estimate: null };
+    const temporary = {
+      id: "pending-4",
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const parent = view("Paint", { subtasks: [temporary] });
     expect(
       toUpdateInput([parent], parent.id, form({ title: "Paint", amount: "9" }), toTaskItem(parent)),
@@ -288,6 +364,8 @@ describe("subtaskAdded", () => {
     title,
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
   });
   const own = { minGrosze: 100_000, maxGrosze: 200_000 };
   const sumStarted =
@@ -342,7 +420,14 @@ describe("subtaskDeleted", () => {
   });
 
   it("says nothing for a task, a task with subtasks left or one without its own estimate", () => {
-    const left = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const left = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     expect(subtaskDeleted(null)).toBeUndefined();
     expect(
       subtaskDeleted(
@@ -355,7 +440,14 @@ describe("subtaskDeleted", () => {
 
 describe("hasTask and isNotFound", () => {
   it("finds tasks and subtasks", () => {
-    const subtask = { id: crypto.randomUUID(), title: "Buy", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Buy",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const parent = view("Paint", { subtasks: [subtask] });
     expect(hasTask([parent], parent.id)).toBe(true);
     expect(hasTask([parent], subtask.id)).toBe(true);
@@ -425,5 +517,179 @@ describe("submitError", () => {
     ]) {
       expect(submitError(error, form(), fallback)).toEqual({ ok: false, formError: fallback });
     }
+  });
+});
+
+describe("isPendingTaskId", () => {
+  it("tells temporary ids from server ids", () => {
+    expect(isPendingTaskId("pending-1")).toBe(true);
+    expect(isPendingTaskId(crypto.randomUUID())).toBe(false);
+  });
+});
+
+describe("completion texts", () => {
+  it("names the row in the refusal and the Q3 notice", () => {
+    expect(TASK_SCREEN_TEXT.changeFailed("Seal the bath")).toBe(
+      "Could not save “Seal the bath”. It is back as it was.",
+    );
+    expect(TASK_SCREEN_TEXT.addToCompleted("Grout", "Bathroom")).toBe(
+      "Could not add “Grout”. “Bathroom” is completed.",
+    );
+  });
+});
+
+describe("completion replay", () => {
+  const row = (title: string, position: string, extra: Partial<TaskView> = {}) =>
+    view(title, { position, ...extra });
+  const sub = (title: string, position: string, completed = false) => {
+    const {
+      unestimatedSubtasks: _u,
+      subtasks: _s,
+      ...subtask
+    } = row(title, position, { completed });
+    return subtask;
+  };
+  const titles = (views: readonly { title: string }[]) => views.map((v) => v.title);
+  const pendingRow = (title: string) => ({ ...row(title, ""), id: `pending-${title}` });
+
+  describe("sortTasks", () => {
+    it("puts open rows by key, then temporary rows in their order, then completed rows by key", () => {
+      const views = [
+        row("Done b", "a5", { completed: true }),
+        pendingRow("New 1"),
+        row("Open b", "a3"),
+        row("Done a", "a1", { completed: true }),
+        pendingRow("New 2"),
+        row("Open a", "a2"),
+      ];
+
+      expect(titles(sortTasks(views))).toEqual([
+        "Open a",
+        "Open b",
+        "New 1",
+        "New 2",
+        "Done a",
+        "Done b",
+      ]);
+    });
+
+    it("sorts each task's subtasks the same way and leaves the input alone", () => {
+      const task = row("Bathroom", "a0", {
+        subtasks: [sub("s2", "a1", true), sub("s1", "a2")],
+      });
+      const views = [task];
+
+      expect(titles(sortTasks(views)[0]!.subtasks)).toEqual(["s1", "s2"]);
+      expect(titles(views[0]!.subtasks)).toEqual(["s2", "s1"]);
+    });
+
+    it("keeps rows with equal keys in their order", () => {
+      expect(titles(sortTasks([row("x", "a0"), row("y", "a0")]))).toEqual(["x", "y"]);
+    });
+
+    it('compares keys bytewise, as COLLATE "C" does', () => {
+      // "Z" (0x5A) sorts before "a" (0x61), unlike a locale-aware comparison.
+      expect(titles(sortTasks([row("a", "a0"), row("Z", "Zz")]))).toEqual(["Z", "a"]);
+    });
+  });
+
+  describe("applyCompletion", () => {
+    it("completes a task with all its subtasks and moves it after the open tasks, keys unchanged (R09)", () => {
+      const a = row("A", "a0", { subtasks: [sub("s1", "a0"), sub("s2", "a1")] });
+      const views = [a, row("B", "a1"), row("C", "a2")];
+
+      const shown = applyCompletion(views, { id: a.id, completed: true });
+
+      expect(titles(shown)).toEqual(["B", "C", "A"]);
+      expect(shown[2]).toEqual({
+        ...a,
+        completed: true,
+        subtasks: a.subtasks.map((s) => ({ ...s, completed: true })),
+      });
+    });
+
+    it("reopens a task first, keyed before its first saved sibling; its subtasks keep their state (R11)", () => {
+      const a = row("A", "a5", { completed: true, subtasks: [sub("s1", "a0", true)] });
+      const views = [row("B", "a1"), pendingRow("New"), row("C", "a2", { completed: true }), a];
+
+      const shown = applyCompletion(views, { id: a.id, completed: false });
+
+      expect(titles(shown)).toEqual(["A", "B", "New", "C"]);
+      expect(shown[0]).toEqual({ ...a, completed: false, position: "a0" });
+    });
+
+    it("keeps the key of a reopened row with no saved sibling", () => {
+      const only = row("Only", "a3", { completed: true });
+
+      const shown = applyCompletion([only, pendingRow("New")], { id: only.id, completed: false });
+
+      expect(shown[0]).toEqual({ ...only, completed: false });
+    });
+
+    it("completes a subtask alone, after its open siblings; the task stays open (R11)", () => {
+      const task = row("Bathroom", "a0", {
+        subtasks: [sub("s1", "a0"), sub("s2", "a1"), sub("s3", "a2")],
+      });
+
+      const [shown] = applyCompletion([task], { id: task.subtasks[0]!.id, completed: true });
+
+      expect(shown!.completed).toBe(false);
+      expect(titles(shown!.subtasks)).toEqual(["s2", "s3", "s1"]);
+    });
+
+    it("reopens a subtask of a completed task first among its siblings; the task stays completed (Q2)", () => {
+      const task = row("Bathroom", "a0", {
+        completed: true,
+        subtasks: [sub("s1", "a1", true), sub("s2", "a2", true)],
+      });
+
+      const [shown] = applyCompletion([task], { id: task.subtasks[1]!.id, completed: false });
+
+      expect(shown!.completed).toBe(true);
+      expect(shown!.subtasks.map((s) => [s.title, s.completed, s.position])).toEqual([
+        ["s2", false, "a0"],
+        ["s1", true, "a1"],
+      ]);
+    });
+
+    it("leaves a row already in that state, or one no longer in the list, as it is", () => {
+      const done = row("Done", "a0", { completed: true, subtasks: [sub("s1", "a0")] });
+      const open = row("Open", "a1", { subtasks: [sub("s2", "a0", true)] });
+      const views = [open, done];
+
+      expect(applyCompletion(views, { id: done.id, completed: true })).toEqual(views);
+      expect(applyCompletion(views, { id: open.subtasks[0]!.id, completed: true })).toEqual(views);
+      expect(applyCompletion(views, { id: crypto.randomUUID(), completed: false })).toEqual(views);
+    });
+  });
+
+  describe("replayChanges", () => {
+    it("sorts the server's views and applies the pending changes in the order they were made", () => {
+      const a = row("A", "a0");
+      const b = row("B", "a1", { completed: true });
+      // The server's answer for a completion sits in A's old place until the next refetch.
+      const views = [b, a];
+
+      expect(titles(replayChanges(views, []))).toEqual(["A", "B"]);
+      const shown = replayChanges(views, [
+        { kind: "completion", id: a.id, completed: true },
+        { kind: "completion", id: a.id, completed: false },
+        { kind: "completion", id: b.id, completed: false },
+      ]);
+      expect(shown.map((v) => [v.title, v.completed])).toEqual([
+        ["B", false],
+        ["A", false],
+      ]);
+    });
+  });
+
+  describe("titleOf", () => {
+    it("finds a task's or a subtask's title, and throws for a row not on screen", () => {
+      const task = row("Bathroom", "a0", { subtasks: [sub("Grout", "a0")] });
+
+      expect(titleOf([task], task.id)).toBe("Bathroom");
+      expect(titleOf([task], task.subtasks[0]!.id)).toBe("Grout");
+      expect(() => titleOf([task], crypto.randomUUID())).toThrow("The task is not in the list");
+    });
   });
 });

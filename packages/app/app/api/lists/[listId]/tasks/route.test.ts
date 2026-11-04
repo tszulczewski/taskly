@@ -21,6 +21,8 @@ const URL_ = `http://x/api/lists/${LIST}/tasks`;
 // A row value that must never appear in a response body or log line when the output is invalid.
 const SECRET = "Grout behind the bath";
 const task: TaskView = {
+  completed: false,
+  position: "a0",
   id: "6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f",
   title: SECRET,
   description: null,
