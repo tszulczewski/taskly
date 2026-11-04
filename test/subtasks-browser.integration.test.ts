@@ -31,6 +31,10 @@ const sumStarted = (title: string) =>
 const sumBack = (title: string, amount: string) =>
   `The estimate of “${title}” is back to your amount: ${shown(amount)}.`;
 
+// The meta line's subtask progress since E03: "0/2" shown, "0 of 2 subtasks completed" read out.
+const progress = (done: number, total: number) =>
+  `${done}/${total}${done} of ${total} ${total === 1 ? "subtask" : "subtasks"} completed`;
+
 const QUICK_ADD = '[data-slot="quick-add"]';
 const field = (name: string) => `${QUICK_ADD} [name="${name}"]`;
 // The "New subtask" form inside a task's row; the quick add above the list has the same fields.
@@ -47,7 +51,7 @@ type SubtaskState = {
 type TaskState = {
   title: string;
   estimate: string;
-  /** The meta line under the title: the subtask count and the count without an estimate. */
+  /** The meta line under the title: the subtask progress and the count without an estimate. */
   meta: string[];
   /** The row's `role="status"` text: a roll-up message, or "". */
   notice: string;
@@ -301,7 +305,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         title: "Bathroom floor",
         estimate: shown("300-400 zł"),
-        meta: ["1 subtask"],
+        meta: [progress(0, 1)],
         notice: "",
         expanded: "true",
         pending: false,
@@ -373,7 +377,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...tile,
         estimate: shown("300-400 zł"),
-        meta: ["1 subtask"],
+        meta: [progress(0, 1)],
         notice: sumStarted("Tile the bathroom"),
         subtasks: [prime],
       },
@@ -385,7 +389,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...tile,
         estimate: shown("800-900 zł"),
-        meta: ["2 subtasks"],
+        meta: [progress(0, 2)],
         notice: "",
         subtasks: [prime, grout],
       },
@@ -417,7 +421,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...tile,
         estimate: shown("300-400 zł"),
-        meta: ["1 subtask"],
+        meta: [progress(0, 1)],
         notice: "",
         subtasks: [prime],
       },
@@ -468,7 +472,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...hallway,
         estimate: "No estimate",
-        meta: ["1 subtask", "1 subtask without an estimate"],
+        meta: [progress(0, 1), "1 subtask without an estimate"],
         subtasks: [buyPaint],
       },
       subtaskFormClosed,
@@ -479,7 +483,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...hallway,
         estimate: shown("600-800 zł"),
-        meta: ["2 subtasks", "1 subtask without an estimate"],
+        meta: [progress(0, 2), "1 subtask without an estimate"],
         subtasks: [
           buyPaint,
           {
@@ -498,7 +502,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...hallway,
         estimate: "No estimate",
-        meta: ["1 subtask", "1 subtask without an estimate"],
+        meta: [progress(0, 1), "1 subtask without an estimate"],
         subtasks: [buyPaint],
       },
       dialogClosed,
@@ -509,7 +513,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         ...hallway,
         estimate: "No estimate",
-        meta: ["2 subtasks", "2 subtasks without an estimate"],
+        meta: [progress(0, 2), "2 subtasks without an estimate"],
         subtasks: [buyPaint, { ...buyPaint, title: "Buy tape" }],
       },
       subtaskFormClosed,
@@ -531,7 +535,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       {
         title: "Fix the skirting",
         estimate: "No estimate",
-        meta: ["1 subtask", "1 subtask without an estimate"],
+        meta: [progress(0, 1), "1 subtask without an estimate"],
         notice: sumStarted("Fix the skirting"),
         expanded: "true",
         pending: false,
@@ -558,7 +562,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     };
     const kitchen = {
       title: "Kitchen",
-      meta: ["2 subtasks"],
+      meta: [progress(0, 2)],
       notice: "",
       expanded: "true",
       pending: false,
