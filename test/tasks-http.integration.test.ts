@@ -309,7 +309,15 @@ describe("task routes over HTTP", () => {
       cookie: owner.cookie,
       body: { completed: false },
     });
-    expect(taskViewSchema.parse(await okData(reopened))).toEqual(withSubtask);
+    // Only the task reopens (R11): its subtask stays completed, and it is keyed before its first
+    // sibling, or keeps its key without one (decision 2026-10-21).
+    const open = taskViewSchema.parse(await okData(reopened));
+    expect(open).toEqual({
+      ...completed,
+      completed: false,
+      position: expect.any(String),
+    });
+    expect(open.position <= withSubtask.position).toBe(true);
 
     for (const body of [{}, { completed: "yes" }, { completed: true, title: "x" }, "{completed:"]) {
       const res = await api(path, { method: "PUT", cookie: owner.cookie, body });
