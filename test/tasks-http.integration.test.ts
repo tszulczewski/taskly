@@ -1,6 +1,7 @@
 import {
   apiResponseSchema,
   deleteTaskResponseSchema,
+  futureExpensesResponseSchema,
   taskListResponseSchema,
   type TaskView,
   taskViewSchema,
@@ -100,6 +101,7 @@ describe("task routes over HTTP", () => {
   }
 
   const tasksPath = (listId: string) => `/lists/${listId}/tasks`;
+  const expensesPath = (listId: string) => `/lists/${listId}/future-expenses`;
 
   async function createOwnerTask(title: string, estimate: unknown = null): Promise<TaskView> {
     const res = await api(tasksPath(owner.listId), {
@@ -326,6 +328,48 @@ describe("task routes over HTTP", () => {
     expect((await taskRow(parent.id))?.status).toBe("todo");
   });
 
+  it("answers the future expenses of open main tasks in grosze, following completion", async () => {
+    const planner = await signIn("planner");
+    const listId = await ensureDefaultList(db, planner.id);
+    const total = async () => {
+      const res = await api(expensesPath(listId), { cookie: planner.cookie });
+      return futureExpensesResponseSchema.parse(await okData(res)).total;
+    };
+    const add = async (body: object) => {
+      const res = await api(tasksPath(listId), { method: "POST", cookie: planner.cookie, body });
+      return taskViewSchema.parse(await okData(res));
+    };
+    expect(await total()).toBeNull();
+
+    const tiles = await add({
+      title: "Tiles",
+      estimate: { minGrosze: 100_000, maxGrosze: 200_000 },
+    });
+    const walls = await add({
+      title: "Walls",
+      estimate: { minGrosze: 900_000, maxGrosze: 900_000 },
+    });
+    // The subtask's 300–400 zł replaces the task's own figure (R12, R17).
+    await add({
+      title: "Plaster",
+      parentId: walls.id,
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    });
+    await add({ title: "Paint" });
+    expect(await total()).toEqual({ minGrosze: 130_000, maxGrosze: 240_000 });
+
+    const completion = (completed: boolean) =>
+      api(`/tasks/${tiles.id}/completion`, {
+        method: "PUT",
+        cookie: planner.cookie,
+        body: { completed },
+      });
+    await okData(await completion(true));
+    expect(await total()).toEqual({ minGrosze: 30_000, maxGrosze: 40_000 });
+    await okData(await completion(false));
+    expect(await total()).toEqual({ minGrosze: 130_000, maxGrosze: 240_000 });
+  });
+
   it("rejects every mutation without the CSRF header and changes nothing", async () => {
     const task = await createOwnerTask("Door");
     const before = await taskRow(task.id);
@@ -391,6 +435,7 @@ describe("task routes over HTTP", () => {
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [expensesPath(owner.listId), {}],
     ];
     const stale = `${owner.cookie.split("=")[0]}=not-a-session.sig`;
     for (const [path, call] of calls)
@@ -414,6 +459,9 @@ describe("task routes over HTTP", () => {
       [`/tasks/not-a-uuid`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
       [`/tasks/${UNKNOWN_ID}/completion`, { method: "PUT", body: { completed: true } }],
+      [expensesPath(owner.listId), {}],
+      [expensesPath(UNKNOWN_ID), {}],
+      [expensesPath("not-a-uuid"), {}],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: stranger.cookie });
@@ -428,6 +476,12 @@ describe("task routes over HTTP", () => {
     expect(taskListResponseSchema.parse(await okData(listed)).some((t) => t.id === task.id)).toBe(
       true,
     );
+    // A viewer reads the same total as the owner.
+    const expenses = async (cookie: string) =>
+      futureExpensesResponseSchema.parse(
+        await okData(await api(expensesPath(owner.listId), { cookie })),
+      );
+    expect(await expenses(viewer.cookie)).toEqual(await expenses(owner.cookie));
 
     const calls: [string, Call][] = [
       [tasksPath(owner.listId), { method: "POST", body: { title: "x" } }],
