@@ -58,6 +58,7 @@ function toSubtaskItem(view: SubtaskView): TaskItem {
     title: view.title,
     description: view.description,
     estimate: estimateText(view.estimate),
+    completed: view.completed,
     ...amountFields(view.estimate),
     pending: isPendingTaskId(view.id),
   };

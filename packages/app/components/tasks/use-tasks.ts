@@ -133,6 +133,9 @@ export function useCreateTask(listId: string) {
         title: input.title,
         description: input.description,
         estimate: input.estimate,
+        completed: false,
+        // Unknown until the server answers; pending rows are never sent or completed.
+        position: "",
       };
       queryClient.setQueryData<TaskView[]>(
         queryKey,

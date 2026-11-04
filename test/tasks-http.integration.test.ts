@@ -157,6 +157,8 @@ describe("task routes over HTTP", () => {
       title: "Tiles",
       description: null,
       estimate: { minGrosze: 150_000, maxGrosze: 200_000 },
+      completed: false,
+      position: expect.any(String),
       unestimatedSubtasks: 0,
       subtasks: [],
     });
@@ -229,6 +231,8 @@ describe("task routes over HTTP", () => {
           title: "Plaster",
           description: null,
           estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+          completed: false,
+          position: expect.any(String),
         },
       ],
     });

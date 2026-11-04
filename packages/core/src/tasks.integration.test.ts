@@ -88,6 +88,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       title: "Tiles",
       description: "Grey, 60×60",
       estimate: { minGrosze: 150000, maxGrosze: 200000 },
+      completed: false,
+      position: expect.any(String),
       unestimatedSubtasks: 0,
       subtasks: [],
     });
@@ -281,6 +283,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         title: "Wall tiles",
         description: "White",
         estimate: { minGrosze: 200000, maxGrosze: 250000 },
+        completed: false,
+        position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],
       });
@@ -350,6 +354,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         title: "Bedroom walls",
         description: "Grey",
         estimate: { minGrosze: 30000, maxGrosze: 40000 },
+        completed: false,
+        position: expect.any(String),
         unestimatedSubtasks: 1,
         subtasks: [
           {
@@ -357,8 +363,17 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             title: "Sub a0",
             description: null,
             estimate: { minGrosze: 30000, maxGrosze: 40000 },
+            completed: false,
+            position: expect.any(String),
           },
-          { id: paint, title: "Sub a1", description: null, estimate: null },
+          {
+            id: paint,
+            title: "Sub a1",
+            description: null,
+            estimate: null,
+            completed: false,
+            position: expect.any(String),
+          },
         ],
       });
       expect(await listTasks(db, ids.alice, listId)).toEqual([view]);
@@ -504,6 +519,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         title: "Bathroom",
         description: null,
         estimate: est(30000, 40000),
+        completed: false,
+        position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [
           {
@@ -511,6 +528,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             title: "Plaster",
             description: "Two layers",
             estimate: est(30000, 40000),
+            completed: false,
+            position: expect.any(String),
           },
         ],
       });
@@ -559,6 +578,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         title: "Bathroom",
         description: null,
         estimate: est(100000, 200000),
+        completed: false,
+        position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],
       });
@@ -647,7 +668,9 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         .set({ status: "done" })
         .where(eq(schema.tasks.id, view.subtasks[0]!.id));
 
-      expect(await listTasks(db, ids.vi, listId)).toEqual([view]);
+      expect(await listTasks(db, ids.vi, listId)).toEqual([
+        { ...view, subtasks: [{ ...view.subtasks[0]!, completed: true }] },
+      ]);
       expect(view.estimate).toEqual(est(30000, 40000));
     });
 

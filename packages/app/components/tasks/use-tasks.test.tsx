@@ -23,6 +23,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     title,
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
     ...extra,
@@ -153,7 +155,7 @@ describe("useCreateTask", () => {
     await waitFor(() => expect(cached()).toHaveLength(3));
     const [, , temporary] = cached() ?? [];
     expect(isPendingTaskId(temporary?.id ?? "")).toBe(true);
-    expect(temporary).toEqual({ ...sealed, id: temporary?.id });
+    expect(temporary).toEqual({ ...sealed, id: temporary?.id, position: "" });
     expect(sent).toEqual(input);
     await waitFor(() => expect(result.current.create.context).toEqual({ tempId: temporary?.id }));
 
@@ -301,6 +303,8 @@ describe("useCreateTask for a subtask", () => {
     title: "Prime",
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
   };
   const own = { minGrosze: 150_000, maxGrosze: 200_000 };
   const subtaskInput = (title: string, parentId = tile.id): CreateTaskInput => ({
@@ -336,6 +340,8 @@ describe("useCreateTask for a subtask", () => {
       title: "Prime",
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+      completed: false,
+      position: "",
     });
     expect(parent).toEqual({ ...tile, estimate: own, subtasks: [temporary] });
     expect(other).toEqual(paint);
@@ -429,7 +435,14 @@ describe("useUpdateTask", () => {
   });
 
   it("puts a returned parent in the parent's row (a subtask edit)", async () => {
-    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     const parent = { ...paint, subtasks: [{ ...subtask, title: "Prime twice" }] };
     serverTasks = [tile, { ...paint, subtasks: [subtask] }];
     handlers.set(`PATCH ${taskUrl(subtask.id)}`, () => ok(parent));
@@ -535,7 +548,14 @@ describe("useDeleteTask", () => {
   });
 
   it("puts a returned parent in the parent's row (a subtask delete)", async () => {
-    const subtask = { id: crypto.randomUUID(), title: "Prime", description: null, estimate: null };
+    const subtask = {
+      id: crypto.randomUUID(),
+      title: "Prime",
+      description: null,
+      estimate: null,
+      completed: false,
+      position: "a0",
+    };
     serverTasks = [tile, { ...paint, subtasks: [subtask] }];
     handlers.set(`DELETE ${taskUrl(subtask.id)}`, () => ok(paint));
     const { result, cached } = setup();

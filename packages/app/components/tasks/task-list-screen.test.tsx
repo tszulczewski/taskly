@@ -19,6 +19,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     title,
     description: null,
     estimate: null,
+    completed: false,
+    position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
     ...extra,
@@ -621,6 +623,8 @@ describe("TaskListScreen subtasks", () => {
     title,
     description,
     estimate,
+    completed: false,
+    position: "a0",
   });
   const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
   const prime = subtask("Prime", range(300, 400));

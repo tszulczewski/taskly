@@ -26,6 +26,8 @@ const viewColumns = {
   description: tasks.description,
   estimateMinGrosze: tasks.estimateMinGrosze,
   estimateMaxGrosze: tasks.estimateMaxGrosze,
+  status: tasks.status,
+  position: tasks.position,
 };
 type ViewRow = {
   id: string;
@@ -34,6 +36,8 @@ type ViewRow = {
   description: string | null;
   estimateMinGrosze: number | null;
   estimateMaxGrosze: number | null;
+  status: "todo" | "done";
+  position: string;
 };
 
 /** The columns `updateTask` may write. */
@@ -46,6 +50,8 @@ type TaskChanges = Partial<
 
 /** Sibling order: fractional keys compare bytewise, whatever the column collation. */
 const byPosition = sql`${tasks.position} COLLATE "C"`;
+/** Display order only: open rows before completed ones (`false` sorts first). */
+const doneLast = sql`(${tasks.status} = 'done')`;
 
 function estimateOf(row: ViewRow): Estimate | null {
   const { estimateMinGrosze: minGrosze, estimateMaxGrosze: maxGrosze } = row;
@@ -53,7 +59,14 @@ function estimateOf(row: ViewRow): Estimate | null {
 }
 
 function subtaskView(row: ViewRow): SubtaskView {
-  return { id: row.id, title: row.title, description: row.description, estimate: estimateOf(row) };
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    estimate: estimateOf(row),
+    completed: row.status === "done",
+    position: row.position,
+  };
 }
 
 function taskView(row: ViewRow, subtasks: readonly ViewRow[]): TaskView {
@@ -131,13 +144,16 @@ async function hasSubtasks(tx: Tx, task: { id: string; listId: string }): Promis
   return subtask !== undefined;
 }
 
-/** The `TaskView` of a top-level task: its row and its subtasks, read in list order. */
+/**
+ * The `TaskView` of a top-level task: its row and its subtasks in list order (open first, then
+ * completed, each in plan order).
+ */
 async function topLevelView(tx: Tx, topLevelId: string): Promise<TaskView> {
   const rows = await tx
     .select(viewColumns)
     .from(tasks)
     .where(or(eq(tasks.id, topLevelId), eq(tasks.parentId, topLevelId)))
-    .orderBy(byPosition, asc(tasks.id));
+    .orderBy(doneLast, byPosition, asc(tasks.id));
   const subtasks = rows.filter((row) => row.parentId === topLevelId);
   return taskView(
     rows.find((row) => row.id === topLevelId)!,
@@ -145,7 +161,10 @@ async function topLevelView(tx: Tx, topLevelId: string): Promise<TaskView> {
   );
 }
 
-/** Top-level tasks in list order, each with its subtasks (same order) and effective estimate. */
+/**
+ * Top-level tasks in list order (open first, then completed, each in plan order), each with its
+ * subtasks (same order) and effective estimate.
+ */
 export async function listTasks(db: Db, userId: string, listId: string): Promise<TaskView[]> {
   return inTransaction(db, async (tx) => {
     await requireRole(tx, userId, listId, "read");
@@ -153,7 +172,7 @@ export async function listTasks(db: Db, userId: string, listId: string): Promise
       .select(viewColumns)
       .from(tasks)
       .where(eq(tasks.listId, listId))
-      .orderBy(byPosition, asc(tasks.id));
+      .orderBy(doneLast, byPosition, asc(tasks.id));
     const subtasksOf = new Map<string, ViewRow[]>();
     for (const row of rows) {
       if (row.parentId === null) continue;

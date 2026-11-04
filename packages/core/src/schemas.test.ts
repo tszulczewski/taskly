@@ -281,12 +281,16 @@ const subtask = (n: number, estimate: { minGrosze: number; maxGrosze: number } |
   title: `Subtask ${n}`,
   description: null,
   estimate,
+  completed: false,
+  position: `a${n}`,
 });
 const task = {
   id: uuid(1),
   title: "Paint the ceiling",
   description: "Two coats",
   estimate: { minGrosze: 80000, maxGrosze: 90000 },
+  completed: true,
+  position: "a0",
   unestimatedSubtasks: 1,
   subtasks: [subtask(2, { minGrosze: 30000, maxGrosze: 40000 }), subtask(3)],
 };
@@ -331,20 +335,29 @@ describe("response schemas", () => {
     expect(parsed.subtasks).toHaveLength(1);
   });
 
-  it.each(["id", "title", "description", "estimate", "unestimatedSubtasks", "subtasks"])(
-    "reject a task without %s",
+  it.each([
+    "id",
+    "title",
+    "description",
+    "estimate",
+    "completed",
+    "position",
+    "unestimatedSubtasks",
+    "subtasks",
+  ])("reject a task without %s", (field) => {
+    const { [field as keyof typeof task]: _, ...rest } = task;
+    expect(issues(taskViewSchema.safeParse(rest)).map(([path]) => path)).toEqual([field]);
+  });
+
+  it.each(["id", "title", "description", "estimate", "completed", "position"])(
+    "reject a subtask without %s",
     (field) => {
-      const { [field as keyof typeof task]: _, ...rest } = task;
-      expect(issues(taskViewSchema.safeParse(rest)).map(([path]) => path)).toEqual([field]);
+      const { [field as keyof ReturnType<typeof subtask>]: _, ...rest } = subtask(2);
+      expect(
+        issues(taskViewSchema.safeParse({ ...task, subtasks: [rest] })).map(([path]) => path),
+      ).toEqual([`subtasks.0.${field}`]);
     },
   );
-
-  it.each(["id", "title", "description", "estimate"])("reject a subtask without %s", (field) => {
-    const { [field as keyof ReturnType<typeof subtask>]: _, ...rest } = subtask(2);
-    expect(
-      issues(taskViewSchema.safeParse({ ...task, subtasks: [rest] })).map(([path]) => path),
-    ).toEqual([`subtasks.0.${field}`]);
-  });
 
   it.each([
     ["an invalid range", { estimate: { minGrosze: 2, maxGrosze: 1 } }, "estimate"],

@@ -86,6 +86,12 @@ export const subtaskViewSchema = z.object({
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX).nullable(),
   estimate: estimateViewSchema.nullable(),
+  completed: z.boolean(),
+  /**
+   * The stored fractional key: opaque to the client, only compared bytewise (JS `<` on these
+   * ASCII keys equals `COLLATE "C"`), never sent back.
+   */
+  position: z.string(),
 });
 export type SubtaskView = z.infer<typeof subtaskViewSchema>;
 

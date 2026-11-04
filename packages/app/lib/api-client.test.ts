@@ -18,6 +18,8 @@ function mockFetch(body: unknown, status = 200, raw = false) {
 }
 
 const task: TaskView = {
+  completed: false,
+  position: "a0",
   id: "6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f",
   title: "Tile the wall",
   description: null,
@@ -31,12 +33,16 @@ const parent: TaskView = {
   unestimatedSubtasks: 1,
   subtasks: [
     {
+      completed: false,
+      position: "a0",
       id: "0a1b2c3d-4e5f-4a7b-9c8d-6f1c2d3e4b5a",
       title: "Plaster",
       description: "Two coats",
       estimate: { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: MAX_ESTIMATE_GROSZE + 1 },
     },
     {
+      completed: false,
+      position: "a0",
       id: "9c8d6f1c-2d3e-4b5a-8e9f-0a1b2c3d4e5f",
       title: "Paint",
       description: null,
