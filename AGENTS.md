@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Taskly — Agent Instructions
 
-Taskly is a web app for planning and tracking home renovation work. Task lists (e.g. "Bathroom") contain tasks with subtasks (plastering, painting). Each task has an AI estimate (min–max range) and a real cost, all in **PLN**. There is a global, shareable shopping list with quick adding, and a summary of spent vs. upcoming expenses (upcoming = AI estimate). Lists are shared via invitations with `owner` / `editor` / `viewer` roles; tasks inherit access from their list.
+Taskly is a web app for planning and tracking home renovation work. Task lists (e.g. "Bathroom") contain tasks with subtasks (plastering, painting). Each task has an AI estimate (min–max range) and a real cost, all in **PLN**. There is a global, shareable shopping list with quick adding, and one expense summary: future expenses, the min–max sum of the estimates of open main tasks (version 1); incurred expenses (real costs) come later (D18, D19). Lists are shared via invitations with `owner` / `editor` / `viewer` roles; tasks inherit access from their list.
 
 Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest, 100% coverage), `npm run test:integration`, `npm run typecheck`, `npm run db:generate` / `db:migrate`, `npm run auth:set-password` (offline password reset; see `.ai/docs/runbook.md`).
 
