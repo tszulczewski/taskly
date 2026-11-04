@@ -50,12 +50,12 @@ The owner sees one "Future expenses" min–max range under the list's name: the 
 
 ### Phase 1: core rule and service
 
-- [ ] 1.1 Pure futureExpenses rule and response schema
-- [ ] 1.2 futureExpensesService, summary modules removed
+- [x] 1.1 Pure futureExpenses rule and response schema — 695f104
+- [x] 1.2 futureExpensesService, summary modules removed — 695f104
 
 ### Phase 2: route
 
-- [ ] 2.1 GET future-expenses route
+- [x] 2.1 GET future-expenses route — 6ca36f4
 
 ### Phase 3: app wiring
 
