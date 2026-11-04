@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-04 — After a specification review and owner approval, reconcile readiness metadata, the target branch and issue links to the spec; merging a design PR alone does not update a stale `draft` header or "spec not written yet" notes. E03 metadata and all eight E02/E03 issue references were cleaned up after the implementation-order analysis.
+
 - 2026-11-04 — When a spec makes one cache the source for replaying pending changes (here the places cache for `place` ticks), check each path that removes entries from that cache against the changes still queued, and say what the replay does when the entry is gone (E02, review of #55, P9). A rule that pauses a feature while temporary rows exist must name every level that can hold one, tasks and subtasks (P10).
 
 - 2026-11-04 — When a spec claims queued requests "match what the server holds", check it against rows the UI leaves out of the computation: `moveTarget` / `stepTarget` skip pending (temporary) rows, so a move picked while a quick add is saving names a last neighbour that is no longer last once the add commits, and the server's adjacency check refuses it (E02 post-merge review, P1). Either pause the action while such rows exist or resolve the ids at send time; state which in the spec.
