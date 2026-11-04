@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-04 — When a later spec supersedes part of an earlier one, a revision note at the top is not enough: fix the affected body sections and Implementation Plan steps too, since agents run the plan steps. E03's header said the per-tree `completion:<topLevelId>` scope was replaced by E02's list queue (`tasks:<listId>`), while its UI/UX section and Phase 1 step 5 still prescribed the per-tree scope and left out the queue work E02 assigns to whichever epic ships first (post-merge review of #52, fixed in #54).
+
 - 2026-11-03 — In a spec, an optimistic-update design must name one mutation queue for every mutation whose answer replaces the same cache entry (here a whole task tree), not one queue per feature: with separate `scope`s an older answer can land after a newer confirmed one and show it undone until the next refetch (E02 audit F4). Also check each stale-request criterion against the algorithm's no-op rule with a concrete counterexample (F5), and give every new client data source a loading and failure state instead of an empty array (F2). Seed per-user data lazily under one durable marker row that every creating path locks, not inside an unrelated first-visit transaction (F3).
 
 - 2026-11-03 — TanStack Query mutation `scope` serializes requests, but queued mutations still run `onMutate` immediately (`query-core/src/mutation.ts`). When quick toggles share a cache entry, replay pending operations over each server response and rollback; replacing the row with the first response overwrites the newer optimistic toggle. Confirmed with the installed QueryClient during the E03 spec review.

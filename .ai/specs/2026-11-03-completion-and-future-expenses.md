@@ -4,6 +4,7 @@
 - **Status:** draft
 - **Revised:** 2026-11-03, for the spec review (`.ai/runs/2026-11-03-e03-spec-review.md`, request changes): the future-expenses rule and its service are separate modules (R1), and optimistic completion is shown as server data with the pending completions replayed on top (R2). See Review changes.
 - **Superseded in part:** 2026-11-03, by the E02 spec (`2026-11-03-order-markers-and-spaces.md`, audit finding F4): completions do not use a per-tree scope (`completion:<topLevelId>`) but the one queue every task mutation of a list shares (`scope: tasks:<listId>`), because every answer replaces a whole tree. The replay of pending completions is unchanged.
+- **Revised:** 2026-11-04, after a post-merge review of #52: the body and Phase 1 step 5 now use the list queue and take on the shared work E02 assigns to whichever epic ships first (S1), the total's behaviour while a completion is pending is stated (S2), and the Q3 race is explained by the list lock (S3). See Review changes.
 - **Issue:** #13 (stories #20, #21, #47)
 - **Depends on:** E01, shipped (`.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`, #43). E02 (#12) is specified after this spec and builds on it (#17 needs E03-S01).
 
@@ -90,7 +91,7 @@ Takeaway: everything new sits behind the existing authorization (`requireRole` /
   - `summary.ts` and `summaryService.ts` are deleted with their tests and exports. Both are internal workspace exports with no consumer (checked: only their own tests import them), which `BACKWARD_COMPATIBILITY.md` allows in the same PR.
 - **`app`:**
   - Two route handlers.
-  - `use-tasks.ts` gains the completion mutation, the replayed view of the tasks (`useTaskViews`) and the future-expenses query.
+  - `use-tasks.ts` gains the completion mutation, the replayed view of the tasks (`useTaskViews`) and the future-expenses query. Every task mutation of a list runs in one queue (`scope: tasks:<listId>`), shared with E02 (UI/UX, Order of requests).
   - `task-items.ts` gains the pure `applyCompletion` and `replayCompletions`, and the mapping to `FutureExpenses` props.
   - `queryKeys.summary` becomes `queryKeys.futureExpenses(listId)`.
 - **`ui`:** no change. The props exist; the design system's E03 status words in its docs are updated when each phase ships (lesson 2026-10-29).
@@ -139,7 +140,7 @@ subtaskViewSchema += { completed: z.boolean(), position: z.string() }
 
 ### `POST /api/lists/[listId]/tasks` (changed behaviour, Phase 1)
 
-When `parentId` is set, the parent `FOR KEY SHARE` read also returns its `status`. If it is `done` → 409 `ConflictError("Task is completed")` (Q3). After waiting on a concurrent completion's lock, PostgreSQL returns the committed row, so the check sees the new status. The response shape is unchanged.
+When `parentId` is set, the parent `FOR KEY SHARE` read also returns its `status`. If it is `done` → 409 `ConflictError("Task is completed")` (Q3). The add and a completion never overlap: both lock the list row `FOR NO KEY UPDATE` before they touch a task, so one waits for the other's commit and then reads the committed parent. The response shape is unchanged.
 
 ### `GET /api/lists/[listId]/future-expenses` (new, Phase 2; `unestimated` added in Phase 3)
 
@@ -180,7 +181,8 @@ Prototype: `prototypes/task-list-v1/`, states s04.25–s04.28 (`.ai/specs/resear
     - `applyCompletion(views, { id, completed })` (pure) does what the server does: it flips the row; on a task completion it also completes the task's subtasks; it re-sorts with the server's rule (open first, then `position`).
     - A reopened row goes to the front of its open group under a temporary `positionBetween(null, first)`, which the server's answer replaces.
   - **Server answer:** the hook-level `onSuccess` writes the returned `TaskView` into the cache. TanStack Query runs it before the mutation leaves `pending` (`query-core/src/mutation.ts`), so the screen never shows a gap. The pending completions still in flight are replayed over the new data, so a newer toggle is never overwritten. The same holds for any other answer or refetch (an edit, an add, the list invalidation).
-  - **Order of requests:** completions of one top-level task and its subtasks share one `scope` (`completion:<topLevelId>`), so a parent's completion and a subtask's toggle reach the server in the order they were made. Tasks in different trees do not wait for each other.
+  - **Order of requests (one list queue, E02 F4):** every task mutation of the list (E01's add, edit and delete, this epic's completion, and E02's marker, place and move) runs with `scope: { id: "tasks:<listId>" }`. A request is sent only after the previous one settled, so answers reach the cache in the order the changes were made, and a tree confirmed by a later change is never replaced by an earlier change's tree. This includes a parent's completion and a subtask's toggle. Before writing an answer, the hook cancels an in-flight list refetch (`cancelQueries`, as E01 does), so an older refetch cannot land on top.
+  - **Shared with E02:** the list queue and `useTaskViews` are written once. If this phase ships before E02 Phase 1, it builds both: it moves E01's add, edit and delete into the list queue, and makes the replay a generic fold over pending changes of several kinds, with `completion` as the first. If E02 Phase 1 ships first, this phase adds the `completion` kind to what exists and never duplicates it.
   - **Invalidation:** after a completion settles, the list is invalidated (skipped while other task mutations are running, as today).
   - **Callbacks:** all callbacks are hook-level options, not per-call `mutateAsync` callbacks (lesson 2026-10-30: per-call ones fire only for the observer's last call).
 - **Refused (s04.28):** a failed completion leaves `pending`, so it is no longer replayed and its row goes back by itself. Completions queued after it are still replayed over the server data, so a rollback never undoes a newer toggle, including where a parent and its subtask overlap. The hook-level `onError` sets the row message "Could not save “…”. It is back as it was." and invalidates the list. A 404 refetches and the row disappears with the existing "gone" message.
@@ -188,6 +190,7 @@ Prototype: `prototypes/task-list-v1/`, states s04.25–s04.28 (`.ai/specs/resear
 - **Future expenses:**
   - `useFutureExpenses(listId)` maps the response to `FutureExpenses` props: the total is formatted at the edge with `formatPlnRange`, which shows one amount when min = max (R18); `null` → "No estimates yet".
   - The query is invalidated when any task mutation settles (create, update, delete, completion). It is not skipped while others run, since it holds no optimistic state. The total is never computed on the client.
+  - **While a change is pending:** the total keeps showing the last server value until the change's answer and the refetch that follows, even when the row already shows the change; with the list queue that can be after earlier queued changes settle. A refetch with data in the cache keeps showing that value; the loading state appears only on the first load.
   - A failed load shows the component's error with "Try again"; the task list is unaffected.
 - **Add estimate (Phase 3):**
   - `validate` wraps `estimateFromAmounts`; `onAddEstimate` calls the update mutation, and then waits for the future-expenses refetch, because the design system keeps the form busy until the item leaves `items`.
@@ -207,10 +210,11 @@ Prototype: `prototypes/task-list-v1/`, states s04.25–s04.28 (`.ai/specs/resear
 | Completion vs. a subtask add on the same task | Lock order list → task. If the add commits first, the completion completes the new subtask too. If the completion commits first, the add gets 409 (Q3). There is no deadlock. |
 | Completion vs. an estimate edit of a subtask | Both lock rows `FOR UPDATE`; the later one waits. The total reflects both after the refetch. |
 | Completion request fails (network, 5xx) | The row is reverted with the s04.28 message; the total is refetched and unchanged. |
-| Complete → reopen quickly, the first answer delayed | The screen shows reopened throughout: the first answer (completed) lands in the cache and the still-pending reopen is replayed over it. The reopen request is sent after the first answer (shared scope), and its answer is final. |
-| Complete → reopen quickly, one of them fails | If the first fails, it drops out and the reopen is replayed over the server data; the scope still sends the reopen. If the second fails, the row shows the first answer. In both cases the row ends as the server holds it, with the s04.28 message. |
-| A parent completed while one of its subtasks is toggled | Same scope, so the requests reach the server in order; the screen replays both in order, so it matches what the server will hold. |
+| Complete → reopen quickly, the first answer delayed | The screen shows reopened throughout: the first answer (completed) lands in the cache and the still-pending reopen is replayed over it. The reopen request is sent after the first answer (list queue), and its answer is final. |
+| Complete → reopen quickly, one of them fails | If the first fails, it drops out and the reopen is replayed over the server data; the queue still sends the reopen. If the second fails, the row shows the first answer. In both cases the row ends as the server holds it, with the s04.28 message. |
+| A parent completed while one of its subtasks is toggled | Same queue, so the requests reach the server in order; the screen replays both in order, so it matches what the server will hold. |
 | An unrelated edit or add answer arrives while a completion is pending | The answer replaces its task in the cache, and the pending completion is replayed over it, so the row keeps its optimistic state. |
+| Total while a completion (or another change) is pending | The row shows the change at once; the total shows the last server value, without a loading state, until the answer and the refetch land (S2). |
 | Future-expenses request fails | The summary shows "Could not load future expenses." with "Try again"; the list works. |
 | An unestimated item was completed, deleted or given subtasks in another tab | Completed: the `PATCH` succeeds (editing completed rows is allowed) and the item leaves the list on refetch. Deleted: 404, message, refetch. Given subtasks: 409, the server's message, refetch, and its subtasks are listed instead. |
 | Every task completed | "No estimates yet" (`FutureExpenses.mdx`, decision J2); the unestimated line is hidden. |
@@ -270,15 +274,18 @@ Each phase is one PR against `auto`, closes its story, runs the full gate (`AGEN
 
 1. **Views expose completion and order.** Add `completed` and `position` to the view columns, `subtaskView` and the schemas; order `listTasks` and `topLevelView` by `(status = 'done'), position COLLATE "C", id`; map `completed` in `toTaskItem`. Tests: SQL text over the fake pg client (lesson 2026-10-29), schema tests, a mapping test. App unchanged for the user (no checkboxes yet).
 2. **`setTaskCompleted` service.** Add `completionInput` and the service with the lock order, the no-op on same state, the cascade, and the reopen position. Unit tests cover success, the no-op, 404 for another user's or an unknown task, cascade SQL, and the reopen position. Integration tests (`tasks.integration.test.ts`) cover AC1–7 and AC9–13, Q2-1, and two concurrent reopens.
-3. **Refuse a subtask under a completed task.** In `createTask`, read the parent's status and refuse with 409. Tests: unit, integration Q3-1, and the C-1 race in both orders (row-lock holder technique, lesson 2026-10-30).
+3. **Refuse a subtask under a completed task.** In `createTask`, read the parent's status and refuse with 409. Tests: unit, integration Q3-1, and the C-1 race in both orders: hold the list row in an open transaction; start the first request (the add or the completion) and wait in `pg_stat_activity` until it blocks on the list lock; start the second and wait until it blocks too; then commit the holder. Waiters on a row lock are served in order, so the first request commits before the second reads the parent (lesson 2026-10-29, `ON CONFLICT` testing).
 4. **Route.** Add `app/api/tasks/[taskId]/completion/route.ts` (`PUT`, `taskViewSchema`) and its route unit test; cover the HTTP cases (200, 404, 400 bad body, 401, CSRF header) in `test/tasks-http.integration.test.ts`.
-5. **App wiring.** Add `applyCompletion` and `replayCompletions` (pure, in `task-items.ts`); `useSetCompleted` (no cache writes in `onMutate`, a shared `scope` per top-level task, hook-level `onSuccess` writing the answer, `onError` message, the invalidation rule); `useTaskViews` (the cache with pending completions replayed); `onToggleComplete` on `TaskList`; the s04.28 row message and the Q3 row notice. Unit tests at 100%.
+5. **App wiring.** Add `applyCompletion` and `replayCompletions` (pure, in `task-items.ts`); `useSetCompleted` (no cache writes in `onMutate`, the list queue `scope: tasks:<listId>`, `cancelQueries` before writing an answer, hook-level `onSuccess` writing the answer, `onError` message, the invalidation rule); `useTaskViews` (the cache with pending completions replayed); `onToggleComplete` on `TaskList`; the s04.28 row message and the Q3 row notice. Unit tests at 100%.
+   - **If E02 Phase 1 has not shipped:** move E01's add, edit and delete mutations into the list queue, and build the replay as a generic fold over pending changes with a `completion` kind (UI/UX, Shared with E02). Rerun E01's browser tests, since quick adds now queue. If it has shipped, add the `completion` kind to its fold.
    - Regression cases from review R2 go in `use-tasks.test.tsx`, run with a real `QueryClient` and controllable responses:
      - complete → reopen with the first answer delayed;
      - both failure orderings (the first fails, the second fails);
      - a parent completion while one of its subtasks is toggled;
      - an unrelated edit answer while a completion is pending;
-     - a refusal while an add is pending.
+     - a refusal while an add is pending;
+     - a delayed edit answer followed by a completion (the completion is sent only after the edit's answer, and the row never shows open again);
+     - a list refetch started before an answer and resolving after it.
 6. **Browser test.** Add a new `test/completion-browser.integration.test.ts`: AC8 dialog and cancel, AC9–12 order, Q2-1, a refused completion (server stopped or forced 500), and complete → reopen with the first response delayed (agent-browser network routing), ending reopened on screen and on the server. Update the design-system docs' E03 status words for #20. Full gate. Manual check in the running app.
 
 ### Phase 2: future expenses (#21)
@@ -302,3 +309,13 @@ Source: `.ai/runs/2026-11-03-e03-spec-review.md` (verdict: request changes; two 
 | --- | --- | --- |
 | R1 | The draft put the isomorphic `futureExpenses` helper and the database service in one module, against standards §1 (two entry points in `core`). | Two modules: `futureExpenses.ts` (`@taskly/core`) and `futureExpensesService.ts` (`server-only`, `@taskly/core/server`); Phase 2 checks the build with the real barrels (Architecture; steps 7, 9). |
 | R2 | Replacing a task with a server answer overwrote newer optimistic toggles. The reviewer's probe: complete → reopen → the complete answer leaves the cache "completed" while the reopen is pending. A `scope` queues requests, not `onMutate`. | The cache holds server data only; the screen replays the pending completions in submission order (`useMutationState`), so answers, refetches and rollbacks never undo a newer toggle. There is one scope per top-level task, for parent/subtask overlap. The reviewer's regression cases are in steps 5 and 6 (UI/UX, Edge cases, Alternatives). |
+
+## 🔍 Review changes (2026-11-04)
+
+Source: a post-merge specification review of #52 (verdict: request changes; one major, two minor). Applied with the owner's approval on 2026-11-04:
+
+| Id | Finding | Change |
+| --- | --- | --- |
+| S1 | The header said E02's list queue replaced the per-tree scope, but UI/UX and Phase 1 step 5 still prescribed `completion:<topLevelId>` and left out the queue work E02 assigns to whichever epic ships first. | UI/UX "Order of requests" and "Shared with E02", Architecture, edge cases and step 5 use the list queue with `cancelQueries`; step 5 builds the queue and the generic replay if E02 Phase 1 has not shipped, and gains E02's queue regression cases. |
+| S2 | The spec did not say what the server-computed total shows while a completion is pending. | The total keeps the last server value, without a loading state, until the answer and the refetch land (UI/UX, Edge cases). |
+| S3 | The Q3 check was explained by the parent row lock, but the list lock already serializes a subtask add and a completion; step 3's race test targeted the wrong lock. | API Contracts explains the list lock; step 3 tests both orders by holding the list row and queuing both requests behind it. |
