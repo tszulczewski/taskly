@@ -113,6 +113,12 @@ export const taskListResponseSchema = z.array(taskViewSchema);
 /** The parent's `TaskView` after a subtask was deleted; null for a top-level task. */
 export const deleteTaskResponseSchema = taskViewSchema.nullable();
 
+/** `GET /api/lists/[listId]/future-expenses` (spec E03): `total` is null when nothing counts. */
+export const futureExpensesResponseSchema = z.object({
+  total: estimateViewSchema.nullable(),
+});
+export type FutureExpenses = z.infer<typeof futureExpensesResponseSchema>;
+
 const emailField = z.email("Enter a valid email address.");
 
 /** The password policy for a new password; matches Better Auth's `minPasswordLength`/`maxPasswordLength`. */

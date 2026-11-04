@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { can } from "./authorization";
 import { positionBetween } from "./position";
 import { estimateSchema } from "./schemas";
-import { summarize } from "./summary";
 
 describe("authorization", () => {
   it("applies role hierarchy", () => {
@@ -28,22 +27,5 @@ describe("estimate", () => {
   it("rejects min > max", () => {
     expect(estimateSchema.safeParse({ minGrosze: 10, maxGrosze: 5 }).success).toBe(false);
     expect(estimateSchema.safeParse({ minGrosze: 5, maxGrosze: 10 }).success).toBe(true);
-  });
-});
-
-describe("summarize", () => {
-  it("treats missing amounts as zero", () => {
-    const s = summarize([
-      { status: "todo", costGrosze: null, estimateMinGrosze: null, estimateMaxGrosze: null },
-    ]);
-    expect(s).toEqual({ spentGrosze: 0, upcomingMinGrosze: 0, upcomingMaxGrosze: 0 });
-  });
-
-  it("splits spent and upcoming", () => {
-    const s = summarize([
-      { status: "done", costGrosze: 1000, estimateMinGrosze: 800, estimateMaxGrosze: 900 },
-      { status: "todo", costGrosze: null, estimateMinGrosze: 500, estimateMaxGrosze: 700 },
-    ]);
-    expect(s).toEqual({ spentGrosze: 1000, upcomingMinGrosze: 500, upcomingMaxGrosze: 700 });
   });
 });

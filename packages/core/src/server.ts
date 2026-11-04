@@ -8,7 +8,7 @@ export * from "./lists";
 export * from "./tasks";
 export * from "./shopping";
 export * from "./invitations";
-export * from "./summaryService";
+export * from "./futureExpensesService";
 export * from "./ai";
 export * from "./auth";
 export * from "./password-admin";
