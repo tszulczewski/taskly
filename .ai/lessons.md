@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-04 — When a spec makes one cache the source for replaying pending changes (here the places cache for `place` ticks), check each path that removes entries from that cache against the changes still queued, and say what the replay does when the entry is gone (E02, review of #55, P9). A rule that pauses a feature while temporary rows exist must name every level that can hold one, tasks and subtasks (P10).
+
 - 2026-11-04 — When a spec claims queued requests "match what the server holds", check it against rows the UI leaves out of the computation: `moveTarget` / `stepTarget` skip pending (temporary) rows, so a move picked while a quick add is saving names a last neighbour that is no longer last once the add commits, and the server's adjacency check refuses it (E02 post-merge review, P1). Either pause the action while such rows exist or resolve the ids at send time; state which in the spec.
 
 - 2026-11-04 — When a later spec supersedes part of an earlier one, a revision note at the top is not enough: fix the affected body sections and Implementation Plan steps too, since agents run the plan steps. E03's header said the per-tree `completion:<topLevelId>` scope was replaced by E02's list queue (`tasks:<listId>`), while its UI/UX section and Phase 1 step 5 still prescribed the per-tree scope and left out the queue work E02 assigns to whichever epic ships first (post-merge review of #52, fixed in #54).

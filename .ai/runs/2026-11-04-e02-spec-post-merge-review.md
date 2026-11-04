@@ -36,3 +36,11 @@ Review the merged E02 spec (#53, head 15388c0) with `om-auto-review-pr` as a spe
 ## Lessons recorded (links into .ai/lessons.md)
 
 - 2026-11-04 — a move computed from a group that hides temporary rows (index entry).
+
+## Follow-up (2026-11-04): review of #55
+
+- `om-auto-review-pr` on #55 approved it at `ab1814a` (author-account comment review, full gate and CI green) with two minors. The owner asked for both to be fixed:
+  - P9: the replay skips a queued `place` tick whose place is no longer in the places cache (deleted meanwhile); its 404 answer refetches as before. Added to the replay, Places, Edge cases and step 12.
+  - P10: the P1 reorder pause covers a temporary subtask too; M-3, step 17 and Edge cases now include a subtask add.
+- The two nits (an older in-flight answer briefly undoing a rename; `"auto"` in the config being the default-branch value, not a branch) were left as they are.
+- Verification: `npm run format:check` passed, `npm run check:agents` passed. Docs only, so the rest of the gate is left to CI.
