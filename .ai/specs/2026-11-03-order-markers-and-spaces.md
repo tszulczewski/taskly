@@ -3,6 +3,7 @@
 - **Date:** 2026-11-03
 - **Status:** ready (owner accepted the revision on 2026-11-03)
 - **Revised:** 2026-11-03, for the pre-implementation audit (`.ai/analysis/2026-11-03-pre-implement-order-markers-and-spaces.md`, no-go): places load and fail visibly (F2); places are initialized once, lazily, under one per-user lock, with no backfill (F3); every task mutation of a list shares one queue, so answers land in order (F4); M-1 rewritten and a no-op case added (F5). See Review changes.
+- **Revised:** 2026-11-04, after a post-merge review of #53 (owner-approved): a list with a quick add still saving cannot be reordered until the add is saved (P1); place edits patch the cached tasks instead of refetching (P2); malformed place ids answer 404 (P3); the owner check does not assume one owner per list (P4); phase PRs target `main` (P5); smaller contract fixes (P6–P8). See Review changes.
 - **Issue:** #12 (stories #18, #19, #17, in that build order)
 - **Depends on:** E01, shipped (`.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`, #43). Phase 3 (#17) also needs E03 Phase 1 (`.ai/specs/2026-11-03-completion-and-future-expenses.md`, #20) merged: it reads `completed`, `position` and the open-before-completed order (decision 2026-11-03, point 5). Phases 1 and 2 do not depend on E03.
 
@@ -89,9 +90,9 @@ Takeaway: every write sits behind the existing authorization (`requireRole` / `r
 
 - **`core`:**
   - `tasks.ts`: `updateTask` and the views gain markers; `listTasks` and `topLevelView` gain places (one extra query per read, joined in memory); `moveTask` replaces the stub; new `setTaskPlace(db, userId, taskId, placeId, assigned)`.
-  - `places.ts` (new, server-only, exported from `@taskly/core/server`): the places service and `ensurePlaces(tx, userId)`, the one initialization and lock step every places operation starts with.
-  - `place-rules.ts` (new, isomorphic, `@taskly/core`): `placeNameSchema`, `placeNameKey`, `PLACE_LIMIT = 20`, `PREDEFINED_PLACES`, `nextPlaceColor(count)`, the messages. The app's `validateName` and the server use the same rule.
-  - `move.ts` (new, isomorphic): `movePosition(siblings, id, afterId, beforeId)`, the pure neighbour check and key choice, used by `moveTask` on locked rows and by the app for the optimistic row.
+  - `places.ts` (new, server-only, exported from `@taskly/core/server`): the places service and `ensurePlaces(tx, userId)`, the one initialization and lock step `listPlaces` and `createPlace` start with.
+  - `place-rules.ts` (new, isomorphic, `@taskly/core`): `placeNameSchema`, `placeColorSchema`, `placeNameKey`, `PLACE_LIMIT = 20`, `PREDEFINED_PLACES`, `nextPlaceColor(count)`, the messages. The app's `validateName` and the server use the same rule.
+  - `move.ts` (new, isomorphic): `movePosition(siblings, id, afterId, beforeId)` over the whole sibling group, the moved row included (`{ id, position, completed }`), the pure neighbour check, no-op check and key choice, used by `moveTask` on locked rows and by the app for the optimistic row.
 - **`app`:** six route files; `use-places.ts` (query and the three place mutations); three mutations in `use-tasks.ts`, and the existing add, edit and delete mutations moved into the list queue (`scope: tasks:<listId>`); pending-change kinds in the replay of `useTaskViews`; the mapping of `places`, `important`, `urgent` in `task-items.ts`.
 - **`ui`:** no new component. `PlaceOptions` / `PlacePicker` gain `status: "loading" | "error" | "ready"` and `onRetry` (UI/UX, F2), with stories. The epic doc (`E02OrderMarkersPlaces.mdx`) still says "the limit of 10" in its screen map and "Confirm how places relate to project lists" under Remaining product work; both are corrected in Phase 2 (Q3), and the status words when each phase ships (lesson 2026-10-29).
 - **Shared with E03:** E03 Phase 1 introduces `useTaskViews` (cache plus pending completions replayed). This epic makes the replay generic over pending changes of several kinds (`completion`, `marker`, `place`, `move`). If Phase 1 here ships before E03 Phase 1, it introduces the generic fold with the `marker` kind and the list queue, and E03 adds `completion` to them; whichever ships second extends, never duplicates. E03's per-tree scope (`completion:<topLevelId>`) is replaced by the list queue (F4): completions also return whole trees, so they must queue with the rest. The ordering rule (open, then `position`, then `id`) is E03's; Phase 3 reuses it.
@@ -147,10 +148,11 @@ It is the durable "already seeded" marker (deleting every place does not remove 
 
 **Initialization (F3), one protocol for every path:**
 - `PREDEFINED_PLACES` = Salon, Sypialnia, Łazienka, Kuchnia, Garaż, Ogródek, Strych, Biuro, with colours 1–8, appended in that order (keys from `positionBetween`).
-- `ensurePlaces(tx, userId)` is the first step of `listPlaces`, `createPlace`, `updatePlace` and `deletePlace`, in their own transaction:
+- `ensurePlaces(tx, userId)` is the first step of `listPlaces` and `createPlace`, in their own transaction:
   1. `INSERT INTO place_owners (user_id) VALUES ($user) ON CONFLICT DO NOTHING RETURNING user_id`.
   2. If the row was inserted, insert the eight places in the same transaction.
-  3. `SELECT … FROM place_owners WHERE user_id = $user FOR NO KEY UPDATE` (`createPlace` only; the others need no user-level lock, since rename and delete cannot pass the limit and duplicates are caught by the unique index).
+  3. `SELECT … FROM place_owners WHERE user_id = $user FOR NO KEY UPDATE` (`createPlace` only; a read needs no user-level lock).
+- `updatePlace` and `deletePlace` do not call `ensurePlaces`: a user whose places were never initialized owns no place, so they answer 404 without a write. They need no user-level lock either: rename and delete cannot pass the limit, and duplicates are caught by the unique index.
 - A concurrent first use waits on the PK conflict of step 1 until the other transaction commits, then finds the row and does not seed, so the eight are created exactly once. A `POST /api/places` before the first visit seeds first and then appends the new place after `Biuro`, so keys never collide and the limit counts the eight.
 - `ensureDefaultList`, sign-up and the task paths do not seed. `setTaskPlace` reads a place that exists or answers 404; `listTasks` reads only assigned places.
 - **No backfill:** existing users are initialized on their first use, like new ones. A user created by the old code in the deploy window is therefore handled too, and the migration has no data step.
@@ -188,7 +190,8 @@ All envelopes, error codes and the CSRF header are `apiHandler`'s, unchanged. Sc
 ### View change (additive)
 
 ```ts
-placeViewSchema = z.object({ id: z.uuid(), name: z.string().min(1).max(30), color: z.number().int().min(1).max(10) })
+placeColorSchema = z.number().int().min(1).max(10)   // the design system's PlaceColor
+placeViewSchema = z.object({ id: z.uuid(), name: z.string().min(1).max(30), color: placeColorSchema })
 subtaskViewSchema += {
   important: z.boolean(), urgent: z.boolean(),   // Phase 1
   places: z.array(placeViewSchema),              // Phase 2, in the places' order (position COLLATE "C", id)
@@ -205,18 +208,19 @@ subtaskViewSchema += {
 | --- | --- | --- | --- |
 | `GET /api/places` | — | `z.array(placeViewSchema)`, in `position` order; the first call initializes the eight | 401 |
 | `POST /api/places` | `z.strictObject({ name: placeNameSchema })` | `placeViewSchema` (colour from `nextPlaceColor`) | 400 name rule; 409 "A place with this name already exists."; 409 "You can have up to 20 places. Delete one to add another." |
-| `PATCH /api/places/[placeId]` | `z.strictObject({ name: placeNameSchema, color }).partial()`, at least one key | `placeViewSchema` | 400; 404 not the user's place; 409 duplicate name |
-| `DELETE /api/places/[placeId]` | — | `z.null()` | 404 not the user's place |
+| `PATCH /api/places/[placeId]` | `z.strictObject({ name: placeNameSchema, color: placeColorSchema }).partial()`, at least one key | `placeViewSchema` | 400; 404 not the user's place or a malformed id; 409 duplicate name |
+| `DELETE /api/places/[placeId]` | — | `z.null()` | 404 not the user's place or a malformed id |
 
-- **Service:** every operation starts with `ensurePlaces` (Data Model). `createPlace` then holds the `place_owners` row `FOR NO KEY UPDATE` while it counts and appends, so concurrent creates cannot pass 20 and get distinct positions (append after the last, like tasks). `updatePlace` and `deletePlace` lock the place row `FOR UPDATE` where `id = $1 AND user_id = $user`; no row → `NotFoundError("Place")` (fail closed, no existence leak).
+- **Service:** `listPlaces` and `createPlace` start with `ensurePlaces` (Data Model). `createPlace` then holds the `place_owners` row `FOR NO KEY UPDATE` while it counts and appends, so concurrent creates cannot pass 20 and get distinct positions (append after the last, like tasks). `updatePlace` and `deletePlace` lock the place row `FOR UPDATE` where `id = $1 AND user_id = $user`; no row → `NotFoundError("Place")` (fail closed, no existence leak).
+- **Malformed ids:** a `placeId` that is not a UUID → `NotFoundError("Place")` before any query, as `requireTaskRole` does for task ids; otherwise PostgreSQL's invalid-uuid error (22P02) is not translated and would answer 500. This applies to every route with a `placeId`.
 - **Name rule** (`placeNameSchema`): trim, NFC, not empty ("Enter a name."), at most 30 characters ("Use at most 30 characters."). Duplicates are caught by the unique index (23505 → the 409 above, in a place-specific translation), so a race cannot create two "Kuchnia". The app checks the same rule and the duplicate against its cached places before sending (`validateName`).
 
 ### `PUT|DELETE /api/tasks/[taskId]/places/[placeId]` (new, Phase 2)
 
 - **Request:** no body. `PUT` assigns, `DELETE` unassigns; both idempotent (assigning twice or removing an absent place writes nothing and succeeds).
 - **Response:** `taskViewSchema` of the top-level task that holds the row.
-- **Service:** `setTaskPlace(db, userId, taskId, placeId, assigned)`: `requireTaskRole(…, "write")`; then the place `FOR KEY SHARE` where `id = $place AND user_id = (the list's owner: its `list_members` row with role `owner`)`; no row → `NotFoundError("Place")`. `INSERT … ON CONFLICT DO NOTHING` / `DELETE`. Nothing is copied to or from subtasks (AC9, D21).
-- **Errors:** 404 task (unknown, other user's list), 404 place (unknown, someone else's, deleted meanwhile; the place lock makes a concurrent delete wait or win cleanly), 403 for a viewer (`requireRole`).
+- **Service:** `setTaskPlace(db, userId, taskId, placeId, assigned)`: `requireTaskRole(…, "write")`; then the place `FOR KEY SHARE` where `id = $place` and `EXISTS` a `list_members` row of the task's list with that place's `user_id` and role `owner`; no row → `NotFoundError("Place")`. The schema does not limit a list to one owner (`list_members` has no unique owner index, and an invitation can carry `owner`), so the check must not be a scalar subquery, which would fail with more than one owner. `INSERT … ON CONFLICT DO NOTHING` / `DELETE`. Nothing is copied to or from subtasks (AC9, D21).
+- **Errors:** 404 task (unknown, other user's list), 404 place (unknown, malformed id, someone else's, deleted meanwhile; the place lock makes a concurrent delete wait or win cleanly), 403 for a viewer (`requireRole`).
 
 ### `PUT /api/tasks/[taskId]/position` (new, Phase 3)
 
@@ -225,9 +229,9 @@ subtaskViewSchema += {
 - **Service `moveTask`:** one transaction:
   1. Resolve the list (unlocked), `requireRole(…, "write")`, lock the list row `FOR NO KEY UPDATE` (the lock `createTask` and E03's reopen take, so every new key in a list is chosen under it), then the task `FOR UPDATE`.
   2. A completed task or subtask → 409 `ConflictError("Task is completed")` (AC9; the wording E03 uses for a subtask add under a completed task).
-  3. Read the row's siblings (same `list_id`, same `parent_id`, any status, excluding the row) with `position`, `status`.
-  4. `movePosition(siblings, afterId, beforeId)`:
-     - Both ids must be open siblings, distinct from the row, and adjacent in the open order (`afterId` directly before `beforeId`; a null `afterId` means `beforeId` is the first open sibling, a null `beforeId` that `afterId` is the last). Otherwise → 409 `ConflictError("The list changed. Try again.")`. A neighbour under another parent or at the other level (AC5) fails this check too.
+  3. Read the row's sibling group (same `list_id`, same `parent_id`, any status, the row included) as `{ id, position, completed }`.
+  4. `movePosition(siblings, taskId, afterId, beforeId)`:
+     - Both ids must be open siblings other than the row, and adjacent in the open order (`afterId` directly before `beforeId`; a null `afterId` means `beforeId` is the first open sibling, a null `beforeId` that `afterId` is the last). Otherwise → 409 `ConflictError("The list changed. Try again.")`. A neighbour under another parent or at the other level (AC5) fails this check too.
      - Already in that place → no write; return the view.
      - Key: with `afterId`, between `after.position` and the next stored sibling after it (any status); otherwise between the stored sibling before `before` (or the start) and `before.position`. Taking the nearest stored neighbour means the key can never equal a completed sibling's key, and the open order is exactly the one asked for.
   5. One `UPDATE tasks SET position = $key WHERE id = $task` (AC2, AC4).
@@ -245,8 +249,8 @@ Prototype: `prototypes/task-list-v1/`, states s04.22–s04.24 and s04.29 (`.ai/s
     - `place` `{ id, placeId, assigned }` adds the place (from the places cache) or removes it;
     - `move` `{ id, afterId, beforeId }` gives the row the key `movePosition` computes over the current view and re-sorts with the shared rule. If its neighbours are no longer adjacent in the view, the row stays put; the server will refuse.
   - **Server answer:** the hook-level `onSuccess` writes the returned `TaskView` into the cache; the remaining pending changes are replayed over it, so a newer change is never overwritten (lesson 2026-11-03).
-  - **One queue per list (F4):** every task mutation of the list, E01's add, edit and delete, E03's completion and this epic's marker, place and move, runs with `scope: { id: "tasks:<listId>" }`. A request is sent only after the previous one settled, so answers reach the cache in submission order: a tree confirmed by a later change is never replaced by an earlier change's tree. Each move's neighbours were picked on a view that includes the earlier changes, so they match what the server holds when it arrives. Before writing an answer, the hook cancels an in-flight list refetch (`cancelQueries`, as E01 does), so an older refetch cannot land on top either.
-  - **Cost:** changes in one list are sent one at a time. With one owner each request is a short transaction; the screen shows every change at once regardless, so the queue is not visible. Place create, rename and delete (`use-places.ts`) are not in the queue: they return places, not trees, and invalidate the tasks query afterwards.
+  - **One queue per list (F4):** every task mutation of the list, E01's add, edit and delete, E03's completion and this epic's marker, place and move, runs with `scope: { id: "tasks:<listId>" }`. A request is sent only after the previous one settled, so answers reach the cache in submission order: a tree confirmed by a later change is never replaced by an earlier change's tree. Each move's neighbours were picked on a view that includes the earlier changes, so they match what the server holds when it arrives. The one exception is a quick add still saving: its temporary row is outside the move group, so a move to the end would name a last neighbour that is no longer last once the add is saved, and be refused; reordering is therefore off while an add is saving (Reorder, P1). Before writing an answer, the hook cancels an in-flight list refetch (`cancelQueries`, as E01 does), so an older refetch cannot land on top either.
+  - **Cost:** changes in one list are sent one at a time. With one owner each request is a short transaction; the screen shows every change at once regardless, so the queue is not visible. Place create, rename and delete (`use-places.ts`) are not in the queue: they return places, not trees, and patch the cached task views afterwards (Places), without a refetch.
   - **E01 behaviour kept:** quick adds still show their temporary rows at once and keep them while queued; the "skip invalidation while other task mutations are pending" rule stays.
   - **Refused or failed:** the change leaves `pending`, so it is no longer replayed and the row goes back by itself. The hook-level `onError` sets the row message (markers and places: "Could not save “…”. It is back as it was."; moves: "Could not move “…”. It is back where it was.", s04.24) and invalidates the list. A 404 refetches and the row disappears with the existing "gone" message; a 404 place also refetches the places.
 - **Markers (#18):** "Important" / "Urgent" in "…" (`MenuCheckboxItem`); the meta line shows the words (`Markers`). A subtask's markers are its own (AC4).
@@ -259,9 +263,10 @@ Prototype: `prototypes/task-list-v1/`, states s04.22–s04.24 and s04.29 (`.ai/s
     - The task list, markers, moves and the places already shown on rows (they come from the task views) work whatever the places query does.
     - TanStack Query's default retries run first; `error` shows once they are spent.
   - Create: `POST /api/places`, then the place is added to the places cache and assigned to the task through the `place` change (the design system's `onCreate` = create and tick). If the assignment then fails, the place stays in the list unticked and the row shows the rollback message. A 409 maps to the name field with the server's message.
-  - Rename, recolour, delete wait for the server (the picker's "Saving…" / "Deleting…"; not optimistic). On success the places cache is updated and the tasks query invalidated, so rows show the new name or colour (AC6) or lose the deleted place (AC7). Failures use the picker's messages ("Could not save the place. Try again.", "Could not delete the place. Try again.").
+  - Rename, recolour, delete wait for the server (the picker's "Saving…" / "Deleting…"; not optimistic). On success the places cache is updated and the cached task views are patched with the server's answer: every row holding that place gets its new name or colour (AC6), or loses it on delete (AC7). The patch is a pure function in `task-items.ts`, and the cache still holds only server data. The tasks query is not refetched: a refetch here would bypass the "skip while other task mutations are pending" rule and drop the temporary rows of quick adds still saving (P2). Failures use the picker's messages ("Could not save the place. Try again.", "Could not delete the place. Try again.").
   - On a row, places show in the places' order (the view's order), each as a dot and its name (`PlaceTag`).
 - **Reorder (#17):** `TaskList` gets `onMove`, and each task row gets `onMove` for its subtasks (G1). Drag from 640 px by the handle, long press on a phone, keyboard on the handle, "Move up / Move down" in "…"; completed and pending rows have no handle and no menu items (s04.29, the design system's rule). After a move from the menu, focus stays on the row (s04.23).
+  - **While a quick add is saving (P1):** as long as the list shows a temporary row (`isPendingTaskId`), the app passes no `onMove` to `TaskList`, so no row of the list has a handle or "Move up / Move down". `TaskList` hands one `onMove` to the top level and to every task's subtasks, so the whole list pauses, not only the add's group; that needs no design-system change, and an add is saved in well under a second. Reordering returns when the add is saved or fails. Moves already queued are not affected: they were picked before the add, so their neighbours are still valid.
 - **Invalidation:** as in E01/E03, the list is invalidated when a task mutation settles, skipped while other task mutations are pending. E03's future-expenses query is not invalidated by these mutations: none of them changes an amount, a completion or a task's existence.
 
 ## 📝 Edge Cases & Failure Scenarios
@@ -294,6 +299,10 @@ Prototype: `prototypes/task-list-v1/`, states s04.22–s04.24 and s04.29 (`.ai/s
 | A subtask moved into another task or to the top level (crafted) | The neighbours are not its open siblings → 409, nothing changes (AC5). |
 | Move an open subtask of a completed task (E03 Q2) | Allowed: the subtask is open. |
 | Move vs. a quick add in the same list | Both take the list lock; the add appends after the last stored sibling, the move gets a key between its neighbours; no collision. |
+| A quick add is saving, then the owner tries to move a row | Not possible: while the temporary row shows, the list has no handles and no "Move up / Move down" (P1). Without this, "Move down" into the last place would send `beforeId: null` for a row that is no longer last once the add is saved, and the server would refuse it. Reordering returns when the add settles. |
+| A place is renamed or deleted while a quick add is saving | The cached rows are patched with the new name, or lose the place; the temporary row stays (P2). |
+| A malformed `placeId` in a URL (crafted) | 404 "Place", nothing written (P3). |
+| A list with two `owner` rows (not possible from the app today) | The assign check accepts a place of any of the owners; it never fails on the number of owners (P4). |
 | A move request fails (network, 5xx) | The row goes back with the s04.24 message. |
 | Old client (PWA cache) after deploy | New view fields are additive; old clients ignore them and have no new calls. |
 | Migration `0003` on a database with users | Only new tables; existing users get the eight on their first use, as new users do. The old code running between the migration and the restart never touches places. |
@@ -336,6 +345,7 @@ The issues' criteria are binding: **#18 AC1–AC4, #19 AC1–AC10, #17 AC1–AC9
 - **M-2 (already in place):** Given open tasks A, B, C, when another client moves B after C (A, C, B) and then a move of C between A and B arrives, then it succeeds with no write and the order stays A, C, B.
 - **P-1 (places unavailable):** Given the places request fails, when the owner opens "Places…", then the picker shows "Could not load your places." with "Try again", not "No places yet." or New place; "Try again" loads the places and shows them; the task list works throughout.
 - **Q-1 (answers in order):** Given a move and then a marker toggle on the same tree, with the move's answer delayed, then the marker request is not sent before the move's answer is in, and the row never shows the marker unset, before or after any refetch.
+- **M-3 (no reorder while an add is saving):** Given open tasks A, B, C and a quick add of D still saving, then no row shows a drag handle or "Move up / Move down"; when D is saved, "Move down" on B moves it after C and the server accepts it.
 
 ## 📋 Phasing
 
@@ -343,7 +353,7 @@ The issues' criteria are binding: **#18 AC1–AC4, #19 AC1–AC10, #17 AC1–AC9
 - **Phase 2: spaces (#19).** Shippable alone; no E03 dependency.
 - **Phase 3: reorder (#17).** Starts after E03 Phase 1 (#20) is merged.
 
-Each phase is one PR against `auto`, labelled `risk-high` for Phases 1–2 (migrations) and `risk-medium` for Phase 3, closes its story, runs the full gate (`AGENTS.md`) and a manual check in the running app.
+Each phase is one PR against `main`, labelled `risk-high` for Phases 1–2 (migrations) and `risk-medium` for Phase 3, closes its story, runs the full gate (`AGENTS.md`) and a manual check in the running app.
 
 ## 📋 Implementation Plan
 
@@ -359,19 +369,19 @@ Each phase is one PR against `auto`, labelled `risk-high` for Phases 1–2 (migr
 
 6. **Migration `0003`.** `places`, `task_places`, `place_owners`, constraints; no data step. Generate, review (FK and index order). Integration: the checks and unique keys, cascades from task, place and user; the upgrade test: rows from `0002` survive and a user from before the migration has no places until first use. Down SQL in the run log.
 7. **Rules (isomorphic).** `place-rules.ts`: `placeNameSchema`, `placeNameKey`, `nextPlaceColor`, `PLACE_LIMIT`, `PREDEFINED_PLACES`, messages; exported from `@taskly/core`. Unit tests: trim, NFC, 30 characters, "Łazienka" = "łazienka", NFD = NFC, colours 9, 10, 1.
-8. **Places service.** `places.ts` (`server-only`): `ensurePlaces` (the `place_owners` insert, the seed, the lock), `listPlaces`, `createPlace` (owner-row lock, limit, append key, colour), `updatePlace`, `deletePlace`; the 23505 translation to the duplicate-name 409. Unit tests (SQL and lock clauses over the fake pg client); integration: AC1 (a user's eight on first use, each user their own), AC4, AC5, AC6, AC8, AC10, S-1, S-2, C-1 (creates racing at 19; a create racing the first load, both orders, with the row-lock holder technique, lesson 2026-10-30), another user's place → 404 on update and delete.
-9. **Task places.** `setTaskPlace`; views gain `places` (one extra query in `listTasks` and `topLevelView`, in place order). Integration: AC2, AC3, AC7 (delete keeps the other places), AC9, Q3-1, viewer 403, idempotent repeats, delete vs. assign race (the place lock).
-10. **Routes.** `app/api/places/route.ts` (`GET`, `POST`), `app/api/places/[placeId]/route.ts` (`PATCH`, `DELETE`), `app/api/tasks/[taskId]/places/[placeId]/route.ts` (`PUT`, `DELETE`); route unit tests; HTTP integration cases (200, 400, 401, 404, 409, CSRF header) in `test/places-http.integration.test.ts`.
+8. **Places service.** `places.ts` (`server-only`): `ensurePlaces` (the `place_owners` insert, the seed, the lock), `listPlaces`, `createPlace` (owner-row lock, limit, append key, colour), `updatePlace`, `deletePlace`; the 23505 translation to the duplicate-name 409. Unit tests (SQL and lock clauses over the fake pg client); integration: AC1 (a user's eight on first use, each user their own), AC4, AC5, AC6, AC8, AC10, S-1, S-2, C-1 (creates racing at 19; a create racing the first load, both orders, with the row-lock holder technique, lesson 2026-10-30), another user's place → 404 on update and delete; a malformed `placeId` → 404; update and delete by a user who never loaded places → 404 with no `place_owners` row written.
+9. **Task places.** `setTaskPlace`; views gain `places` (one extra query in `listTasks` and `topLevelView`, in place order). Integration: AC2, AC3, AC7 (delete keeps the other places), AC9, Q3-1, a list with two `owner` rows (either owner's place assigns, no SQL error; P4), viewer 403, idempotent repeats, delete vs. assign race (the place lock).
+10. **Routes.** `app/api/places/route.ts` (`GET`, `POST`), `app/api/places/[placeId]/route.ts` (`PATCH`, `DELETE`), `app/api/tasks/[taskId]/places/[placeId]/route.ts` (`PUT`, `DELETE`); route unit tests; HTTP integration cases (200, 400, 401, 404 including a malformed `placeId`, 409, CSRF header) in `test/places-http.integration.test.ts`.
 11. **Picker loading and error (design system).** `PlaceOptions` / `PlacePicker` gain `status` and `onRetry`; the `loading` skeleton and the `error` state with "Try again" (shared `Skeleton`, `ErrorState`); stories "Loading" and "Load Failed" and the state table in `PlacePicker.mdx`; component tests (no New place and no "No places yet." outside `ready`; focus after retry). 100% coverage in `packages/ui`.
-12. **App wiring.** `use-places.ts` (query, create, update, delete); `useTogglePlace` in the list queue with the `place` kind in the replay; `places` on `TaskList` (`PlaceOptions`, `status` from the query); create-and-tick; 409 → the name field; invalidations; `toTaskItem` maps places. Unit tests at 100%, including create succeeding and the tick failing, and the places query delayed, failing, then retried (P-1).
+12. **App wiring.** `use-places.ts` (query, create, update, delete); `useTogglePlace` in the list queue with the `place` kind in the replay; `places` on `TaskList` (`PlaceOptions`, `status` from the query); create-and-tick; 409 → the name field; the pure patch of cached task views after rename, recolour and delete (no tasks refetch); `toTaskItem` maps places. Unit tests at 100%, including create succeeding and the tick failing, a rename and a delete while a quick add is saving (the temporary row stays, rows show the change), and the places query delayed, failing, then retried (P-1).
 13. **Browser test and wrap-up.** `test/places-browser.integration.test.ts`: the eight on first use, AC2 with a new place Jadalnia, AC3, AC5 message, AC6 rename visible on the row, AC7 question and result, AC8 colour change, AC9, AC10 at 20, P-1 (the places route aborted, then restored). Correct `E02OrderMarkersPlaces.mdx` (limit 20, the Q3 answer); status words for #19. Full gate, manual check.
 
 ### Phase 3: reorder (#17, after E03 Phase 1)
 
-14. **`movePosition` (isomorphic).** `move.ts`: the neighbour check and key choice over sibling `{ id, position, completed }`. Unit tests: first, last, middle, both null with no open siblings, no-op, stale neighbours, a neighbour that is completed or the row itself, completed siblings stored between the neighbours (key never equal to theirs, open order as asked).
+14. **`movePosition` (isomorphic).** `move.ts`: `movePosition(siblings, id, afterId, beforeId)`, the neighbour check, no-op check and key choice over the whole sibling group `{ id, position, completed }`, the moved row included. Unit tests: first, last, middle, both null with no open siblings, no-op, stale neighbours, a neighbour that is completed or the row itself, completed siblings stored between the neighbours (key never equal to theirs, open order as asked).
 15. **`moveTask` service.** Replace the stub (remove it from `stubs.test.ts`): `moveTaskInput`, the lock order, the completed refusal, the sibling read, one `UPDATE`. Unit tests over the fake pg client (lock clauses, `COLLATE "C"`, one update). Integration: AC1, AC2 (positions of all other rows unchanged), AC4, AC5, AC9, M-1 (A, C, D, B → 409), M-2 (A, C, B → success, no write), C-1 (two concurrent moves), viewer 403, non-member 404.
 16. **Route.** `app/api/tasks/[taskId]/position/route.ts` (`PUT`, `taskViewSchema`); route unit test; HTTP integration cases.
-17. **App wiring.** `useMoveTask` in the list queue with the `move` kind in the replay; `onMove` on `TaskList` and per task for subtasks; the s04.24 message; invalidation. Unit tests at 100%, including two quick moves with the first answer delayed; a refused move; Q-1 (a delayed move answer, then a marker toggle on the same tree); a subtask move followed by its parent's completion with the move's answer delayed; a move while a completion of the same row is pending (refused by the server, rolled back).
+17. **App wiring.** `useMoveTask` in the list queue with the `move` kind in the replay; `onMove` on `TaskList` and per task for subtasks; no `onMove` while the list shows a temporary row (P1); the s04.24 message; invalidation. Unit tests at 100%, including M-3 (no handles or move items while an add is saving, back after it is saved and after it fails); two quick moves with the first answer delayed; a refused move; Q-1 (a delayed move answer, then a marker toggle on the same tree); a subtask move followed by its parent's completion with the move's answer delayed; a move while a completion of the same row is pending (refused by the server, rolled back).
 18. **Browser test and wrap-up.** `test/reorder-browser.integration.test.ts`: AC1 by keyboard on the handle and reload, AC4 for subtasks, AC6 "Move up / Move down" and focus, AC8 (no handle or menu items on a completed row), a refused move (stale, via a second request) rolling back with the message. AC7's long press and pointer drag are covered by the design system's interaction stories and a manual check on a phone-sized viewport (recorded in the run log). Status words for #17; `backlog.md` notes. Move this spec to `specs/implemented/` and grep for its filename (lesson 2026-10-29). Full gate, manual check.
 
 ## 🔍 Review changes (2026-11-03)
@@ -385,3 +395,18 @@ Source: `.ai/analysis/2026-11-03-pre-implement-order-markers-and-spaces.md` (`om
 | F3 | Seeding with the default list collides with `POST /api/places` before the first visit (key `a0`, the limit) and with the deploy window. | A `place_owners` row per user: the durable seeded marker and the one lock for creating places; `ensurePlaces` starts every places operation; no backfill (Data Model; S-2, C-1; steps 6, 8). |
 | F4 | Separate scopes let a delayed move's tree overwrite a confirmed marker. | One queue per list for every task mutation, E01's and E03's included, plus `cancelQueries` before writing an answer (UI/UX, Architecture, Risks; Q-1; steps 3, 17). The E03 spec's per-tree scope is replaced; a note there points here. |
 | F5 | M-1 asked for 409 where the algorithm gives a valid no-op (A, C, B). | M-1 now uses A, C, D, B (D between the neighbours → 409); M-2 covers the no-op (Acceptance criteria, Edge cases, step 15). A neighbour that only moved elsewhere is not treated as a conflict. |
+
+## 🔍 Review changes (2026-11-04, post-merge review of #53)
+
+Source: the read-only post-merge review of #53 on 2026-11-04 (one major, four minor, three nits). The owner chose P1's option and approved the rest:
+
+| Id | Finding | Change |
+| --- | --- | --- |
+| P1 (major) | A move picked while a quick add was saving left out the temporary row, so "Move down" into the last place sent `beforeId: null` and was refused once the add was saved, contradicting "neighbours match what the server holds". | Owner's choice (a): no reordering in the list while it shows a temporary row; list-wide because `TaskList` has one `onMove` for both levels (UI/UX Reorder; Edge cases; M-3; step 17). |
+| P2 | Place rename, recolour and delete refetched the tasks outside the "skip while pending" rule, dropping the temporary rows of quick adds. | The cached task views are patched with the server's answer instead; no refetch (UI/UX Places; step 12). |
+| P3 | A malformed `placeId` would reach PostgreSQL and answer 500 (22P02 is not translated). | 404 "Place" before any query on every `placeId` route (API Contracts; steps 8, 10). |
+| P4 | The owner check was a scalar subquery on the list's `owner` row, but the schema allows several owners. | `EXISTS` over the list's owner rows (API Contracts; step 9). |
+| P5 | Phase PRs were said to target `auto`, a branch that does not exist; `SDLC.md` and every PR use `main`. | `main`; `.ai/agentic.config.json` `baseBranch` corrected in the same PR. |
+| P6 | `ensurePlaces` ran in `updatePlace` and `deletePlace`, where it can only seed on a 404 path, and contradicted the lock order. | Only `listPlaces` and `createPlace` call it (Data Model; API Contracts; step 8). |
+| P7 | `movePosition` had three different signatures. | One: `movePosition(siblings, id, afterId, beforeId)` over the whole group, the row included (Architecture; API Contracts; step 14). |
+| P8 | `PATCH /api/places` left the `color` schema unnamed. | `placeColorSchema`, shared with `placeViewSchema` (API Contracts). |
