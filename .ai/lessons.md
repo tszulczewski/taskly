@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-04 — Every client GET that `requireUser` serves renews a due session, so a new query on a screen breaks tests that block "the screen's GET" to prove the page render renews nothing: E03 Phase 2's `GET …/future-expenses` on `/` failed `tasks-browser` "renews a session … not the page render" until it aborted both routes. A second `ErrorState`-style "Try again" on the screen also makes `clickRole("button", "Try again")` ambiguous; click the task list's by selector (`[data-slot="alert"] button`). When adding a query to a screen, grep browser tests for `abortRequests` and role clicks on shared labels.
+
 - 2026-11-04 — A completion dialog retains its task after a background refetch removes the row. Before looking up its title on confirm, check that the task still exists; otherwise show the deleted-task notice and restore list focus. PR #56 regression reproduced an uncaught `titleOf` error.
 
 - 2026-11-04 — Browser integration suites that call `createUser` must call `closeUserDb` in teardown as well as closing their local pool: the helper opens a separate core pool and stubs auth environment variables (PR #56 review).
