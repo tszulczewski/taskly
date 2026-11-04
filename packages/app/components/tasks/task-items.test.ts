@@ -7,6 +7,7 @@ import {
   hasTask,
   isNotFound,
   isPendingTaskId,
+  NO_UNESTIMATED,
   replayChanges,
   sortTasks,
   subtaskAdded,
@@ -15,6 +16,7 @@ import {
   TASK_SCREEN_TEXT,
   titleOf,
   toCreateInput,
+  totalText,
   toTaskItem,
   toUpdateInput,
   validateTaskForm,
@@ -524,6 +526,26 @@ describe("isPendingTaskId", () => {
   it("tells temporary ids from server ids", () => {
     expect(isPendingTaskId("pending-1")).toBe(true);
     expect(isPendingTaskId(crypto.randomUUID())).toBe(false);
+  });
+});
+
+describe("future expenses", () => {
+  it("shows the server's total as a range, one amount for an exact price, or null", () => {
+    expect(totalText({ total: { minGrosze: 150_000_00, maxGrosze: 270_000_00 } })).toBe(
+      pln("150_000–270_000_zł"),
+    );
+    expect(totalText({ total: { minGrosze: 80_000, maxGrosze: 80_000 } })).toBe(pln("800_zł"));
+    expect(totalText({ total: { minGrosze: 0, maxGrosze: 0 } })).toBe(pln("0_zł"));
+    expect(totalText({ total: null })).toBeNull();
+  });
+
+  it("names nothing without an estimate until Phase 3, and its form refuses a save", async () => {
+    expect(NO_UNESTIMATED.unestimated).toEqual([]);
+    expect(NO_UNESTIMATED.validate()).toEqual({});
+    await expect(NO_UNESTIMATED.onAddEstimate()).resolves.toEqual({
+      ok: false,
+      formError: TASK_SCREEN_TEXT.saveFailed,
+    });
   });
 });
 

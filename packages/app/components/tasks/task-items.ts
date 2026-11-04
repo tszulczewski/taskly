@@ -5,6 +5,7 @@ import {
   estimateFromAmounts,
   formatPlnAmount,
   formatPlnRange,
+  type FutureExpenses,
   positionBetween,
   type SubtaskView,
   type TaskView,
@@ -12,6 +13,7 @@ import {
   updateTaskInput,
 } from "@taskly/core";
 import type {
+  FutureExpensesProps,
   SubmitResult,
   TaskField,
   TaskFieldErrors,
@@ -54,6 +56,19 @@ type EstimateView = TaskView["estimate"];
 
 const estimateText = (estimate: EstimateView) =>
   estimate === null ? null : formatPlnRange(estimate.minGrosze, estimate.maxGrosze);
+
+/** The total as `FutureExpenses` shows it: a range, or one amount (R18); null for "No estimates yet". */
+export const totalText = ({ total }: FutureExpenses): string | null => estimateText(total);
+
+/**
+ * "Add estimate" of `FutureExpenses` until spec E03 Phase 3 (#47): the response names no
+ * unestimated item yet, so the list is empty and its form never opens.
+ */
+export const NO_UNESTIMATED = {
+  unestimated: [],
+  validate: () => ({}),
+  onAddEstimate: async () => ({ ok: false, formError: TASK_SCREEN_TEXT.saveFailed }),
+} satisfies Pick<FutureExpensesProps, "unestimated" | "validate" | "onAddEstimate">;
 
 /** The edit form's two fields: an exact price in "Amount" only, a range in both (R18). */
 function amountFields(estimate: EstimateView): Pick<TaskItem, "amount" | "upTo"> {

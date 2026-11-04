@@ -14,7 +14,6 @@ describe("queryKeys", () => {
       "completion",
     ]);
     expect(queryKeys.shopping("l1")).toEqual(["lists", "l1", "shopping"]);
-    expect(queryKeys.summary()).toEqual(["summary"]);
-    expect(queryKeys.summary("l1")).toEqual(["lists", "l1", "summary"]);
+    expect(queryKeys.futureExpenses("l1")).toEqual(["lists", "l1", "future-expenses"]);
   });
 });
