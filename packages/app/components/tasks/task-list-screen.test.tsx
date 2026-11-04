@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { SubtaskView, TaskView } from "@taskly/core";
+import { futureExpenses, type SubtaskView, type TaskView } from "@taskly/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Activity } from "react";
@@ -9,6 +9,7 @@ import { TaskListScreen } from "./task-list-screen";
 
 const LIST = crypto.randomUUID();
 const TASKS_URL = `/api/lists/${LIST}/tasks`;
+const EXPENSES_URL = `/api/lists/${LIST}/future-expenses`;
 const taskUrl = (id: string) => `/api/tasks/${id}`;
 const NBSP = String.fromCharCode(0xa0);
 const pln = (text: string) => text.replaceAll("_", NBSP);
@@ -78,7 +79,11 @@ let reducedMotion = false;
 
 beforeEach(() => {
   serverTasks = [tile, seal];
-  handlers = new Map([[`GET ${TASKS_URL}`, () => ok(serverTasks)]]);
+  handlers = new Map([
+    [`GET ${TASKS_URL}`, () => ok(serverTasks)],
+    // The server's total over what it holds (the real rule from core).
+    [`GET ${EXPENSES_URL}`, () => ok(futureExpenses(serverTasks))],
+  ]);
   fetchMock.mockClear();
   vi.stubGlobal("fetch", fetchMock);
   scrollIntoView.mockClear();
@@ -154,7 +159,9 @@ describe("TaskListScreen states", () => {
     const get = gate();
     handlers.set(`GET ${TASKS_URL}`, () => get.promise);
     renderScreen();
-    expect(screen.getByRole("status").textContent).toBe("Loading tasks…");
+    expect(screen.getAllByRole("status").map((region) => region.textContent)).toContain(
+      "Loading tasks…",
+    );
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(titleField()).toBeDefined();
     get.open(ok(serverTasks));
@@ -1260,5 +1267,70 @@ describe("TaskListScreen completion", () => {
     );
     await waitFor(() => expect(screen.queryByRole("textbox", { name: "New subtask" })).toBeNull());
     expect(box("Bathroom").getAttribute("aria-checked")).toBe("true");
+  });
+});
+
+describe("TaskListScreen future expenses", () => {
+  const summary = () => document.querySelector<HTMLElement>('[data-slot="future-expenses"]');
+  /** The total line as shown (NBSP kept), or null while there is none. */
+  const totalLine = () => summary()?.querySelector('[role="status"]')?.textContent ?? null;
+  const completionUrl = (id: string) => `/api/tasks/${id}/completion`;
+
+  it("shows the server's total above quick add, after a skeleton (decision I1)", async () => {
+    const get = gate();
+    handlers.set(`GET ${EXPENSES_URL}`, () => get.promise);
+    await renderLoaded();
+    expect(summary()?.getAttribute("aria-busy")).toBe("true");
+    expect(totalLine()).toBe("Loading future expenses…");
+
+    get.open(ok(futureExpenses(serverTasks)));
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł")));
+    const quickAddRoot = document.querySelector('[data-slot="quick-add"]')!;
+    expect(
+      summary()!.compareDocumentPosition(quickAddRoot) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows one amount for exact prices (R18)", async () => {
+    serverTasks = [seal, view("Paint")];
+    renderScreen();
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses500_zł")));
+  });
+
+  it("shows No estimates yet when no open task has an estimate", async () => {
+    serverTasks = [view("Paint"), { ...tile, completed: true }];
+    renderScreen();
+    await waitFor(() => expect(totalLine()).toBe("Future expensesNo estimates yet"));
+  });
+
+  it("shows a load failure with Try again; the task list still works", async () => {
+    handlers.set(`GET ${EXPENSES_URL}`, () => fail(500, "internal_error", "Something went wrong"));
+    await renderLoaded();
+    const alert = await within(summary()!).findByRole("alert");
+    expect(alert.textContent).toBe("Could not load future expenses.");
+    expect(rows()).toHaveLength(2);
+
+    const get = gate();
+    handlers.set(`GET ${EXPENSES_URL}`, () => get.promise);
+    await click(within(summary()!).getByRole("button", { name: "Try again" }));
+    expect(within(summary()!).getByRole("button", { name: "Trying again…" })).toBeDefined();
+    get.open(ok(futureExpenses(serverTasks)));
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł")));
+  });
+
+  it("keeps the last total while a completion is pending, then shows the server's new one (S2)", async () => {
+    const put = gate();
+    handlers.set(`PUT ${completionUrl(tile.id)}`, () => put.promise);
+    await renderLoaded();
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł")));
+
+    await click(screen.getByRole("checkbox", { name: "Complete “Tile the wall”" }));
+    await waitFor(() => expect(sent("PUT", completionUrl(tile.id))).toEqual({ completed: true }));
+    expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł"));
+    expect(summary()?.getAttribute("aria-busy")).toBeNull();
+
+    await act(async () => put.open(saved({ ...tile, completed: true })));
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses500_zł")));
+    expect(calls("GET", EXPENSES_URL)).toHaveLength(2);
   });
 });
