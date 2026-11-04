@@ -64,6 +64,6 @@ The owner sees one "Future expenses" min–max range under the list's name: the 
 
 ### Phase 4: browser test and wrap-up
 
-- [ ] 4.1 Browser test of the total
-- [ ] 4.2 Design-system status words for #21
+- [x] 4.1 Browser test of the total — 6df5364
+- [x] 4.2 Design-system status words for #21 — 09f9f0e
 - [ ] 4.3 Full gate and manual check
