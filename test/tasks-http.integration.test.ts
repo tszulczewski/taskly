@@ -31,7 +31,7 @@ const SESSION_TTL_MS = 30 * DAY_MS;
 const CLOCK_SLACK_MS = 5 * 60 * 1000;
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Call = {
   method?: Method;
   cookie?: string;
@@ -284,6 +284,40 @@ describe("task routes over HTTP", () => {
     expect(deleteTaskResponseSchema.parse(await okData(deleted))).toEqual(parent);
   });
 
+  it("completes a task with its subtasks, reopens it, and answers 400 for a bad body", async () => {
+    const parent = await createOwnerTask("Hallway");
+    const added = await api(tasksPath(owner.listId), {
+      method: "POST",
+      cookie: owner.cookie,
+      body: { title: "Prime", parentId: parent.id },
+    });
+    const withSubtask = taskViewSchema.parse(await okData(added));
+    const path = `/tasks/${parent.id}/completion`;
+
+    const done = await api(path, {
+      method: "PUT",
+      cookie: owner.cookie,
+      body: { completed: true },
+    });
+    const completed = taskViewSchema.parse(await okData(done));
+    expect(completed.completed).toBe(true);
+    expect(completed.subtasks.map((s) => s.completed)).toEqual([true]);
+    expect((await taskRow(parent.id))?.status).toBe("done");
+
+    const reopened = await api(path, {
+      method: "PUT",
+      cookie: owner.cookie,
+      body: { completed: false },
+    });
+    expect(taskViewSchema.parse(await okData(reopened))).toEqual(withSubtask);
+
+    for (const body of [{}, { completed: "yes" }, { completed: true, title: "x" }, "{completed:"]) {
+      const res = await api(path, { method: "PUT", cookie: owner.cookie, body });
+      expect((await failure(res, 400)).code).toBe("validation_error");
+    }
+    expect((await taskRow(parent.id))?.status).toBe("todo");
+  });
+
   it("rejects every mutation without the CSRF header and changes nothing", async () => {
     const task = await createOwnerTask("Door");
     const before = await taskRow(task.id);
@@ -291,6 +325,7 @@ describe("task routes over HTTP", () => {
       [tasksPath(owner.listId), { method: "POST", body: { title: "Sneaky" } }],
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "Sneaky" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
+      [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: owner.cookie, csrf: false });
@@ -347,6 +382,7 @@ describe("task routes over HTTP", () => {
       [tasksPath(owner.listId), { method: "POST", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
+      [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
     ];
     const stale = `${owner.cookie.split("=")[0]}=not-a-session.sig`;
     for (const [path, call] of calls)
@@ -368,6 +404,8 @@ describe("task routes over HTTP", () => {
       [tasksPath("not-a-uuid"), {}],
       [`/tasks/${UNKNOWN_ID}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/not-a-uuid`, { method: "DELETE" }],
+      [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${UNKNOWN_ID}/completion`, { method: "PUT", body: { completed: true } }],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: stranger.cookie });
@@ -387,6 +425,7 @@ describe("task routes over HTTP", () => {
       [tasksPath(owner.listId), { method: "POST", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
+      [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: viewer.cookie });
