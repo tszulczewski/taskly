@@ -5,11 +5,14 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../lib/api-client";
 import { queryKeys } from "../../lib/query-keys";
+import { isPendingTaskId } from "./task-items";
 import {
-  isPendingTaskId,
+  type SetCompletedVariables,
   useCreateTask,
   useDeleteTask,
+  useSetCompleted,
   useTasks,
+  useTaskViews,
   useUpdateTask,
 } from "./use-tasks";
 
@@ -114,13 +117,6 @@ function start<T>(run: () => Promise<T>): Promise<T | unknown> {
   });
   return outcome;
 }
-
-describe("isPendingTaskId", () => {
-  it("tells temporary ids from server ids", () => {
-    expect(isPendingTaskId("pending-1")).toBe(true);
-    expect(isPendingTaskId(tile.id)).toBe(false);
-  });
-});
 
 describe("useTasks", () => {
   it("loads the list through the response schema, unknown fields stripped", async () => {
@@ -237,7 +233,7 @@ describe("useCreateTask", () => {
     await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
   });
 
-  it("removes only its own pending row when it fails while another add is in flight", async () => {
+  it("sends a queued add only after the previous one settled, and a failure removes only its own row", async () => {
     const first = gate();
     const second = gate();
     const gates = [first, second];
@@ -246,15 +242,18 @@ describe("useCreateTask", () => {
 
     const one = start(() => result.current.create.mutateAsync(input));
     await waitFor(() => expect(cached()).toHaveLength(3));
-    const firstTempId = cached()?.[2]?.id;
     const two = start(() => result.current.create.mutateAsync({ ...input, title: "Grout" }));
     await waitFor(() => expect(cached()).toHaveLength(4));
+    const secondTempId = cached()?.[3]?.id;
+    // One list queue (spec E03, Order of requests): the second add waits for the first.
+    expect(calls("POST", TASKS_URL)).toHaveLength(1);
 
-    second.open(fail(409, "conflict", "Please try again"));
-    await two;
-    expect(cached()?.map((task) => task.id)).toEqual([tile.id, paint.id, firstTempId]);
-    first.open(ok(sealed));
+    first.open(fail(409, "conflict", "Please try again"));
     await one;
+    expect(cached()?.map((task) => task.id)).toEqual([tile.id, paint.id, secondTempId]);
+    await waitFor(() => expect(calls("POST", TASKS_URL)).toHaveLength(2));
+    second.open(ok(sealed));
+    await two;
   });
 
   it("does not duplicate a row that a refetch already brought in", async () => {
@@ -378,12 +377,16 @@ describe("useCreateTask for a subtask", () => {
     const first = gate();
     const second = gate();
     const gates = [first, second];
+    const edit = gate();
     handlers.set(`POST ${TASKS_URL}`, () => (gates.shift() ?? first).promise);
-    handlers.set(`PATCH ${taskUrl(prime.id)}`, () => ok(parentWith({ ...prime, title: "Prime" })));
+    handlers.set(`PATCH ${taskUrl(prime.id)}`, () => edit.promise);
     serverTasks = [parentWith(prime), paint];
     const { result, cached } = setup();
     await waitFor(() => expect(cached()).toHaveLength(2));
 
+    const editing = start(() =>
+      result.current.update.mutateAsync({ id: prime.id, input: { title: "x" } }),
+    );
     const one = start(() => result.current.create.mutateAsync(subtaskInput("Sand")));
     await waitFor(() => expect(cached()?.[0]?.subtasks).toHaveLength(2));
     const two = start(() => result.current.create.mutateAsync(subtaskInput("Paint")));
@@ -391,7 +394,8 @@ describe("useCreateTask for a subtask", () => {
     const [, sandTemp, paintTemp] = cached()?.[0]?.subtasks ?? [];
 
     // An edit of another subtask answers with the parent: both pending subtasks stay.
-    await start(() => result.current.update.mutateAsync({ id: prime.id, input: { title: "x" } }));
+    edit.open(ok(parentWith(prime)));
+    await editing;
     expect(cached()?.[0]?.subtasks).toEqual([prime, sandTemp, paintTemp]);
 
     const sand = { ...prime, id: crypto.randomUUID(), title: "Sand" };
@@ -460,25 +464,25 @@ describe("useUpdateTask", () => {
     handlers.set(`PATCH ${taskUrl(tile.id)}`, () => other.promise);
     handlers.set(`PATCH ${taskUrl(paint.id)}`, () => ok(renamed));
     const { client, result, cached } = await setupLoaded();
-    // Another save still running, so this one's settle does not refetch over the stale answer.
+    // A second save queued behind the first, so the first one's settle does not refetch.
     const first = start(() =>
       result.current.update.mutateAsync({ id: tile.id, input: { title: "x" } }),
+    );
+    const second = start(() =>
+      result.current.update.mutateAsync({ id: paint.id, input: { title: renamed.title } }),
     );
     const stale = gate();
     handlers.set(`GET ${TASKS_URL}`, () => stale.promise);
     act(() => void client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
     await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
 
-    await start(() =>
-      result.current.update.mutateAsync({ id: paint.id, input: { title: renamed.title } }),
-    );
-    stale.open(ok([tile, paint]));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(cached()).toEqual([tile, renamed]);
-
     handlers.set(`GET ${TASKS_URL}`, () => ok([tile, renamed]));
     other.open(ok(tile));
     await first;
+    await second;
+    stale.open(ok([tile, paint]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cached()).toEqual([tile, renamed]);
   });
 
   it("surfaces a 404 and refetches, so the deleted row disappears", async () => {
@@ -589,5 +593,320 @@ describe("useDeleteTask", () => {
     const error = await start(() => result.current.remove.mutateAsync("pending-7"));
     expect(error).toEqual(new Error("The task is not saved yet"));
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(0);
+  });
+});
+
+describe("useSetCompleted with useTaskViews", () => {
+  // Distinct keys, so the read order is defined (open first, then by position).
+  const a = view("A", { position: "a0", subtasks: [] });
+  const b = view("B", { position: "a1" });
+  const sub1 = {
+    id: crypto.randomUUID(),
+    title: "s1",
+    description: null,
+    estimate: null,
+    completed: false,
+    position: "a0",
+  };
+  const sub2 = { ...sub1, id: crypto.randomUUID(), title: "s2", position: "a1" };
+  const parent = view("Bathroom", { position: "a2", subtasks: [sub1, sub2] });
+  const done = <T extends { completed: boolean }>(row: T, completed = true): T => ({
+    ...row,
+    completed,
+  });
+  const completionUrl = (id: string) => `/api/tasks/${id}/completion`;
+  const onError = vi.fn<(error: unknown, variables: SetCompletedVariables) => void>();
+
+  beforeEach(() => {
+    serverTasks = [a, b, parent];
+    handlers.set(`GET ${TASKS_URL}`, () => ok(serverTasks));
+    onError.mockReset();
+  });
+
+  /** Each PUT to a row's completion URL waits for the next gate opened for it. */
+  function completionGates(id: string) {
+    const gates: ReturnType<typeof gate>[] = [];
+    const bodies: unknown[] = [];
+    handlers.set(`PUT ${completionUrl(id)}`, (body) => {
+      bodies.push(body);
+      const next = gate();
+      gates.push(next);
+      return next.promise;
+    });
+    return { gates, bodies };
+  }
+
+  async function harness() {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () => ({
+        shown: useTaskViews(LIST),
+        complete: useSetCompleted(LIST, { onError }),
+        update: useUpdateTask(LIST),
+        create: useCreateTask(LIST),
+      }),
+      { wrapper },
+    );
+    const cached = () => client.getQueryData<TaskView[]>(queryKeys.tasks(LIST));
+    await waitFor(() => expect(cached()).toEqual(serverTasks));
+    const toggle = (id: string, completed: boolean, title = "x") =>
+      act(() => result.current.complete.mutate({ id, completed, title }));
+    const shown = () => result.current.shown.views?.map((task) => [task.title, task.completed]);
+    return { client, result, cached, toggle, shown };
+  }
+
+  it("is undefined until the list loads, then the server's rows in read order", async () => {
+    serverTasks = [done(b), a];
+    const pending = gate();
+    handlers.set(`GET ${TASKS_URL}`, () => pending.promise);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useTaskViews(LIST), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    expect(result.current.views).toBeUndefined();
+    pending.open(ok(serverTasks));
+    await waitFor(() => expect(result.current.views).toEqual([a, done(b)]));
+    expect(result.current.query.data).toEqual([done(b), a]);
+  });
+
+  it("shows a completion at once without writing the cache, then the server's answer", async () => {
+    const { gates, bodies } = completionGates(a.id);
+    const { cached, toggle, shown } = await harness();
+
+    toggle(a.id, true);
+    await waitFor(() =>
+      expect(shown()).toEqual([
+        ["B", false],
+        ["Bathroom", false],
+        ["A", true],
+      ]),
+    );
+    expect(cached()).toEqual([a, b, parent]);
+    await waitFor(() => expect(bodies).toEqual([{ completed: true }]));
+
+    serverTasks = [b, parent, done(a)];
+    gates[0]!.open(ok(done(a)));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(cached()).toEqual([b, parent, done(a)]);
+    expect(shown()).toEqual([
+      ["B", false],
+      ["Bathroom", false],
+      ["A", true],
+    ]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("shows complete → reopen as reopened throughout when the first answer is late; the reopen is sent after it (review R2)", async () => {
+    const { gates, bodies } = completionGates(a.id);
+    const { toggle, shown } = await harness();
+
+    toggle(a.id, true);
+    toggle(a.id, false);
+    await waitFor(() => expect(shown()?.[0]).toEqual(["A", false]));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+
+    gates[0]!.open(ok(done(a)));
+    await waitFor(() => expect(bodies).toEqual([{ completed: true }, { completed: false }]));
+    expect(shown()?.[0]).toEqual(["A", false]);
+
+    gates[1]!.open(ok(a));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(shown()).toEqual([
+      ["A", false],
+      ["B", false],
+      ["Bathroom", false],
+    ]);
+  });
+
+  it("drops a failed first toggle and still sends and shows the queued reopen", async () => {
+    const { gates, bodies } = completionGates(b.id);
+    const { toggle, shown } = await harness();
+
+    toggle(b.id, true, "B");
+    toggle(b.id, false, "B");
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    gates[0]!.open(fail(500, "internal", "Something went wrong"));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]![1]).toEqual({ id: b.id, completed: true, title: "B" });
+    expect(shown()?.[1]).toEqual(["B", false]);
+
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    gates[1]!.open(ok(b));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(shown()?.[1]).toEqual(["B", false]);
+  });
+
+  it("shows the first answer when the second toggle fails", async () => {
+    const { gates, bodies } = completionGates(b.id);
+    const { toggle, shown } = await harness();
+
+    toggle(b.id, true);
+    toggle(b.id, false);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    serverTasks = [a, parent, done(b)];
+    gates[0]!.open(ok(done(b)));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    // The pending reopen keys B before its first sibling, so it shows first.
+    expect(shown()?.[0]).toEqual(["B", false]);
+
+    gates[1]!.open(fail(500, "internal", "Something went wrong"));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(shown()).toEqual([
+        ["A", false],
+        ["Bathroom", false],
+        ["B", true],
+      ]),
+    );
+  });
+
+  it("replays a parent completion and its subtask's toggle in order, as the server will hold them", async () => {
+    const parentPuts = completionGates(parent.id);
+    const subPuts = completionGates(sub2.id);
+    const { result, toggle } = await harness();
+    const rows = () =>
+      result.current.shown.views
+        ?.find((task) => task.id === parent.id)
+        ?.subtasks.map((subtask) => [subtask.title, subtask.completed]);
+
+    toggle(parent.id, true);
+    toggle(sub2.id, false);
+    await waitFor(() =>
+      expect(rows()).toEqual([
+        ["s2", false],
+        ["s1", true],
+      ]),
+    );
+    expect(subPuts.bodies).toEqual([]);
+
+    const completed = { ...done(parent), subtasks: [done(sub1), done(sub2)] };
+    await waitFor(() => expect(parentPuts.gates).toHaveLength(1));
+    parentPuts.gates[0]!.open(ok(completed));
+    await waitFor(() => expect(subPuts.bodies).toEqual([{ completed: false }]));
+    expect(rows()).toEqual([
+      ["s2", false],
+      ["s1", true],
+    ]);
+
+    const answer = { ...completed, subtasks: [{ ...sub2, position: "Zz" }, done(sub1)] };
+    serverTasks = [a, b, answer];
+    subPuts.gates[0]!.open(ok(answer));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(rows()).toEqual([
+      ["s2", false],
+      ["s1", true],
+    ]);
+    expect(result.current.shown.views?.at(-1)?.completed).toBe(true);
+  });
+
+  it("keeps a pending completion over an unrelated edit's answer, and sends it only after that answer", async () => {
+    const edit = gate();
+    handlers.set(`PATCH ${taskUrl(a.id)}`, () => edit.promise);
+    const { gates, bodies } = completionGates(a.id);
+    const { result, toggle, shown } = await harness();
+
+    let editing!: Promise<unknown>;
+    act(() => {
+      editing = result.current.update.mutateAsync({ id: a.id, input: { title: "A2" } });
+    });
+    toggle(a.id, true);
+    await waitFor(() => expect(shown()?.at(-1)).toEqual(["A", true]));
+    expect(bodies).toEqual([]);
+
+    edit.open(ok({ ...a, title: "A2" }));
+    await editing;
+    await waitFor(() => expect(shown()?.at(-1)).toEqual(["A2", true]));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+
+    serverTasks = [b, parent, done({ ...a, title: "A2" })];
+    gates[0]!.open(ok(done({ ...a, title: "A2" })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(shown()?.at(-1)).toEqual(["A2", true]);
+  });
+
+  it("goes back after a refusal while an add is pending, keeps the add's row and leaves the refetch to it", async () => {
+    const { gates } = completionGates(a.id);
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    const { result, cached, toggle, shown } = await harness();
+
+    toggle(a.id, true, "A");
+    await waitFor(() => expect(gates).toHaveLength(1));
+    let adding!: Promise<unknown>;
+    act(() => {
+      adding = result.current.create.mutateAsync(input);
+    });
+    await waitFor(() => expect(cached()).toHaveLength(4));
+
+    gates[0]!.open(fail(409, "conflict", "Please try again"));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(shown()?.[0]).toEqual(["A", false]));
+    expect(shown()?.map(([title]) => title)).toEqual(["A", "B", "Bathroom", "Seal the bath"]);
+    expect(calls("GET", TASKS_URL)).toHaveLength(1);
+
+    serverTasks = [a, b, parent, sealed];
+    post.open(ok(sealed));
+    await adding;
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+  });
+
+  it("does not let a list refetch that started before the answer land on top of it", async () => {
+    const { gates } = completionGates(a.id);
+    const { client, cached, toggle, shown } = await harness();
+
+    toggle(a.id, true);
+    await waitFor(() => expect(gates).toHaveLength(1));
+    const stale = gate();
+    handlers.set(`GET ${TASKS_URL}`, () => stale.promise);
+    act(() => void client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+
+    handlers.set(`GET ${TASKS_URL}`, () => ok([b, parent, done(a)]));
+    gates[0]!.open(ok(done(a)));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(3));
+    stale.open(ok([a, b, parent]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => expect(cached()).toEqual([b, parent, done(a)]));
+    expect(shown()?.at(-1)).toEqual(["A", true]);
+  });
+
+  it("reports a 404 to onError and refetches, so the row disappears", async () => {
+    handlers.set(`PUT ${completionUrl(a.id)}`, () => fail(404, "not_found", "Task not found"));
+    const { toggle, shown } = await harness();
+    serverTasks = [b, parent];
+
+    toggle(a.id, true, "A");
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]![0]).toMatchObject({ status: 404 });
+    await waitFor(() =>
+      expect(shown()).toEqual([
+        ["B", false],
+        ["Bathroom", false],
+      ]),
+    );
+  });
+
+  it("works without an onError and never sends a request for a pending row", async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useSetCompleted(LIST), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    let outcome!: Promise<unknown>;
+    act(() => {
+      outcome = result.current
+        .mutateAsync({ id: "pending-1", completed: true, title: "x" })
+        .catch((error: unknown) => error);
+    });
+    expect(await outcome).toEqual(new Error("The task is not saved yet"));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

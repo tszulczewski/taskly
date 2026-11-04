@@ -5,6 +5,7 @@ import {
   estimateFromAmounts,
   formatPlnAmount,
   formatPlnRange,
+  positionBetween,
   type SubtaskView,
   type TaskView,
   type UpdateTaskInput,
@@ -19,7 +20,18 @@ import type {
 } from "@taskly/ui";
 import { ApiError } from "../../lib/api-client";
 import { firstFieldErrors } from "../../lib/form-errors";
-import { isPendingTaskId } from "./use-tasks";
+
+// Server ids are UUIDs (`taskViewSchema`), so an id with this prefix can only be a temporary row.
+export const PENDING_PREFIX = "pending-";
+
+/**
+ * True for a row the server has not confirmed yet (an optimistic add). The screen renders it as
+ * pending (dimmed, actions disabled); the update and delete hooks refuse it, so no request is ever
+ * sent with a temporary id (spec E01, Optimistic updates).
+ */
+export function isPendingTaskId(id: string): boolean {
+  return id.startsWith(PENDING_PREFIX);
+}
 
 /** The screen's own texts (spec E01, UI/UX); the rest come from the design system. */
 export const TASK_SCREEN_TEXT = {
@@ -31,6 +43,11 @@ export const TASK_SCREEN_TEXT = {
     `The estimate of “${title}” is now the sum of its subtasks. Your amount is kept and comes back if you delete all subtasks.`,
   sumBack: (title: string, amount: string) =>
     `The estimate of “${title}” is back to your amount: ${amount}.`,
+  /** A refused completion or reopen, after the row went back (spec E03, s04.28). */
+  changeFailed: (title: string) => `Could not save “${title}”. It is back as it was.`,
+  /** A subtask add refused because its task was completed meanwhile (spec E03, Q3). */
+  addToCompleted: (title: string, taskTitle: string) =>
+    `Could not add “${title}”. “${taskTitle}” is completed.`,
 } as const;
 
 type EstimateView = TaskView["estimate"];
@@ -247,4 +264,115 @@ export function submitError(
     if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
   }
   return { ok: false, formError: fallback };
+}
+
+/**
+ * A change the screen shows before the server confirms it (spec E03, UI/UX): the variables of a
+ * pending mutation under `queryKeys.taskChanges`, whose last key part is the kind.
+ */
+export type PendingChange = { kind: "completion"; id: string; completed: boolean };
+
+/** Open saved rows, then temporary ones (an add in flight, appended by the server), then completed. */
+const rank = (row: SubtaskView) => (row.completed ? 2 : isPendingTaskId(row.id) ? 1 : 0);
+
+/**
+ * Rows in the server's read order: open before completed, each by `position` (JS `<` on these
+ * ASCII keys compares as `COLLATE "C"`). Temporary rows have no key yet and keep their order.
+ */
+function inReadOrder<T extends SubtaskView>(rows: readonly T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0 || rank(a) === 1) return byRank;
+    if (a.position === b.position) return 0;
+    return a.position < b.position ? -1 : 1;
+  });
+}
+
+/** The tasks and each task's subtasks in the server's read order. */
+export function sortTasks(views: readonly TaskView[]): TaskView[] {
+  return inReadOrder(views.map((view) => ({ ...view, subtasks: inReadOrder(view.subtasks) })));
+}
+
+/**
+ * The row opened or completed, as the server writes it: a reopened row is keyed before its first
+ * saved sibling, completed ones included, or keeps its key without one. The server's answer
+ * replaces this temporary key.
+ */
+function toggled<T extends SubtaskView>(
+  row: T,
+  siblings: readonly SubtaskView[],
+  completed: boolean,
+): T {
+  if (completed) return { ...row, completed };
+  const keys = siblings
+    .filter((sibling) => sibling.id !== row.id && !isPendingTaskId(sibling.id))
+    .map((sibling) => sibling.position);
+  const first = keys.reduce<string | null>(
+    (min, key) => (min === null || key < min ? key : min),
+    null,
+  );
+  return {
+    ...row,
+    completed,
+    position: first === null ? row.position : positionBetween(null, first),
+  };
+}
+
+/**
+ * What `PUT …/completion` does, applied to the views: completing a task also completes its
+ * subtasks (R09); reopening changes only that row, which goes first among its open siblings (R11,
+ * Q2). A row already in that state, or not in the list (deleted meanwhile), stays as it is.
+ */
+export function applyCompletion(
+  views: readonly TaskView[],
+  { id, completed }: { id: string; completed: boolean },
+): TaskView[] {
+  const changed = views.map((task) => {
+    if (task.id === id) {
+      if (task.completed === completed) return task;
+      const row = toggled(task, views, completed);
+      return completed
+        ? { ...row, subtasks: row.subtasks.map((subtask) => ({ ...subtask, completed })) }
+        : row;
+    }
+    return {
+      ...task,
+      subtasks: task.subtasks.map((subtask) =>
+        subtask.id === id && subtask.completed !== completed
+          ? toggled(subtask, task.subtasks, completed)
+          : subtask,
+      ),
+    };
+  });
+  return sortTasks(changed);
+}
+
+const applyChange: Record<
+  PendingChange["kind"],
+  (views: readonly TaskView[], change: PendingChange) => TaskView[]
+> = { completion: applyCompletion };
+
+/**
+ * What the screen shows: the server's views in read order, with the pending changes applied in
+ * the order they were made. Every answer, refetch or failure changes the inputs, and the changes
+ * still pending are applied again on top, so none of them ever undoes a newer change (review R2).
+ */
+export function replayChanges(
+  views: readonly TaskView[],
+  changes: readonly PendingChange[],
+): TaskView[] {
+  return changes.reduce(
+    (shown, change) => applyChange[change.kind](shown, change),
+    sortTasks(views),
+  );
+}
+
+/** The title of a task or subtask on screen, for its row message. */
+export function titleOf(views: readonly TaskView[], id: string): string {
+  for (const task of views) {
+    if (task.id === id) return task.title;
+    const subtask = task.subtasks.find((row) => row.id === id);
+    if (subtask !== undefined) return subtask.title;
+  }
+  throw new Error("The task is not in the list");
 }
