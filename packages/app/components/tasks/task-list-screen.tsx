@@ -190,6 +190,11 @@ export function TaskListScreen({ listId }: { listId: string }) {
 
   const toggleComplete = (id: string, completed: boolean) => {
     startChange();
+    // The confirmation can outlive its task when a background refetch removes the row.
+    if (!hasTask(views, id)) {
+      setGoneId(id);
+      return;
+    }
     setCompleted.mutate({ id, completed, title: titleOf(views, id) });
   };
 

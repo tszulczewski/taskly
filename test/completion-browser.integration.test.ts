@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   authRequest,
   clientIps,
+  closeUserDb,
   createBrowser,
   createUser,
   type RunningApp,
@@ -147,6 +148,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     // Default lists, with their tasks, go with their user.
     await db.delete(schema.user).where(like(schema.user.email, `${run}-%`));
     await pool.end();
+    await closeUserDb();
   });
 
   it("orders completed rows last and reopened rows first, asking before it completes open subtasks (AC8–AC12)", async () => {

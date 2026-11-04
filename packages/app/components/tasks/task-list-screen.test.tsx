@@ -1152,6 +1152,24 @@ describe("TaskListScreen completion", () => {
     expect(sent("PUT", completionUrl(bath.id))).toEqual({ completed: true });
   });
 
+  it("handles a task removed by a refetch while its completion question is open", async () => {
+    serverTasks = [bath, tile];
+    const { client } = await renderRows();
+    await click(box("Bathroom"));
+    const dialog = await screen.findByRole("alertdialog");
+
+    serverTasks = [tile];
+    await act(() => client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(rowOf("Bathroom")).toBeUndefined());
+    await click(within(dialog).getByRole("button", { name: "Complete task" }));
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(calls("PUT", completionUrl(bath.id))).toHaveLength(0);
+    await waitFor(() => expect(document.activeElement).toBe(list()));
+  });
+
   it("reopens a completed task first in the list", async () => {
     const done = { ...seal, position: "a1", completed: true };
     serverTasks = [tile, done];

@@ -12,6 +12,10 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-04 — A completion dialog retains its task after a background refetch removes the row. Before looking up its title on confirm, check that the task still exists; otherwise show the deleted-task notice and restore list focus. PR #56 regression reproduced an uncaught `titleOf` error.
+
+- 2026-11-04 — Browser integration suites that call `createUser` must call `closeUserDb` in teardown as well as closing their local pool: the helper opens a separate core pool and stubs auth environment variables (PR #56 review).
+
 - 2026-11-04 — Fetch PR refs separately and pin worktree operations to the verified SHA: `FETCH_HEAD` after a multi-ref fetch can name the base, and it is per-worktree. Verify HEAD against tracker metadata before reviewing.
 
 - 2026-11-04 — Moving TanStack Query mutations into one `scope` (the E03 list queue `tasks:<listId>`) changes their timing: a queued mutation runs `onMutate` at once but sends its request only after the previous one settled, and it counts as pending (`isPaused`) for `isMutating`/`useMutationState`. Unit tests that opened two requests' gates out of order now time out (a gate that is never requested); rewrite them so answers arrive in queue order and assert the second request is not sent yet.
