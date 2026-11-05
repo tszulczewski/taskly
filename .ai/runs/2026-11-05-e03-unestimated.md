@@ -73,6 +73,8 @@ Under the future-expenses total, a collapsed line names what still has no estima
 
 ## Progress
 
+PR: #62
+
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles.
 
 ### Phase 1: core
@@ -89,4 +91,4 @@ Under the future-expenses total, a collapsed line names what still has no estima
 
 - [x] 3.1 Browser test of the unestimated line — 06e8d3a
 - [x] 3.2 Design-system status words, backlog notes, spec to implemented — 5f8cd04
-- [ ] 3.3 Full gate and manual check
+- [x] 3.3 Full gate and manual check — 6e1b438
