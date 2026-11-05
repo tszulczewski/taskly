@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-05 — Browser tests race the 200 ms `collapsible-content` open/close animation (`--motion-duration-base`): Radix keeps closed content mounted until `animationend`, and an expanding row is still clipped (`overflow: hidden`), so agent-browser refuses the click ("covered by `button.group/trigger`"). On a fast local machine (WSL) `tasks-browser` AC1 (`count(description) === 0` right after an add) and `completion-browser` AC8–AC12 (`toggle("s3")` right after `expand("A")`) fail every run; CI passes only because its CLI calls are slower. Same Chrome 157 in both. Both pass with `set media reduced-motion`. A click on a row that is still moving (completion reorders rows) can also miss, so `expand` in `completion-browser` failed now and then (Q2-1). Fix: wait for the end state (`waitFor` the field gone) and call `browser.waitForAnimations()` (finite running animations, spinners excluded) before clicking a row and before clicking into one that just opened.
+
 - 2026-11-04 — A completion dialog retains its task after a background refetch removes the row. Before looking up its title on confirm, check that the task still exists; otherwise show the deleted-task notice and restore list focus. PR #56 regression reproduced an uncaught `titleOf` error.
 
 - 2026-11-04 — Browser integration suites that call `createUser` must call `closeUserDb` in teardown as well as closing their local pool: the helper opens a separate core pool and stubs auth environment variables (PR #56 review).

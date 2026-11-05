@@ -302,6 +302,21 @@ export function createBrowser(session: string) {
         () => `hydrated ${selector} on ${run("get", "url")}`,
         timeoutMs,
       ),
+    /**
+     * Waits until no finite animation is running (endless ones, like a spinner, never end). A row
+     * that is opening is still clipped, so a click on its content lands on the row's button.
+     */
+    waitForAnimations: (timeoutMs?: number) => {
+      const running = () =>
+        evaluate<string[]>(
+          `document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => (a.animationName ?? a.transitionProperty) + " on " + a.effect?.target?.getAttribute("data-slot"))`,
+        );
+      return waitFor(
+        () => running().length === 0,
+        () => `animations to finish (running: ${running().join(", ")})`,
+        timeoutMs,
+      );
+    },
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>
       waitFor(
