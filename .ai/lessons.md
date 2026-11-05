@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-05 — For a money feature that reuses an existing estimate PATCH, SDLC still requires integration evidence for failure, retry and idempotency: assert a refused save changes no stored figure, a corrected retry succeeds, and replaying the same save contributes to future expenses exactly once (PR #62 review).
+
 - 2026-11-05 — TanStack Query `useQuery` results track which props were read, and re-render only when one of those changes. In a `renderHook` test that reads only `isSuccess` before an action, a later `data` change never re-renders the hook, so `waitFor(() => result.current.data …)` times out while `client.getQueryState` already holds the new data (`useAddEstimate` test). Read `data` once before the action (assert the old value), then wait for the new one.
 
 - 2026-11-05 — A screen that keeps a query's last data during a refetch must still check `isError` before `data !== undefined`: TanStack Query keeps `data` after a failed refetch, so `data ? ready : isError ? error : loading` shows an outdated money total as current with no retry (PR #58 review). Order the status as error, then data, then loading; an in-flight refetch has no error and still keeps the last value.

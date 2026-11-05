@@ -408,6 +408,44 @@ describe("task routes over HTTP", () => {
     ]);
   });
 
+  it("retries a refused estimate save and replaying it counts the estimate only once", async () => {
+    const pricer = await signIn("estimate-retry");
+    const listId = await ensureDefaultList(db, pricer.id);
+    const created = await api(tasksPath(listId), {
+      method: "POST",
+      cookie: pricer.cookie,
+      body: { title: "Hooks" },
+    });
+    const task = taskViewSchema.parse(await okData(created));
+    const expenses = async () => {
+      const res = await api(expensesPath(listId), { cookie: pricer.cookie });
+      return futureExpensesResponseSchema.parse(await okData(res));
+    };
+    const save = (estimate: object) =>
+      api(`/tasks/${task.id}`, {
+        method: "PATCH",
+        cookie: pricer.cookie,
+        body: { estimate },
+      });
+    const before = await taskRow(task.id);
+    const invalid = await save({ minGrosze: 20_000, maxGrosze: 10_000 });
+    expect((await failure(invalid, 400)).code).toBe("validation_error");
+    expect(await taskRow(task.id)).toEqual(before);
+    expect(await expenses()).toEqual({
+      total: null,
+      unestimated: [{ id: task.id, title: "Hooks" }],
+    });
+
+    const estimate = { minGrosze: 10_000, maxGrosze: 20_000 };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const saved = taskViewSchema.parse(await okData(await save(estimate)));
+      expect(saved.estimate).toEqual(estimate);
+      expect(await expenses()).toEqual({ total: estimate, unestimated: [] });
+      const listed = await api(tasksPath(listId), { cookie: pricer.cookie });
+      expect(taskListResponseSchema.parse(await okData(listed))).toEqual([saved]);
+    }
+  });
+
   it("rejects every mutation without the CSRF header and changes nothing", async () => {
     const task = await createOwnerTask("Door");
     const before = await taskRow(task.id);
