@@ -43,11 +43,11 @@ GitHub does not allow authors to approve their own PRs. An agent using the autho
 - Every such report contains `<!-- taskly-author-review -->`, `Review head: <full SHA>`, and `Review verdict: APPROVED` or `Review verdict: CHANGES REQUESTED`, together with the full review findings and validation evidence. The comment author must match the PR author. Plain approval comments, labels, and run summaries are not review evidence.
 - For `risk-low` and `risk-medium` only, a positive report can satisfy the project's code-review gate when the reviewer account is the PR author. Determine risk from both labels and the actual diff using the risk rules below; absent or understated labels never exempt a high-risk change.
 - Read all report comments in chronological order and select the latest comment carrying the marker from the PR author's account, then validate it; a malformed newer report must not fall back to an older positive one. Its SHA must equal the current PR head, and its verdict must be `APPROVED`. Missing, malformed, ambiguously ordered, or stale evidence requires another review. Any subsequent push requires a new review of the new head.
-- Unresolved review feedback, change requests, failing checks, conflicts, active claims/testers, blocking labels, and the QA gate still prevent merge. A positive report never overrides a formal required approval or branch protection. The existing high-risk review and QA requirements, including the second person's review for auth and money, remain in force; this path grants no high-risk exception.
+- Unresolved review feedback, change requests, failing checks, conflicts, active claims/testers, blocking labels, and the QA gate still prevent merge. A positive report never overrides a formal required approval or branch protection. The existing high-risk review and QA requirements, including the second person's review for auth and money, remain in force; this path grants no high-risk exception. A `risk-high` PR merges only through **Solo maintainer** below.
 - The author may decide to squash-merge once review, validation, CI, and applicable QA pass. The agent merges only after an explicit request to merge that PR (including an explicitly authorized merge step in a chain). A request to review, prepare, or make a PR merge-ready is not merge authorization. When merging was already requested and all gates pass, skip the unsupported self-approval without asking again solely because of account identity.
 - Check CI for the current head, including queued workflow runs. If required-check discovery is unavailable, verify all jobs of the configured PR CI workflow for that head; unavailable or empty check data is not success. Re-fetch the head before merge and pass the reviewed SHA as the merge operation's expected head; stop on a mismatch. Never use an admin override through this path.
 
-Repository-local skill overlays load this section for review submission, readiness classification, QA entry, and merge. The tracker descriptor implements the comment submission and expected-head merge option. `.ai/agentic.config.json` retains the existing validation gate and `qaGate: true`; there is no self-approval toggle.
+Repository-local skill overlays load this section, and **Solo maintainer** for `risk-high` PRs, for review submission, readiness classification, QA entry, and merge. The tracker descriptor implements the comment submission and expected-head merge option. `.ai/agentic.config.json` retains the existing validation gate and `qaGate: true`; there is no self-approval toggle.
 
 ## Label state machine
 
@@ -86,9 +86,9 @@ When signals conflict, pick the higher label and say why in the label comment. A
 
 | Area behind `risk-high` | What the PR must carry |
 |---|---|
-| Auth, sessions, permissions | an integration test for the denied path and the wrong-scope read; a second person's review |
+| Auth, sessions, permissions | an integration test for the denied path and the wrong-scope read; a second person's review (see **Solo maintainer**) |
 | Data scoping | an isolation test proving one scope cannot read another |
-| Money | tests for the failure, retry, and idempotency paths; a second person's review |
+| Money | tests for the failure, retry, and idempotency paths; a second person's review (see **Solo maintainer**) |
 | Schema migrations | a migration test up and down, and a rollback plan in the PR body |
 | Shared contract surfaces | the consuming side exercised, per `BACKWARD_COMPATIBILITY.md` |
 | Any `risk-high` | `needs-qa` when user-facing; no self-QA; `om-code-review` blocks without the evidence above unless a maintainer waives it on the PR |
@@ -106,7 +106,18 @@ The one hard rule of this process: **a PR carrying `needs-qa` must not merge unt
 - The gate is satisfied when a QA reviewer tests the PR and applies `qa-approved`.
 - **`qa-approved` is pinned to a commit.** The comment that grants it — the QA reviewer's note, or the self-QA evidence comment — carries the line `QA head: <sha>` for the head that was tested. A push after that line leaves the label in place but stales it: `om-merge-buddy` reports "QA evidence older than head", and `om-approve-merge-pr` asks for confirmation before merging. The way back is a QA reviewer re-testing, or stating on the PR that the new commits do not touch the tested scope, with a fresh `QA head:` line.
 - **Self-QA exception**: when no QA reviewer has capacity in time, any engineer — or `om-auto-qa-pr --self-qa-signoff` — may sign off instead, on a `risk-low` or `risk-medium` PR only. The evidence attached to the PR names the scenario exercised, the environment, the test data, the observed result, the negative cases tried, and the `QA head:` line. Then apply both `qa-approved` (so the gate passes) and `qa-self-verified` (so the exception is auditable). No evidence, no `qa-approved`.
-- **No self-QA on `risk-high`.** A PR labeled `risk-high`, or one whose diff touches auth, sessions, data scoping, money, schema migrations, or shared contracts (the `risk-high` inference above), needs a QA reviewer, or a maintainer's explicit exception stated on the PR; `om-auto-qa-pr` withholds the sign-off on such a PR and posts the evidence only. A change to auth or money also needs a second person's review regardless of the QA path.
+- **No self-QA on `risk-high`.** A PR labeled `risk-high`, or one whose diff touches auth, sessions, data scoping, money, schema migrations, or shared contracts (the `risk-high` inference above), needs a QA reviewer, or a maintainer's explicit exception stated on the PR; `om-auto-qa-pr` withholds the sign-off on such a PR and posts the evidence only. A change to auth or money also needs a second person's review regardless of the QA path. While the repository has a single human, both are met through **Solo maintainer** below.
+
+## Solo maintainer
+
+This repository has one human, who is the author, the maintainer and the only possible QA reviewer. Without a second person a `risk-high` PR could never merge. This section defines who stands in, and is in force until a second human joins the project; then delete it and the references to it.
+
+An agent never stands in for the human: no automated skill applies `qa-approved` to a `risk-high` PR or signs off for the maintainer.
+
+- **Second person's review (auth, money).** This needs an independent review: a qualifying author-account report (**Author-account review and merge**) with `Review verdict: APPROVED` for the current head, from an `om-auto-review-pr` run that did not write or fix the change. A review run that pushed fixes to the PR does not count as independent for those fixes. A new run reviews the new head. All other evidence from the `risk-high` table is still required.
+- **Manual QA.** The maintainer exercises the change in a running app (`om-auto-qa-pr` may collect the screenshots and report beforehand) and posts the evidence the self-QA exception asks for: scenario, environment, test data, observed result, negative cases, and `QA head: <sha>`. Then they apply `qa-approved` and `qa-self-verified`.
+- **Maintainer sign-off.** One comment by the maintainer on the PR, after the review and QA above, with the line `Maintainer sign-off: <full head SHA>`. The SHA must equal the reviewed head and the `QA head:`; a later push stales it like a review.
+- **Merge.** `om-approve-merge-pr` and `om-merge-buddy` treat a `risk-high` PR as ready only when all three records match the current head and every other gate (CI, conflicts, unresolved feedback, blocking labels) passes. A manual squash-merge by the maintainer is also allowed; the same records then make the decision auditable.
 
 ## The claim protocol
 
