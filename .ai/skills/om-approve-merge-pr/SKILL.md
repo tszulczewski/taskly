@@ -2,7 +2,7 @@
 
 ## Steps 1–3 — review evidence and approval (extend)
 
-Read `SDLC.md` → **Author-account review and merge**. Resolve **current-user** and compare with `author.login`. Only on the low/medium-risk author-account path, verify the latest qualifying report via **list-issue-comments**, including its author, verdict, full SHA, findings disposition, and actual diff risk. A valid report replaces the attempt to submit formal self-approval. Missing/stale/negative evidence blocks this path; do not post a bare "Approved" comment as a replacement review. For other paths retain formal review and all high-risk requirements.
+Read `SDLC.md` → **Author-account review and merge**. Resolve **current-user** and compare with `author.login`. Only on the low/medium-risk author-account path, verify the latest qualifying report via **list-issue-comments**, including its author, verdict, full SHA, findings disposition, and actual diff risk. A valid report replaces the attempt to submit formal self-approval. Missing/stale/negative evidence blocks this path; do not post a bare "Approved" comment as a replacement review. For a `risk-high` PR, read `SDLC.md` → **Solo maintainer** and require its three records for the current head: an independent qualifying review report, the maintainer's QA evidence with `QA head:`, and `Maintainer sign-off:`. Any missing, stale or agent-authored record blocks. For other paths retain formal review and all high-risk requirements.
 
 ## Step 4 — squash-merge (extend)
 
