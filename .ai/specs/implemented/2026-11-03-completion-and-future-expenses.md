@@ -1,7 +1,7 @@
 # Completion and future expenses (E03)
 
 - **Date:** 2026-11-03
-- **Status:** ready (owner authorized the readiness metadata cleanup on 2026-11-04, after specification review and fixes)
+- **Status:** implemented (Phase 1 #56, Phase 2 #58, Phase 3 #62; 2026-11-05); ready since 2026-11-04 (owner authorized the readiness metadata cleanup after specification review and fixes)
 - **Revised:** 2026-11-03, for the spec review (`.ai/runs/2026-11-03-e03-spec-review.md`, request changes): the future-expenses rule and its service are separate modules (R1), and optimistic completion is shown as server data with the pending completions replayed on top (R2). See Review changes.
 - **Superseded in part:** 2026-11-03, by the E02 spec (`2026-11-03-order-markers-and-spaces.md`, audit finding F4): completions do not use a per-tree scope (`completion:<topLevelId>`) but the one queue every task mutation of a list shares (`scope: tasks:<listId>`), because every answer replaces a whole tree. The replay of pending completions is unchanged.
 - **Revised:** 2026-11-04, after a post-merge review of #52: the body and Phase 1 step 5 now use the list queue and take on the shared work E02 assigns to whichever epic ships first (S1), the total's behaviour while a completion is pending is stated (S2), and the Q3 race is explained by the list lock (S3). See Review changes.
