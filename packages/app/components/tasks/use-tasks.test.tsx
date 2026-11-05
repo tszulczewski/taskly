@@ -13,6 +13,7 @@ import { queryKeys } from "../../lib/query-keys";
 import { isPendingTaskId } from "./task-items";
 import {
   type SetCompletedVariables,
+  useAddEstimate,
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
@@ -941,6 +942,7 @@ describe("useFutureExpenses", () => {
         update: useUpdateTask(LIST),
         remove: useDeleteTask(LIST),
         complete: useSetCompleted(LIST),
+        addEstimate: useAddEstimate(LIST),
       }),
       { wrapper },
     );
@@ -950,25 +952,33 @@ describe("useFutureExpenses", () => {
   it("formats the server's total at the edge, one amount for an exact price", async () => {
     const { result } = harness();
     await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
-    expect(result.current.expenses.data).toBe(formatPlnRange(150_000, 270_000));
+    expect(result.current.expenses.data).toEqual({
+      total: formatPlnRange(150_000, 270_000),
+      unestimated: [],
+    });
     expect(calls("GET", EXPENSES_URL)[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
 
     handlers.set(`GET ${EXPENSES_URL}`, () =>
-      ok({ total: { minGrosze: 80_000, maxGrosze: 80_000 } }),
+      ok({ total: { minGrosze: 80_000, maxGrosze: 80_000 }, unestimated: [] }),
     );
     await act(() => result.current.expenses.refetch());
-    await waitFor(() => expect(result.current.expenses.data).toBe(formatPlnRange(80_000, 80_000)));
+    await waitFor(() =>
+      expect(result.current.expenses.data?.total).toBe(formatPlnRange(80_000, 80_000)),
+    );
   });
 
-  it("is null when nothing counts", async () => {
-    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: null }));
+  it("is null when nothing counts, and names what has no estimate", async () => {
+    const unestimated = [{ id: paint.id, title: "Paint" }];
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: null, unestimated }));
     const { result } = harness();
     await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
-    expect(result.current.expenses.data).toBeNull();
+    expect(result.current.expenses.data).toEqual({ total: null, unestimated });
   });
 
   it("rejects a malformed total with bad_response", async () => {
-    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: { minGrosze: 2, maxGrosze: 1 } }));
+    handlers.set(`GET ${EXPENSES_URL}`, () =>
+      ok({ total: { minGrosze: 2, maxGrosze: 1 }, unestimated: [] }),
+    );
     const { result } = harness();
     await waitFor(() => expect(result.current.expenses.isError).toBe(true));
     expect(result.current.expenses.error).toMatchObject({ status: 200, code: "bad_response" });
@@ -1018,6 +1028,49 @@ describe("useFutureExpenses", () => {
       result.current.complete.mutateAsync({ id: tile.id, completed: true, title: "x" }),
     );
     expect(outcome).toMatchObject({ status: 500 });
+    await waitFor(() => expect(expensesCalls()).toBe(2));
+  });
+
+  it("Add estimate saves through PATCH and resolves once the refetched total arrived", async () => {
+    const estimate = { minGrosze: 40_000, maxGrosze: 40_000 };
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () => ok({ ...paint, estimate }));
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.tasks.isSuccess).toBe(true));
+    expect(result.current.expenses.data?.total).toBe(formatPlnRange(150_000, 270_000));
+    const refetched = gate();
+    handlers.set(`GET ${EXPENSES_URL}`, () => refetched.promise);
+
+    let done = false;
+    const saving = start(() => result.current.addEstimate(paint.id, estimate)).then((value) => {
+      done = true;
+      return value;
+    });
+    await waitFor(() => expect(expensesCalls()).toBe(2));
+    expect(calls("PATCH", taskUrl(paint.id))[0]?.[1]?.body).toBe(JSON.stringify({ estimate }));
+    expect(done).toBe(false);
+
+    refetched.open(ok({ total: estimate, unestimated: [] }));
+    expect(await saving).toBeUndefined();
+    // It joined the settle's refetch instead of sending a second one.
+    expect(expensesCalls()).toBe(2);
+    await waitFor(() =>
+      expect(result.current.expenses.data?.total).toBe(formatPlnRange(40_000, 40_000)),
+    );
+  });
+
+  it("Add estimate rejects with the server's refusal and still refetches", async () => {
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () =>
+      fail(409, "conflict", "A task with subtasks takes its estimate from them"),
+    );
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.tasks.isSuccess).toBe(true));
+
+    const outcome = await start(() =>
+      result.current.addEstimate(paint.id, { minGrosze: 1, maxGrosze: 2 }),
+    );
+    expect(outcome).toMatchObject({ status: 409 });
     await waitFor(() => expect(expensesCalls()).toBe(2));
   });
 });

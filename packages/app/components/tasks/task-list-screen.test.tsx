@@ -1325,7 +1325,7 @@ describe("TaskListScreen future expenses", () => {
     await click(screen.getByRole("checkbox", { name: "Complete “Tile the wall”" }));
     await waitFor(() => expect(calls("GET", EXPENSES_URL)).toHaveLength(2));
     expect(await within(summary()!).findByRole("alert")).toBeDefined();
-    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: seal.estimate }));
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: seal.estimate, unestimated: [] }));
     await click(within(summary()!).getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(totalLine()).toBe(pln("Future expenses500_zł")));
   });
@@ -1344,5 +1344,164 @@ describe("TaskListScreen future expenses", () => {
     await act(async () => put.open(saved({ ...tile, completed: true })));
     await waitFor(() => expect(totalLine()).toBe(pln("Future expenses500_zł")));
     expect(calls("GET", EXPENSES_URL)).toHaveLength(2);
+  });
+});
+
+describe("TaskListScreen what has no estimate", () => {
+  const summary = () => document.querySelector<HTMLElement>('[data-slot="future-expenses"]')!;
+  const totalLine = () => summary().querySelector<HTMLElement>('[role="status"]')!;
+  // `Collapsible` sets its own `data-slot`, over the one `UnestimatedTasks` passes it.
+  const line = () => summary().querySelector<HTMLElement>('[data-slot="collapsible"]');
+  const trigger = () => within(summary()).getByRole("button", { name: /without an estimate$/ });
+  const paint = view("Paint", { position: "a2" });
+  const bath = view("Bathroom tiles", {
+    position: "a3",
+    estimate: { minGrosze: 40_000, maxGrosze: 40_000 },
+    unestimatedSubtasks: 1,
+    subtasks: [
+      { ...view("Tiles"), position: "a0" },
+      { ...view("Grout"), position: "a1", estimate: { minGrosze: 40_000, maxGrosze: 40_000 } },
+    ],
+  });
+  const tiles = bath.subtasks[0]!;
+  const titles = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('ul[aria-label="Tasks"] > li')).map(
+      (item) => item.querySelector('[data-slot="task-title"]')?.textContent,
+    );
+
+  async function openLine() {
+    await waitFor(() => expect(line()).not.toBeNull());
+    await click(trigger());
+  }
+
+  const addFor = (name: string) => within(summary()).getByRole("button", { name });
+  const estimateForm = () =>
+    within(
+      within(summary())
+        .getByRole("group", { name: /^Estimate for/ })
+        .closest("form")!,
+    );
+
+  it("shows the collapsed count and, opened, the rule and one line per item (#47 AC6, AC9)", async () => {
+    serverTasks = [tile, paint, bath];
+    renderScreen();
+    await waitFor(() => expect(line()).not.toBeNull());
+    expect(trigger().textContent).toBe("1 task and 1 subtask without an estimate");
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+
+    await click(trigger());
+    expect(
+      within(summary()).getByText(
+        "They are not counted in future expenses until they have an estimate.",
+      ),
+    ).toBeDefined();
+    const items = within(summary()).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "PaintAdd estimate",
+      "Tiles · Bathroom tilesAdd estimate",
+    ]);
+    expect(addFor("Add estimate for “Tiles” in “Bathroom tiles”")).toBeDefined();
+  });
+
+  it("hides the line when nothing open lacks an estimate (#47 AC8)", async () => {
+    serverTasks = [tile, { ...paint, completed: true }];
+    renderScreen();
+    await waitFor(() => expect(totalLine().textContent).toBe(pln("Future expenses1_500–2_000_zł")));
+    expect(line()).toBeNull();
+  });
+
+  it("saves an amount through PATCH; the item leaves, the total counts it, focus goes to the total (#47 AC4)", async () => {
+    serverTasks = [tile, paint];
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, (body) =>
+      saved({ ...paint, ...(body as Pick<TaskView, "estimate">) }),
+    );
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    type(amountField(estimateForm()), "400");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    expect(sent("PATCH", taskUrl(paint.id))).toEqual({
+      estimate: { minGrosze: 40_000, maxGrosze: 40_000 },
+    });
+    await waitFor(() => expect(line()).toBeNull());
+    expect(totalLine().textContent).toBe(pln("Future expenses1_900–2_400_zł"));
+    expect(document.activeElement).toBe(totalLine());
+    expect(estimateOf(rows().find((row) => row.textContent?.includes("Paint")))).toBe(
+      pln("400_zł"),
+    );
+  });
+
+  it("saves a range for a subtask", async () => {
+    serverTasks = [bath];
+    handlers.set(`PATCH ${taskUrl(tiles.id)}`, (body) => {
+      const { estimate } = body as Pick<TaskView, "estimate">;
+      return saved({
+        ...bath,
+        estimate: { minGrosze: 50_000, maxGrosze: 60_000 },
+        unestimatedSubtasks: 0,
+        subtasks: [{ ...tiles, estimate }, bath.subtasks[1]!],
+      });
+    });
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Tiles” in “Bathroom tiles”"));
+    type(amountField(estimateForm()), "100");
+    type(upToField(estimateForm()), "200");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    expect(sent("PATCH", taskUrl(tiles.id))).toEqual({
+      estimate: { minGrosze: 10_000, maxGrosze: 20_000 },
+    });
+    await waitFor(() => expect(line()).toBeNull());
+    expect(totalLine().textContent).toBe(pln("Future expenses500–600_zł"));
+  });
+
+  it("asks for an amount and sends nothing when both fields are empty", async () => {
+    serverTasks = [paint];
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    expect(await within(summary()).findByText("Enter an amount.")).toBeDefined();
+    expect(calls("PATCH", taskUrl(paint.id))).toHaveLength(0);
+  });
+
+  it("shows a 409's message in the form and refetches both", async () => {
+    serverTasks = [paint];
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () =>
+      fail(409, "conflict", "A task with subtasks takes its estimate from them"),
+    );
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    type(amountField(estimateForm()), "400");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    expect(
+      await within(summary()).findByText("A task with subtasks takes its estimate from them"),
+    ).toBeDefined();
+    await waitFor(() => expect(calls("GET", EXPENSES_URL)).toHaveLength(2));
+    expect(calls("GET", TASKS_URL)).toHaveLength(2);
+  });
+
+  it("treats a 404 as deleted elsewhere: the item goes and the deleted notice stays", async () => {
+    serverTasks = [tile, paint];
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () => {
+      serverTasks = [tile];
+      return fail(404, "not_found", "Task not found");
+    });
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    type(amountField(estimateForm()), "400");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(line()).toBeNull());
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(titles()).toEqual(["Tile the wall"]);
   });
 });
