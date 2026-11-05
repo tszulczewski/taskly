@@ -3,6 +3,7 @@ import {
   createTaskInput,
   type Estimate,
   estimateFromAmounts,
+  estimateMessages,
   formatPlnAmount,
   formatPlnRange,
   type FutureExpenses,
@@ -13,6 +14,9 @@ import {
   updateTaskInput,
 } from "@taskly/core";
 import type {
+  EstimateField,
+  EstimateValues,
+  FieldErrors,
   FutureExpensesProps,
   SubmitResult,
   TaskField,
@@ -60,15 +64,34 @@ const estimateText = (estimate: EstimateView) =>
 /** The total as `FutureExpenses` shows it: a range, or one amount (R18); null for "No estimates yet". */
 export const totalText = ({ total }: FutureExpenses): string | null => estimateText(total);
 
+/** The server's future expenses as `FutureExpenses` takes them: the total formatted at the edge. */
+export const toExpensesView = (
+  expenses: FutureExpenses,
+): Pick<FutureExpensesProps, "total" | "unestimated"> => ({
+  total: totalText(expenses),
+  unestimated: expenses.unestimated,
+});
+
 /**
- * "Add estimate" of `FutureExpenses` until spec E03 Phase 3 (#47): the response names no
- * unestimated item yet, so the list is empty and its form never opens.
+ * The rules of "Add estimate" (#47): `estimateFromAmounts`, as in the task forms (R18), except
+ * that an amount is required, since saving nothing would leave the item unpriced.
  */
-export const NO_UNESTIMATED = {
-  unestimated: [],
-  validate: () => ({}),
-  onAddEstimate: async () => ({ ok: false, formError: TASK_SCREEN_TEXT.saveFailed }),
-} satisfies Pick<FutureExpensesProps, "unestimated" | "validate" | "onAddEstimate">;
+export function validateEstimate(values: EstimateValues): FieldErrors<EstimateField> {
+  if (values.amount.trim() === "" && values.upTo.trim() === "") {
+    return { amount: estimateMessages.required };
+  }
+  const read = estimateFromAmounts(values.amount, values.upTo);
+  return read.ok ? {} : read.fieldErrors;
+}
+
+/** What "Add estimate" saves. The form submits only amounts `validateEstimate` accepted. */
+export function toEstimate(values: EstimateValues): Estimate {
+  const read = estimateFromAmounts(values.amount, values.upTo);
+  if (!read.ok || read.estimate === null) {
+    throw new Error("The estimate form was submitted with invalid values");
+  }
+  return read.estimate;
+}
 
 /** The edit form's two fields: an exact price in "Amount" only, a range in both (R18). */
 function amountFields(estimate: EstimateView): Pick<TaskItem, "amount" | "upTo"> {
@@ -270,7 +293,7 @@ export function submitError(
   error: unknown,
   values: TaskFormValues,
   fallback: string,
-): SubmitResult<TaskField> {
+): Extract<SubmitResult<TaskField>, { ok: false }> {
   if (error instanceof ApiError && error.status === 409) {
     return { ok: false, formError: error.message };
   }
@@ -279,6 +302,29 @@ export function submitError(
     if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
   }
   return { ok: false, formError: fallback };
+}
+
+/**
+ * A refused "Add estimate" as its form shows it: like an edit's (a 409's own message, 400 field
+ * errors under the amounts), and for a task deleted meanwhile the deleted notice. Only the
+ * estimate is sent, so the server's field errors are about the amounts.
+ */
+export function addEstimateError(
+  error: unknown,
+  values: EstimateValues,
+): SubmitResult<EstimateField> {
+  if (isNotFound(error)) return { ok: false, formError: TASK_SCREEN_TEXT.deleted };
+  const result = submitError(
+    error,
+    { title: "", description: "", ...values },
+    TASK_SCREEN_TEXT.saveFailed,
+  );
+  if (result.fieldErrors === undefined) return result;
+  const { amount, upTo } = result.fieldErrors;
+  return {
+    ok: false,
+    fieldErrors: { ...(amount !== undefined && { amount }), ...(upTo !== undefined && { upTo }) },
+  };
 }
 
 /**
