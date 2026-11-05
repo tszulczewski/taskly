@@ -370,6 +370,44 @@ describe("task routes over HTTP", () => {
     expect(await total()).toEqual({ minGrosze: 130_000, maxGrosze: 240_000 });
   });
 
+  it("lists what has no estimate and drops it after an estimate is added (#47)", async () => {
+    const pricer = await signIn("pricer");
+    const listId = await ensureDefaultList(db, pricer.id);
+    const expenses = async () => {
+      const res = await api(expensesPath(listId), { cookie: pricer.cookie });
+      return futureExpensesResponseSchema.parse(await okData(res));
+    };
+    const add = async (body: object) => {
+      const res = await api(tasksPath(listId), { method: "POST", cookie: pricer.cookie, body });
+      return taskViewSchema.parse(await okData(res));
+    };
+    const addEstimate = (id: string, estimate: object) =>
+      api(`/tasks/${id}`, { method: "PATCH", cookie: pricer.cookie, body: { estimate } });
+    expect(await expenses()).toEqual({ total: null, unestimated: [] });
+
+    const seal = await add({ title: "Seal the bath" });
+    const bathroom = await add({ title: "Bathroom tiles" });
+    const [tiles] = (await add({ title: "Tiles", parentId: bathroom.id })).subtasks;
+    expect((await expenses()).unestimated).toEqual([
+      { id: seal.id, title: "Seal the bath" },
+      { id: tiles!.id, title: "Tiles", taskTitle: "Bathroom tiles" },
+    ]);
+
+    await okData(await addEstimate(tiles!.id, { minGrosze: 40_000, maxGrosze: 40_000 }));
+    expect(await expenses()).toEqual({
+      total: { minGrosze: 40_000, maxGrosze: 40_000 },
+      unestimated: [{ id: seal.id, title: "Seal the bath" }],
+    });
+
+    // An item that gained subtasks meanwhile: the existing 409, and its subtask is listed instead.
+    const [caulk] = (await add({ title: "Caulk", parentId: seal.id })).subtasks;
+    const refused = await addEstimate(seal.id, { minGrosze: 100, maxGrosze: 200 });
+    expect((await failure(refused, 409)).code).toBe("conflict");
+    expect((await expenses()).unestimated).toEqual([
+      { id: caulk!.id, title: "Caulk", taskTitle: "Seal the bath" },
+    ]);
+  });
+
   it("rejects every mutation without the CSRF header and changes nothing", async () => {
     const task = await createOwnerTask("Door");
     const before = await taskRow(task.id);
