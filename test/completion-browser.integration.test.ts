@@ -99,13 +99,19 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
       () => "the question to close",
     );
   const toggle = (title: string) => browser.clickRole("checkbox", `Complete “${title}”`);
-  /** Opens a task's row to show its subtasks, unless it is open (it stays open when it moves). */
-  const expand = (title: string) => {
+  /**
+   * Opens a task's row to show its subtasks, unless it is open (it stays open when it moves). It
+   * waits for the rows to stop moving first (a click on a moving row can miss) and for the row to
+   * finish opening after (its subtasks are clipped until then).
+   */
+  async function expand(title: string) {
+    await browser.waitForAnimations();
     const open =
       browser.evaluate<boolean>(`[...document.querySelectorAll('[data-slot="task-title"]')]
       .some((e) => e.textContent === ${JSON.stringify(title)} && e.getAttribute("aria-expanded") === "true")`);
     if (!open) browser.clickRole("button", title);
-  };
+    await browser.waitForAnimations();
+  }
   const puts = () =>
     browser.requests("/completion").filter((request) => request.method === "PUT").length;
   async function waitForPuts(count: number) {
@@ -153,7 +159,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
 
   it("orders completed rows last and reopened rows first, asking before it completes open subtasks (AC8–AC12)", async () => {
     const { listId } = await openPlanned("order");
-    expand("A");
+    await expand("A");
     await expectSubtasks("A", ["s1", "s2", "s3"]);
 
     toggle("s1");
@@ -178,7 +184,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
 
     toggle("A");
     await expectOrder(["A", "B", "C"]);
-    expand("A");
+    await expand("A");
     await expectSubtasks("A", ["s1✓", "s2✓", "s3✓"]);
     toggle("s3");
     await expectSubtasks("A", ["s3", "s1✓", "s2✓"]);
@@ -195,7 +201,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     browser.clickRole("button", "Complete task");
     await expectOrder(["B", "C", "A✓"]);
     await dialogClosed();
-    expand("A");
+    await expand("A");
     await expectSubtasks("A", ["s1✓", "s2✓", "s3✓"]);
 
     toggle("s2");

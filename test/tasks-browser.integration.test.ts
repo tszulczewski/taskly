@@ -234,7 +234,11 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     });
     // Quick add is ready for the next task: fields cleared, toggle collapsed.
     expect([fieldValue("amount"), fieldValue("upTo")]).toEqual(["", ""]);
-    expect(browser.count(field("description"))).toBe(0);
+    // The closed description stays in the DOM until its close animation ends.
+    await browser.waitFor(
+      () => browser.count(field("description")) === 0,
+      () => "the description to collapse",
+    );
 
     browser.clickRole("button", "Tile the bathroom wall");
     await browser.waitFor(
