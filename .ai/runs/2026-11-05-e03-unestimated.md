@@ -1,10 +1,10 @@
 # E03 Phase 3: what has no estimate (#47)
 
 - **Date:** 2026-11-05
-- **Spec:** .ai/specs/2026-11-03-completion-and-future-expenses.md (Phase 3, steps 11–13)
+- **Spec:** .ai/specs/implemented/2026-11-03-completion-and-future-expenses.md (Phase 3, steps 11–13)
 - **Outcome:** in progress
 
-Source doc: .ai/specs/2026-11-03-completion-and-future-expenses.md
+Source doc: .ai/specs/implemented/2026-11-03-completion-and-future-expenses.md
 
 ## Goal
 
@@ -58,5 +58,5 @@ Under the future-expenses total, a collapsed line names what still has no estima
 ### Phase 3: browser test and wrap-up
 
 - [x] 3.1 Browser test of the unestimated line — 06e8d3a
-- [ ] 3.2 Design-system status words, backlog notes, spec to implemented
+- [x] 3.2 Design-system status words, backlog notes, spec to implemented — 5f8cd04
 - [ ] 3.3 Full gate and manual check
