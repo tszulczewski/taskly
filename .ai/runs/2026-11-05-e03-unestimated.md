@@ -57,6 +57,6 @@ Under the future-expenses total, a collapsed line names what still has no estima
 
 ### Phase 3: browser test and wrap-up
 
-- [ ] 3.1 Browser test of the unestimated line
+- [x] 3.1 Browser test of the unestimated line — 06e8d3a
 - [ ] 3.2 Design-system status words, backlog notes, spec to implemented
 - [ ] 3.3 Full gate and manual check
