@@ -305,23 +305,45 @@ describe("estimateViewSchema", () => {
 });
 
 describe("futureExpensesResponseSchema", () => {
-  it("accepts a total above the input cap, no total, and strips unknown fields", () => {
+  const seal = { id: uuid(1), title: "Seal the bath" };
+  const sub = { id: uuid(2), title: "Tiles", taskTitle: "Bathroom tiles" };
+
+  it("accepts a total above the input cap, no total, items, and strips unknown fields", () => {
     const big = { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: 3 * MAX_ESTIMATE_GROSZE };
-    expect(futureExpensesResponseSchema.parse({ total: big })).toEqual({ total: big });
-    expect(futureExpensesResponseSchema.parse({ total: null, unestimated: [] })).toEqual({
+    expect(futureExpensesResponseSchema.parse({ total: big, unestimated: [] })).toEqual({
+      total: big,
+      unestimated: [],
+    });
+    const response = { total: null, unestimated: [{ ...seal, extra: 1 }, sub], extra: 1 };
+    expect(futureExpensesResponseSchema.parse(response)).toEqual({
       total: null,
+      unestimated: [seal, sub],
     });
   });
 
-  it("rejects a missing total, min above max and a fraction of a grosz", () => {
-    expect(futureExpensesResponseSchema.safeParse({}).success).toBe(false);
+  it("rejects a missing total or list, min above max and a fraction of a grosz", () => {
+    expect(futureExpensesResponseSchema.safeParse({ unestimated: [] }).success).toBe(false);
+    expect(futureExpensesResponseSchema.safeParse({ total: null }).success).toBe(false);
     const bad = [
       { minGrosze: 2, maxGrosze: 1 },
       { minGrosze: 0.5, maxGrosze: 1 },
     ];
     for (const total of bad) {
-      expect(futureExpensesResponseSchema.safeParse({ total }).success).toBe(false);
+      expect(futureExpensesResponseSchema.safeParse({ total, unestimated: [] }).success).toBe(
+        false,
+      );
     }
+  });
+
+  it.each([
+    ["a bad id", { ...seal, id: "x" }],
+    ["an empty title", { ...seal, title: "" }],
+    ["an empty task title", { ...sub, taskTitle: "" }],
+    ["a title too long", { ...seal, title: "x".repeat(201) }],
+  ])("rejects an item with %s", (_name, item) => {
+    expect(
+      futureExpensesResponseSchema.safeParse({ total: null, unestimated: [item] }).success,
+    ).toBe(false);
   });
 });
 

@@ -29,6 +29,7 @@ describe("futureExpensesService", () => {
     listTasks.mockResolvedValue([view(false, 100, 200), view(true, 1000, 2000)]);
     await expect(futureExpensesService(db, "u1", "l1")).resolves.toEqual({
       total: { minGrosze: 100, maxGrosze: 200 },
+      unestimated: [],
     });
     expect(listTasks).toHaveBeenCalledExactlyOnceWith(db, "u1", "l1");
   });

@@ -12,6 +12,8 @@ export const estimateMessages = {
   amount: "Enter an amount like 1 500,50",
   upToBelowAmount: "“Up to” must not be less than the amount.",
   overCap: "Enter at most 10 000 000 zł",
+  /** "Add estimate" with both fields empty: there it saves a figure, so one is needed (#47). */
+  required: "Enter an amount.",
 } as const;
 
 /** One amount the owner typed: integer grosze, 0 … MAX_ESTIMATE_GROSZE. */
@@ -113,9 +115,22 @@ export const taskListResponseSchema = z.array(taskViewSchema);
 /** The parent's `TaskView` after a subtask was deleted; null for a top-level task. */
 export const deleteTaskResponseSchema = taskViewSchema.nullable();
 
-/** `GET /api/lists/[listId]/future-expenses` (spec E03): `total` is null when nothing counts. */
+/** Something open that still needs a price (D27): a task, or a subtask named with its task. */
+export const unestimatedItemSchema = z.object({
+  id: z.uuid(),
+  title: z.string().min(1).max(TITLE_MAX),
+  /** Set for a subtask: the title of its task. */
+  taskTitle: z.string().min(1).max(TITLE_MAX).optional(),
+});
+export type UnestimatedItem = z.infer<typeof unestimatedItemSchema>;
+
+/**
+ * `GET /api/lists/[listId]/future-expenses` (spec E03): `total` is null when nothing counts;
+ * `unestimated` is what it leaves out for lack of an estimate, in display order.
+ */
 export const futureExpensesResponseSchema = z.object({
   total: estimateViewSchema.nullable(),
+  unestimated: z.array(unestimatedItemSchema),
 });
 export type FutureExpenses = z.infer<typeof futureExpensesResponseSchema>;
 
