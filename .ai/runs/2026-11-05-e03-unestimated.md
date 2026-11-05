@@ -47,8 +47,8 @@ Under the future-expenses total, a collapsed line names what still has no estima
 
 ### Phase 1: core
 
-- [ ] 1.1 Unestimated items in the pure rule and response schema
-- [ ] 1.2 Core and HTTP integration cases for unestimated
+- [x] 1.1 Unestimated items in the pure rule and response schema — bbb5c83
+- [x] 1.2 Core and HTTP integration cases for unestimated — 7f062b4
 
 ### Phase 2: app wiring
 
