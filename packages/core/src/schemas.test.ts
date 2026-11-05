@@ -8,6 +8,7 @@ import {
   estimateGroszeSchema,
   estimateSchema,
   estimateViewSchema,
+  futureExpensesResponseSchema,
   groszeSchema,
   setPasswordInput,
   signInInput,
@@ -300,6 +301,27 @@ describe("estimateViewSchema", () => {
     const sum = { minGrosze: 3 * MAX_ESTIMATE_GROSZE, maxGrosze: 3 * MAX_ESTIMATE_GROSZE };
     expect(estimateViewSchema.parse(sum)).toEqual(sum);
     expect(estimateViewSchema.safeParse({ minGrosze: 2, maxGrosze: 1 }).success).toBe(false);
+  });
+});
+
+describe("futureExpensesResponseSchema", () => {
+  it("accepts a total above the input cap, no total, and strips unknown fields", () => {
+    const big = { minGrosze: MAX_ESTIMATE_GROSZE, maxGrosze: 3 * MAX_ESTIMATE_GROSZE };
+    expect(futureExpensesResponseSchema.parse({ total: big })).toEqual({ total: big });
+    expect(futureExpensesResponseSchema.parse({ total: null, unestimated: [] })).toEqual({
+      total: null,
+    });
+  });
+
+  it("rejects a missing total, min above max and a fraction of a grosz", () => {
+    expect(futureExpensesResponseSchema.safeParse({}).success).toBe(false);
+    const bad = [
+      { minGrosze: 2, maxGrosze: 1 },
+      { minGrosze: 0.5, maxGrosze: 1 },
+    ];
+    for (const total of bad) {
+      expect(futureExpensesResponseSchema.safeParse({ total }).success).toBe(false);
+    }
   });
 });
 

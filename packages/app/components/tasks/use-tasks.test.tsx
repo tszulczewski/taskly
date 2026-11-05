@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import type { CreateTaskInput, SubtaskView, TaskView } from "@taskly/core";
+import {
+  type CreateTaskInput,
+  formatPlnRange,
+  type SubtaskView,
+  type TaskView,
+} from "@taskly/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +15,7 @@ import {
   type SetCompletedVariables,
   useCreateTask,
   useDeleteTask,
+  useFutureExpenses,
   useSetCompleted,
   useTasks,
   useTaskViews,
@@ -908,5 +914,110 @@ describe("useSetCompleted with useTaskViews", () => {
     });
     expect(await outcome).toEqual(new Error("The task is not saved yet"));
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useFutureExpenses", () => {
+  const EXPENSES_URL = `/api/lists/${LIST}/future-expenses`;
+  const total = { minGrosze: 150_000, maxGrosze: 270_000 };
+  const expensesCalls = () => calls("GET", EXPENSES_URL).length;
+
+  beforeEach(() => {
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total, unestimated: [] }));
+  });
+
+  function harness() {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () => ({
+        expenses: useFutureExpenses(LIST),
+        tasks: useTasks(LIST),
+        create: useCreateTask(LIST),
+        update: useUpdateTask(LIST),
+        remove: useDeleteTask(LIST),
+        complete: useSetCompleted(LIST),
+      }),
+      { wrapper },
+    );
+    return { result };
+  }
+
+  it("formats the server's total at the edge, one amount for an exact price", async () => {
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    expect(result.current.expenses.data).toBe(formatPlnRange(150_000, 270_000));
+    expect(calls("GET", EXPENSES_URL)[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+
+    handlers.set(`GET ${EXPENSES_URL}`, () =>
+      ok({ total: { minGrosze: 80_000, maxGrosze: 80_000 } }),
+    );
+    await act(() => result.current.expenses.refetch());
+    await waitFor(() => expect(result.current.expenses.data).toBe(formatPlnRange(80_000, 80_000)));
+  });
+
+  it("is null when nothing counts", async () => {
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: null }));
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    expect(result.current.expenses.data).toBeNull();
+  });
+
+  it("rejects a malformed total with bad_response", async () => {
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: { minGrosze: 2, maxGrosze: 1 } }));
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isError).toBe(true));
+    expect(result.current.expenses.error).toMatchObject({ status: 200, code: "bad_response" });
+  });
+
+  it("refetches when each task mutation settles, also while another one is still queued", async () => {
+    const first = gate();
+    const second = gate();
+    const gates = [first, second];
+    handlers.set(`POST ${TASKS_URL}`, () => (gates.shift() ?? first).promise);
+    handlers.set(`PATCH ${taskUrl(tile.id)}`, () => ok(tile));
+    handlers.set(`DELETE ${taskUrl(paint.id)}`, () => ok(null));
+    handlers.set(`PUT ${taskUrl(tile.id)}/completion`, () => ok({ ...tile, completed: true }));
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.tasks.isSuccess).toBe(true));
+    expect(expensesCalls()).toBe(1);
+
+    const one = start(() => result.current.create.mutateAsync(input));
+    const two = start(() => result.current.create.mutateAsync({ ...input, title: "Grout" }));
+    first.open(ok(sealed));
+    await one;
+    // The task list waits for the last change; the total, with no optimistic state, does not.
+    await waitFor(() => expect(expensesCalls()).toBe(2));
+    expect(calls("GET", TASKS_URL)).toHaveLength(1);
+    second.open(ok(view("Grout")));
+    await two;
+    await waitFor(() => expect(expensesCalls()).toBe(3));
+
+    await start(() => result.current.update.mutateAsync({ id: tile.id, input: { title: "x" } }));
+    await waitFor(() => expect(expensesCalls()).toBe(4));
+    await start(() => result.current.remove.mutateAsync(paint.id));
+    await waitFor(() => expect(expensesCalls()).toBe(5));
+    await start(() =>
+      result.current.complete.mutateAsync({ id: tile.id, completed: true, title: "x" }),
+    );
+    await waitFor(() => expect(expensesCalls()).toBe(6));
+  });
+
+  it("refetches after a refused change too", async () => {
+    handlers.set(`PUT ${taskUrl(tile.id)}/completion`, () => fail(500, "internal_error", "Oops"));
+    const { result } = harness();
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.tasks.isSuccess).toBe(true));
+
+    const outcome = await start(() =>
+      result.current.complete.mutateAsync({ id: tile.id, completed: true, title: "x" }),
+    );
+    expect(outcome).toMatchObject({ status: 500 });
+    await waitFor(() => expect(expensesCalls()).toBe(2));
   });
 });

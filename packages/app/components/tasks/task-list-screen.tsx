@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  FutureExpenses,
   QuickAdd,
   type SubmitResult,
   type TaskEdit,
@@ -17,6 +18,7 @@ import { ApiError } from "../../lib/api-client";
 import {
   hasTask,
   isNotFound,
+  NO_UNESTIMATED,
   subtaskAdded,
   subtaskDeleted,
   submitError,
@@ -31,6 +33,7 @@ import {
   type SetCompletedVariables,
   useCreateTask,
   useDeleteTask,
+  useFutureExpenses,
   useSetCompleted,
   useTaskViews,
   useUpdateTask,
@@ -47,13 +50,14 @@ const isTaskCompleted = (error: unknown) =>
   error instanceof ApiError && error.status === 409 && error.message === TASK_COMPLETED_MESSAGE;
 
 /**
- * The task screen of the default list (spec E01, UI/UX), under the page heading: quick add above
- * the list, and "Add subtask" in each task. An add and a completion show at once (a pending row; a
+ * The task screen of the default list (spec E01, UI/UX), under the page heading: future expenses
+ * (spec E03, decision I1), then quick add above the list, and "Add subtask" in each task. An add and a completion show at once (a pending row; a
  * replayed toggle); an edit and a delete wait for the server. A subtask change can change its
  * task's estimate (the sum of its subtasks), which the server's answer brings.
  */
 export function TaskListScreen({ listId }: { listId: string }) {
   const { query: tasks, views: shown } = useTaskViews(listId);
+  const expenses = useFutureExpenses(listId);
   const createTask = useCreateTask(listId);
   const updateTask = useUpdateTask(listId);
   const deleteTask = useDeleteTask(listId);
@@ -76,6 +80,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
   // A refetch of a list that never loaded goes back to "pending"; the failure stays on screen,
   // with "Trying again…", until it answers.
   const [retrying, setRetrying] = useState(false);
+  const [expensesRetrying, setExpensesRetrying] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
@@ -114,6 +119,11 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const retry = () => {
     setRetrying(true);
     void tasks.refetch().then(() => setRetrying(false));
+  };
+
+  const retryExpenses = () => {
+    setExpensesRetrying(true);
+    void expenses.refetch().then(() => setExpensesRetrying(false));
   };
 
   const startChange = () => {
@@ -213,6 +223,21 @@ export function TaskListScreen({ listId }: { listId: string }) {
       data-list-id={listId}
       className="flex flex-col gap-between-groups"
     >
+      {/* A refetch keeps the last total on screen, but a failed one shows the error: an outdated
+          total never looks current. Loading shows only before the first answer. */}
+      <FutureExpenses
+        status={
+          expenses.isError || expensesRetrying
+            ? "error"
+            : expenses.data !== undefined
+              ? "ready"
+              : "loading"
+        }
+        total={expenses.data ?? null}
+        onRetry={retryExpenses}
+        retrying={expensesRetrying}
+        {...NO_UNESTIMATED}
+      />
       <QuickAdd validate={validateTaskForm} onSubmit={add} />
       {goneShown ? <Alert title={TASK_SCREEN_TEXT.deleted} /> : null}
       <div ref={listRef}>

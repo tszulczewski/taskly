@@ -3,6 +3,7 @@
 import {
   type CreateTaskInput,
   deleteTaskResponseSchema,
+  futureExpensesResponseSchema,
   type SubtaskView,
   taskListResponseSchema,
   type TaskView,
@@ -20,7 +21,13 @@ import {
 import { useMemo } from "react";
 import { apiCall } from "../../lib/api-client";
 import { queryKeys } from "../../lib/query-keys";
-import { isPendingTaskId, PENDING_PREFIX, type PendingChange, replayChanges } from "./task-items";
+import {
+  isPendingTaskId,
+  PENDING_PREFIX,
+  type PendingChange,
+  replayChanges,
+  totalText,
+} from "./task-items";
 
 let pendingCount = 0;
 
@@ -80,6 +87,8 @@ async function writeTasks(
 }
 
 function settle(queryClient: QueryClient, listId: string): void {
+  // The total holds no optimistic state, so it follows every settled change, even while others run.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.futureExpenses(listId) });
   const key = queryKeys.tasks(listId);
   // While another task mutation of this list is running, its refetch would drop that mutation's
   // pending row; the last one to settle refetches for all of them.
@@ -93,6 +102,23 @@ export function useTasks(listId: string) {
     queryKey: queryKeys.tasks(listId),
     queryFn: ({ signal }) =>
       apiCall(tasksPath(listId), { signal, response: taskListResponseSchema }),
+  });
+}
+
+/**
+ * The list's future expenses as `FutureExpenses` shows them (`GET …/future-expenses`): the
+ * server's total formatted at the edge, null for "No estimates yet". The total is never computed
+ * on the client (standards §6); every settled task mutation refetches it.
+ */
+export function useFutureExpenses(listId: string) {
+  return useQuery({
+    queryKey: queryKeys.futureExpenses(listId),
+    queryFn: ({ signal }) =>
+      apiCall(`/api/lists/${encodeURIComponent(listId)}/future-expenses`, {
+        signal,
+        response: futureExpensesResponseSchema,
+      }),
+    select: totalText,
   });
 }
 

@@ -18,7 +18,7 @@ app ──▶ ui          (ui imports nothing from the other packages)
 - `core`: Zod schemas, domain logic, authorization, services, AI client, auth config. Never imports `next`, `react` or `next/*` (except `better-auth/next-js`, isolated in `auth.ts`).
 - `app`: Route Handlers, pages, wiring. No SQL or Drizzle calls, no business rules.
 - `ui`: presentational and generic components. No `fetch`, no domain rules.
-- **Two entry points in core.** `@taskly/core` is isomorphic (schemas, roles, position, summary helpers, errors) and safe for client bundles. `@taskly/core/server` is server-only (`import "server-only"`: services, auth, AI, events). Client components import only `@taskly/core`.
+- **Two entry points in core.** `@taskly/core` is isomorphic (schemas, roles, position, the future-expenses rule, errors) and safe for client bundles. `@taskly/core/server` is server-only (`import "server-only"`: services, auth, AI, events). Client components import only `@taskly/core`.
 - Enforce with ESLint `no-restricted-imports`: `ui` → nothing from `@taskly/*`; `core` → `next`, `react`; `db` → `@taskly/core`, `@taskly/app`; client files → `@taskly/db`, `@taskly/core/server`.
 
 ## 2. Naming
@@ -129,7 +129,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 ## 10. Performance and deployment constraints (1 GB VPS)
 
 - Keep the DB pool small (`DATABASE_POOL_MAX` default 5); one pool per process (already global-cached).
-- Paginate lists. Never load whole tables into memory. Prefer one query over N+1. Aggregate in SQL when data grows (the main-task summary currently loads rows; revisit when lists get large).
+- Paginate lists. Never load whole tables into memory. Prefer one query over N+1. Aggregate in SQL when data grows (future expenses currently load the list's rows; revisit when lists get large).
 - No unbounded in-memory caches or listener maps. SSE sends heartbeats and unsubscribes on close.
 - Prefer small dependencies. Check the bundle impact of any client library. Dynamic-import heavy client code (e.g. drag-and-drop) only where used.
 - `next build` needs ~1 GB: build in CI or on a dev machine, ship the standalone output. Run production with `output: 'standalone'`, `HOSTNAME=127.0.0.1`, env via systemd `EnvironmentFile=`.

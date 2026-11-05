@@ -10,7 +10,6 @@ import {
   listShoppingItems,
   setShoppingItemChecked,
 } from "./shopping";
-import { globalSummary, listSummary } from "./summaryService";
 import { moveTask } from "./tasks";
 import type { Db } from "./types";
 
@@ -26,8 +25,6 @@ const calls: Array<[string, () => Promise<unknown>]> = [
   ["deleteShoppingItem", () => deleteShoppingItem(db, "u", "i")],
   ["listShoppingItems", () => listShoppingItems(db, "u", "l")],
   ["setShoppingItemChecked", () => setShoppingItemChecked(db, "u", "i", true)],
-  ["globalSummary", () => globalSummary(db, "u")],
-  ["listSummary", () => listSummary(db, "u", "l")],
   ["moveTask", () => moveTask(db, "u", "t", { afterId: null, beforeId: null })],
 ];
 

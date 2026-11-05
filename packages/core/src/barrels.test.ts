@@ -16,6 +16,9 @@ describe("entry points", () => {
     expect(isomorphic.rollUpEstimate).toBeTypeOf("function");
     expect(isomorphic.createTaskInput).toBeDefined();
     expect(isomorphic.taskListResponseSchema).toBeDefined();
+    // The pure rule is isomorphic; its service is server-only (spec E03, review R1).
+    expect(isomorphic.futureExpenses).toBeTypeOf("function");
+    expect(isomorphic.futureExpensesResponseSchema).toBeDefined();
     // The `/` page shows the default list's name, also when the list could not be opened.
     expect(isomorphic.DEFAULT_LIST_NAME).toBe("My renovation");
   });
@@ -23,6 +26,7 @@ describe("entry points", () => {
   it("exports services from the server entry and keeps the root exports", () => {
     expect(server.getAuth).toBeTypeOf("function");
     expect(server.createTask).toBeTypeOf("function");
+    expect(server.futureExpensesService).toBeTypeOf("function");
     expect(server.ensureDefaultList).toBeTypeOf("function");
     expect(server.getEnv).toBeTypeOf("function");
     expect(server.createPasswordUser).toBeTypeOf("function");

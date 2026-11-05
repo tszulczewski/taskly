@@ -33,6 +33,8 @@ const UP_TO_BELOW_AMOUNT = "“Up to” must not be less than the amount.";
 const QUICK_ADD = '[data-slot="quick-add"]';
 const field = (name: string) => `${QUICK_ADD} [name="${name}"]`;
 const TASKS_API = "**/api/lists/*/tasks";
+// The screen's other GET (spec E03, #21); it renews a due session too.
+const EXPENSES_API = "**/api/lists/*/future-expenses";
 
 type Row = { title: string; estimate: string; pending: boolean; description: string | null };
 type NewTask = { title: string; amount?: string; upTo?: string; description?: string };
@@ -145,6 +147,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     browser.open("about:blank");
     browser.clearCookies();
     browser.unroute(TASKS_API);
+    browser.unroute(EXPENSES_API);
   });
 
   afterAll(async () => {
@@ -401,6 +404,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     const browserCookie = () => browser.cookies().find((c) => c.name === SESSION_COOKIE);
 
     browser.abortRequests(TASKS_API);
+    browser.abortRequests(EXPENSES_API);
     browser.setSessionCookie(user.cookie, app.url);
     browser.open(`${app.url}/`);
     await browser.waitForText("Could not load your tasks.");
@@ -410,7 +414,8 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     expect(browserCookie()).toMatchObject({ value: user.cookie.split("=")[1], expires: -1 });
 
     browser.unroute(TASKS_API);
-    browser.clickRole("button", "Try again");
+    // The task list's "Try again"; the future expenses line has its own, still failing.
+    browser.click('[data-slot="alert"] button');
     await browser.waitForText("No tasks yet.");
     const expiresAt = (await sessionExpiry(token))!;
     expect(expiresAt.getTime()).toBeGreaterThan(aged.getTime());
