@@ -1318,6 +1318,18 @@ describe("TaskListScreen future expenses", () => {
     await waitFor(() => expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł")));
   });
 
+  it("shows a failed refetch instead of presenting an outdated total as current, then retries", async () => {
+    await renderLoaded();
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses2_000–2_500_zł")));
+    handlers.set(`GET ${EXPENSES_URL}`, () => fail(500, "internal_error", "Something went wrong"));
+    await click(screen.getByRole("checkbox", { name: "Complete “Tile the wall”" }));
+    await waitFor(() => expect(calls("GET", EXPENSES_URL)).toHaveLength(2));
+    expect(await within(summary()!).findByRole("alert")).toBeDefined();
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: seal.estimate }));
+    await click(within(summary()!).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(totalLine()).toBe(pln("Future expenses500_zł")));
+  });
+
   it("keeps the last total while a completion is pending, then shows the server's new one (S2)", async () => {
     const put = gate();
     handlers.set(`PUT ${completionUrl(tile.id)}`, () => put.promise);

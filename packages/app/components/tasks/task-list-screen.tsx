@@ -223,13 +223,14 @@ export function TaskListScreen({ listId }: { listId: string }) {
       data-list-id={listId}
       className="flex flex-col gap-between-groups"
     >
-      {/* A refetch keeps the last total on screen: loading shows only before the first answer. */}
+      {/* A refetch keeps the last total on screen, but a failed one shows the error: an outdated
+          total never looks current. Loading shows only before the first answer. */}
       <FutureExpenses
         status={
-          expenses.data !== undefined
-            ? "ready"
-            : expenses.isError || expensesRetrying
-              ? "error"
+          expenses.isError || expensesRetrying
+            ? "error"
+            : expenses.data !== undefined
+              ? "ready"
               : "loading"
         }
         total={expenses.data ?? null}
