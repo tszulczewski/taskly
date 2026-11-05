@@ -117,6 +117,8 @@ const eslintConfig = defineConfig([
     // Lesson materials and copied prototypes, not product code:
     "packages/ui/.storybook/public/prototypes/**",
     "lekcja-07/**",
+    // Installed skills, kept as upstream ships them (hashed in skills-lock.json):
+    ".agents/skills/**",
   ]),
 ]);
 
