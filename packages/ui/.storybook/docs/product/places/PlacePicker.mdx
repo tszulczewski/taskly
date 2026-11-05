@@ -54,25 +54,26 @@ None. A new place never asks for a colour: the app hands the ten colours out in 
 
 No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Input](?path=/story/primitives-input--states), [Form field](?path=/story/primitives-form-field--states), [Checkbox](?path=/story/primitives-checkbox--states), [Text action](?path=/story/primitives-text-action-and-link--states), [Place tag](?path=/story/product-places-place-tag--states), [Place color picker](?path=/story/product-places-place-color-picker--states) (decision M1).
 
-| State           | What the user sees                                                  | Story          | Source                |
-| --------------- | ------------------------------------------------------------------- | -------------- | --------------------- |
-| No places yet   | "No places yet." and New place                                      | No Places Yet  | D09                   |
-| Choosing        | Ticked places are the task's; a tick saves at once                  | Playground     | G3, Optimistic change |
-| Creating        | "Creating…" on the button; the field keeps its text                 | Creating       | Form pattern          |
-| Created         | The new place is ticked; the field is empty with focus for the next | Playground     | decision H3           |
-| Name invalid    | Under the field: empty, over 30 characters, or taken (any case)     | Name Errors    | decision G4, D26      |
-| Create failed   | Message above the field, the name kept                              | Create Failed  | Form pattern          |
-| At the limit    | The limit message instead of New place (20 places)                  | At Limit       | D26                   |
-| Edit view       | Places with "Edit"; focus on "Back to choosing"                     | Edit Places    | decision G6           |
-| Editing a place | Name and Colour (any of the ten), focus in Name                     | Edit Place     | decision G6, D26      |
-| Delete question | The question, Delete place and Cancel                               | Confirm Delete | Delete confirmation   |
-| Delete failed   | The message under the question; the place stays                     | Delete Failed  | Delete confirmation   |
-| Long names      | Names and the title wrap                                            | Long Names     | WCAG 1.4.10           |
+| State           | What the user sees                                                             | Story              | Source                |
+| --------------- | ------------------------------------------------------------------------------ | ------------------ | --------------------- |
+| No places yet   | "No places yet." and New place                                                 | No Places Yet      | D09                   |
+| Choosing        | Ticked places are the task's; a tick saves at once                             | Playground         | G3, Optimistic change |
+| Creating        | "Creating…" on the button; the field keeps its text                            | Creating           | Form pattern          |
+| Created         | The new place is ticked; the field is empty with focus for the next            | Playground         | decision H3           |
+| Name invalid    | Under the field: empty, over 30 characters, or taken (any case)                | Name Errors        | decision G4, D26      |
+| Create failed   | Message above the field, the name kept                                         | Create Failed      | Form pattern          |
+| At the limit    | The limit message instead of New place (20 places)                             | At Limit           | D26                   |
+| Edit view       | Places with "Edit"; focus on "Back to choosing"                                | Edit Places        | decision G6           |
+| Editing a place | Name and Colour (any of the ten), focus in Name                                | Edit Place         | decision G6, D26      |
+| Delete question | The question, Delete place and Cancel (focus); Save and Cancel hidden          | Confirm Delete     | Delete confirmation   |
+| Reaching limit  | The twentieth create puts the limit message, with focus, in place of New place | Reaching The Limit | D26, WCAG 2.4.3       |
+| Delete failed   | The message under the question; the place stays                                | Delete Failed      | Delete confirmation   |
+| Long names      | Names and the title wrap                                                       | Long Names         | WCAG 1.4.10           |
 
 ## 7. Behaviour and accessibility
 
 - **Order:** places (checkboxes) → New place → Create → Edit places. In the edit view: Back to choosing → each place's Edit; editing one: Name → Colour → Save → Cancel → Delete place.
-- **Focus:** opening the popover from the menu moves focus into it; switching views puts focus on the first control of the new view ("Back to choosing" or "Edit places"); after a create focus stays in New place. Escape closes the popover and focus returns to "…".
+- **Focus:** opening the popover from the menu moves focus into it; switching views puts focus on the first control of the new view ("Back to choosing" or "Edit places"); after a create focus stays in New place, and the create that reaches the limit focuses the limit message. Save or Cancel in a place's form returns focus to that place's "Edit"; "Delete place" moves it to the question's Cancel and that Cancel back to "Delete place"; after a delete it goes to the next place's "Edit" (the previous one for the last place, "Back to choosing" for the only one). Escape closes the popover and focus returns to "…".
 - **Ticks** save at once and roll back with a message in the row if the server refuses (Optimistic change pattern).
 - **Delete** asks once, in place, because it removes the place from every task (Delete confirmation pattern, decision G6).
 - Checkboxes and swatches are 44 × 44 px (36 × 36 px from 640px) targets (K1).

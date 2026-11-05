@@ -33,13 +33,15 @@ export function PlaceColorPicker({ value, onValueChange, label, text }: PlaceCol
           key={color}
           value={String(color)}
           aria-label={t.colorNames[color]}
-          className="group inline-flex size-touch shrink-0 items-center justify-center rounded-control outline-none"
+          // Focus rings the whole target and "chosen" rings the dot, so the two never look alike
+          // and a focused chosen swatch shows both (WCAG 2.4.7).
+          className="group inline-flex size-touch shrink-0 items-center justify-center rounded-control outline-none focus-visible:focus-ring"
         >
           <span
             className={cn(
               "size-icon rounded-full",
               placeDotClass[color],
-              "group-data-[state=checked]:swatch-selected group-focus-visible:focus-ring",
+              "group-data-[state=checked]:swatch-selected",
             )}
           />
         </RadioGroupPrimitive.Item>

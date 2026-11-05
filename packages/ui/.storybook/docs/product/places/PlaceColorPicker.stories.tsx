@@ -37,6 +37,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** Which outlines a swatch shows: the focus ring on the target, the chosen ring on the dot. */
+function rings(scope: Element | undefined, name: string) {
+  const target = scope?.querySelector(`[aria-label="${name}"]`);
+  const ring = (element: Element | null | undefined) =>
+    element ? getComputedStyle(element).outlineStyle !== "none" : false;
+  return { target: ring(target), dot: ring(target?.firstElementChild) };
+}
+
 export const Playground: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -49,15 +57,52 @@ export const Playground: Story = {
     await waitFor(() => expect(canvas.getByRole("radio", { name: "Violet" })).toBeChecked());
     await userEvent.keyboard("{/ArrowRight}");
     await expect(args.onValueChange).toHaveBeenLastCalledWith(5);
+    // Keyboard focus rings the target, apart from the chosen ring on the dot (WCAG 2.4.7).
+    await expect(rings(canvasElement, "Violet")).toEqual({ target: true, dot: true });
+    await userEvent.tab();
+    await expect(rings(canvasElement, "Violet")).toEqual({ target: false, dot: true });
   },
 };
 
 /** Editing a place: its own colour is chosen, and any other can be (decision G6, D26). */
 export const EditingAPlace: Story = { args: { value: 3 } };
 
+// Forces the keyboard focus look on one swatch, so the matrix shows it beside "chosen" without a
+// real focus (only one control can have it).
+const focusOnViolet = "[&_[aria-label=Violet]]:focus-ring";
+const focusOnGreen = "[&_[aria-label=Green]]:focus-ring";
+
 export const States: Story = {
   render: (args) => (
     <Stack>
+      <StateRow
+        title="Swatch: focus rings the target, chosen rings the dot (WCAG 2.4.7)"
+        cells={[
+          {
+            state: "Focused, not chosen: Violet",
+            node: (
+              <div className={focusOnViolet}>
+                <PlaceColorPicker {...args} value={4} />
+              </div>
+            ),
+            wide: true,
+          },
+          {
+            state: "Chosen, not focused: Green",
+            node: <PlaceColorPicker {...args} value={4} />,
+            wide: true,
+          },
+          {
+            state: "Chosen and focused: Green",
+            node: (
+              <div className={focusOnGreen}>
+                <PlaceColorPicker {...args} value={4} />
+              </div>
+            ),
+            wide: true,
+          },
+        ]}
+      />
       <StateRow
         title="Place color picker"
         cells={[
@@ -75,6 +120,12 @@ export const States: Story = {
       />
     </Stack>
   ),
+  play: async ({ canvasElement }) => {
+    const groups = canvasElement.querySelectorAll('[data-slot="place-color-picker"]');
+    await expect(rings(groups[0], "Violet")).toEqual({ target: true, dot: false });
+    await expect(rings(groups[1], "Green")).toEqual({ target: false, dot: true });
+    await expect(rings(groups[2], "Green")).toEqual({ target: true, dot: true });
+  },
 };
 
 export const Narrow320: Story = {

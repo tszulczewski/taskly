@@ -53,6 +53,8 @@ interface PlaceFormProps {
   pendingLabel: string;
   onSubmit: (name: string) => Promise<SubmitResult<"name">>;
   onCancel?: () => void;
+  /** Hides Save and Cancel while the delete question, with its own Cancel, is open. */
+  actionsHidden?: boolean;
   validateName: PlacePickerProps["validateName"];
   autoFocus?: boolean;
   /** Fields under the name: the colour, when editing a place. */
@@ -69,6 +71,7 @@ function PlaceForm({
   pendingLabel,
   onSubmit,
   onCancel,
+  actionsHidden,
   validateName,
   autoFocus,
   children,
@@ -99,7 +102,7 @@ function PlaceForm({
         )}
       </FormField>
       {children}
-      {onCancel ? (
+      {onCancel && !actionsHidden ? (
         <div className="flex flex-wrap gap-group">
           {submit}
           <Button disabled={form.pending} onClick={onCancel}>
@@ -116,6 +119,7 @@ function EditPlace({
   onUpdate,
   onDelete,
   onClose,
+  onDeleted,
   validateName,
   t,
 }: {
@@ -123,6 +127,7 @@ function EditPlace({
   onUpdate: PlacePickerProps["onUpdate"];
   onDelete: PlacePickerProps["onDelete"];
   onClose: () => void;
+  onDeleted: () => void;
   validateName: PlacePickerProps["validateName"];
   t: PlaceText;
 }) {
@@ -130,13 +135,29 @@ function EditPlace({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(false);
   const [color, setColor] = useState(place.color);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const askChanged = useRef(false);
+
+  // Asking replaces "Delete place" and answering removes the question, so focus follows the
+  // button that takes the removed one's place (WCAG 2.4.3).
+  useLayoutEffect(() => {
+    if (!askChanged.current) return;
+    askChanged.current = false;
+    (confirming ? keepRef : deleteRef).current?.focus();
+  }, [confirming]);
+
+  const ask = (next: boolean) => {
+    askChanged.current = true;
+    setConfirming(next);
+  };
 
   const remove = async () => {
     setDeleting(true);
     setError(false);
     const deleted = await onDelete(place.id).catch(() => false);
     setDeleting(false);
-    if (deleted) onClose();
+    if (deleted) onDeleted();
     else setError(true);
   };
 
@@ -154,6 +175,7 @@ function EditPlace({
           return result;
         }}
         onCancel={onClose}
+        actionsHidden={confirming}
         validateName={validateName}
         autoFocus
         t={t}
@@ -177,13 +199,13 @@ function EditPlace({
             <Button variant="danger" loading={deleting} onClick={() => void remove()}>
               {deleting ? t.deleting : t.deletePlace}
             </Button>
-            <Button disabled={deleting} onClick={() => setConfirming(false)}>
+            <Button ref={keepRef} disabled={deleting} onClick={() => ask(false)}>
               {t.cancel}
             </Button>
           </div>
         </div>
       ) : (
-        <Button variant="danger" className="self-start" onClick={() => setConfirming(true)}>
+        <Button ref={deleteRef} variant="danger" className="self-start" onClick={() => ask(true)}>
           {t.deletePlace}
         </Button>
       )}
@@ -215,7 +237,12 @@ export function PlacePicker({
   const [editingId, setEditingId] = useState<string | null>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   const editPlacesRef = useRef<HTMLButtonElement>(null);
+  const editRefs = useRef(new Map<string, HTMLButtonElement>());
+  const limitRef = useRef<HTMLParagraphElement>(null);
   const viewChanged = useRef(false);
+  const wasAtLimit = useRef(atLimit);
+  /** The place whose "Edit" takes focus once its form closes; none: "Back to choosing". */
+  const returnTo = useRef<{ placeId?: string } | null>(null);
   const editing = places.find((place) => place.id === editingId);
 
   useLayoutEffect(() => {
@@ -223,6 +250,28 @@ export function PlacePicker({
     viewChanged.current = false;
     (view === "edit" ? backRef : editPlacesRef).current?.focus();
   }, [view]);
+
+  // Runs after every render: the closed form's row may come back in a later render than the one
+  // that closed it.
+  useLayoutEffect(() => {
+    if (returnTo.current === null) return;
+    const target = editRefs.current.get(returnTo.current.placeId ?? "") ?? backRef.current;
+    returnTo.current = null;
+    target?.focus();
+  });
+
+  // The create that reached the limit removed the focused form; its message takes the focus, so
+  // a screen reader hears why the form is gone.
+  useLayoutEffect(() => {
+    const reached = atLimit && !wasAtLimit.current;
+    wasAtLimit.current = atLimit;
+    if (reached && document.activeElement === document.body) limitRef.current?.focus();
+  }, [atLimit]);
+
+  const closeEditing = (placeId?: string) => {
+    returnTo.current = { placeId };
+    setEditingId(null);
+  };
 
   const show = (next: "choose" | "edit") => {
     viewChanged.current = true;
@@ -247,7 +296,11 @@ export function PlacePicker({
                   place={place}
                   onUpdate={onUpdate}
                   onDelete={onDelete}
-                  onClose={() => setEditingId(null)}
+                  onClose={() => closeEditing(place.id)}
+                  onDeleted={() => {
+                    const index = places.findIndex(({ id }) => id === place.id);
+                    closeEditing((places[index + 1] ?? places[index - 1])?.id);
+                  }}
                   validateName={validateName}
                   t={t}
                 />
@@ -256,6 +309,10 @@ export function PlacePicker({
               <li key={place.id} className="flex items-center justify-between gap-group">
                 <PlaceTag place={place} />
                 <TextAction
+                  ref={(button) => {
+                    if (button) editRefs.current.set(place.id, button);
+                    else editRefs.current.delete(place.id);
+                  }}
                   tone="muted"
                   aria-label={t.editPlace(place.name)}
                   onClick={() => setEditingId(place.id)}
@@ -294,7 +351,13 @@ export function PlacePicker({
         </ul>
       )}
       {atLimit ? (
-        <p className="text-muted">{t.atLimit}</p>
+        <p
+          ref={limitRef}
+          tabIndex={-1}
+          className="text-muted outline-none focus-visible:focus-ring"
+        >
+          {t.atLimit}
+        </p>
       ) : (
         <PlaceForm
           initialName=""

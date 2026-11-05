@@ -153,6 +153,32 @@ describe("PlacePicker", () => {
       screen.getByText("You can have up to 20 places. Delete one to add another."),
     ).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "New place" })).toBeNull();
+    // Shown from the start, it takes no focus.
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("focuses the limit message when the create that reached it removed the form", () => {
+    const props = {
+      taskTitle: "Seal the bath",
+      places: [bathroom, kitchen],
+      selectedIds: [],
+      onToggle: vi.fn(),
+      onCreate: ok,
+      onUpdate: ok,
+      onDelete: async () => true,
+      validateName: noErrors,
+    };
+    const { rerender } = render(<PlacePicker {...props} atLimit={false} />);
+    screen.getByRole("textbox", { name: "New place" }).focus();
+    rerender(<PlacePicker {...props} atLimit />);
+    const limit = screen.getByText("You can have up to 20 places. Delete one to add another.");
+    expect(document.activeElement).toBe(limit);
+    // Reached while the owner was elsewhere in the picker, it leaves their focus alone.
+    rerender(<PlacePicker {...props} atLimit={false} />);
+    const box = screen.getByRole("checkbox", { name: "Kitchen" });
+    box.focus();
+    rerender(<PlacePicker {...props} atLimit />);
+    expect(document.activeElement).toBe(box);
   });
 
   it("switches to Edit places and back, moving focus each time", async () => {
@@ -179,9 +205,12 @@ describe("PlacePicker", () => {
     await click("Save");
     expect(onUpdate).toHaveBeenCalledWith("kitchen", { name: "Kitchen and dining", color: 1 });
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    // The form is gone, so focus goes back to the place's own "Edit", never the page.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Kitchen" }));
     await click("Edit Hall");
     await click("Cancel");
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Hall" }));
   });
 
   it("keeps the form open when a rename is refused", async () => {
@@ -201,15 +230,47 @@ describe("PlacePicker", () => {
     await click("Edit places");
     await click("Edit Bathroom");
     await click("Delete place");
-    const question = screen.getByText("Delete “Bathroom”? It is removed from every task.");
-    await act(async () => {
-      fireEvent.click(within(question.parentElement!).getByRole("button", { name: "Cancel" }));
-    });
+    expect(screen.getByText("Delete “Bathroom”? It is removed from every task.")).toBeTruthy();
+    // Only the question's Cancel: the form's Save and Cancel are hidden while it asks.
+    expect(screen.getAllByRole("button", { name: "Cancel" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
+    await click("Cancel");
     expect(screen.queryByText(/It is removed from every task/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete place" }));
     await click("Delete place");
     await click("Delete place");
     expect(onDelete).toHaveBeenCalledWith("bathroom");
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+  });
+
+  it.each([
+    { deleted: "Bathroom", places: [bathroom, kitchen], focus: "Edit Kitchen" },
+    { deleted: "Kitchen", places: [bathroom, kitchen], focus: "Edit Bathroom" },
+    { deleted: "Bathroom", places: [bathroom], focus: "Back to choosing" },
+  ])("after deleting $deleted, focuses $focus", async ({ deleted, places, focus }) => {
+    const { rerender } = renderPicker({ places });
+    await click("Edit places");
+    await click(`Edit ${deleted}`);
+    await click("Delete place");
+    await click("Delete place");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: focus }));
+    // The app then drops the place; focus stays where it went.
+    rerender(
+      <PlacePicker
+        taskTitle="Seal the bath"
+        places={places.filter((place) => place.name !== deleted)}
+        selectedIds={[]}
+        onToggle={vi.fn()}
+        onCreate={ok}
+        onUpdate={ok}
+        onDelete={async () => true}
+        validateName={noErrors}
+        atLimit={false}
+      />,
+    );
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: focus }));
   });
 
   it("shows a failed delete, whether refused or thrown", async () => {
