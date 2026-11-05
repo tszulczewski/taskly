@@ -52,8 +52,8 @@ Under the future-expenses total, a collapsed line names what still has no estima
 
 ### Phase 2: app wiring
 
-- [ ] 2.1 validateEstimate and the unestimated mapping
-- [ ] 2.2 Add estimate through the update mutation on the screen
+- [x] 2.1 validateEstimate and the unestimated mapping — c614c7f
+- [x] 2.2 Add estimate through the update mutation on the screen — 22836c2
 
 ### Phase 3: browser test and wrap-up
 
