@@ -27,4 +27,4 @@ Closes #
 - [ ] Money is integer grosze end-to-end; totals computed server-side
 - [ ] Reorder writes only the moved row
 - [ ] Tests: success, forbidden, not-found (+ concurrency); regression test for fixes
-- [ ] Gate passes: `format:check`, `lint`, `check:agents`, `typecheck`, `test`, `build`, `audit`, `test:integration`; `.ai/` run log/lessons updated
+- [ ] Gate passes: `format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`, `test`, `build`, `audit`, `test:integration`; `.ai/` run log/lessons updated

@@ -79,6 +79,7 @@ npm run build
 npm test        # Vitest
 npm run typecheck
 npm run test:integration  # Testcontainers PostgreSQL + agent-browser (needs Docker, run `npm run build` first)
+npm run test:env-scripts  # regression test of the QA launcher scripts in .ai/scripts (no Docker)
 ```
 
 Agents working on this repo: read `AGENTS.md` and follow the `.ai/` workflow.
