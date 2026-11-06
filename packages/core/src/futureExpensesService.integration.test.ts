@@ -105,6 +105,61 @@ describe.skipIf(!url)("future expenses service (real PostgreSQL)", () => {
     expect(await total(listId)).toBeNull();
   });
 
+  const unestimated = async (listId: string, userId = ids.alice) =>
+    (await futureExpensesService(db, userId, listId)).unestimated;
+
+  it("lists what has no estimate, in display order (#47 AC1–AC3, AC5, AC7)", async () => {
+    const listId = await list("Unpriced");
+    const seal = await add(listId, "Seal the bath");
+    await add(listId, "Mirror", { estimate: zl(200) });
+    const bathroom = await add(listId, "Bathroom tiles", { estimate: zl(900) });
+    await add(listId, "Tiles", { parentId: bathroom.id });
+    const withGrout = await add(listId, "Grout", { parentId: bathroom.id, estimate: zl(400) });
+    const [tiles] = withGrout.subtasks;
+    const done = await add(listId, "Old door");
+    await setTaskCompleted(db, ids.alice, done.id, { completed: true });
+    const walls = await add(listId, "Walls");
+    await add(listId, "Prime", { parentId: walls.id });
+    const withPaint = await add(listId, "Paint", { parentId: walls.id });
+    const [prime, paint] = withPaint.subtasks;
+    await setTaskCompleted(db, ids.alice, prime!.id, { completed: true });
+
+    expect(await unestimated(listId)).toEqual([
+      { id: seal.id, title: "Seal the bath" },
+      { id: tiles!.id, title: "Tiles", taskTitle: "Bathroom tiles" },
+      { id: paint!.id, title: "Paint", taskTitle: "Walls" },
+    ]);
+    expect(await total(listId)).toEqual(zl(600));
+  });
+
+  it("drops an item once it has an estimate, which the total then counts (#47 AC4)", async () => {
+    const listId = await list("Priced later");
+    const seal = await add(listId, "Seal the bath");
+    const kitchen = await add(listId, "Kitchen");
+    const withSink = await add(listId, "Sink", { parentId: kitchen.id });
+    const [sink] = withSink.subtasks;
+
+    await updateTask(db, ids.alice, seal.id, { estimate: zl(100, 150) });
+    expect(await unestimated(listId)).toEqual([
+      { id: sink!.id, title: "Sink", taskTitle: "Kitchen" },
+    ]);
+    expect(await total(listId)).toEqual(zl(100, 150));
+
+    await updateTask(db, ids.alice, sink!.id, { estimate: zl(300) });
+    expect(await unestimated(listId, ids.vi)).toEqual([]);
+    expect(await total(listId)).toEqual(zl(400, 450));
+  });
+
+  it("does not list a subtask reopened under a completed task (Q2-1)", async () => {
+    const listId = await list("Reopened");
+    const task = await add(listId, "Floor");
+    const withSand = await add(listId, "Sand", { parentId: task.id });
+    const [sand] = withSand.subtasks;
+    await setTaskCompleted(db, ids.alice, task.id, { completed: true });
+    await setTaskCompleted(db, ids.alice, sand!.id, { completed: false });
+    expect(await unestimated(listId)).toEqual([]);
+  });
+
   it("lets a viewer read the total", async () => {
     const listId = await list("Attic");
     await add(listId, "Insulation", { estimate: zl(3000, 3500) });

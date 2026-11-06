@@ -20,20 +20,33 @@ beforeEach(() => {
 });
 
 describe("GET /api/lists/[listId]/future-expenses", () => {
-  it.each([[{ minGrosze: 150_000, maxGrosze: 270_000 }], [null]])(
-    "answers the list's total (%o) in the success envelope",
-    async (total) => {
-      futureExpensesService.mockResolvedValue({ total });
-      const res = await get();
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ ok: true, data: { total } });
-      expect(futureExpensesService).toHaveBeenCalledExactlyOnceWith(db, "u1", LIST);
-    },
-  );
+  const tiles = {
+    id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    title: "Tiles",
+    taskTitle: "Bathroom tiles",
+  };
+
+  it.each([
+    [{ total: { minGrosze: 150_000, maxGrosze: 270_000 }, unestimated: [] }],
+    [{ total: null, unestimated: [tiles] }],
+  ])("answers the list's future expenses (%o) in the success envelope", async (expenses) => {
+    futureExpensesService.mockResolvedValue(expenses);
+    const res = await get();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, data: expenses });
+    expect(futureExpensesService).toHaveBeenCalledExactlyOnceWith(db, "u1", LIST);
+  });
 
   it("strips fields the response schema does not know", async () => {
-    futureExpensesService.mockResolvedValue({ total: null, unestimated: [] });
-    expect(await (await get()).json()).toEqual({ ok: true, data: { total: null } });
+    futureExpensesService.mockResolvedValue({
+      total: null,
+      unestimated: [{ ...tiles, position: "a0" }],
+      spent: 1,
+    });
+    expect(await (await get()).json()).toEqual({
+      ok: true,
+      data: { total: null, unestimated: [tiles] },
+    });
   });
 
   it("answers 401 without a session and never calls core", async () => {
@@ -53,9 +66,12 @@ describe("GET /api/lists/[listId]/future-expenses", () => {
     });
   });
 
-  it("turns a malformed total into the generic 500", async () => {
+  it.each([
+    ["a malformed total", { total: { minGrosze: 2, maxGrosze: 1 }, unestimated: [] }],
+    ["no unestimated list", { total: null }],
+  ])("turns %s into the generic 500", async (_name, expenses) => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    futureExpensesService.mockResolvedValue({ total: { minGrosze: 2, maxGrosze: 1 } });
+    futureExpensesService.mockResolvedValue(expenses);
     const res = await get();
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({

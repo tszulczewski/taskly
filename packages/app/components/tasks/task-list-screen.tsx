@@ -2,6 +2,8 @@
 
 import {
   Alert,
+  type EstimateField,
+  type EstimateValues,
   FutureExpenses,
   QuickAdd,
   type SubmitResult,
@@ -16,21 +18,24 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { TASK_COMPLETED_MESSAGE } from "@taskly/core";
 import { ApiError } from "../../lib/api-client";
 import {
+  addEstimateError,
   hasTask,
   isNotFound,
-  NO_UNESTIMATED,
   subtaskAdded,
   subtaskDeleted,
   submitError,
   TASK_SCREEN_TEXT,
   titleOf,
   toCreateInput,
+  toEstimate,
   toTaskItem,
   toUpdateInput,
+  validateEstimate,
   validateTaskForm,
 } from "./task-items";
 import {
   type SetCompletedVariables,
+  useAddEstimate,
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
@@ -61,6 +66,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const createTask = useCreateTask(listId);
   const updateTask = useUpdateTask(listId);
   const deleteTask = useDeleteTask(listId);
+  const saveEstimate = useAddEstimate(listId);
   const [highlightId, setHighlightId] = useState<string>();
   // A task whose edit (or whose new subtask) got 404: once the refetch has removed its row, the
   // message stays here.
@@ -198,6 +204,22 @@ export function TaskListScreen({ listId }: { listId: string }) {
     );
   };
 
+  // "Add estimate" under future expenses (#47). Any outcome refetches the list and the total; a
+  // 404 leaves the deleted notice, since the item and its form go with the refetch.
+  const addEstimate = async (
+    id: string,
+    values: EstimateValues,
+  ): Promise<SubmitResult<EstimateField>> => {
+    startChange();
+    try {
+      await saveEstimate(id, toEstimate(values));
+      return { ok: true };
+    } catch (error) {
+      if (isNotFound(error)) setGoneId(id);
+      return addEstimateError(error, values);
+    }
+  };
+
   const toggleComplete = (id: string, completed: boolean) => {
     startChange();
     // The confirmation can outlive its task when a background refetch removes the row.
@@ -233,10 +255,12 @@ export function TaskListScreen({ listId }: { listId: string }) {
               ? "ready"
               : "loading"
         }
-        total={expenses.data ?? null}
+        total={expenses.data?.total ?? null}
+        unestimated={expenses.data?.unestimated ?? []}
         onRetry={retryExpenses}
         retrying={expensesRetrying}
-        {...NO_UNESTIMATED}
+        validate={validateEstimate}
+        onAddEstimate={addEstimate}
       />
       <QuickAdd validate={validateTaskForm} onSubmit={add} />
       {goneShown ? <Alert title={TASK_SCREEN_TEXT.deleted} /> : null}

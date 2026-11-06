@@ -1,4 +1,4 @@
-import type { TaskView } from "@taskly/core";
+import { estimateMessages, type TaskView } from "@taskly/core";
 import type { TaskFormValues } from "@taskly/ui";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../lib/api-client";
@@ -6,8 +6,8 @@ import {
   applyCompletion,
   hasTask,
   isNotFound,
+  addEstimateError,
   isPendingTaskId,
-  NO_UNESTIMATED,
   replayChanges,
   sortTasks,
   subtaskAdded,
@@ -16,9 +16,12 @@ import {
   TASK_SCREEN_TEXT,
   titleOf,
   toCreateInput,
+  toEstimate,
+  toExpensesView,
   totalText,
   toTaskItem,
   toUpdateInput,
+  validateEstimate,
   validateTaskForm,
 } from "./task-items";
 
@@ -531,18 +534,79 @@ describe("isPendingTaskId", () => {
 
 describe("future expenses", () => {
   it("shows the server's total as a range, one amount for an exact price, or null", () => {
-    expect(totalText({ total: { minGrosze: 150_000_00, maxGrosze: 270_000_00 } })).toBe(
-      pln("150_000–270_000_zł"),
-    );
-    expect(totalText({ total: { minGrosze: 80_000, maxGrosze: 80_000 } })).toBe(pln("800_zł"));
-    expect(totalText({ total: { minGrosze: 0, maxGrosze: 0 } })).toBe(pln("0_zł"));
-    expect(totalText({ total: null })).toBeNull();
+    const total = (minGrosze: number, maxGrosze: number) =>
+      totalText({ total: { minGrosze, maxGrosze }, unestimated: [] });
+    expect(total(150_000_00, 270_000_00)).toBe(pln("150_000–270_000_zł"));
+    expect(total(80_000, 80_000)).toBe(pln("800_zł"));
+    expect(total(0, 0)).toBe(pln("0_zł"));
+    expect(totalText({ total: null, unestimated: [] })).toBeNull();
   });
 
-  it("names nothing without an estimate until Phase 3, and its form refuses a save", async () => {
-    expect(NO_UNESTIMATED.unestimated).toEqual([]);
-    expect(NO_UNESTIMATED.validate()).toEqual({});
-    await expect(NO_UNESTIMATED.onAddEstimate()).resolves.toEqual({
+  it("passes on what has no estimate with the formatted total", () => {
+    const unestimated = [
+      { id: "t1", title: "Seal the bath" },
+      { id: "s1", title: "Tiles", taskTitle: "Bathroom tiles" },
+    ];
+    expect(
+      toExpensesView({ total: { minGrosze: 40_000, maxGrosze: 40_000 }, unestimated }),
+    ).toEqual({ total: pln("400_zł"), unestimated });
+  });
+});
+
+describe("Add estimate", () => {
+  const amounts = (amount: string, upTo = "") => ({ amount, upTo });
+
+  it("requires an amount, then follows the task forms' rules (R18)", () => {
+    expect(validateEstimate(amounts(""))).toEqual({ amount: estimateMessages.required });
+    expect(validateEstimate(amounts("  ", " "))).toEqual({ amount: estimateMessages.required });
+    expect(validateEstimate(amounts("abc"))).toEqual({ amount: estimateMessages.amount });
+    expect(validateEstimate(amounts("500", "100"))).toEqual({
+      upTo: estimateMessages.upToBelowAmount,
+    });
+    expect(validateEstimate(amounts("400"))).toEqual({});
+    expect(validateEstimate(amounts("", "400"))).toEqual({});
+    expect(validateEstimate(amounts("0"))).toEqual({});
+  });
+
+  it("saves one amount as an exact price and both as a range, in grosze", () => {
+    expect(toEstimate(amounts("400"))).toEqual({ minGrosze: 40_000, maxGrosze: 40_000 });
+    expect(toEstimate(amounts("", "1 500,50"))).toEqual({
+      minGrosze: 150_050,
+      maxGrosze: 150_050,
+    });
+    expect(toEstimate(amounts("100", "200"))).toEqual({ minGrosze: 10_000, maxGrosze: 20_000 });
+  });
+
+  it("throws for amounts the form should not have submitted", () => {
+    expect(() => toEstimate(amounts(""))).toThrow("invalid values");
+    expect(() => toEstimate(amounts("abc"))).toThrow("invalid values");
+  });
+
+  it("shows a refusal: the deleted notice, a 409's message, the amounts' errors, or a retry", () => {
+    const values = amounts("100", "200");
+    expect(addEstimateError(new ApiError(404, "not_found", "Task not found"), values)).toEqual({
+      ok: false,
+      formError: TASK_SCREEN_TEXT.deleted,
+    });
+    const conflict = new ApiError(409, "conflict", "A task with subtasks takes its estimate");
+    expect(addEstimateError(conflict, values)).toEqual({ ok: false, formError: conflict.message });
+    const invalid = (fieldErrors: Record<string, string[]>) =>
+      new ApiError(400, "validation_error", "Invalid input", fieldErrors);
+    expect(
+      addEstimateError(
+        invalid({ "estimate.minGrosze": ["Low"], "estimate.maxGrosze": ["High"] }),
+        values,
+      ),
+    ).toEqual({ ok: false, fieldErrors: { amount: "Low", upTo: "High" } });
+    expect(addEstimateError(invalid({ estimate: ["Bad"] }), values)).toEqual({
+      ok: false,
+      fieldErrors: { amount: "Bad" },
+    });
+    expect(addEstimateError(invalid({ "estimate.maxGrosze": ["High"] }), values)).toEqual({
+      ok: false,
+      fieldErrors: { upTo: "High" },
+    });
+    expect(addEstimateError(new TypeError("Failed to fetch"), values)).toEqual({
       ok: false,
       formError: TASK_SCREEN_TEXT.saveFailed,
     });

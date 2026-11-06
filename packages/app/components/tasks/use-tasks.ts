@@ -3,6 +3,7 @@
 import {
   type CreateTaskInput,
   deleteTaskResponseSchema,
+  type Estimate,
   futureExpensesResponseSchema,
   type SubtaskView,
   taskListResponseSchema,
@@ -26,7 +27,7 @@ import {
   PENDING_PREFIX,
   type PendingChange,
   replayChanges,
-  totalText,
+  toExpensesView,
 } from "./task-items";
 
 let pendingCount = 0;
@@ -107,8 +108,8 @@ export function useTasks(listId: string) {
 
 /**
  * The list's future expenses as `FutureExpenses` shows them (`GET …/future-expenses`): the
- * server's total formatted at the edge, null for "No estimates yet". The total is never computed
- * on the client (standards §6); every settled task mutation refetches it.
+ * server's total formatted at the edge, null for "No estimates yet", and what has no estimate.
+ * Neither is ever computed on the client (standards §6); every settled task mutation refetches it.
  */
 export function useFutureExpenses(listId: string) {
   return useQuery({
@@ -118,7 +119,7 @@ export function useFutureExpenses(listId: string) {
         signal,
         response: futureExpensesResponseSchema,
       }),
-    select: totalText,
+    select: toExpensesView,
   });
 }
 
@@ -233,6 +234,24 @@ export function useDeleteTask(listId: string) {
       ),
     onSettled: () => settle(queryClient, listId),
   });
+}
+
+/**
+ * "Add estimate" (spec E03, #47): saves `{ estimate }` through the edit's `PATCH`, in the list
+ * queue, and resolves only once the future expenses that the save refetches have arrived, so the
+ * form stays busy until its item leaves the list. A refused save rejects like an edit.
+ */
+export function useAddEstimate(listId: string) {
+  const queryClient = useQueryClient();
+  const { mutateAsync } = useUpdateTask(listId);
+  return async (id: string, estimate: Estimate): Promise<void> => {
+    await mutateAsync({ id, input: { estimate } });
+    // The settle has started that refetch; join it rather than send a second request.
+    await queryClient.refetchQueries(
+      { queryKey: queryKeys.futureExpenses(listId), exact: true },
+      { cancelRefetch: false },
+    );
+  };
 }
 
 export interface SetCompletedVariables {
