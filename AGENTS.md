@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Taskly is a web app for planning and tracking home renovation work. Task lists (e.g. "Bathroom") contain tasks with subtasks (plastering, painting). Each task has an AI estimate (min–max range) and a real cost, all in **PLN**. There is a global, shareable shopping list with quick adding, and one expense summary: future expenses, the min–max sum of the estimates of open main tasks (version 1); incurred expenses (real costs) come later (D18, D19). Lists are shared via invitations with `owner` / `editor` / `viewer` roles; tasks inherit access from their list.
 
-Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest, 100% coverage), `npm run test:integration`, `npm run typecheck`, `npm run db:generate` / `db:migrate`, `npm run auth:set-password` (offline password reset; see `.ai/docs/runbook.md`).
+Commands (run from the repo root): `npm run dev`, `npm run build`, `npm run lint`, plus `npm test` (Vitest, 100% coverage), `npm run test:integration`, `npm run test:env-scripts` (QA launcher scripts, no Docker), `npm run typecheck`, `npm run db:generate` / `db:migrate`, `npm run auth:set-password` (offline password reset; see `.ai/docs/runbook.md`).
 
 ## Task Router
 
@@ -55,7 +55,7 @@ Full rules and rationale: `.ai/docs/engineering-standards.md` — read it before
 - **Layering:** `app` → `ui`, `core`, `db`; `core` → `db` only where it must; `ui` imports no `@taskly/*`; `db` never imports `app`. Client code imports only `@taskly/core` (isomorphic), never `@taskly/core/server` or `@taskly/db`; browser bundles never get server-only code (`db`, the Claude client, secrets), so mark such modules `server-only`. `core` never imports `next`/`react`. Enforced by ESLint `no-restricted-imports`.
 - **Money** is integer grosze end-to-end, never floats; totals computed server-side, formatted to PLN only at the UI edge. **Order** uses fractional-index `position` compared with `COLLATE "C"`; never renumber siblings, only the moved row changes.
 - **Security:** Better Auth owns passwords/sessions/cookies (min password length 10, rate limiting on); authorize the specific record; Zod validates every API input and output (Zod-parsed input only, no mass assignment); AI output is untrusted (Zod-validate; invalid output is an error and is never stored); no secrets in logs or client bundles.
-- **Quality:** no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency). Gate before calling work done (plus a manual check of the running app where relevant; report real results in the run log, including failures and anything skipped): `npm run format:check`, `lint`, `check:agents`, `typecheck`, `test`, `build`, `audit`, `test:integration`. Use `npm run format` to fix formatting.
+- **Quality:** no dead code, comments only for non-obvious *why*; tests for success/forbidden/not-found (+ concurrency). Gate before calling work done (plus a manual check of the running app where relevant; report real results in the run log, including failures and anything skipped): `npm run format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`, `test`, `build`, `audit`, `test:integration`. Use `npm run format` to fix formatting.
 
 ### Testing (mandatory)
 

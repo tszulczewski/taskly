@@ -24,7 +24,8 @@
     "build-storybook": "npm run build-storybook -w @taskly/ui",
     "test:storybook": "npm run test:storybook -w @taskly/ui",
     "check:tokens": "npm run check:tokens -w @taskly/ui",
-    "check:agents": "node .ai/scripts/check-agents-md.mjs"
+    "check:agents": "node .ai/scripts/check-agents-md.mjs",
+    "test:env-scripts": "sh .ai/scripts/test-env.test.sh"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.2.1",
