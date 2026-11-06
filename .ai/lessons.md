@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-06 — Shell lock scripts: never take over a "stale" lock by reading the owner PID and then renaming or deleting the lock. Two waiters can read the same dead PID, and the second one removes a live lock that was taken in the meantime (PR #63 review). Use `flock(2)` (perl on fd 9), which the kernel releases when the holder dies. Close the descriptor (`9>&-`) for long-lived children such as servers and daemons, or they keep holding the lock. Report a known race window in the PR instead of leaving it out.
+
 - 2026-11-05 — For a money feature that reuses an existing estimate PATCH, SDLC still requires integration evidence for failure, retry and idempotency: assert a refused save changes no stored figure, a corrected retry succeeds, and replaying the same save contributes to future expenses exactly once (PR #62 review).
 
 - 2026-11-05 — TanStack Query `useQuery` results track which props were read, and re-render only when one of those changes. In a `renderHook` test that reads only `isSuccess` before an action, a later `data` change never re-renders the hook, so `waitFor(() => result.current.data …)` times out while `client.getQueryState` already holds the new data (`useAddEstimate` test). Read `data` once before the action (assert the old value), then wait for the new one.

@@ -47,7 +47,8 @@ next-env.d.ts
 /.ai/qa/test-env.json
 /.ai/qa/test-env.env
 /.ai/qa/test-env-build-cache.json
-/.ai/qa/test-env.lock/
+/.ai/qa/test-env.flock
+/.ai/qa/test-env.flock.owner
 /.ai/qa/test-env-app.log
 
 # Storybook

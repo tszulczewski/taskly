@@ -6,6 +6,8 @@
 #   2026-11-06 repair (PR #63 review): failure cleanup removes only what this run created and only under the lock
 #     (a lock timeout no longer deletes another bootstrap's database); --force-rebuild rejects reuse;
 #     reuse and build cache compare a content-based fingerprint (deletions and same-second edits count)
+#   2026-11-06 repair (PR #63 second review): flock(2) lock held for the bootstrap only (app and
+#     agent-browser daemon start with 9>&-); a run that waited re-checks reuse before rebuilding
 set -eu
 
 # ---------------------------------------------------------------------------
@@ -110,16 +112,10 @@ reuse_exit() {
   print_result 1
   exit 0
 }
-# The lock belongs to the running environment's app: reuse it, or stop the app so the lock
-# goes stale. Its container is removed only after this run holds the lock.
-on_env_lock() {
-  if reuse_ok; then reuse_exit; fi
-  log "stopping previous app (pid $1)"
-  stop_pid "$1"
-}
-
 if [ -f "$DESCRIPTOR" ] && reuse_ok; then reuse_exit; fi
-acquire_lock test-env-up on_env_lock
+acquire_lock test-env-up
+# After waiting, the run that held the lock has likely produced a reusable environment.
+if [ "$waited" -gt 0 ] && reuse_ok; then release_lock; reuse_exit; fi
 # Holding the lock: whatever the previous run left behind is ours to clear.
 if [ "$(json_get "$DESCRIPTOR" startedByThisRepo)" = true ]; then
   stop_pid "$(json_get "$DESCRIPTOR" app.pid)"
@@ -200,7 +196,7 @@ mkdir -p "$STANDALONE/.next/static"
 cp -R "$APP_DIR/.next/static/." "$STANDALONE/.next/static/"
 log "starting app on $BASE_URL"
 (cd "$STANDALONE" && NODE_ENV=production HOSTNAME=127.0.0.1 PORT="$APP_PORT" \
-  nohup node server.js > "$ROOT/$APP_LOG" 2>&1 &
+  nohup node server.js > "$ROOT/$APP_LOG" 2>&1 9>&- &
   echo $! > "$ROOT/$QA_DIR/test-env-app.pid")
 APP_PID=$(cat "$QA_DIR/test-env-app.pid"); rm -f "$QA_DIR/test-env-app.pid"
 healthy=0
@@ -241,8 +237,8 @@ case "$(uname -s)" in
   *) PLATFORM=unknown ;;
 esac
 AB_BIN=$ROOT/node_modules/.bin/agent-browser
-if "$AB_BIN" doctor --json >/dev/null 2>&1; then AB_OK=true; AB_NOTES=""; else AB_OK=false; AB_NOTES="agent-browser doctor failed; rerun om-prepare-test-env in repair mode"; fi
-AB_VERSION=$("$AB_BIN" --version 2>/dev/null | awk '{print $NF}' || echo unknown)
+if "$AB_BIN" doctor --json >/dev/null 2>&1 9>&-; then AB_OK=true; AB_NOTES=""; else AB_OK=false; AB_NOTES="agent-browser doctor failed; rerun om-prepare-test-env in repair mode"; fi
+AB_VERSION=$("$AB_BIN" --version 2>/dev/null 9>&- | awk '{print $NF}' || echo unknown)
 PREV_NOTES=$(json_get "$DESCRIPTOR" timings)
 DURATION=$(( $(date +%s) - T0 ))
 
@@ -280,8 +276,6 @@ const d = {
 require("fs").writeFileSync(e.DESCRIPTOR, JSON.stringify(d, null, 2) + "\n");
 '
 
-# Hand the lock to the app for the environment lifetime.
-lock_handover "$APP_PID" test-env-app
-LOCK_MINE=0
+release_lock
 trap - EXIT
 print_result 0

@@ -5,6 +5,7 @@
 #   2026-11-06 generated: stops the app PID and the scoped postgres container; safe to run twice
 #   2026-11-06 repair: only report "removed" when the container existed (docker rm -f exits 0 for a missing one)
 #   2026-11-06 repair (PR #63 review): takes the bootstrap lock, so teardown never races a bootstrap in progress
+#   2026-11-06 repair (PR #63 second review): the lock is flock(2) (test-env-lib.sh)
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -16,12 +17,11 @@ if [ "$(json_get "$DESCRIPTOR" startedByThisRepo)" != true ]; then
   log "descriptor was not started by this repo; leaving it alone"; exit 0
 fi
 
-# The running environment's app holds the lock for its lifetime: stopping it frees the lock.
-stop_env_app() { log "stopped app pid $1"; stop_pid "$1"; }
 trap release_lock EXIT
-acquire_lock test-env-down stop_env_app || { log "teardown skipped; nothing was changed"; exit 1; }
+acquire_lock test-env-down || { log "teardown skipped; nothing was changed"; exit 1; }
 
-stop_pid "$(json_get "$DESCRIPTOR" app.pid)"
+PID=$(json_get "$DESCRIPTOR" app.pid)
+if alive "$PID"; then stop_pid "$PID"; log "stopped app pid $PID"; fi
 if docker inspect "$PG_CONTAINER" >/dev/null 2>&1 && docker rm -f "$PG_CONTAINER" >/dev/null 2>&1; then
   log "removed $PG_CONTAINER"
 fi

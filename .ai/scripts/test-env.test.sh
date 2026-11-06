@@ -49,6 +49,7 @@ EOF
   cat > "$R/bin/npm" <<'EOF'
 #!/bin/sh
 echo "npm $*" >> "$CALLS"
+case "$*" in *"run build"*) echo "build-start $$" >> "$CALLS"; sleep "${FAKE_BUILD_SLEEP:-0}"; echo "build-end $$" >> "$CALLS" ;; esac
 case "$*" in *"${FAKE_NPM_FAIL:-<none>}"*) exit 1 ;; esac
 exit 0
 EOF
@@ -64,33 +65,53 @@ descriptor() { # dir app-pid fingerprint
     "$2" "$3" > "$1/.ai/qa/test-env.json"
   printf 'TEST_ENV_PROBE_COOKIE=x=y\n' > "$1/.ai/qa/test-env.env"
 }
-lock_by() { mkdir -p "$1/.ai/qa/test-env.lock"; printf '{ "pid": %s }\n' "$2" > "$1/.ai/qa/test-env.lock/owner.json"; }
+LOCK_TRY='use Fcntl qw(:flock); open(my $f, ">&=", 9) or exit 2; exit(flock($f, LOCK_EX | LOCK_NB) ? 0 : 1)'
+# A process holding the real flock, as a bootstrap would. Sets HOLDER.
+hold_lock() {
+  lock=$1/.ai/qa/test-env.flock
+  rm -f "$lock.ready"
+  sh -c 'exec 9>>"$1"; perl -e "$2" && : > "$1.ready" && exec sleep 300' _ "$lock" "$LOCK_TRY" >/dev/null 2>&1 &
+  HOLDER=$!; PIDS="$PIDS $HOLDER"
+  while [ ! -e "$lock.ready" ]; do sleep 0.1; done
+}
+lock_free() { sh -c 'exec 9>>"$1"; perl -e "$2"' _ "$1/.ai/qa/test-env.flock" "$LOCK_TRY"; }
 
 # 1. A caller that times out on another bootstrap's lock must not touch its database.
 sandbox lock-timeout
-live_pid; OTHER=$LIVE
 descriptor "$R" "$(dead_pid)" none
-lock_by "$R" "$OTHER"
+hold_lock "$R"
 TEST_ENV_LOCK_WAIT_SECONDS=1 sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"; status=$?
 check "up: lock timeout exits non-zero" '[ "$status" != 0 ]'
 check "up: lock timeout removes no container" '! grep -q "docker rm" "$CALLS"'
-check "up: lock timeout keeps the other owner's lock" 'grep -q "\"pid\": $OTHER" "$R/.ai/qa/test-env.lock/owner.json"'
+check "up: lock timeout leaves the holder's lock held" '! lock_free "$R"'
 TEST_ENV_LOCK_WAIT_SECONDS=1 sh "$R/.ai/scripts/test-env-down.sh" > "$R/out" 2> "$R/err"; status=$?
 check "down: waits for a bootstrap and changes nothing" \
-  '[ "$status" != 0 ] && ! grep -q "docker rm" "$CALLS" && grep -q "\"pid\": $OTHER" "$R/.ai/qa/test-env.lock/owner.json"'
+  '[ "$status" != 0 ] && ! grep -q "docker rm" "$CALLS" && ! lock_free "$R"'
+kill "$HOLDER"; wait "$HOLDER" 2>/dev/null
+check "lock: released by the kernel when its holder dies" 'lock_free "$R"'
 
 # 2. A failed bootstrap removes the container it created and releases its lock.
 sandbox own-cleanup
 FAKE_NPM_FAIL=db:migrate sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"; status=$?
 check "up: failed bootstrap exits non-zero" '[ "$status" != 0 ]'
 check "up: failed bootstrap removes its own container last" '[ "$(tail -n 1 "$CALLS" | cut -d" " -f1-3)" = "docker rm -f" ]'
-check "up: failed bootstrap releases its lock" '[ ! -e "$R/.ai/qa/test-env.lock" ]'
+check "up: failed bootstrap releases its lock" 'lock_free "$R"'
+
+# 2b. Two bootstraps at once are serialized: one builds and cleans up before the other starts.
+sandbox concurrent
+FAKE_BUILD_SLEEP=1 FAKE_NPM_FAIL=db:migrate sh "$R/.ai/scripts/test-env-up.sh" > "$R/out1" 2> "$R/err1" &
+FIRST=$!
+FAKE_BUILD_SLEEP=1 FAKE_NPM_FAIL=db:migrate sh "$R/.ai/scripts/test-env-up.sh" > "$R/out2" 2> "$R/err2"
+wait "$FIRST"
+ORDER=$(grep -E "^(build-start|build-end|docker run|docker rm)" "$CALLS" | awk '{print ($1 == "docker") ? $1 " " $2 : $1}' | tr '\n' ' ')
+check "up: concurrent bootstraps never overlap" \
+  '[ "$ORDER" = "build-start build-end docker rm docker run docker rm build-start build-end docker rm docker run docker rm " ]'
+check "up: concurrent bootstraps leave the lock free" 'lock_free "$R"'
 
 # 3. A healthy env is reused, but never with --force-rebuild.
 sandbox force-rebuild
 live_pid; APP=$LIVE
 descriptor "$R" "$APP" "$(fp_in "$R")"
-lock_by "$R" "$APP"
 FAKE_PG_RUNNING=1 sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"; status=$?
 check "up: healthy env is reused" '[ "$status" = 0 ] && grep -q "^TEST_ENV_REUSED=1" "$R/out"'
 FAKE_PG_RUNNING=1 FAKE_DOCKER_INFO_STATUS=1 sh "$R/.ai/scripts/test-env-up.sh" --force-rebuild > "$R/out" 2> "$R/err"
