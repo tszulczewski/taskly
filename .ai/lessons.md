@@ -145,3 +145,5 @@ Long-term memory for AI agents working on this project. Read this file **before 
 - 2026-10-15 — No Docker: run integration tests with `TEST_DATABASE_URL` on the dev DB; tests must create and delete their own uniquely named rows → [details](lessons/2026-10-15-integration-tests-without-docker.md)
 - 2026-10-14 — "Set up" means skeleton only; do not implement features unasked → [details](lessons/2026-10-14-scope-skeleton-only.md)
 - 2026-10-14 — tsc fails on a clean tree until `next typegen` runs → [details](lessons/2026-10-14-typecheck-needs-typegen.md)
+
+- 2026-11-06 — PID lock recovery: renaming a lock directory before checking its current owner opens a window for another bootstrap to acquire it. Restoring the directory on an owner mismatch does not close that window; stale-lock reclamation must itself be serialized. Found in PR #63 review with a controlled competing acquisition.
