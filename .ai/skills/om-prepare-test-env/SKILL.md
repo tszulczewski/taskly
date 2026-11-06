@@ -1,6 +1,6 @@
 # om-prepare-test-env — Taskly overrides
 
-The entrypoint is `.ai/scripts/test-env-up.sh` (teardown `.ai/scripts/test-env-down.sh`, shared helpers `.ai/scripts/test-env-lib.sh`); the descriptor is `.ai/qa/test-env.json`. Run the script; do not boot the app by hand. After changing the scripts, run `sh .ai/scripts/test-env.test.sh` (command doubles, no Docker, ~4s), then one real cold and one warm run.
+The entrypoint is `.ai/scripts/test-env-up.sh` (teardown `.ai/scripts/test-env-down.sh`, shared helpers `.ai/scripts/test-env-lib.sh`); the descriptor is `.ai/qa/test-env.json`. Run the script; do not boot the app by hand. After changing the scripts, run `npm run test:env-scripts` (command doubles, no Docker, ~4s; CI runs it in the lint job), then one real cold and one warm run.
 
 ## Working command chain (what the script does)
 

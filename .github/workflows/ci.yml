@@ -29,6 +29,7 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run check:agents
+      - run: npm run test:env-scripts
       - run: npm run typecheck
 
   unit:
