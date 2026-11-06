@@ -43,3 +43,7 @@ Fix the three keyboard and focus problems in `PlacePicker` / `PlaceColorPicker` 
 ## Lessons recorded (links into .ai/lessons.md)
 
 - 2026-11-05: Chrome under agent-browser needs a short `TMPDIR` in cezar worktrees.
+
+## 2026-11-06 — republished from the cezar autosave branch
+
+The fix stayed only on the local branch `cez/75938b3c`. It was cherry-picked onto `main` (`f93db62`) as `fix/place-picker-focus`; the `.ai/lessons.md` conflict kept both sides. Gate on the new base: `lint`, `check:agents`, `typecheck`, `test` (1064 tests, 100% coverage), `build`, `audit` pass; `format:check` passes for every tracked file and warns only on the untracked `.ai/cezar/runs.json`. `test:integration`: 198/199; `completion-browser` AC8–AC12 timed out on the reopen of A ("shown: B, C, A✓"). It is flaky on `main` as well (1 of 6 runs) and never opens the places popover, so this change does not reach it.
