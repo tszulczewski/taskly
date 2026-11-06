@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { PlacePickerDemo } from "../../../blocks/PlacePickerDemo";
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { DoDont, Narrow } from "../../../blocks/Primitives";
@@ -49,6 +49,19 @@ export const Playground: Story = {
     await expect(await canvas.findByRole("checkbox", { name: "Jadalnia" })).toBeChecked();
     await expect(canvas.getByLabelText("New place")).toHaveValue("");
     await expect(canvas.getByLabelText("New place")).toHaveFocus();
+
+    // Every action that removes the focused control hands focus to a control nearby (WCAG 2.4.3).
+    await openEditPlaces(canvas);
+    await userEvent.click(canvas.getByRole("button", { name: "Edit Kuchnia" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Edit Kuchnia" })).toHaveFocus());
+    await userEvent.click(canvas.getByRole("button", { name: "Edit Garaż" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Delete place" }));
+    await expect(canvas.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "Delete place" }));
+    // Garaż is gone; the next place, Ogródek, has the focus.
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Edit Ogródek" })).toHaveFocus());
+    await expect(canvas.queryByRole("button", { name: "Edit Garaż" })).toBeNull();
   },
 };
 
@@ -73,6 +86,20 @@ export const AtLimit: Story = {
       canvas.getByText("You can have up to 20 places. Delete one to add another."),
     ).toBeVisible();
     await expect(canvas.queryByLabelText("New place")).toBeNull();
+  },
+};
+
+/** The twentieth place replaces the form with the limit message, which takes the focus (D26). */
+export const ReachingTheLimit: Story = {
+  args: { initialPlaces: twentyPlaces.slice(0, 19) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByLabelText("New place"), "Garderoba{Enter}");
+    const limit = await canvas.findByText(
+      "You can have up to 20 places. Delete one to add another.",
+    );
+    await expect(limit).toHaveFocus();
+    await expect(canvas.getByRole("checkbox", { name: "Garderoba" })).toBeChecked();
   },
 };
 
@@ -138,6 +165,11 @@ export const ConfirmDelete: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Edit Garaż" }));
     await userEvent.click(canvas.getByRole("button", { name: "Delete place" }));
     await expect(canvas.getByText("Delete “Garaż”? It is removed from every task.")).toBeVisible();
+    // One Cancel: the form's Save and Cancel are hidden while the question asks.
+    await expect(canvas.getAllByRole("button", { name: "Cancel" })).toHaveLength(1);
+    await expect(canvas.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
+    await expect(canvas.getByRole("button", { name: "Delete place" })).toHaveFocus();
   },
 };
 

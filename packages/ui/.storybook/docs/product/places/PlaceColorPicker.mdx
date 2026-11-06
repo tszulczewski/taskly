@@ -34,6 +34,7 @@ Lets the owner change a place's colour to one of the ten place colours, so place
 | Group  | yes      | A radio group named by `label` ("Colour"); the place form puts it in a `fieldset` with that legend                               |
 | Swatch | yes      | A 44 × 44 px (36 × 36 px from 640px) target (`size-touch`) around a `size-icon` dot in `color-place-N`; named in words ("Olive") |
 | Chosen | yes      | An outline in `color-text-primary` around the dot (`swatch-selected`, `focus-ring-width` / `focus-ring-offset`)                  |
+| Focus  | yes      | The focus ring (`focus-ring`) around the whole target, not the dot, so it never looks like Chosen                                |
 
 ## 5. Variants
 
@@ -52,7 +53,7 @@ None: it is used only when editing a place, with the place's colour chosen and e
 | State    | What the user sees                                                    | Story      | Source |
 | -------- | --------------------------------------------------------------------- | ---------- | ------ |
 | Chosen   | Outline around the dot; `aria-checked`.                               | Playground | Luki 3 |
-| Focus    | Focus ring around the dot.                                            | Playground | T6     |
+| Focus    | Focus ring around the target; with Chosen, both rings show.           | States     | T6     |
 | Repeated | A colour another place has can be chosen, as from the eleventh place. | States     | D26    |
 
 ## 7. Behaviour and accessibility
