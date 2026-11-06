@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { ensureDefaultList } from "@taskly/core/server";
+import { createTask, deleteTask, ensureDefaultList } from "@taskly/core/server";
 import { schema } from "@taskly/db";
 import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -34,6 +34,10 @@ const sumBack = (title: string, amount: string) =>
 // The meta line's subtask progress since E03: "0/2" shown, "0 of 2 subtasks completed" read out.
 const progress = (done: number, total: number) =>
   `${done}/${total}${done} of ${total} ${total === 1 ? "subtask" : "subtasks"} completed`;
+
+// Spec E01, UI/UX: a 404 on a save or a subtask add, and the 409 of a task that got subtasks.
+const DELETED = "This task was deleted. The list has been refreshed.";
+const HAS_SUBTASKS = "A task with subtasks takes its estimate from them";
 
 const QUICK_ADD = '[data-slot="quick-add"]';
 const field = (name: string) => `${QUICK_ADD} [name="${name}"]`;
@@ -650,5 +654,78 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     expect(
       await db.select(columns).from(schema.tasks).where(eq(schema.tasks.listId, user.listId)),
     ).toEqual([]);
+  });
+
+  // SUBTASKS-001 (spec E01, Edge Cases "Parent deleted while a subtask is being added").
+  it("drops the task with the deleted notice when a subtask is added to a task deleted in another tab", async () => {
+    const user = await openAs("gone-parent");
+    await addTask({ title: "Fix the door" });
+    await addTask({ title: "Walls" });
+    const walls = await storedTask(user.listId, "Walls");
+
+    await openSubtaskForm("Walls");
+    await deleteTask(db, user.id, walls.id);
+    await fillSubtask({ title: "Plaster", amount: "200" });
+
+    await browser.waitFor(
+      () => task("Walls") === undefined && subtaskFormClosed(),
+      () => `“Walls” to go (alerts: ${JSON.stringify(browser.alerts())})`,
+    );
+    expect(browser.alerts()).toContain(DELETED);
+    expect(
+      browser.evaluate<string | null>(`document.activeElement?.getAttribute("data-slot") ?? null`),
+    ).toBe("task-list");
+    expect(task("Fix the door")).toBeDefined();
+    expect(
+      (
+        await db
+          .select({ title: schema.tasks.title })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.listId, user.listId))
+      ).map((t) => t.title),
+    ).toEqual(["Fix the door"]);
+  });
+
+  // SUBTASKS-002 (spec E01, UI/UX "409 on an edit save", and the Edge Case of an estimate and a
+  // title changed together while the task got a subtask in another tab).
+  it("refuses an estimate save with the server's message when the task got a subtask in another tab, and saving again saves only the title", async () => {
+    const user = await openAs("edit-409");
+    await addTask({ title: "Shelf", amount: "200" });
+    const own = await storedTask(user.listId, "Shelf");
+    const form = editForm("Shelf");
+
+    rowAction("Shelf", "Edit");
+    await browser.waitForHydrated(`${form} [name="amount"]`);
+    await createTask(db, user.id, user.listId, {
+      title: "Brackets",
+      parentId: own.id,
+      estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
+    });
+    browser.retypeInto(`${form} [name="title"]`, "Wall shelf");
+    browser.retypeInto(`${form} [name="amount"]`, "500");
+    browser.clickRole("button", "Save");
+
+    // The message stays, the typed title too, and the amounts give way to the read-only sum.
+    await browser.waitFor(
+      () =>
+        browser.alerts().includes(HAS_SUBTASKS) &&
+        browser.count(`${form} [name="amount"], ${form} [name="upTo"]`) === 0,
+      () => `the 409 message and the sum (alerts: ${JSON.stringify(browser.alerts())})`,
+    );
+    expect(fieldValue(`${form} [name="title"]`)).toBe("Wall shelf");
+    expect(
+      browser.evaluate<string>(
+        `document.querySelector(${JSON.stringify(`${form} [data-slot="summed-estimate"]`)}).textContent`,
+      ),
+    ).toBe(`Sum of subtasks:${shown("300-400 zł")}Change the amounts on the subtasks.`);
+    expect(await storedTask(user.listId, "Shelf")).toEqual(own);
+
+    browser.clickRole("button", "Save");
+    await browser.waitFor(
+      () => formClosed() && task("Wall shelf")?.estimate === shown("300-400 zł"),
+      () => `the renamed task (shown: ${JSON.stringify(task("Wall shelf"))})`,
+    );
+    // The title is saved; the typed 200 zł is kept under the sum, never the refused 500 zł.
+    expect(await storedTask(user.listId, "Wall shelf")).toEqual({ ...own, title: "Wall shelf" });
   });
 });

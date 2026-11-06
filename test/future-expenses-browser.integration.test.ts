@@ -26,6 +26,8 @@ const QUICK_ADD = '[data-slot="quick-add"]';
 const field = (name: string) => `${QUICK_ADD} [name="${name}"]`;
 const EDIT_FORM = '[data-slot="task-form"]';
 const NO_TOTAL = "No estimates yet";
+const EXPENSES_API = "**/api/lists/*/future-expenses";
+const LOAD_FAILED = "Could not load future expenses.";
 
 // #21 (E03-S02) in the browser against the production build, sign-up closed: the total under the
 // list's name follows add, edit, delete, complete and reopen (AC1, AC3–AC7, #20 AC7), and counts a
@@ -103,6 +105,7 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
   beforeEach(() => {
     browser.open("about:blank");
     browser.clearCookies();
+    browser.unroute(EXPENSES_API);
   });
 
   afterAll(async () => {
@@ -209,5 +212,75 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     browser.reload();
     await browser.waitForHydrated(field("title"));
     await expectTotal(shown("1 300-1 400 zł"));
+  });
+
+  // EXPENSES-001 (spec E03, UI/UX "Future expenses" and Edge Cases "Future-expenses request fails").
+  it("shows the future-expenses error with Try again while the task list keeps working, and Try again loads the total", async () => {
+    const user = await signIn("load-failed");
+    await createTask(db, user.id, user.listId, {
+      title: "Tiles",
+      estimate: { minGrosze: 100_000, maxGrosze: 200_000 },
+    });
+    const summaryText = () =>
+      browser.evaluate<string>(
+        `document.querySelector('[data-slot="future-expenses"]')?.innerText ?? ""`,
+      );
+
+    browser.abortRequests(EXPENSES_API);
+    try {
+      await openTasks(user);
+      await browser.waitFor(
+        () => summaryText().includes(LOAD_FAILED) && rowTitles().includes("Tiles"),
+        () => `the summary's error and the list (summary: ${JSON.stringify(summaryText())})`,
+      );
+      expect(summaryText()).toContain("Try again");
+      // The list is unaffected: a task can still be added.
+      await addTask("Paint", "500");
+      expect(rowTitles()).toEqual(["Tiles", "Paint"]);
+      // The add's refetch of a query that never had data goes through loading, then fails again.
+      await browser.waitFor(
+        () => summaryText().includes(LOAD_FAILED),
+        () => `the summary's error again (summary: ${JSON.stringify(summaryText())})`,
+      );
+    } finally {
+      browser.unroute(EXPENSES_API);
+    }
+
+    browser.clickRole("button", "Try again");
+    await expectTotal(shown("1 500-2 500 zł"));
+    expect(summaryText()).not.toContain(LOAD_FAILED);
+  });
+
+  // EXPENSES-002 (spec E03, Edge Cases "An exact price of 0 zł").
+  it("counts an exact price of 0 zł as 0 zł and does not list it as without an estimate", async () => {
+    const user = await signIn("zero");
+    await openTasks(user);
+    await expectTotal(NO_TOTAL);
+
+    await addTask("Leftover paint", "0");
+    await expectTotal(shown("0 zł"));
+    expect(
+      browser.evaluate<string | null>(
+        `document.querySelector('[data-slot="future-expenses"] button[aria-expanded]')?.textContent ?? null`,
+      ),
+    ).toBeNull();
+    expect(
+      browser.evaluate<string>(
+        `document.querySelector('[data-slot="task-row"] [data-slot="estimate-range"]').textContent`,
+      ),
+    ).toBe(shown("0 zł"));
+
+    await addTask("Tiles", "1000", "2000");
+    await expectTotal(shown("1 000-2 000 zł"));
+    expect(
+      await db
+        .select({
+          title: schema.tasks.title,
+          min: schema.tasks.estimateMinGrosze,
+          max: schema.tasks.estimateMaxGrosze,
+        })
+        .from(schema.tasks)
+        .where(and(eq(schema.tasks.listId, user.listId), eq(schema.tasks.title, "Leftover paint"))),
+    ).toEqual([{ title: "Leftover paint", min: 0, max: 0 }]);
   });
 });
