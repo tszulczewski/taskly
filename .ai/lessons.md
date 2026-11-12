@@ -157,3 +157,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 - 2026-10-14 — tsc fails on a clean tree until `next typegen` runs → [details](lessons/2026-10-14-typecheck-needs-typegen.md)
 
 - 2026-11-06 — PID lock recovery: renaming a lock directory before checking its current owner opens a window for another bootstrap to acquire it. Restoring the directory on an owner mismatch does not close that window; stale-lock reclamation must itself be serialized. Found in PR #63 review with a controlled competing acquisition.
+
+- 2026-11-12 — Do not run `test-env-up.sh` while browser integration tests use the same worktree: its bootstrap rebuilds `.next`, temporarily removes the standalone server, and causes missing-build or HTTP 500 failures. Finish bootstrap/build first, then run integration against the stable artifact (PR #70 verification).
+- 2026-11-12 — GitHub tracker label-removal guards require standalone `jq`, even though `gh --jq` itself works without it. Check that prerequisite before label transitions; if unavailable, use equivalent percent-encoding in the temporary guard and read labels back to verify only one pipeline state remains (PR #70).
+- 2026-11-12 — A place edit must send only fields changed from the values when its form opened. Sending its whole stale name/colour overwrites independent changes from another tab. Capture the opening values in the form, preserve them across rerenders, and treat an unchanged Save as no write (PR #70 stale-tab QA).

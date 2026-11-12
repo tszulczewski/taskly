@@ -49,7 +49,8 @@ export interface PlacePickerProps extends PlacesState {
   onToggle: (placeId: string, assigned: boolean) => void;
   /** Creates a place, coloured by the app, and adds this task to it. */
   onCreate: PlaceSubmit;
-  onUpdate: (placeId: string, values: PlaceValues) => Promise<SubmitResult<"name">>;
+  /** Only fields changed from the values when the edit opened; unchanged saves do not write. */
+  onUpdate: (placeId: string, values: Partial<PlaceValues>) => Promise<SubmitResult<"name">>;
   /** Deletes a place everywhere; resolve `false` (or throw) to show the failure. */
   onDelete: (placeId: string) => Promise<boolean>;
   /** The app's name rules (not empty, at most 30 characters, unique ignoring case, G4, D26); `placeId` when renaming. */
@@ -145,6 +146,7 @@ function EditPlace({
   validateName: PlacePickerProps["validateName"];
   t: PlaceText;
 }) {
+  const [opened] = useState(place);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(false);
@@ -179,12 +181,19 @@ function EditPlace({
     <div className="flex flex-col gap-between-groups border-y border-divider py-group">
       <PlaceForm
         placeId={place.id}
-        initialName={place.name}
+        initialName={opened.name}
         nameLabel={t.name}
         submitLabel={t.save}
         pendingLabel={t.saving}
         onSubmit={async (name) => {
-          const result = await onUpdate(place.id, { name, color });
+          // A stale form must not overwrite a field edited elsewhere or refreshed while open.
+          const changes: Partial<PlaceValues> = {};
+          if (name !== opened.name) changes.name = name;
+          if (color !== opened.color) changes.color = color;
+          const result =
+            Object.keys(changes).length === 0
+              ? { ok: true as const }
+              : await onUpdate(place.id, changes);
           if (result.ok) onClose();
           return result;
         }}

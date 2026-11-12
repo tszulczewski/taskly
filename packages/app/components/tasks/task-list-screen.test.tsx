@@ -1605,7 +1605,7 @@ describe("TaskListScreen places (#19)", () => {
     answer = () => ok({ ...kuchnia, name: "Aneks" });
     await pressIn("Save");
     await waitFor(() => expect(tagsOf("Seal the bath")).toEqual(["Aneks"]));
-    expect(sent("PATCH", placeUrl(kuchnia.id))).toEqual({ name: "Aneks", color: 4 });
+    expect(sent("PATCH", placeUrl(kuchnia.id))).toEqual({ name: "Aneks" });
     expect(calls("GET", TASKS_URL)).toHaveLength(1);
   });
 

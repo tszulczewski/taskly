@@ -225,8 +225,60 @@ describe("PlacePicker", () => {
     renderPicker({ onUpdate });
     await click("Edit places");
     await click("Edit Bathroom");
+    type("Name", "New bathroom");
     await click("Save");
     expect(screen.getByText("A place with this name exists.")).toBeTruthy();
+  });
+
+  it("preserves a newer colour when a stale form renames, even after refreshed props arrive", async () => {
+    let stored = { ...kitchen };
+    const onUpdate = vi.fn(async (_id: string, changes: Partial<Place>) => {
+      stored = { ...stored, ...changes };
+      return { ok: true as const };
+    });
+    const picker = (place: Place) => (
+      <PlacePicker
+        taskTitle="Seal the bath"
+        places={[place]}
+        selectedIds={[]}
+        status="ready"
+        onRetry={vi.fn()}
+        onToggle={vi.fn()}
+        onCreate={ok}
+        onUpdate={onUpdate}
+        onDelete={async () => true}
+        validateName={noErrors}
+        atLimit={false}
+      />
+    );
+    const { rerender } = render(picker(stored));
+    await click("Edit places");
+    await click("Edit Kitchen");
+    stored = { ...stored, color: 4 };
+    rerender(picker(stored));
+    type("Name", "Dining");
+    await click("Save");
+    expect(onUpdate).toHaveBeenCalledWith("kitchen", { name: "Dining" });
+    expect(stored).toEqual({ id: "kitchen", name: "Dining", color: 4 });
+  });
+
+  it("sends only colour when recolouring a stale form, preserving a newer name", async () => {
+    const { onUpdate } = renderPicker();
+    await click("Edit places");
+    await click("Edit Bathroom");
+    await click("Green", "radio");
+    await click("Save");
+    expect(onUpdate).toHaveBeenCalledWith("bathroom", { color: 4 });
+  });
+
+  it("closes an unchanged edit without writing its stale values", async () => {
+    const { onUpdate } = renderPicker();
+    await click("Edit places");
+    await click("Edit Kitchen");
+    await click("Save");
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Kitchen" }));
   });
 
   it("asks before deleting a place and can cancel", async () => {

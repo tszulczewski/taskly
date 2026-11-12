@@ -105,21 +105,21 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 `PlacePicker` props (the demo above wraps it with a simulated server):
 
-| Prop           | Type                                                 | Notes                                                                    |
-| -------------- | ---------------------------------------------------- | ------------------------------------------------------------------------ |
-| `taskTitle`    | `string`                                             | Names the panel.                                                         |
-| `places`       | `Place[]`                                            | Every place of the owner.                                                |
-| `selectedIds`  | `string[]`                                           | The task's places.                                                       |
-| `onToggle`     | `(placeId, assigned) => void`                        | Saves at once (optimistic).                                              |
-| `onCreate`     | `({ name }) => Promise<SubmitResult<"name">>`        | Creates a place and puts the task in it; the app picks its colour (D26). |
-| `onUpdate`     | `(placeId, values) => Promise<SubmitResult<"name">>` | Rename and recolour.                                                     |
-| `onDelete`     | `(placeId) => Promise<boolean>`                      | `false` or a throw shows the failure.                                    |
-| `validateName` | `(name, placeId?) => string \| undefined`            | The app's rules (G4, D26).                                               |
-| `atLimit`      | `boolean`                                            | The app's limit of 20 is reached (D26).                                  |
-| `status`       | `"loading" \| "error" \| "ready"`                    | Only `ready` shows the places, New place and Edit places (spec E02, F2). |
-| `onRetry`      | `() => void`                                         | "Try again" in the `error` state.                                        |
-| `retrying`     | `boolean`                                            | "Trying again…" while the retry runs; the failure stays on screen.       |
-| `text`         | `Partial<PlaceText>`                                 | Translations.                                                            |
+| Prop           | Type                                                 | Notes                                                                                            |
+| -------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `taskTitle`    | `string`                                             | Names the panel.                                                                                 |
+| `places`       | `Place[]`                                            | Every place of the owner.                                                                        |
+| `selectedIds`  | `string[]`                                           | The task's places.                                                                               |
+| `onToggle`     | `(placeId, assigned) => void`                        | Saves at once (optimistic).                                                                      |
+| `onCreate`     | `({ name }) => Promise<SubmitResult<"name">>`        | Creates a place and puts the task in it; the app picks its colour (D26).                         |
+| `onUpdate`     | `(placeId, values) => Promise<SubmitResult<"name">>` | Only changed name/colour fields (`Partial<PlaceValues>`); unchanged Save closes without writing. |
+| `onDelete`     | `(placeId) => Promise<boolean>`                      | `false` or a throw shows the failure.                                                            |
+| `validateName` | `(name, placeId?) => string \| undefined`            | The app's rules (G4, D26).                                                                       |
+| `atLimit`      | `boolean`                                            | The app's limit of 20 is reached (D26).                                                          |
+| `status`       | `"loading" \| "error" \| "ready"`                    | Only `ready` shows the places, New place and Edit places (spec E02, F2).                         |
+| `onRetry`      | `() => void`                                         | "Try again" in the `error` state.                                                                |
+| `retrying`     | `boolean`                                            | "Trying again…" while the retry runs; the failure stays on screen.                               |
+| `text`         | `Partial<PlaceText>`                                 | Translations.                                                                                    |
 
 <ArgTypes of={Stories} />
 
@@ -138,7 +138,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
     validateName: placeNameRule(places),
     onToggle: (taskId, placeId, on) => toggle.mutate({ taskId, placeId, on }),
     onCreate: (taskId, values) => createPlace(taskId, values),
-    onUpdate: (placeId, values) => updatePlace(placeId, values),
+    onUpdate: (placeId, changes) => updatePlace(placeId, changes),
     onDelete: (placeId) => deletePlace(placeId),
   }}
 />

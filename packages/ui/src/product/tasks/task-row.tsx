@@ -67,7 +67,7 @@ export interface PlaceOptions extends PlacesState {
   onToggle: (taskId: string, placeId: string, assigned: boolean) => void;
   /** Creates a place, coloured by the app (D26), and adds the task to it. */
   onCreate: (taskId: string, values: NewPlaceValues) => Promise<SubmitResult<"name">>;
-  onUpdate: (placeId: string, values: PlaceValues) => Promise<SubmitResult<"name">>;
+  onUpdate: (placeId: string, values: Partial<PlaceValues>) => Promise<SubmitResult<"name">>;
   onDelete: (placeId: string) => Promise<boolean>;
   text?: Partial<PlaceText>;
 }

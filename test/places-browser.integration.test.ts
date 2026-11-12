@@ -254,6 +254,38 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     expect((await storedPlaces(user.id)).map((place) => place.name)).not.toContain("Salon");
   });
 
+  it("preserves a newer colour when another tab saves a stale name-only edit", async () => {
+    const user = await openPlanned("stale-edit");
+    await openPlaces("A");
+    browser.clickRole("button", "Edit places");
+    browser.clickRole("button", "Edit Kuchnia");
+
+    const peer = createBrowser("taskly-places-stale-peer");
+    try {
+      peer.setSessionCookie(user.cookie, app.url);
+      peer.open(`${app.url}/`);
+      await peer.waitForHydrated('[role="checkbox"]');
+      peer.clickRole("button", "More actions for “A”");
+      peer.clickRole("menuitem", "Places…");
+      await peer.waitForText("Edit places");
+      peer.clickRole("button", "Edit places");
+      peer.clickRole("button", "Edit Kuchnia");
+      peer.clickRole("radio", "Teal");
+      peer.clickRole("button", "Save");
+      await expect
+        .poll(async () => (await storedPlaces(user.id)).find((place) => place.name === "Kuchnia"))
+        .toEqual({ name: "Kuchnia", color: 9 });
+
+      browser.retypeInto(NAME_FIELD, "Aneks");
+      browser.clickRole("button", "Save");
+      await expect
+        .poll(async () => (await storedPlaces(user.id)).find((place) => place.name === "Aneks"))
+        .toEqual({ name: "Aneks", color: 9 });
+    } finally {
+      peer.close();
+    }
+  });
+
   // PLACES-003 (#19 AC9).
   it("gives a subtask its own places, never its task's, also after a reload", async () => {
     const user = await openPlanned("subtask");

@@ -32,8 +32,8 @@ export function useCreatePlace() {
 
 export interface UpdatePlaceVariables {
   placeId: string;
-  name: string;
-  color: number;
+  name?: string;
+  color?: number;
 }
 
 /**

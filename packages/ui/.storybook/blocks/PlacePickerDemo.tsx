@@ -81,7 +81,7 @@ export function PlacePickerDemo({
           setPlaces((list) =>
             list.map((place) =>
               place.id === placeId
-                ? { ...place, name: values.name.trim(), color: values.color }
+                ? { ...place, ...values, name: values.name?.trim() ?? place.name }
                 : place,
             ),
           );
