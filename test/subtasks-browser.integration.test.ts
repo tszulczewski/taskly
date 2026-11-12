@@ -590,7 +590,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       browser.evaluate<string[]>(
         `[...document.querySelectorAll('[role="menuitem"]')].map((e) => e.textContent.trim())`,
       ),
-    ).toEqual(["Edit", "Delete"]);
+    ).toEqual(["Edit", "Places…", "Delete"]);
     browser.clickRole("menuitem", "Edit");
 
     // An exact price opens in "Amount" only; filling "up to" makes it a range.
