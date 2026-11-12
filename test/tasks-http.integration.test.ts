@@ -160,6 +160,8 @@ describe("task routes over HTTP", () => {
       description: null,
       estimate: { minGrosze: 150_000, maxGrosze: 200_000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: expect.any(String),
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -234,6 +236,8 @@ describe("task routes over HTTP", () => {
           description: null,
           estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
           completed: false,
+          important: false,
+          urgent: false,
           position: expect.any(String),
         },
       ],
@@ -284,6 +288,38 @@ describe("task routes over HTTP", () => {
     });
     const deleted = await api(`/tasks/${subtaskId}`, { method: "DELETE", cookie: owner.cookie });
     expect(deleteTaskResponseSchema.parse(await okData(deleted))).toEqual(parent);
+  });
+
+  it("sets and clears one marker per PATCH, leaving the other as it is, and answers 400 for a non-boolean (#18)", async () => {
+    const task = await createOwnerTask("Fence");
+    const patch = (body: unknown) =>
+      api(`/tasks/${task.id}`, { method: "PATCH", cookie: owner.cookie, body });
+
+    const important = taskViewSchema.parse(await okData(await patch({ important: true })));
+    expect(important).toEqual({ ...task, important: true });
+    const both = taskViewSchema.parse(await okData(await patch({ urgent: true })));
+    expect(both).toEqual({ ...task, important: true, urgent: true });
+    const cleared = taskViewSchema.parse(await okData(await patch({ urgent: false })));
+    expect(cleared).toEqual({ ...task, important: true, urgent: false });
+    expect(await taskRow(task.id)).toMatchObject({
+      important: true,
+      urgent: false,
+      title: "Fence",
+    });
+
+    for (const body of [{ urgent: "yes" }, { important: null }]) {
+      const res = await api(`/tasks/${task.id}`, { method: "PATCH", cookie: owner.cookie, body });
+      expect(await failure(res, 400)).toMatchObject({ code: "validation_error" });
+    }
+    expect(await taskRow(task.id)).toMatchObject({ important: true, urgent: false });
+
+    const viewerTry = await api(`/tasks/${task.id}`, {
+      method: "PATCH",
+      cookie: viewer.cookie,
+      body: { urgent: true },
+    });
+    expect(await failure(viewerTry, 403)).toEqual({ code: "forbidden", message: "Forbidden" });
+    expect(await taskRow(task.id)).toMatchObject({ urgent: false });
   });
 
   it("completes a task with its subtasks, reopens it, and answers 400 for a bad body", async () => {

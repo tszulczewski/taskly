@@ -21,6 +21,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -631,6 +633,8 @@ describe("TaskListScreen subtasks", () => {
     description,
     estimate,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
   });
   const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
@@ -1083,6 +1087,8 @@ describe("TaskListScreen completion", () => {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
   };
   const bath = view("Bathroom", { position: "a2", subtasks: [plaster] });
@@ -1267,6 +1273,142 @@ describe("TaskListScreen completion", () => {
     );
     await waitFor(() => expect(screen.queryByRole("textbox", { name: "New subtask" })).toBeNull());
     expect(box("Bathroom").getAttribute("aria-checked")).toBe("true");
+  });
+});
+
+describe("TaskListScreen markers (#18)", () => {
+  const grout: SubtaskView = {
+    id: crypto.randomUUID(),
+    title: "Grout",
+    description: null,
+    estimate: null,
+    completed: false,
+    important: false,
+    urgent: false,
+    position: "a0",
+  };
+  const bath = view("Bathroom", { position: "a2", subtasks: [grout] });
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  /** The marker words on a row's own meta line (not its subtasks'). */
+  const wordsOf = (title: string) =>
+    Array.from(rowOf(title)?.querySelectorAll('[data-slot="marker"]') ?? [])
+      .filter((word) => word.closest('[data-slot="task-row"]') === rowOf(title))
+      .map((word) => word.textContent);
+  const alertOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("alert")
+      .map((region) => region.textContent)
+      .join("");
+  const mark = async (title: string, marker: "Important" | "Urgent") => {
+    openMenu(title);
+    await click(screen.getByRole("menuitemcheckbox", { name: marker }));
+  };
+  const menuChecked = (title: string, marker: "Important" | "Urgent") => {
+    openMenu(title);
+    const state = screen
+      .getByRole("menuitemcheckbox", { name: marker })
+      .getAttribute("aria-checked");
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    return state;
+  };
+  const patches = (id: string) =>
+    calls("PATCH", taskUrl(id)).map(([, init]) => JSON.parse(String(init!.body)) as unknown);
+
+  beforeEach(() => {
+    serverTasks = [tile, { ...seal, position: "a1" }, bath];
+  });
+
+  it("marks a task important at once, sends only that marker and keeps it after the answer (AC1)", async () => {
+    const patch = gate();
+    handlers.set(`PATCH ${taskUrl(tile.id)}`, () => patch.promise);
+    await renderLoaded();
+
+    await mark("Tile the wall", "Important");
+
+    await waitFor(() => expect(wordsOf("Tile the wall")).toEqual(["Important"]));
+    expect(menuChecked("Tile the wall", "Important")).toBe("true");
+    expect(menuChecked("Tile the wall", "Urgent")).toBe("false");
+    await waitFor(() => expect(patches(tile.id)).toEqual([{ important: true }]));
+
+    await act(async () => patch.open(saved({ ...tile, important: true })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(wordsOf("Tile the wall")).toEqual(["Important"]);
+    expect(wordsOf("Seal the bath")).toEqual([]);
+  });
+
+  it("shows both markers when both are set, and clearing urgent keeps important (AC2, AC3)", async () => {
+    handlers.set(`PATCH ${taskUrl(tile.id)}`, (body) => {
+      const [current] = serverTasks;
+      return saved({ ...current!, ...(body as Partial<TaskView>) });
+    });
+    await renderLoaded();
+
+    await mark("Tile the wall", "Important");
+    await mark("Tile the wall", "Urgent");
+    await waitFor(() => expect(wordsOf("Tile the wall")).toEqual(["Important", "Urgent"]));
+    await waitFor(() => expect(patches(tile.id)).toHaveLength(2));
+
+    await mark("Tile the wall", "Urgent");
+
+    await waitFor(() => expect(wordsOf("Tile the wall")).toEqual(["Important"]));
+    await waitFor(() =>
+      expect(patches(tile.id)).toEqual([{ important: true }, { urgent: true }, { urgent: false }]),
+    );
+    await waitFor(() => expect(calls("GET", TASKS_URL).length).toBeGreaterThan(1));
+    expect(wordsOf("Tile the wall")).toEqual(["Important"]);
+  });
+
+  it("marks a subtask without marking its task (AC4)", async () => {
+    handlers.set(`PATCH ${taskUrl(grout.id)}`, () =>
+      saved({ ...bath, subtasks: [{ ...grout, urgent: true }] }),
+    );
+    await renderLoaded();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+
+    await mark("Grout", "Urgent");
+
+    await waitFor(() => expect(wordsOf("Grout")).toEqual(["Urgent"]));
+    expect(wordsOf("Bathroom")).toEqual([]);
+    expect(patches(grout.id)).toEqual([{ urgent: true }]);
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(wordsOf("Grout")).toEqual(["Urgent"]);
+    expect(wordsOf("Bathroom")).toEqual([]);
+  });
+
+  it("puts a refused marker back with a message in its row until the next change", async () => {
+    handlers.set(`PATCH ${taskUrl(tile.id)}`, () =>
+      fail(500, "internal_error", "Something went wrong"),
+    );
+    await renderLoaded();
+
+    await mark("Tile the wall", "Urgent");
+
+    await waitFor(() =>
+      expect(alertOf("Tile the wall")).toBe(
+        "Could not save “Tile the wall”. It is back as it was.",
+      ),
+    );
+    expect(wordsOf("Tile the wall")).toEqual([]);
+
+    handlers.set(`PATCH ${taskUrl(seal.id)}`, () => saved({ ...seal, important: true }));
+    await mark("Seal the bath", "Important");
+    expect(alertOf("Tile the wall")).toBe("");
+  });
+
+  it("treats a 404 as deleted elsewhere: the refetch removes the row and the message shows", async () => {
+    handlers.set(`PATCH ${taskUrl(tile.id)}`, () => {
+      serverTasks = serverTasks.filter((task) => task.id !== tile.id);
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderLoaded();
+
+    await mark("Tile the wall", "Important");
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(rowOf("Tile the wall")).toBeUndefined();
   });
 });
 

@@ -5,6 +5,7 @@ import {
   type EstimateField,
   type EstimateValues,
   FutureExpenses,
+  type Marker,
   QuickAdd,
   type SubmitResult,
   type TaskEdit,
@@ -34,13 +35,13 @@ import {
   validateTaskForm,
 } from "./task-items";
 import {
-  type SetCompletedVariables,
   useAddEstimate,
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
   useSetCompleted,
   useTaskViews,
+  useToggleMarker,
   useUpdateTask,
 } from "./use-tasks";
 
@@ -76,13 +77,14 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const [notice, setNotice] = useState<RowText | null>(null);
   const [rowError, setRowError] = useState<RowText | null>(null);
   // Hook-level, so it runs for every toggle, not only the last one (lesson 2026-10-30). A 404: the
-  // row is gone (deleted elsewhere), and the refetch removes it.
-  const setCompleted = useSetCompleted(listId, {
-    onError: (error, { id, title }: SetCompletedVariables) => {
-      if (isNotFound(error)) setGoneId(id);
-      else setRowError({ taskId: id, text: TASK_SCREEN_TEXT.changeFailed(title) });
-    },
-  });
+  // row is gone (deleted elsewhere), and the refetch removes it. Otherwise the replay has already
+  // put the row back, and the row says so.
+  const changeFailed = (error: unknown, { id, title }: { id: string; title: string }) => {
+    if (isNotFound(error)) setGoneId(id);
+    else setRowError({ taskId: id, text: TASK_SCREEN_TEXT.changeFailed(title) });
+  };
+  const setCompleted = useSetCompleted(listId, { onError: changeFailed });
+  const toggleMarker = useToggleMarker(listId, { onError: changeFailed });
   // A refetch of a list that never loaded goes back to "pending"; the failure stays on screen,
   // with "Trying again…", until it answers.
   const [retrying, setRetrying] = useState(false);
@@ -230,6 +232,13 @@ export function TaskListScreen({ listId }: { listId: string }) {
     setCompleted.mutate({ id, completed, title: titleOf(views, id) });
   };
 
+  // "Important" / "Urgent" in the "…" of a row on screen (spec E02, #18): shown at once by the
+  // replay, saved in the list queue.
+  const markTask = (id: string, marker: Marker, on: boolean) => {
+    startChange();
+    toggleMarker.mutate({ id, marker, on, title: titleOf(views, id) });
+  };
+
   /** A row's item, with the message it currently has. */
   const withText = (item: TaskItem): TaskItem => ({
     ...item,
@@ -275,6 +284,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
           onAddSubtask={addSubtask}
           onDelete={remove}
           onToggleComplete={toggleComplete}
+          onToggleMarker={markTask}
           highlightId={highlightId}
         />
       </div>
