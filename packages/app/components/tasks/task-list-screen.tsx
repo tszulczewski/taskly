@@ -17,8 +17,10 @@ import {
   type TaskSubmit,
 } from "@taskly/ui";
 import { useLayoutEffect, useRef, useState } from "react";
-import { PLACE_LIMIT, placeNameError, TASK_COMPLETED_MESSAGE } from "@taskly/core";
+import { PLACE_LIMIT, placeNameError, type PlaceView, TASK_COMPLETED_MESSAGE } from "@taskly/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../lib/api-client";
+import { queryKeys } from "../../lib/query-keys";
 import {
   addEstimateError,
   hasTask,
@@ -99,10 +101,14 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const deletePlace = useDeletePlace(listId);
   // A 404 about the place: deleted meanwhile. Deleted here, its tick was already skipped by the
   // replay and nothing went back (P9); deleted elsewhere, the row says the tick went back.
+  const queryClient = useQueryClient();
   const togglePlace = useTogglePlace(listId, {
     onError: (error, variables) => {
       if (!isPlaceNotFound(error)) return changeFailed(error, variables);
-      const cached = places.data?.some((place) => place.id === variables.placeId) ?? false;
+      // Read from the cache, not this render: a delete in this tab may have landed since.
+      const cached = queryClient
+        .getQueryData<PlaceView[]>(queryKeys.places())
+        ?.some((place) => place.id === variables.placeId);
       if (cached) {
         setRowError({ taskId: variables.id, text: TASK_SCREEN_TEXT.changeFailed(variables.title) });
       }

@@ -5,7 +5,13 @@ import { ApiError } from "../../lib/api-client";
 import {
   applyCompletion,
   applyMarker,
+  applyPlace,
   hasTask,
+  isPlaceNotFound,
+  PLACE_TEXT,
+  placeSubmitError,
+  withPlaceDeleted,
+  withPlaceUpdated,
   isNotFound,
   addEstimateError,
   isPendingTaskId,
@@ -125,6 +131,15 @@ describe("toTaskItem", () => {
     const item = toTaskItem(view("Paint", { urgent: true, subtasks: [sub] }));
     expect(item).toMatchObject({ important: false, urgent: true });
     expect(item.subtasks![0]).toMatchObject({ important: true, urgent: false });
+  });
+
+  it("maps each row's own places, in the view's order (#19 AC2, AC9)", () => {
+    const salon = { id: crypto.randomUUID(), name: "Salon", color: 1 };
+    const garaz = { id: crypto.randomUUID(), name: "Garaż", color: 5 };
+    const sub = { ...view("Buy"), places: [garaz] };
+    const item = toTaskItem(view("Paint", { places: [salon, garaz], subtasks: [sub] }));
+    expect(item.places).toEqual([salon, garaz]);
+    expect(item.subtasks![0]!.places).toEqual([garaz]);
   });
 
   it("maps completed for a task and for its subtasks", () => {
@@ -875,6 +890,123 @@ describe("completion replay", () => {
         ["B", false],
         ["A", false],
       ]);
+    });
+  });
+
+  describe("places", () => {
+    const salon = { id: crypto.randomUUID(), name: "Salon", color: 1 };
+    const kuchnia = { id: crypto.randomUUID(), name: "Kuchnia", color: 4 };
+    const garaz = { id: crypto.randomUUID(), name: "Garaż", color: 5 };
+    const cache = [salon, kuchnia, garaz];
+
+    it("ticks a place on that row only, in the places' order, and unticks it (#19 AC2, AC3, AC9)", () => {
+      const task = row("Bathroom", "a0", { places: [garaz], subtasks: [sub("s1", "a0")] });
+
+      const [shown] = applyPlace([task], { id: task.id, placeId: salon.id, assigned: true }, cache);
+      expect(shown!.places).toEqual([salon, garaz]);
+      expect(shown!.subtasks[0]!.places).toEqual([]);
+
+      const again = applyPlace([shown!], { id: task.id, placeId: salon.id, assigned: true }, cache);
+      expect(again[0]!.places).toEqual([salon, garaz]);
+
+      const off = applyPlace([shown!], { id: task.id, placeId: garaz.id, assigned: false }, cache);
+      expect(off[0]!.places).toEqual([salon]);
+    });
+
+    it("ticks a subtask's place, keeping a row's place the cache no longer lists last", () => {
+      const gone = { id: crypto.randomUUID(), name: "Strych", color: 7 };
+      const task = row("Bathroom", "a0", { subtasks: [sub("s1", "a0")] });
+      const subtask = { ...task.subtasks[0]!, places: [gone] };
+      const views = [{ ...task, subtasks: [subtask] }];
+
+      const [shown] = applyPlace(views, { id: subtask.id, placeId: kuchnia.id, assigned: true }, [
+        ...cache,
+      ]);
+      expect(shown!.places).toEqual([]);
+      expect(shown!.subtasks[0]!.places).toEqual([kuchnia, gone]);
+    });
+
+    it("skips a tick of a place no longer cached (deleted meanwhile, P9)", () => {
+      const task = row("Bathroom", "a0");
+      const placeId = crypto.randomUUID();
+
+      expect(applyPlace([task], { id: task.id, placeId, assigned: true }, cache)).toEqual([task]);
+    });
+
+    it("shows a renamed or recoloured place on every row holding it (AC6, AC8)", () => {
+      const a = row("A", "a0", { places: [salon, kuchnia], subtasks: [sub("s1", "a0")] });
+      const withSub = { ...a, subtasks: [{ ...a.subtasks[0]!, places: [kuchnia] }] };
+      const b = row("B", "a1", { places: [garaz] });
+      const renamed = { ...kuchnia, name: "Aneks", color: 9 };
+
+      const [shownA, shownB] = withPlaceUpdated([withSub, b], renamed);
+      expect(shownA!.places).toEqual([salon, renamed]);
+      expect(shownA!.subtasks[0]!.places).toEqual([renamed]);
+      expect(shownB).toEqual(b);
+    });
+
+    it("removes a deleted place from every row and keeps their other places (AC7)", () => {
+      const a = row("A", "a0", { places: [salon, kuchnia] });
+      const b = row("B", "a1", { places: [garaz] });
+
+      const [shownA, shownB] = withPlaceDeleted([a, b], kuchnia.id);
+      expect(shownA!.places).toEqual([salon]);
+      expect(shownB).toEqual(b);
+    });
+
+    it("replays place ticks with the other pending changes, finding each place in the cache", () => {
+      const a = row("A", "a0");
+
+      const shown = replayChanges(
+        [a],
+        [
+          { kind: "place", id: a.id, placeId: garaz.id, assigned: true },
+          { kind: "marker", id: a.id, marker: "urgent", on: true },
+          { kind: "place", id: a.id, placeId: salon.id, assigned: true },
+        ],
+        cache,
+      );
+      expect(shown[0]).toMatchObject({ urgent: true, places: [salon, garaz] });
+      // Without the places cache (not loaded yet), a tick has nothing to show.
+      const bare = replayChanges(
+        [a],
+        [{ kind: "place", id: a.id, placeId: salon.id, assigned: true }],
+      );
+      expect(bare[0]!.places).toEqual([]);
+    });
+
+    it("tells a 404 about the place from one about the task", () => {
+      expect(isPlaceNotFound(new ApiError(404, "not_found", "Place not found"))).toBe(true);
+      expect(isPlaceNotFound(new ApiError(404, "not_found", "Task not found"))).toBe(false);
+      expect(isPlaceNotFound(new ApiError(409, "conflict", "Place not found"))).toBe(false);
+    });
+
+    it("shows a 409 and a 400 name error under the name, anything else above the form", () => {
+      const duplicate = new ApiError(409, "conflict", "A place with this name already exists.");
+      expect(placeSubmitError(duplicate, PLACE_TEXT.createFailed)).toEqual({
+        ok: false,
+        fieldErrors: { name: "A place with this name already exists." },
+      });
+      const invalid = new ApiError(400, "validation_error", "Invalid input", {
+        name: ["Enter a name."],
+      });
+      expect(placeSubmitError(invalid, PLACE_TEXT.saveFailed)).toEqual({
+        ok: false,
+        fieldErrors: { name: "Enter a name." },
+      });
+      const other = new ApiError(400, "validation_error", "Invalid input", { color: ["x"] });
+      expect(placeSubmitError(other, PLACE_TEXT.saveFailed)).toEqual({
+        ok: false,
+        formError: PLACE_TEXT.saveFailed,
+      });
+      expect(placeSubmitError(new ApiError(400, "bad", "Bad"), PLACE_TEXT.saveFailed)).toEqual({
+        ok: false,
+        formError: PLACE_TEXT.saveFailed,
+      });
+      expect(placeSubmitError(new TypeError("offline"), PLACE_TEXT.createFailed)).toEqual({
+        ok: false,
+        formError: PLACE_TEXT.createFailed,
+      });
     });
   });
 
