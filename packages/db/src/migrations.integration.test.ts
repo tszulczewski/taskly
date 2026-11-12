@@ -12,16 +12,17 @@ const url = process.env.DATABASE_URL;
 
 type Journal = { entries: { idx: number; tag: string }[] };
 
+const journal = async () =>
+  JSON.parse(await readFile(join(MIGRATIONS, "meta/_journal.json"), "utf8")) as Journal;
+
 /** A copy of the migrations folder that stops after the first `count` entries. */
 async function migrationsUpTo(count: number): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "taskly-migrations-"));
   await mkdir(join(dir, "meta"));
-  const journal = JSON.parse(
-    await readFile(join(MIGRATIONS, "meta/_journal.json"), "utf8"),
-  ) as Journal;
-  journal.entries = journal.entries.slice(0, count);
-  await writeFile(join(dir, "meta/_journal.json"), JSON.stringify(journal));
-  for (const { tag } of journal.entries) {
+  const upTo = await journal();
+  upTo.entries = upTo.entries.slice(0, count);
+  await writeFile(join(dir, "meta/_journal.json"), JSON.stringify(upTo));
+  for (const { tag } of upTo.entries) {
     await copyFile(join(MIGRATIONS, `${tag}.sql`), join(dir, `${tag}.sql`));
   }
   return dir;
@@ -107,7 +108,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
 
       expect(await snapshot()).toEqual(before);
       expect(await query(`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`)).toEqual([
-        { n: 2 },
+        { n: (await journal()).entries.length },
       ]);
       expect(await query(`SELECT DISTINCT description FROM tasks`)).toEqual([
         { description: null },
@@ -153,6 +154,75 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       expect(await query(`SELECT title FROM tasks ORDER BY title`)).toEqual([
         { title: "Painting" },
       ]);
+    });
+  },
+);
+
+describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
+  "migration 0002 on a database with 0001 data (Testcontainers only)",
+  () => {
+    const name = `taskly_upgrade_${randomBytes(6).toString("hex")}`;
+    const admin = new Pool({ connectionString: url, max: 1 });
+    let client: Client;
+    let upTo0001: string;
+
+    const query = async <T extends object>(text: string, values: unknown[] = []) =>
+      (await client.query<T>(text, values)).rows;
+
+    beforeAll(async () => {
+      await admin.query(`CREATE DATABASE "${name}"`);
+      const target = new URL(url!);
+      target.pathname = `/${name}`;
+      client = new Client({ connectionString: target.toString() });
+      await client.connect();
+      upTo0001 = await migrationsUpTo(2);
+      await migrate(drizzle(client), { migrationsFolder: upTo0001 });
+
+      await query(
+        `INSERT INTO "user" (id, name, email) VALUES ('m2-u1', 'Owner', 'm2@example.test')`,
+      );
+      await query(
+        `INSERT INTO lists (id, name, default_for_user_id) VALUES
+          ('20000000-0000-4000-8000-000000000001', 'My renovation', 'm2-u1')`,
+      );
+      await query(
+        `INSERT INTO list_members (list_id, user_id, role) VALUES
+          ('20000000-0000-4000-8000-000000000001', 'm2-u1', 'owner')`,
+      );
+      await query(
+        `INSERT INTO tasks (id, list_id, parent_id, title, description, status, position,
+          estimate_min_grosze, estimate_max_grosze)
+        VALUES
+          ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', NULL,
+            'Tiles', 'White', 'todo', 'a0', 100000, 150000),
+          ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001',
+            '30000000-0000-4000-8000-000000000001', 'Grout', NULL, 'done', 'a0', NULL, NULL)`,
+      );
+    });
+
+    afterAll(async () => {
+      await client?.end();
+      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
+      await admin.end();
+      if (upTo0001) await rm(upTo0001, { recursive: true, force: true });
+    });
+
+    it("keeps every task and leaves them unmarked", async () => {
+      const columns = `id, list_id, parent_id, title, description, status, position,
+        estimate_min_grosze, estimate_max_grosze, cost_grosze, created_at`;
+      const before = await query(`SELECT ${columns} FROM tasks ORDER BY id`);
+      expect(before).toHaveLength(2);
+
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+
+      expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
+      expect(await query(`SELECT important, urgent FROM tasks ORDER BY id`)).toEqual([
+        { important: false, urgent: false },
+        { important: false, urgent: false },
+      ]);
+      await expect(
+        query(`UPDATE tasks SET urgent = NULL WHERE id = '30000000-0000-4000-8000-000000000001'`),
+      ).rejects.toMatchObject({ code: "23502", column: "urgent" });
     });
   },
 );
