@@ -18,6 +18,7 @@ import type {
   EstimateValues,
   FieldErrors,
   FutureExpensesProps,
+  Marker,
   SubmitResult,
   TaskField,
   TaskFieldErrors,
@@ -114,6 +115,8 @@ function toSubtaskItem(view: SubtaskView): TaskItem {
     description: view.description,
     estimate: estimateText(view.estimate),
     completed: view.completed,
+    important: view.important,
+    urgent: view.urgent,
     ...amountFields(view.estimate),
     pending: isPendingTaskId(view.id),
   };
@@ -328,10 +331,13 @@ export function addEstimateError(
 }
 
 /**
- * A change the screen shows before the server confirms it (spec E03, UI/UX): the variables of a
- * pending mutation under `queryKeys.taskChanges`, whose last key part is the kind.
+ * A change the screen shows before the server confirms it (spec E03, UI/UX; spec E02, Pending
+ * changes): the variables of a pending mutation under `queryKeys.taskChanges`, whose last key
+ * part is the kind.
  */
-export type PendingChange = { kind: "completion"; id: string; completed: boolean };
+export type PendingChange =
+  | { kind: "completion"; id: string; completed: boolean }
+  | { kind: "marker"; id: string; marker: Marker; on: boolean };
 
 /** Open saved rows, then temporary ones (an add in flight, appended by the server), then completed. */
 const rank = (row: SubtaskView) => (row.completed ? 2 : isPendingTaskId(row.id) ? 1 : 0);
@@ -408,10 +414,28 @@ export function applyCompletion(
   return sortTasks(changed);
 }
 
-const applyChange: Record<
-  PendingChange["kind"],
-  (views: readonly TaskView[], change: PendingChange) => TaskView[]
-> = { completion: applyCompletion };
+/**
+ * What `PATCH { [marker]: on }` does, applied to the views: only that row's flag changes, never its
+ * task's or its subtasks' (#18 AC4, D21), and the order stays. A row not in the list (deleted
+ * meanwhile) changes nothing.
+ */
+export function applyMarker(
+  views: readonly TaskView[],
+  { id, marker, on }: { id: string; marker: Marker; on: boolean },
+): TaskView[] {
+  const mark = <T extends SubtaskView>(row: T): T =>
+    row.id === id ? { ...row, [marker]: on } : row;
+  return views.map((task) => mark({ ...task, subtasks: task.subtasks.map(mark) }));
+}
+
+function applyChange(views: readonly TaskView[], change: PendingChange): TaskView[] {
+  switch (change.kind) {
+    case "completion":
+      return applyCompletion(views, change);
+    case "marker":
+      return applyMarker(views, change);
+  }
+}
 
 /**
  * What the screen shows: the server's views in read order, with the pending changes applied in
@@ -422,10 +446,7 @@ export function replayChanges(
   views: readonly TaskView[],
   changes: readonly PendingChange[],
 ): TaskView[] {
-  return changes.reduce(
-    (shown, change) => applyChange[change.kind](shown, change),
-    sortTasks(views),
-  );
+  return changes.reduce((shown, change) => applyChange(shown, change), sortTasks(views));
 }
 
 /** The title of a task or subtask on screen, for its row message. */

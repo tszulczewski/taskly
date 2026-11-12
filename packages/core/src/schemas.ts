@@ -62,9 +62,15 @@ export const taskFields = z.object({
     .transform((text) => (text === "" ? null : text))
     .nullable(),
   estimate: estimateSchema.nullable(),
+  /** Two independent markers (D07): a PATCH of one never writes the other (#18 AC3). */
+  important: z.boolean(),
+  urgent: z.boolean(),
 });
 
-/** The list comes from the route param, never from the body. `parentId` makes it a subtask. */
+/**
+ * The list comes from the route param, never from the body. `parentId` makes it a subtask. New
+ * tasks start unmarked: the markers are not taken here.
+ */
 export const createTaskInput = z.object({
   title: taskFields.shape.title,
   description: taskFields.shape.description.default(null),
@@ -96,6 +102,9 @@ export const subtaskViewSchema = z.object({
   description: z.string().max(DESCRIPTION_MAX).nullable(),
   estimate: estimateViewSchema.nullable(),
   completed: z.boolean(),
+  /** The row's own markers; a task's and its subtasks' are independent (D21). */
+  important: z.boolean(),
+  urgent: z.boolean(),
   /**
    * The stored fractional key: opaque to the client, only compared bytewise (JS `<` on these
    * ASCII keys equals `COLLATE "C"`), never sent back.

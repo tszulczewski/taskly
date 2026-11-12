@@ -85,6 +85,9 @@ export const tasks = pgTable(
     estimateMinGrosze: integer("estimate_min_grosze"),
     estimateMaxGrosze: integer("estimate_max_grosze"),
     costGrosze: integer("cost_grosze"),
+    // Two independent markers (D07); a subtask has its own, never inherited (D21).
+    important: boolean("important").notNull().default(false),
+    urgent: boolean("urgent").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

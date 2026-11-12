@@ -11,7 +11,16 @@ let ids = 0;
 const nextId = () => `00000000-0000-4000-8000-${String((ids += 1)).padStart(12, "0")}`;
 
 function subtask(estimate: Estimate | null, completed = false, title = "Subtask"): SubtaskView {
-  return { id: nextId(), title, description: null, estimate, completed, position: "a0" };
+  return {
+    id: nextId(),
+    title,
+    description: null,
+    estimate,
+    completed,
+    important: false,
+    urgent: false,
+    position: "a0",
+  };
 }
 
 /** A main task as `listTasks` returns it: its estimate rolled up from its subtasks. */
@@ -33,6 +42,8 @@ function task(
     description: null,
     estimate,
     completed,
+    important: false,
+    urgent: false,
     position: "a0",
     unestimatedSubtasks,
     subtasks,

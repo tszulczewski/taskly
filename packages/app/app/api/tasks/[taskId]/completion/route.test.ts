@@ -17,6 +17,8 @@ const view: TaskView = {
   description: null,
   estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
   completed: true,
+  important: false,
+  urgent: false,
   position: "a0",
   unestimatedSubtasks: 0,
   subtasks: [
@@ -26,6 +28,8 @@ const view: TaskView = {
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
       completed: true,
+      important: false,
+      urgent: false,
       position: "a0",
     },
   ],
