@@ -298,6 +298,8 @@ export function TaskScreen({
     });
 
   const placeOptions: PlaceOptions = {
+    status: "ready",
+    onRetry: () => undefined,
     all: places,
     atLimit: places.length >= placeLimit,
     validateName: placeNameRule(places),

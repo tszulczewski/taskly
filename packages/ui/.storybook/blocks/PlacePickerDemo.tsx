@@ -12,6 +12,11 @@ export interface PlacePickerDemoProps {
   /** How long the server takes, in ms. */
   delay?: number;
   text?: Partial<PlaceText>;
+  /**
+   * The first load of the places (spec E02, F2): `loading` stays; `error` fails until "Try again",
+   * which shows "Trying again…" and then the places.
+   */
+  load?: "ready" | "loading" | "error";
 }
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,7 +33,10 @@ export function PlacePickerDemo({
   server = "ok",
   delay = 500,
   text,
+  load = "ready",
 }: PlacePickerDemoProps) {
+  const [status, setStatus] = useState(load);
+  const [retrying, setRetrying] = useState(false);
   const [places, setPlaces] = useState(initialPlaces);
   const [selected, setSelected] = useState(initialSelected);
   const nextId = useRef(0);
@@ -42,6 +50,15 @@ export function PlacePickerDemo({
   return (
     <div className="max-w-measure rounded-surface border border-control bg-raised p-inset">
       <PlacePicker
+        status={status}
+        retrying={retrying}
+        onRetry={() => {
+          setRetrying(true);
+          void wait(delay).then(() => {
+            setRetrying(false);
+            setStatus("ready");
+          });
+        }}
         taskTitle={taskTitle}
         places={places}
         selectedIds={selected}
