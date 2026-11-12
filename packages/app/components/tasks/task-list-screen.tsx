@@ -94,9 +94,9 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const listRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
   const views = shown ?? [];
+  const unestimated = expenses.data?.unestimated ?? [];
   const refusedShown =
-    estimateRefused !== null &&
-    !(expenses.data?.unestimated ?? []).some((item) => item.id === estimateRefused.taskId);
+    estimateRefused !== null && !unestimated.some((item) => item.id === estimateRefused.taskId);
   const goneShown = goneId !== null && !hasTask(views, goneId);
 
   // With Cache Components a page the user left is hidden (React Activity), not unmounted; it comes
@@ -267,7 +267,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
               : "loading"
         }
         total={expenses.data?.total ?? null}
-        unestimated={expenses.data?.unestimated ?? []}
+        unestimated={unestimated}
         onRetry={retryExpenses}
         retrying={expensesRetrying}
         validate={validateEstimate}
