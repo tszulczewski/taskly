@@ -1,6 +1,6 @@
-import { createTask, ensureDefaultList } from "@taskly/core/server";
+import { createTask, deleteTask, ensureDefaultList } from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { like } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -26,6 +26,8 @@ const QUICK_ADD = '[data-slot="quick-add"]';
 const SUMMARY = '[data-slot="future-expenses"]';
 const ESTIMATE_FORM = `${SUMMARY} form`;
 const RULE = "They are not counted in future expenses until they have an estimate.";
+// Spec E01, UI/UX "Task deleted elsewhere": a 404 on a save, "Add estimate" included.
+const DELETED = "This task was deleted. The list has been refreshed.";
 
 // #47 (E03-S03) in the browser against the production build, sign-up closed: the collapsed line
 // under future expenses names what has no estimate (AC6, AC8, AC9), and "Add estimate" prices an
@@ -208,5 +210,73 @@ describe("what has no estimate, in the browser (#47, sign-up closed)", () => {
     browser.typeInto(`${QUICK_ADD} [name="title"]`, "Lamp");
     browser.clickRole("button", "Add");
     await expectLine("1 task without an estimate");
+  });
+
+  /** Opens "Add estimate" for an item and waits for its form. */
+  async function openEstimate(name: string) {
+    browser.clickRole("button", name);
+    await browser.waitForHydrated(`${ESTIMATE_FORM} [name="amount"]`);
+  }
+  function saveEstimate(amount: string) {
+    browser.typeInto(`${ESTIMATE_FORM} [name="amount"]`, amount);
+    browser.click(`${ESTIMATE_FORM} button[type="submit"]`);
+  }
+  const storedTitles = async (listId: string) =>
+    (
+      await db
+        .select({ title: schema.tasks.title })
+        .from(schema.tasks)
+        .where(eq(schema.tasks.listId, listId))
+    ).map((t) => t.title);
+
+  // EXPENSES-003 (spec E03, Edge Cases "An unestimated item was … deleted … in another tab").
+  it("drops an item deleted in another tab with the deleted notice when its estimate is saved", async () => {
+    const user = await signIn("gone-item");
+    await createTask(db, user.id, user.listId, { title: "Door" });
+    const lamp = await createTask(db, user.id, user.listId, { title: "Lamp" });
+    await openTasks(user);
+    await openLine("2 tasks without an estimate");
+
+    await openEstimate("Add estimate for “Lamp”");
+    await deleteTask(db, user.id, lamp.id);
+    saveEstimate("100");
+
+    await browser.waitFor(
+      () => browser.count(ESTIMATE_FORM) === 0 && items().join("|") === "Door Add estimate",
+      () => `“Lamp” to go (items: ${JSON.stringify(items())})`,
+    );
+    expect(browser.alerts()).toContain(DELETED);
+    await expectLine("1 task without an estimate");
+    await expectTotal("No estimates yet");
+    expect(await storedTitles(user.listId)).toEqual(["Door"]);
+  });
+
+  // EXPENSES-004 (spec E03, Edge Cases "An unestimated item was … given subtasks in another tab").
+  it("lists the subtasks instead of an item that got subtasks in another tab, and stores no figure on it", async () => {
+    const user = await signIn("item-got-subtasks");
+    const door = await createTask(db, user.id, user.listId, { title: "Door" });
+    await createTask(db, user.id, user.listId, { title: "Lamp" });
+    await openTasks(user);
+    await openLine("2 tasks without an estimate");
+
+    await openEstimate("Add estimate for “Door”");
+    await createTask(db, user.id, user.listId, { title: "Handle", parentId: door.id });
+    saveEstimate("100");
+
+    // The spec also asks for the server's 409 message; the screen shows none (product finding #66, see
+    // .ai/qa/EXPENSES/EXPENSES-004), so only what it does show is asserted here.
+    await browser.waitFor(
+      () =>
+        browser.count(ESTIMATE_FORM) === 0 &&
+        items().join("|") === "Handle · Door Add estimate|Lamp Add estimate",
+      () => `the subtask in place of “Door” (items: ${JSON.stringify(items())})`,
+    );
+    await expectLine("1 task and 1 subtask without an estimate");
+    await expectTotal("No estimates yet");
+    const [stored] = await db
+      .select({ min: schema.tasks.estimateMinGrosze, max: schema.tasks.estimateMaxGrosze })
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, door.id));
+    expect(stored).toEqual({ min: null, max: null });
   });
 });

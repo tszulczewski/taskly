@@ -1,6 +1,6 @@
-import { createTask, ensureDefaultList } from "@taskly/core/server";
+import { createTask, ensureDefaultList, setTaskCompleted } from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { eq, like } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -274,5 +274,39 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     await waitForPuts(2);
     await expect.poll(async () => (await stored(listId)).C).toBe("todo");
     await expectOrder(["C", "A", "B"]);
+  });
+
+  // COMPLETION-001 (spec E03, UI/UX "Subtask add refused by Q3's 409"; Q3-1 in the browser).
+  it("refuses a subtask added to a task completed in another tab, closes the form and names the reason in the task's row", async () => {
+    const user = await openPlanned("add-to-done");
+    const [b] = await db
+      .select({ id: schema.tasks.id })
+      .from(schema.tasks)
+      .where(and(eq(schema.tasks.listId, user.listId), eq(schema.tasks.title, "B")));
+    const subtaskForm = '[data-slot="task-row"] [data-slot="quick-add"]';
+    const notice = (title: string) =>
+      browser.evaluate<string | null>(`(() => {
+        const li = [...document.querySelectorAll('ul[aria-label="Tasks"] > li[data-slot="task-row"]')]
+          .find((e) => e.querySelector('[data-slot="task-title"]').textContent === ${JSON.stringify(title)});
+        return li?.querySelector('[role="status"]')?.textContent ?? null;
+      })()`);
+
+    browser.clickRole("button", "More actions for “B”");
+    browser.clickRole("menuitem", "Add subtask");
+    await browser.waitForHydrated(`${subtaskForm} [name="title"]`);
+    await setTaskCompleted(db, user.id, b!.id, { completed: true });
+    browser.typeInto(`${subtaskForm} [name="title"]`, "Screws");
+    browser.click(`${subtaskForm} button[type="submit"]`);
+
+    await browser.waitFor(
+      () =>
+        notice("B") === "Could not add “Screws”. “B” is completed." &&
+        browser.count(subtaskForm) === 0,
+      () => `B's row notice (notice: ${notice("B")}, alerts: ${JSON.stringify(browser.alerts())})`,
+    );
+    await expectOrder(["A", "C", "B✓"]);
+    expect(await db.select().from(schema.tasks).where(eq(schema.tasks.parentId, b!.id))).toEqual(
+      [],
+    );
   });
 });

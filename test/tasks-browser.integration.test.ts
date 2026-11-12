@@ -1,4 +1,4 @@
-import { ensureDefaultList } from "@taskly/core/server";
+import { createTask, deleteTask, ensureDefaultList } from "@taskly/core/server";
 import { schema } from "@taskly/db";
 import { eq, inArray, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -33,6 +33,15 @@ const UP_TO_BELOW_AMOUNT = "“Up to” must not be less than the amount.";
 const QUICK_ADD = '[data-slot="quick-add"]';
 const field = (name: string) => `${QUICK_ADD} [name="${name}"]`;
 const TASKS_API = "**/api/lists/*/tasks";
+// A task's own routes: PATCH (edit) and DELETE.
+const TASK_API = "**/api/tasks/*";
+const EDIT_TITLE = '[data-slot="task-form"] [name="title"]';
+// Spec E01, UI/UX: "Task deleted elsewhere", and the inline errors of a refused change.
+const DELETED = "This task was deleted. The list has been refreshed.";
+const ADD_FAILED = "Could not add the task. Try again.";
+const SAVE_FAILED = "Could not save the task. Try again.";
+const DELETE_FAILED = "Could not delete the task. Try again.";
+const AMOUNT_FORMAT = "Enter an amount like 1 500,50";
 // The screen's other GET (spec E03, #21); it renews a due session too.
 const EXPENSES_API = "**/api/lists/*/future-expenses";
 
@@ -129,6 +138,22 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     );
   }
 
+  /** A quick-add field's own message (FormField's `<id>-error`, linked by aria-describedby). */
+  const fieldError = (name: string) =>
+    browser.evaluate<{ invalid: string | null; message: string | null }>(`(() => {
+      const input = document.querySelector(${JSON.stringify(field(name))});
+      const error = document.getElementById(input.id + "-error");
+      const described = (input.getAttribute("aria-describedby") ?? "").split(" ").includes(error?.id);
+      return {
+        invalid: input.getAttribute("aria-invalid"),
+        message: error && described ? error.textContent : null,
+      };
+    })()`);
+  const posts = () => browser.requests("/api/lists/").filter((r) => r.method === "POST");
+  const formClosed = () => browser.count('[data-slot="task-form"]') === 0;
+  const focusedSlot = () =>
+    browser.evaluate<string | null>(`document.activeElement?.getAttribute("data-slot") ?? null`);
+
   /** Opens a row's "…" menu and picks an item. */
   function rowAction(title: string, item: "Edit" | "Delete") {
     browser.clickRole("button", `More actions for “${title}”`);
@@ -147,6 +172,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     browser.open("about:blank");
     browser.clearCookies();
     browser.unroute(TASKS_API);
+    browser.unroute(TASK_API);
     browser.unroute(EXPENSES_API);
   });
 
@@ -389,6 +415,184 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     expect(await storedTasks(user.listId)).toEqual([
       { title: "Remove the old tiles", description: null, min: 30_000, max: 40_000 },
       { title: "Fix the front door", description: null, min: null, max: null },
+    ]);
+  });
+
+  // TASKS-001 (spec E01, UI/UX "Task deleted elsewhere"). The other tab is the service call.
+  it("drops the row with the deleted notice when an edit is saved for a task deleted in another tab", async () => {
+    const user = await signIn("gone-edit");
+    await createTask(db, user.id, user.listId, { title: "Fix the door" });
+    const shelf = await createTask(db, user.id, user.listId, { title: "Hang the shelf" });
+    await openTasks(user);
+    expect(titles()).toEqual(["Fix the door", "Hang the shelf"]);
+
+    rowAction("Hang the shelf", "Edit");
+    await browser.waitForHydrated(EDIT_TITLE);
+    await deleteTask(db, user.id, shelf.id);
+    browser.retypeInto(EDIT_TITLE, "Hang the long shelf");
+    browser.clickRole("button", "Save");
+
+    await browser.waitFor(
+      () => formClosed() && JSON.stringify(titles()) === JSON.stringify(["Fix the door"]),
+      () => `the row to go (rows: ${JSON.stringify(rows())}, alerts: ${browser.alerts()})`,
+    );
+    expect(browser.alerts()).toContain(DELETED);
+    expect(focusedSlot()).toBe("task-list");
+    expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(["Fix the door"]);
+  });
+
+  // TASKS-002 (spec E01, UI/UX "Optimistic updates": add refused).
+  it("removes the temporary row and keeps the typed task when an add cannot reach the server", async () => {
+    const user = await signIn("add-refused");
+    await createTask(db, user.id, user.listId, { title: "Fix the door" });
+    await openTasks(user);
+
+    browser.abortRequests(TASKS_API);
+    try {
+      browser.typeInto(field("title"), "Hang the shelf");
+      browser.typeInto(field("amount"), "120");
+      browser.clickRole("button", "Add");
+      await browser.waitFor(
+        () => browser.alerts().includes(ADD_FAILED) && row("Hang the shelf") === undefined,
+        () => `the add error (rows: ${JSON.stringify(rows())}, alerts: ${browser.alerts()})`,
+      );
+    } finally {
+      browser.unroute(TASKS_API);
+    }
+    expect(titles()).toEqual(["Fix the door"]);
+    expect([fieldValue("title"), fieldValue("amount")]).toEqual(["Hang the shelf", "120"]);
+    expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(["Fix the door"]);
+
+    // The kept text saves as it is once the server answers.
+    browser.clickRole("button", "Add");
+    await browser.waitFor(
+      () => row("Hang the shelf")?.pending === false && fieldValue("title") === "",
+      () => `the saved row (rows: ${JSON.stringify(rows())})`,
+    );
+    expect(browser.alerts()).not.toContain(ADD_FAILED);
+    expect(await storedTasks(user.listId)).toEqual([
+      { title: "Fix the door", description: null, min: null, max: null },
+      { title: "Hang the shelf", description: null, min: 12_000, max: 12_000 },
+    ]);
+  });
+
+  // TASKS-003 (spec E01, UI/UX "Optimistic updates": edit refused; edit waits for the server).
+  it("keeps the edit form open with the typed text and the row unchanged when a save cannot reach the server", async () => {
+    const user = await signIn("edit-refused");
+    await createTask(db, user.id, user.listId, { title: "Fix the door" });
+    await openTasks(user);
+
+    rowAction("Fix the door", "Edit");
+    await browser.waitForHydrated(EDIT_TITLE);
+    browser.abortRequests(TASK_API);
+    try {
+      browser.retypeInto(EDIT_TITLE, "Fix the front door");
+      browser.clickRole("button", "Save");
+      await browser.waitFor(
+        () => browser.alerts().includes(SAVE_FAILED),
+        () => `the save error (alerts: ${browser.alerts()})`,
+      );
+    } finally {
+      browser.unroute(TASK_API);
+    }
+    expect(formClosed()).toBe(false);
+    expect(
+      browser.evaluate<string>(`document.querySelector(${JSON.stringify(EDIT_TITLE)}).value`),
+    ).toBe("Fix the front door");
+    expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(["Fix the door"]);
+
+    browser.clickRole("button", "Save");
+    await browser.waitFor(
+      () => formClosed() && row("Fix the front door") !== undefined,
+      () => `the renamed row (rows: ${JSON.stringify(rows())})`,
+    );
+    expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(["Fix the front door"]);
+  });
+
+  // TASKS-004 (spec E01, UI/UX "Optimistic updates": delete refused; delete waits for the server).
+  it("keeps the delete dialog open with its error and the task listed when a delete cannot reach the server", async () => {
+    const user = await signIn("delete-refused");
+    await createTask(db, user.id, user.listId, { title: "Fix the door" });
+    await openTasks(user);
+
+    rowAction("Fix the door", "Delete");
+    await browser.waitForText("Delete “Fix the door”?");
+    browser.abortRequests(TASK_API);
+    try {
+      browser.clickRole("button", "Delete task");
+      await browser.waitFor(
+        () =>
+          browser
+            .evaluate<string>(`document.querySelector('[role="alertdialog"]')?.innerText ?? ""`)
+            .includes(DELETE_FAILED),
+        () => `the dialog's error (alerts: ${browser.alerts()})`,
+      );
+    } finally {
+      browser.unroute(TASK_API);
+    }
+    expect(titles()).toEqual(["Fix the door"]);
+    expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(["Fix the door"]);
+
+    browser.clickRole("button", "Delete task");
+    await browser.waitFor(
+      () => browser.count('[role="alertdialog"]') === 0 && titles().length === 0,
+      () => `the task to go (rows: ${JSON.stringify(rows())})`,
+    );
+    expect(await storedTasks(user.listId)).toEqual([]);
+  });
+
+  // TASKS-005 (spec E01, Edge Cases: `-5`, `1e3`, `12.345` and an amount over 10 000 000 PLN).
+  it("refuses malformed or too large amounts with a message under the field that holds them, and sends nothing", async () => {
+    const user = await signIn("bad-amounts");
+    await openTasks(user);
+    browser.clearRequests();
+    const noError = { invalid: null, message: null };
+
+    browser.typeInto(field("title"), "Tiles");
+    for (const amount of ["-5", "1e3", "12.345"]) {
+      browser.retypeInto(field("amount"), amount);
+      browser.clickRole("button", "Add");
+      await browser.waitFor(
+        () => fieldError("amount").message === AMOUNT_FORMAT,
+        () => `the message under Amount for ${amount} (${JSON.stringify(fieldError("amount"))})`,
+      );
+      expect(fieldError("amount").invalid).toBe("true");
+      expect(fieldError("upTo")).toEqual(noError);
+    }
+
+    // Over the cap on typed amounts: a field error too (its wording is not set by the spec).
+    browser.retypeInto(field("amount"), "10 000 000,01");
+    browser.clickRole("button", "Add");
+    await browser.waitFor(
+      () => !!fieldError("amount").message && fieldError("amount").message !== AMOUNT_FORMAT,
+      () => `the cap message under Amount (${JSON.stringify(fieldError("amount"))})`,
+    );
+    expect(fieldError("amount").invalid).toBe("true");
+
+    // The message goes under "up to" when that field holds the malformed amount.
+    browser.retypeInto(field("amount"), "100");
+    browser.typeInto(field("upTo"), "1e3");
+    browser.clickRole("button", "Add");
+    await browser.waitFor(
+      () => fieldError("upTo").message === AMOUNT_FORMAT,
+      () => `the message under up to (${JSON.stringify(fieldError("upTo"))})`,
+    );
+    expect(fieldError("amount")).toEqual(noError);
+
+    expect(titles()).toEqual([]);
+    expect(posts()).toEqual([]);
+    expect(await storedTasks(user.listId)).toEqual([]);
+
+    // Corrected, the same form saves, and the request log does capture the POST.
+    browser.retypeInto(field("upTo"), "150");
+    browser.clickRole("button", "Add");
+    await browser.waitFor(
+      () => row("Tiles")?.pending === false,
+      () => `the corrected row (rows: ${JSON.stringify(rows())})`,
+    );
+    expect(posts()).toHaveLength(1);
+    expect(await storedTasks(user.listId)).toEqual([
+      { title: "Tiles", description: null, min: 10_000, max: 15_000 },
     ]);
   });
 
