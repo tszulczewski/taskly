@@ -8,7 +8,7 @@ export const queryKeys = {
    * `isMutating` counts them too.
    */
   taskChanges: (listId: string) => ["lists", listId, "tasks", "change"] as const,
-  taskChange: (listId: string, kind: "completion") =>
+  taskChange: (listId: string, kind: "completion" | "marker") =>
     ["lists", listId, "tasks", "change", kind] as const,
   shopping: (listId: string) => ["lists", listId, "shopping"] as const,
   /** Not under `tasks`: it holds no optimistic state, so no task mutation's rule skips it. */

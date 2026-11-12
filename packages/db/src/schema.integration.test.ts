@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -13,6 +13,7 @@ const violation = (code: string, constraint: string) => ({ cause: { code, constr
 const CHECK = "23514";
 const FOREIGN_KEY = "23503";
 const UNIQUE = "23505";
+const NOT_NULL = "23502";
 
 describe.skipIf(!url)("schema (real PostgreSQL)", () => {
   const pool = new Pool({ connectionString: url, max: 1 });
@@ -210,6 +211,22 @@ describe.skipIf(!url)("schema (real PostgreSQL)", () => {
       // Lists that are nobody's default are not limited.
       await newList();
       await newList();
+    });
+
+    it("stores new tasks unmarked and keeps the two markers independent (migration 0002)", async () => {
+      const plain = await newTask({ listId });
+      expect([plain.important, plain.urgent]).toEqual([false, false]);
+      const marked = await newTask({ listId, urgent: true });
+      expect([marked.important, marked.urgent]).toEqual([false, true]);
+    });
+
+    it("rejects a NULL marker (migration 0002)", async () => {
+      const task = await newTask({ listId });
+      for (const column of ["important", "urgent"]) {
+        await expect(
+          db.execute(sql`UPDATE tasks SET ${sql.identifier(column)} = NULL WHERE id = ${task.id}`),
+        ).rejects.toMatchObject({ cause: { code: NOT_NULL, column } });
+      }
     });
 
     it("deletes a user's default lists with the user", async () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../../lib/api-client";
 import {
   applyCompletion,
+  applyMarker,
   hasTask,
   isNotFound,
   addEstimateError,
@@ -35,6 +36,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -59,6 +62,8 @@ describe("toTaskItem", () => {
       description: null,
       estimate: pln("1_500,50–2_000_zł"),
       completed: false,
+      important: false,
+      urgent: false,
       amount: pln("1_500,50"),
       upTo: pln("2_000"),
       unestimatedSubtasks: 0,
@@ -85,6 +90,8 @@ describe("toTaskItem", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const item = toTaskItem({
@@ -100,11 +107,20 @@ describe("toTaskItem", () => {
         description: null,
         estimate: null,
         completed: false,
+        important: false,
+        urgent: false,
         amount: "",
         upTo: "",
         pending: false,
       },
     ]);
+  });
+
+  it("maps each row's own markers, for a task and for its subtasks (#18 AC4)", () => {
+    const sub = { ...view("Buy"), important: true };
+    const item = toTaskItem(view("Paint", { urgent: true, subtasks: [sub] }));
+    expect(item).toMatchObject({ important: false, urgent: true });
+    expect(item.subtasks![0]).toMatchObject({ important: true, urgent: false });
   });
 
   it("maps completed for a task and for its subtasks", () => {
@@ -114,6 +130,8 @@ describe("toTaskItem", () => {
       description: null,
       estimate: null,
       completed: true,
+      important: false,
+      urgent: false,
       position: "a1",
     };
     const item = toTaskItem(view("Paint", { completed: true, subtasks: [done] }));
@@ -129,6 +147,8 @@ describe("toTaskItem", () => {
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     // A sum above the typed-amount cap must not reach the (hidden) amount fields.
@@ -146,6 +166,8 @@ describe("toTaskItem", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const own = { minGrosze: 45_000, maxGrosze: 45_000 };
@@ -249,6 +271,8 @@ describe("toUpdateInput", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [subtask] });
@@ -275,6 +299,8 @@ describe("toUpdateInput", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const parent = view("Paint", {
@@ -301,6 +327,8 @@ describe("toUpdateInput", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
@@ -323,6 +351,8 @@ describe("toUpdateInput", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
@@ -343,6 +373,8 @@ describe("toUpdateInput", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [temporary] });
@@ -370,6 +402,8 @@ describe("subtaskAdded", () => {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
   });
   const own = { minGrosze: 100_000, maxGrosze: 200_000 };
@@ -431,6 +465,8 @@ describe("subtaskDeleted", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     expect(subtaskDeleted(null)).toBeUndefined();
@@ -451,6 +487,8 @@ describe("hasTask and isNotFound", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [subtask] });
@@ -749,7 +787,63 @@ describe("completion replay", () => {
     });
   });
 
+  describe("applyMarker", () => {
+    it("sets or clears one marker of a task only, keeping its subtasks' and the order (#18 AC1, AC4)", () => {
+      const a = row("A", "a0", { subtasks: [sub("s1", "a0")] });
+      const views = [a, row("B", "a1")];
+
+      const shown = applyMarker(views, { id: a.id, marker: "important", on: true });
+
+      expect(titles(shown)).toEqual(["A", "B"]);
+      expect(shown[0]).toEqual({ ...a, important: true });
+      expect(shown[1]).toEqual(views[1]);
+      expect(applyMarker(shown, { id: a.id, marker: "important", on: false })[0]).toEqual(a);
+    });
+
+    it("marks a subtask only, never its task or its siblings (#18 AC4, D21)", () => {
+      const task = row("Bathroom", "a0", { subtasks: [sub("s1", "a0"), sub("s2", "a1")] });
+
+      const [shown] = applyMarker([task], { id: task.subtasks[1]!.id, marker: "urgent", on: true });
+
+      expect(shown).toEqual({
+        ...task,
+        subtasks: [task.subtasks[0], { ...task.subtasks[1]!, urgent: true }],
+      });
+    });
+
+    it("leaves the other marker as it is, and a row no longer in the list changes nothing (#18 AC3)", () => {
+      const a = row("A", "a0", { important: true, urgent: true });
+
+      expect(applyMarker([a], { id: a.id, marker: "urgent", on: false })).toEqual([
+        { ...a, urgent: false },
+      ]);
+      expect(applyMarker([a], { id: crypto.randomUUID(), marker: "urgent", on: false })).toEqual([
+        a,
+      ]);
+    });
+  });
+
   describe("replayChanges", () => {
+    it("replays marker toggles over the server's views, in order, with completions", () => {
+      const a = row("A", "a0");
+      const b = row("B", "a1");
+
+      const shown = replayChanges(
+        [a, b],
+        [
+          { kind: "marker", id: a.id, marker: "important", on: true },
+          { kind: "marker", id: a.id, marker: "urgent", on: true },
+          { kind: "completion", id: a.id, completed: true },
+          { kind: "marker", id: a.id, marker: "important", on: false },
+        ],
+      );
+
+      expect(shown.map((v) => [v.title, v.completed, v.important, v.urgent])).toEqual([
+        ["B", false, false, false],
+        ["A", true, false, true],
+      ]);
+    });
+
     it("sorts the server's views and applies the pending changes in the order they were made", () => {
       const a = row("A", "a0");
       const b = row("B", "a1", { completed: true });

@@ -30,6 +30,8 @@ const viewColumns = {
   estimateMaxGrosze: tasks.estimateMaxGrosze,
   status: tasks.status,
   position: tasks.position,
+  important: tasks.important,
+  urgent: tasks.urgent,
 };
 type ViewRow = {
   id: string;
@@ -40,13 +42,15 @@ type ViewRow = {
   estimateMaxGrosze: number | null;
   status: "todo" | "done";
   position: string;
+  important: boolean;
+  urgent: boolean;
 };
 
 /** The columns `updateTask` may write. */
 type TaskChanges = Partial<
   Pick<
     typeof tasks.$inferInsert,
-    "title" | "description" | "estimateMinGrosze" | "estimateMaxGrosze"
+    "title" | "description" | "estimateMinGrosze" | "estimateMaxGrosze" | "important" | "urgent"
   >
 >;
 
@@ -67,6 +71,8 @@ function subtaskView(row: ViewRow): SubtaskView {
     description: row.description,
     estimate: estimateOf(row),
     completed: row.status === "done",
+    important: row.important,
+    urgent: row.urgent,
     position: row.position,
   };
 }
@@ -256,9 +262,10 @@ export async function createTask(
 }
 
 /**
- * Writes only the keys present in the input (`estimate: null` clears both bounds) and returns the
- * `TaskView` of the top-level task that holds it: the task, or a subtask's parent. A task with
- * subtasks takes its estimate from them, so an estimate edit of one is refused.
+ * Writes only the keys present in the input (`estimate: null` clears both bounds; a marker alone
+ * leaves the other one as it is) and returns the `TaskView` of the top-level task that holds it:
+ * the task, or a subtask's parent. A task with subtasks takes its estimate from them, so an
+ * estimate edit of one is refused. Markers can change on a completed row too.
  */
 export async function updateTask(
   db: Db,
@@ -266,10 +273,12 @@ export async function updateTask(
   taskId: string,
   input: unknown,
 ): Promise<TaskView> {
-  const { title, description, estimate } = updateTaskInput.parse(input);
+  const { title, description, estimate, important, urgent } = updateTaskInput.parse(input);
   const changes: TaskChanges = {};
   if (title !== undefined) changes.title = title;
   if (description !== undefined) changes.description = description;
+  if (important !== undefined) changes.important = important;
+  if (urgent !== undefined) changes.urgent = urgent;
   if (estimate !== undefined) {
     changes.estimateMinGrosze = estimate?.minGrosze ?? null;
     changes.estimateMaxGrosze = estimate?.maxGrosze ?? null;
