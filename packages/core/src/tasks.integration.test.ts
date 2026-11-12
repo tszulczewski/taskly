@@ -99,6 +99,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: expect.any(String),
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -296,6 +297,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -369,6 +371,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: expect.any(String),
         unestimatedSubtasks: 1,
         subtasks: [
@@ -380,6 +383,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: expect.any(String),
           },
           {
@@ -390,6 +394,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: expect.any(String),
           },
         ],
@@ -444,6 +449,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         title: "Tiles",
         important: true,
         urgent: true,
+        places: [],
       });
       expect(view).toEqual(expect.objectContaining({ important: false, urgent: false }));
       expect(await markersOf(listId)).toEqual({ Tiles: [false, false] });
@@ -494,6 +500,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
           id: taskId,
           important: false,
           urgent: false,
+          places: [],
           subtasks: [
             expect.objectContaining({ id: sub.id, important: true, urgent: false }),
             expect.objectContaining({ id: other.id, important: false, urgent: false }),
@@ -507,6 +514,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         expect.objectContaining({
           important: false,
           urgent: true,
+          places: [],
           subtasks: [
             expect.objectContaining({ id: sub.id, important: true, urgent: false }),
             expect.objectContaining({ id: other.id, important: false, urgent: false }),
@@ -859,6 +867,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [
@@ -870,6 +879,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: expect.any(String),
           },
         ],
@@ -922,6 +932,7 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],

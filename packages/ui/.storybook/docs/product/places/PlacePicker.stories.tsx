@@ -27,6 +27,7 @@ const meta = {
     initialPlaces: { control: false },
     initialSelected: { control: false },
     server: { control: "inline-radio", options: ["ok", "fail", "slow"] },
+    load: { control: "inline-radio", options: ["ready", "loading", "error"] },
     text: { control: false },
   },
 } satisfies Meta<typeof PlacePickerDemo>;
@@ -62,6 +63,45 @@ export const Playground: Story = {
     // Garaż is gone; the next place, Ogródek, has the focus.
     await waitFor(() => expect(canvas.getByRole("button", { name: "Edit Ogródek" })).toHaveFocus());
     await expect(canvas.queryByRole("button", { name: "Edit Garaż" })).toBeNull();
+  },
+};
+
+/** Before the places have answered: the title and three skeleton rows, nothing to choose yet (F2). */
+export const Loading: Story = {
+  args: { load: "loading" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("status")).toHaveTextContent("Loading your places…");
+    await expect(canvas.queryByText("No places yet.")).toBeNull();
+    await expect(canvas.queryByLabelText("New place")).toBeNull();
+    // The popover is raised too: the placeholder bars need a distinct existing surface tone.
+    const panel = canvasElement.querySelector<HTMLElement>(".bg-raised")!;
+    const bars = canvasElement.querySelectorAll<HTMLElement>('[data-slot="skeleton"]');
+    await expect(bars).toHaveLength(3);
+    for (const bar of bars) {
+      await expect(getComputedStyle(bar).backgroundColor).not.toBe(
+        getComputedStyle(panel).backgroundColor,
+      );
+      await expect(bar.getBoundingClientRect().width).toBeGreaterThan(0);
+      await expect(bar.getBoundingClientRect().height).toBeGreaterThan(0);
+    }
+  },
+};
+
+/**
+ * The places failed to load: the failure and "Try again", never "No places yet." or New place
+ * (F2, P-1). Focus stays on the button while it tries, then moves to the first place.
+ */
+export const LoadFailed: Story = {
+  args: { load: "error" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("alert")).toHaveTextContent("Could not load your places.");
+    await expect(canvas.queryByText("No places yet.")).toBeNull();
+    await expect(canvas.queryByLabelText("New place")).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Try again" }));
+    await expect(canvas.getByRole("button", { name: "Trying again…" })).toHaveFocus();
+    await waitFor(() => expect(canvas.getByRole("checkbox", { name: "Salon" })).toHaveFocus());
   },
 };
 

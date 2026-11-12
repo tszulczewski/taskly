@@ -12,6 +12,10 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-12 — agent-browser (Chrome) will not start when `TMPDIR` is a long path: "Socket path too long" for its `SingletonSocket` (the cezar per-task temp dir is long enough). Run `npm run test:integration` with a short `TMPDIR` (e.g. `TMPDIR=/tmp/x`). A fresh git worktree also needs its own `npm ci`: without `node_modules`, `@taskly/*` resolves to the main checkout's packages through the parent directory and typecheck reports missing exports.
+
+- 2026-11-12 — A mutation's hook-level `onError` that decides from another query's data must read it from `queryClient.getQueryData` at error time, not from the render closure: the options a mutation runs with can lag a cache write made in the same tick (E02 P9: a tick whose place this tab had just deleted still found it "cached" and showed a rollback message). Every new screen GET also renews a due session, so browser tests that block "the screen's GETs" must block the new one too (`/api/places`), as the 2026-11-04 lesson says.
+
 - 2026-11-06 — Shell lock scripts: never take over a "stale" lock by reading the owner PID and then renaming or deleting the lock. Two waiters can read the same dead PID, and the second one removes a live lock that was taken in the meantime (PR #63 review). Use `flock(2)` (perl on fd 9), which the kernel releases when the holder dies. Close the descriptor (`9>&-`) for long-lived children such as servers and daemons, or they keep holding the lock. Report a known race window in the PR instead of leaving it out.
 
 - 2026-11-05 — For a money feature that reuses an existing estimate PATCH, SDLC still requires integration evidence for failure, retry and idempotency: assert a refused save changes no stored figure, a corrected retry succeeds, and replaying the same save contributes to future expenses exactly once (PR #62 review).
@@ -153,3 +157,9 @@ Long-term memory for AI agents working on this project. Read this file **before 
 - 2026-10-14 — tsc fails on a clean tree until `next typegen` runs → [details](lessons/2026-10-14-typecheck-needs-typegen.md)
 
 - 2026-11-06 — PID lock recovery: renaming a lock directory before checking its current owner opens a window for another bootstrap to acquire it. Restoring the directory on an owner mismatch does not close that window; stale-lock reclamation must itself be serialized. Found in PR #63 review with a controlled competing acquisition.
+
+- 2026-11-12 — Do not run `test-env-up.sh` while browser integration tests use the same worktree: its bootstrap rebuilds `.next`, temporarily removes the standalone server, and causes missing-build or HTTP 500 failures. Finish bootstrap/build first, then run integration against the stable artifact (PR #70 verification).
+- 2026-11-12 — GitHub tracker label-removal guards require standalone `jq`, even though `gh --jq` itself works without it. Check that prerequisite before label transitions; if unavailable, use equivalent percent-encoding in the temporary guard and read labels back to verify only one pipeline state remains (PR #70).
+- 2026-11-12 — A place edit must send only fields changed from the values when its form opened. Sending its whole stale name/colour overwrites independent changes from another tab. Capture the opening values in the form, preserve them across rerenders, and treat an unchanged Save as no write (PR #70 stale-tab QA).
+- 2026-11-12 — A `Skeleton` defaults to `bg-raised`, so it disappears in a raised popover. Use a distinct existing surface token for that context and assert the bar's computed background differs from its panel in both Storybook themes; status text alone does not prove the skeleton is visible (PR #70).
+- 2026-11-12 — In completion browser tests, server persistence and optimistic row order can settle before the confirmation dialog finishes closing. Before the next physical click, wait for the dialog to disappear and finite animations to finish, then assert the request count as well as the resulting order (PR #70 independent review caught an ignored reopen click).

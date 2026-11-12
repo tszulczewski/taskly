@@ -311,6 +311,7 @@ const subtask = (n: number, estimate: { minGrosze: number; maxGrosze: number } |
   completed: false,
   important: n % 2 === 0,
   urgent: false,
+  places: n % 2 === 0 ? [{ id: uuid(90 + n), name: "Łazienka", color: 3 }] : [],
   position: `a${n}`,
 });
 const task = {
@@ -321,6 +322,7 @@ const task = {
   completed: true,
   important: false,
   urgent: true,
+  places: [],
   position: "a0",
   unestimatedSubtasks: 1,
   subtasks: [subtask(2, { minGrosze: 30000, maxGrosze: 40000 }), subtask(3)],
@@ -402,7 +404,7 @@ describe("response schemas", () => {
     const newer = {
       ...task,
       status: "todo",
-      subtasks: [{ ...subtask(2), places: [] }],
+      subtasks: [{ ...subtask(2), order: 1 }],
     };
     const parsed = taskViewSchema.parse(newer);
     expect(parsed.title).toBe(task.title);
@@ -417,6 +419,7 @@ describe("response schemas", () => {
     "completed",
     "important",
     "urgent",
+    "places",
     "position",
     "unestimatedSubtasks",
     "subtasks",
@@ -433,6 +436,7 @@ describe("response schemas", () => {
     "completed",
     "important",
     "urgent",
+    "places",
     "position",
   ])("reject a subtask without %s", (field) => {
     const { [field as keyof ReturnType<typeof subtask>]: _, ...rest } = subtask(2);
@@ -453,6 +457,16 @@ describe("response schemas", () => {
     ["a title over 200 characters", { title: "t".repeat(201) }, "title"],
     ["a description over 2000 characters", { description: "d".repeat(2001) }, "description"],
     ["subtasks that are not an array", { subtasks: null }, "subtasks"],
+    [
+      "a place colour outside the ten",
+      { places: [{ id: uuid(80), name: "Hall", color: 11 }] },
+      "places.0.color",
+    ],
+    [
+      "a place with an empty name",
+      { places: [{ id: uuid(80), name: "", color: 1 }] },
+      "places.0.name",
+    ],
     [
       "a subtask with an invalid range",
       { subtasks: [subtask(2, { minGrosze: 5, maxGrosze: 1 })] },

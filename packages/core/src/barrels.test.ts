@@ -21,6 +21,9 @@ describe("entry points", () => {
     expect(isomorphic.futureExpensesResponseSchema).toBeDefined();
     // The `/` page shows the default list's name, also when the list could not be opened.
     expect(isomorphic.DEFAULT_LIST_NAME).toBe("My renovation");
+    // The place picker checks names and reads places in the browser (spec E02, #19).
+    expect(isomorphic.placeNameError).toBeTypeOf("function");
+    expect(isomorphic.placeListResponseSchema).toBeDefined();
   });
 
   it("exports services from the server entry and keeps the root exports", () => {

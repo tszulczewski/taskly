@@ -7,6 +7,7 @@ import {
   formatPlnAmount,
   formatPlnRange,
   type FutureExpenses,
+  type PlaceView,
   positionBetween,
   type SubtaskView,
   type TaskView,
@@ -19,6 +20,7 @@ import type {
   FieldErrors,
   FutureExpensesProps,
   Marker,
+  PlaceColor,
   SubmitResult,
   TaskField,
   TaskFieldErrors,
@@ -108,6 +110,9 @@ function amountFields(estimate: EstimateView): Pick<TaskItem, "amount" | "upTo">
 const savedSubtasks = (view: TaskView) =>
   view.subtasks.filter((subtask) => !isPendingTaskId(subtask.id));
 
+/** A server place as the design system takes it; `placeViewSchema` keeps the colour within 1–10. */
+export const toPlace = (place: PlaceView) => ({ ...place, color: place.color as PlaceColor });
+
 function toSubtaskItem(view: SubtaskView): TaskItem {
   return {
     id: view.id,
@@ -117,6 +122,7 @@ function toSubtaskItem(view: SubtaskView): TaskItem {
     completed: view.completed,
     important: view.important,
     urgent: view.urgent,
+    places: view.places.map(toPlace),
     ...amountFields(view.estimate),
     pending: isPendingTaskId(view.id),
   };
@@ -259,6 +265,9 @@ export function hasTask(tasks: readonly TaskView[], id: string): boolean {
 }
 
 export const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
+/** A 404 about the place, not the task: deleted meanwhile, or not the list owner's (#19). */
+export const isPlaceNotFound = (error: unknown) =>
+  isNotFound(error) && (error as ApiError).message === "Place not found";
 
 /**
  * The server's `fieldErrors` under the form's fields. With one amount typed, both bounds came
@@ -307,6 +316,28 @@ export function submitError(
   return { ok: false, formError: fallback };
 }
 
+/** The place forms' own failures; the picker's other texts come from the design system. */
+export const PLACE_TEXT = {
+  createFailed: "Could not create the place. Try again.",
+  saveFailed: "Could not save the place. Try again.",
+} as const;
+
+/**
+ * A refused place create or edit as the picker shows it: a 409 (duplicate name, the limit) and a
+ * 400 name error under the name field, anything else `fallback` above the form.
+ */
+export function placeSubmitError(
+  error: unknown,
+  fallback: string,
+): Extract<SubmitResult<"name">, { ok: false }> {
+  if (error instanceof ApiError && error.status === 409) {
+    return { ok: false, fieldErrors: { name: error.message } };
+  }
+  const [message] = (error instanceof ApiError && error.fieldErrors?.name) || [];
+  if (message !== undefined) return { ok: false, fieldErrors: { name: message } };
+  return { ok: false, formError: fallback };
+}
+
 /**
  * A refused "Add estimate" as its form shows it: like an edit's (a 409's own message, 400 field
  * errors under the amounts), and for a task deleted meanwhile the deleted notice. Only the
@@ -337,7 +368,8 @@ export function addEstimateError(
  */
 export type PendingChange =
   | { kind: "completion"; id: string; completed: boolean }
-  | { kind: "marker"; id: string; marker: Marker; on: boolean };
+  | { kind: "marker"; id: string; marker: Marker; on: boolean }
+  | { kind: "place"; id: string; placeId: string; assigned: boolean };
 
 /** Open saved rows, then temporary ones (an add in flight, appended by the server), then completed. */
 const rank = (row: SubtaskView) => (row.completed ? 2 : isPendingTaskId(row.id) ? 1 : 0);
@@ -423,17 +455,69 @@ export function applyMarker(
   views: readonly TaskView[],
   { id, marker, on }: { id: string; marker: Marker; on: boolean },
 ): TaskView[] {
-  const mark = <T extends SubtaskView>(row: T): T =>
-    row.id === id ? { ...row, [marker]: on } : row;
-  return views.map((task) => mark({ ...task, subtasks: task.subtasks.map(mark) }));
+  return mapRows(views, (row) => (row.id === id ? { ...row, [marker]: on } : row));
 }
 
-function applyChange(views: readonly TaskView[], change: PendingChange): TaskView[] {
+/** Every row, tasks and subtasks, through `change`; the order stays. */
+function mapRows(views: readonly TaskView[], change: <T extends SubtaskView>(row: T) => T) {
+  return views.map((task) => change({ ...task, subtasks: task.subtasks.map(change) }));
+}
+
+/**
+ * What `PUT|DELETE …/places/[placeId]` does, applied to the views: only that row gains or loses
+ * the place, never its task or subtasks (#19 AC9, D21), in the places' order (`places`, the
+ * places cache). A place no longer cached (deleted meanwhile) is skipped: its request answers 404
+ * (P9). A row not in the list changes nothing.
+ */
+export function applyPlace(
+  views: readonly TaskView[],
+  { id, placeId, assigned }: { id: string; placeId: string; assigned: boolean },
+  places: readonly PlaceView[],
+): TaskView[] {
+  const place = places.find((own) => own.id === placeId);
+  if (place === undefined) return [...views];
+  const order = (own: PlaceView) => {
+    const index = places.findIndex((cached) => cached.id === own.id);
+    return index === -1 ? places.length : index;
+  };
+  return mapRows(views, (row) => {
+    if (row.id !== id) return row;
+    const rest = row.places.filter((own) => own.id !== placeId);
+    const next = assigned ? [...rest, place].sort((a, b) => order(a) - order(b)) : rest;
+    return { ...row, places: next };
+  });
+}
+
+/** After a rename or recolour (AC6): every row holding the place shows the server's place. */
+export function withPlaceUpdated(views: readonly TaskView[], place: PlaceView): TaskView[] {
+  return mapRows(views, (row) =>
+    row.places.some((own) => own.id === place.id)
+      ? { ...row, places: row.places.map((own) => (own.id === place.id ? place : own)) }
+      : row,
+  );
+}
+
+/** After a delete (AC7): the place leaves every row; their other places stay. */
+export function withPlaceDeleted(views: readonly TaskView[], placeId: string): TaskView[] {
+  return mapRows(views, (row) =>
+    row.places.some((own) => own.id === placeId)
+      ? { ...row, places: row.places.filter((own) => own.id !== placeId) }
+      : row,
+  );
+}
+
+function applyChange(
+  views: readonly TaskView[],
+  change: PendingChange,
+  places: readonly PlaceView[],
+): TaskView[] {
   switch (change.kind) {
     case "completion":
       return applyCompletion(views, change);
     case "marker":
       return applyMarker(views, change);
+    case "place":
+      return applyPlace(views, change, places);
   }
 }
 
@@ -441,12 +525,14 @@ function applyChange(views: readonly TaskView[], change: PendingChange): TaskVie
  * What the screen shows: the server's views in read order, with the pending changes applied in
  * the order they were made. Every answer, refetch or failure changes the inputs, and the changes
  * still pending are applied again on top, so none of them ever undoes a newer change (review R2).
+ * `places` is the places cache, where a pending tick finds its place.
  */
 export function replayChanges(
   views: readonly TaskView[],
   changes: readonly PendingChange[],
+  places: readonly PlaceView[] = [],
 ): TaskView[] {
-  return changes.reduce((shown, change) => applyChange(shown, change), sortTasks(views));
+  return changes.reduce((shown, change) => applyChange(shown, change, places), sortTasks(views));
 }
 
 /** The title of a task or subtask on screen, for its row message. */

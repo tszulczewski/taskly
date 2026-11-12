@@ -19,6 +19,7 @@ const view: TaskView = {
   completed: true,
   important: false,
   urgent: false,
+  places: [],
   position: "a0",
   unestimatedSubtasks: 0,
   subtasks: [
@@ -30,6 +31,7 @@ const view: TaskView = {
       completed: true,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     },
   ],

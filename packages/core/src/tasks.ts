@@ -1,10 +1,12 @@
 import { schema } from "@taskly/db";
-import { and, asc, desc, DrizzleQueryError, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, DrizzleQueryError, eq, exists, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireRole } from "./access";
 import type { Action } from "./authorization";
 import { rollUpEstimate } from "./estimate";
 import { ConflictError, NotFoundError, NotImplementedError } from "./errors";
+import type { PlaceView } from "./place-rules";
+import { placeColumns, placeOrder } from "./places";
 import { positionBetween } from "./position";
 import {
   completionInput,
@@ -17,7 +19,7 @@ import {
 } from "./schemas";
 import type { Db, Tx } from "./types";
 
-const { tasks } = schema;
+const { tasks, places, taskPlaces, listMembers } = schema;
 const uuid = z.uuid();
 
 /** The columns a `TaskView` is built from. */
@@ -64,7 +66,11 @@ function estimateOf(row: ViewRow): Estimate | null {
   return minGrosze !== null && maxGrosze !== null ? { minGrosze, maxGrosze } : null;
 }
 
-function subtaskView(row: ViewRow): SubtaskView {
+/** Each task's places, in the places' order. */
+type PlacesOf = ReadonlyMap<string, PlaceView[]>;
+const noPlaces: PlacesOf = new Map();
+
+function subtaskView(row: ViewRow, placesOf: PlacesOf): SubtaskView {
   return {
     id: row.id,
     title: row.title,
@@ -73,20 +79,21 @@ function subtaskView(row: ViewRow): SubtaskView {
     completed: row.status === "done",
     important: row.important,
     urgent: row.urgent,
+    places: placesOf.get(row.id) ?? [],
     position: row.position,
   };
 }
 
-function taskView(row: ViewRow, subtasks: readonly ViewRow[]): TaskView {
+function taskView(row: ViewRow, subtasks: readonly ViewRow[], placesOf: PlacesOf): TaskView {
   const { estimate, unestimatedSubtasks } = rollUpEstimate(
     estimateOf(row),
     subtasks.map(estimateOf),
   );
   return {
-    ...subtaskView(row),
+    ...subtaskView(row, placesOf),
     estimate,
     unestimatedSubtasks,
-    subtasks: subtasks.map(subtaskView),
+    subtasks: subtasks.map((subtask) => subtaskView(subtask, placesOf)),
   };
 }
 
@@ -164,20 +171,40 @@ async function hasSubtasks(tx: Tx, task: { id: string; listId: string }): Promis
   return subtask !== undefined;
 }
 
+/** The places of the tasks `which` selects (one query, in the places' order), by task id. */
+async function readPlaces(tx: Tx, which: ReturnType<typeof eq>): Promise<PlacesOf> {
+  const rows = await tx
+    .select({ taskId: taskPlaces.taskId, ...placeColumns })
+    .from(taskPlaces)
+    .innerJoin(places, eq(places.id, taskPlaces.placeId))
+    .innerJoin(tasks, eq(tasks.id, taskPlaces.taskId))
+    .where(which)
+    .orderBy(...placeOrder);
+  const placesOf = new Map<string, PlaceView[]>();
+  for (const { taskId, ...place } of rows) {
+    const list = placesOf.get(taskId);
+    if (list) list.push(place);
+    else placesOf.set(taskId, [place]);
+  }
+  return placesOf;
+}
+
 /**
  * The `TaskView` of a top-level task: its row and its subtasks in list order (open first, then
- * completed, each in plan order).
+ * completed, each in plan order), with their places.
  */
 async function topLevelView(tx: Tx, topLevelId: string): Promise<TaskView> {
+  const holds = or(eq(tasks.id, topLevelId), eq(tasks.parentId, topLevelId))!;
   const rows = await tx
     .select(viewColumns)
     .from(tasks)
-    .where(or(eq(tasks.id, topLevelId), eq(tasks.parentId, topLevelId)))
+    .where(holds)
     .orderBy(doneLast, byPosition, asc(tasks.id));
   const subtasks = rows.filter((row) => row.parentId === topLevelId);
   return taskView(
     rows.find((row) => row.id === topLevelId)!,
     subtasks,
+    await readPlaces(tx, holds),
   );
 }
 
@@ -193,6 +220,7 @@ export async function listTasks(db: Db, userId: string, listId: string): Promise
       .from(tasks)
       .where(eq(tasks.listId, listId))
       .orderBy(doneLast, byPosition, asc(tasks.id));
+    const placesOf = await readPlaces(tx, eq(tasks.listId, listId));
     const subtasksOf = new Map<string, ViewRow[]>();
     for (const row of rows) {
       if (row.parentId === null) continue;
@@ -202,7 +230,7 @@ export async function listTasks(db: Db, userId: string, listId: string): Promise
     }
     return rows
       .filter((row) => row.parentId === null)
-      .map((row) => taskView(row, subtasksOf.get(row.id) ?? []));
+      .map((row) => taskView(row, subtasksOf.get(row.id) ?? [], placesOf));
   });
 }
 
@@ -257,7 +285,7 @@ export async function createTask(
         position: positionBetween(last?.position ?? null, null),
       })
       .returning(viewColumns);
-    return parentId === null ? taskView(row!, []) : topLevelView(tx, parentId);
+    return parentId === null ? taskView(row!, [], noPlaces) : topLevelView(tx, parentId);
   });
 }
 
@@ -346,6 +374,54 @@ export async function setTaskCompleted(
     const task = await requireTaskRole(tx, userId, taskId, "write", { withListLock: true });
     if (task.status !== (completed ? "done" : "todo")) {
       await (completed ? completeWithSubtasks(tx, task.id) : reopen(tx, task));
+    }
+    return topLevelView(tx, task.parentId ?? task.id);
+  });
+}
+
+/**
+ * Assigns a place to a task or subtask, or removes it (`assigned: false`), and returns the
+ * `TaskView` of the top-level task that holds it (spec E02, #19). Idempotent: assigning twice or
+ * removing an absent place writes nothing. Only that row changes, never its task or subtasks
+ * (AC9, D21). Lock order: membership → task (`requireTaskRole`) → place `FOR KEY SHARE`, so a
+ * concurrent delete of the place waits for this or wins cleanly (404). The place must belong to an
+ * owner of the task's list (Q3); `EXISTS`, since a list may have several owner rows (P4). A
+ * malformed place id answers 404 before any query (P3).
+ */
+export async function setTaskPlace(
+  db: Db,
+  userId: string,
+  taskId: string,
+  placeId: string,
+  { assigned }: { assigned: boolean },
+): Promise<TaskView> {
+  if (!uuid.safeParse(placeId).success) throw new NotFoundError("Place");
+  return inTransaction(db, async (tx) => {
+    const task = await requireTaskRole(tx, userId, taskId, "write");
+    const ownedByListOwner = exists(
+      tx
+        .select({ userId: listMembers.userId })
+        .from(listMembers)
+        .where(
+          and(
+            eq(listMembers.listId, task.listId),
+            eq(listMembers.userId, places.userId),
+            eq(listMembers.role, "owner"),
+          ),
+        ),
+    );
+    const [place] = await tx
+      .select({ id: places.id })
+      .from(places)
+      .where(and(eq(places.id, placeId), ownedByListOwner))
+      .for("key share");
+    if (!place) throw new NotFoundError("Place");
+    if (assigned) {
+      await tx.insert(taskPlaces).values({ taskId: task.id, placeId }).onConflictDoNothing();
+    } else {
+      await tx
+        .delete(taskPlaces)
+        .where(and(eq(taskPlaces.taskId, task.id), eq(taskPlaces.placeId, placeId)));
     }
     return topLevelView(tx, task.parentId ?? task.id);
   });

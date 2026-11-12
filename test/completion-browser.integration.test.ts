@@ -182,7 +182,11 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
       .poll(() => stored(listId))
       .toEqual({ A: "done", s1: "done", s2: "done", s3: "done", B: "todo", C: "todo" });
 
+    // Saving can finish before the closing dialog and moving row stop intercepting clicks.
+    await dialogClosed();
+    await browser.waitForAnimations();
     toggle("A");
+    await waitForPuts(3);
     await expectOrder(["A", "B", "C"]);
     await expand("A");
     await expectSubtasks("A", ["s1✓", "s2✓", "s3✓"]);

@@ -44,6 +44,8 @@ const organized = {
   onMove: fn(),
   onToggleMarker: fn(),
   places: {
+    status: "ready",
+    onRetry: fn(),
     all: organizedPlaces,
     atLimit: false,
     validateName: placeNameRule(organizedPlaces),

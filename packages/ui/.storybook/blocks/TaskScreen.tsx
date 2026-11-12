@@ -298,6 +298,8 @@ export function TaskScreen({
     });
 
   const placeOptions: PlaceOptions = {
+    status: "ready",
+    onRetry: () => undefined,
     all: places,
     atLimit: places.length >= placeLimit,
     validateName: placeNameRule(places),
@@ -320,7 +322,9 @@ export function TaskScreen({
     onUpdate: async (placeId, values) => {
       if (!(await confirmed())) return { ok: false, formError: placeMessages.saveFailed };
       const update = (place: Place) =>
-        place.id === placeId ? { ...place, name: values.name.trim(), color: values.color } : place;
+        place.id === placeId
+          ? { ...place, ...values, name: values.name?.trim() ?? place.name }
+          : place;
       setPlaces((list) => list.map(update));
       setTasks((list) =>
         mapTasks(list, (item) =>

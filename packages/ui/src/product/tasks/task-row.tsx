@@ -23,7 +23,12 @@ import { TextAction } from "../../components/ui/text-action";
 import { Tooltip } from "../../components/ui/tooltip";
 import { cn } from "../../lib/cn";
 import type { SubmitResult } from "../../lib/use-form";
-import { PlacePicker, type NewPlaceValues, type PlaceValues } from "../places/place-picker";
+import {
+  PlacePicker,
+  type NewPlaceValues,
+  type PlacesState,
+  type PlaceValues,
+} from "../places/place-picker";
 import { PlaceTag } from "../places/place-tag";
 import { defaultPlaceText, type PlaceText } from "../places/text";
 import type { Place } from "../places/types";
@@ -50,8 +55,11 @@ export type TaskEdit = (
   opened: TaskItem,
 ) => Promise<SubmitResult<TaskField>>;
 
-/** The owner's places and what the app does with them (E02-S03; decisions G3, G6, D26). */
-export interface PlaceOptions {
+/**
+ * The owner's places and what the app does with them (E02-S03; decisions G3, G6, D26), and whether
+ * they have loaded (`PlacesState`; spec E02, F2).
+ */
+export interface PlaceOptions extends PlacesState {
   all: Place[];
   /** The app's limit of 20 places is reached (D26). */
   atLimit: boolean;
@@ -59,7 +67,7 @@ export interface PlaceOptions {
   onToggle: (taskId: string, placeId: string, assigned: boolean) => void;
   /** Creates a place, coloured by the app (D26), and adds the task to it. */
   onCreate: (taskId: string, values: NewPlaceValues) => Promise<SubmitResult<"name">>;
-  onUpdate: (placeId: string, values: PlaceValues) => Promise<SubmitResult<"name">>;
+  onUpdate: (placeId: string, values: Partial<PlaceValues>) => Promise<SubmitResult<"name">>;
   onDelete: (placeId: string) => Promise<boolean>;
   text?: Partial<PlaceText>;
 }
@@ -515,6 +523,9 @@ export function TaskRow({
                   }}
                 >
                   <PlacePicker
+                    status={places.status}
+                    onRetry={places.onRetry}
+                    retrying={places.retrying}
                     taskTitle={task.title}
                     places={places.all}
                     selectedIds={task.places?.map((place) => place.id) ?? []}
