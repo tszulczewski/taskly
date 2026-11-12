@@ -13,6 +13,7 @@ import {
   listTasks,
   requireTaskRole,
   setTaskCompleted,
+  setTaskPlace,
   updateTask,
 } from "./tasks";
 import type { Db } from "./types";
@@ -32,6 +33,12 @@ const ids = {
 };
 
 type Logged = { sql: string; params: unknown[] } | string;
+
+const PLACES_SELECT =
+  'select "task_places"."task_id", "places"."id", "places"."name", "places"."color" from "task_places" inner join "places" on "places"."id" = "task_places"."place_id" inner join "tasks" on "tasks"."id" = "task_places"."task_id" where ';
+const PLACES_ORDER = ' order by "places"."position" COLLATE "C", "places"."id" asc';
+/** Rows for the next places reads (`[taskId, placeId, name, color]`); none by default. */
+let placeReplies: unknown[][][] = [];
 type Reply = unknown[][] | unknown;
 
 /**
@@ -42,11 +49,17 @@ type Reply = unknown[][] | unknown;
  */
 function fakeDb(...replies: Reply[]) {
   const log: Logged[] = [];
+  const placeLog: { sql: string; params: unknown[] }[] = [];
   const client = {
     query: vi.fn(async (config: { text: string }, params: unknown[] = []) => {
       if (/^(begin|commit|rollback)$/.test(config.text)) {
         log.push(config.text);
         return { rows: [] };
+      }
+      // The places read of every view: logged apart, so the tests of the task SQL stay readable.
+      if (config.text.startsWith(PLACES_SELECT)) {
+        placeLog.push({ sql: config.text, params });
+        return { rows: placeReplies.shift() ?? [] };
       }
       log.push({ sql: config.text, params });
       if (replies.length === 0) throw new Error(`unexpected query: ${config.text}`);
@@ -56,7 +69,7 @@ function fakeDb(...replies: Reply[]) {
     }),
   };
   const db = drizzle({ client: client as unknown as Pool, schema }) as unknown as Db;
-  return { db, log };
+  return { db, log, placeLog };
 }
 
 /** A pg error as node-postgres raises it, with row values in its detail. */
@@ -69,6 +82,7 @@ function pgError(code: string) {
 
 beforeEach(() => {
   mockedRequireRole.mockReset();
+  placeReplies = [];
 });
 
 function grantRole(log: Logged[], role: "owner" | "editor" | "viewer" = "editor") {
@@ -159,6 +173,7 @@ describe("createTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -191,6 +206,7 @@ describe("createTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -298,6 +314,7 @@ describe("createTask", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [
@@ -309,6 +326,7 @@ describe("createTask", () => {
             completed: true,
             important: false,
             urgent: false,
+            places: [],
             position: "a0",
           },
           {
@@ -319,6 +337,7 @@ describe("createTask", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: "a1",
           },
         ],
@@ -505,6 +524,7 @@ describe("listTasks", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 1,
         subtasks: [
@@ -516,6 +536,7 @@ describe("listTasks", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: "a0",
           },
           {
@@ -526,6 +547,7 @@ describe("listTasks", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: "a0",
           },
         ],
@@ -538,6 +560,7 @@ describe("listTasks", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [
@@ -549,6 +572,7 @@ describe("listTasks", () => {
             completed: false,
             important: false,
             urgent: false,
+            places: [],
             position: "a0",
           },
         ],
@@ -597,6 +621,7 @@ describe("listTasks", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -609,6 +634,7 @@ describe("listTasks", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -743,6 +769,7 @@ describe("updateTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -826,6 +853,7 @@ describe("updateTask", () => {
         id: ids.a,
         important: false,
         urgent: false,
+        places: [],
         subtasks: [expect.objectContaining({ id: taskId, important: true, urgent: false })],
       }),
     );
@@ -944,6 +972,7 @@ describe("updateTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 1,
       subtasks: [
@@ -955,6 +984,7 @@ describe("updateTask", () => {
           completed: false,
           important: false,
           urgent: false,
+          places: [],
           position: "a0",
         },
         {
@@ -965,6 +995,7 @@ describe("updateTask", () => {
           completed: false,
           important: false,
           urgent: false,
+          places: [],
           position: "a0",
         },
       ],
@@ -1037,6 +1068,7 @@ describe("updateTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [
@@ -1048,6 +1080,7 @@ describe("updateTask", () => {
           completed: false,
           important: false,
           urgent: false,
+          places: [],
           position: "a0",
         },
         {
@@ -1058,6 +1091,7 @@ describe("updateTask", () => {
           completed: false,
           important: false,
           urgent: false,
+          places: [],
           position: "a0",
         },
       ],
@@ -1157,6 +1191,7 @@ describe("deleteTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
       unestimatedSubtasks: 1,
       subtasks: [
@@ -1168,6 +1203,7 @@ describe("deleteTask", () => {
           completed: false,
           important: false,
           urgent: false,
+          places: [],
           position: "a0",
         },
       ],
@@ -1201,6 +1237,7 @@ describe("deleteTask", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -1286,6 +1323,7 @@ describe("setTaskCompleted", () => {
         completed: true,
         important: false,
         urgent: false,
+        places: [],
         // A completed subtask still counts in its task's sum (R14).
         estimate: { minGrosze: 30, maxGrosze: 40 },
         subtasks: [expect.objectContaining({ id: ids.a1, completed: true })],
@@ -1413,6 +1451,137 @@ describe("setTaskCompleted", () => {
     const { db, log } = fakeDb([[listId]]);
     mockedRequireRole.mockRejectedValue(forbidden);
     await expect(setTaskCompleted(db, userId, taskId, { completed: true })).rejects.toBe(forbidden);
+    expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+});
+
+describe("places on the views", () => {
+  const place = (id: string, name: string, color: number) => ({ id, name, color });
+
+  it("reads the list's places in one query and puts each on its own row (D21)", async () => {
+    placeReplies = [
+      [
+        [ids.a1, ids.b, "Kuchnia", 4],
+        [ids.a, ids.a2, "Łazienka", 3],
+        [ids.a, ids.b, "Kuchnia", 4],
+      ],
+    ];
+    const { db, log, placeLog } = fakeDb([
+      [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+      [ids.a1, ids.a, "Plaster", null, null, null, "todo", "a0", false, false],
+    ]);
+    grantRole(log, "viewer");
+
+    const [view] = await listTasks(db, userId, listId);
+
+    expect(view!.places).toEqual([place(ids.a2, "Łazienka", 3), place(ids.b, "Kuchnia", 4)]);
+    expect(view!.subtasks[0]!.places).toEqual([place(ids.b, "Kuchnia", 4)]);
+    expect(placeLog).toEqual([
+      { sql: `${PLACES_SELECT}"tasks"."list_id" = $1${PLACES_ORDER}`, params: [listId] },
+    ]);
+  });
+
+  it("reads the places of a tree with its rows", async () => {
+    placeReplies = [[[taskId, ids.b, "Salon", 1]]];
+    const { db, log, placeLog } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", null, 100, 200, "todo", "a0", false, true]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { urgent: true });
+
+    expect(view.places).toEqual([place(ids.b, "Salon", 1)]);
+    expect(placeLog).toEqual([
+      {
+        sql: `${PLACES_SELECT}("tasks"."id" = $1 or "tasks"."parent_id" = $2)${PLACES_ORDER}`,
+        params: [taskId, taskId],
+      },
+    ]);
+  });
+});
+
+describe("setTaskPlace", () => {
+  const placeId = ids.b1;
+  const lockPlace = {
+    sql: 'select "id" from "places" where ("places"."id" = $1 and exists (select "user_id" from "list_members" where ("list_members"."list_id" = $2 and "list_members"."user_id" = "places"."user_id" and "list_members"."role" = $3))) for key share',
+    params: [placeId, listId, "owner"],
+  };
+  const tree = [[taskId, null, "Tiles", null, 100, 200, "todo", "a0", false, false]];
+
+  it("authorizes write, locks the task then the list owner's place, assigns it idempotently", async () => {
+    placeReplies = [[[taskId, placeId, "Salon", 1]]];
+    const { db, log } = fakeDb([[listId]], [taskRow], [[placeId]], [], tree);
+    grantRole(log);
+
+    const view = await setTaskPlace(db, userId, taskId, placeId, { assigned: true });
+
+    expect(view.places).toEqual([{ id: placeId, name: "Salon", color: 1 }]);
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      lockPlace,
+      {
+        sql: 'insert into "task_places" ("task_id", "place_id", "created_at") values ($1, $2, default) on conflict do nothing',
+        params: [taskId, placeId],
+      },
+      viewQueryOf(taskId),
+      "commit",
+    ]);
+  });
+
+  it("removes only that assignment and returns the subtask's parent", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [subtaskRow],
+      [[placeId]],
+      [],
+      [[ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false]],
+    );
+    grantRole(log);
+
+    const view = await setTaskPlace(db, userId, taskId, placeId, { assigned: false });
+
+    expect(view.id).toBe(ids.a);
+    expect(log.slice(5)).toEqual([
+      {
+        sql: 'delete from "task_places" where ("task_places"."task_id" = $1 and "task_places"."place_id" = $2)',
+        params: [taskId, placeId],
+      },
+      viewQueryOf(ids.a),
+      "commit",
+    ]);
+  });
+
+  it("answers 404 Place when the place is not the list owner's, unknown or deleted (Q3-1)", async () => {
+    const { db, log } = fakeDb([[listId]], [taskRow], []);
+    grantRole(log);
+
+    await expect(setTaskPlace(db, userId, taskId, placeId, { assigned: true })).rejects.toEqual(
+      new NotFoundError("Place"),
+    );
+    expect(log.at(-1)).toBe("rollback");
+  });
+
+  it("answers 404 Place for a malformed place id before any query (P3)", async () => {
+    const { db, log } = fakeDb();
+    await expect(
+      setTaskPlace(db, userId, taskId, "not-a-uuid", { assigned: true }),
+    ).rejects.toEqual(new NotFoundError("Place"));
+    expect(log).toEqual([]);
+  });
+
+  it("refuses a viewer before reading the place", async () => {
+    const { db, log } = fakeDb([[listId]]);
+    mockedRequireRole.mockRejectedValue(new ForbiddenError());
+
+    await expect(setTaskPlace(db, userId, taskId, placeId, { assigned: true })).rejects.toEqual(
+      new ForbiddenError(),
+    );
     expect(log).toEqual(["begin", readListId, "rollback"]);
   });
 });

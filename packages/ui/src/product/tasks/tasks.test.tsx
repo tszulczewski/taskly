@@ -693,6 +693,8 @@ describe("TaskList ordering, markers and places", () => {
   const bathroom: Place = { id: "bathroom", name: "Bathroom", color: 1 };
   const kitchen: Place = { id: "kitchen", name: "Kitchen", color: 2 };
   const placeOptions = (overrides: Partial<PlaceOptions> = {}): PlaceOptions => ({
+    status: "ready",
+    onRetry: vi.fn(),
     all: [bathroom, kitchen],
     atLimit: false,
     validateName: () => undefined,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createPlaceInput,
+  deletePlaceResponseSchema,
   nextPlaceColor,
   PLACE_LIMIT,
   placeColorSchema,
@@ -93,6 +94,11 @@ describe("request and response schemas", () => {
     expect(updatePlaceInput.safeParse({ name: undefined }).success).toBe(false);
     expect(updatePlaceInput.safeParse({ color: 11 }).success).toBe(false);
     expect(updatePlaceInput.safeParse({ color: 1, position: "a0" }).success).toBe(false);
+  });
+
+  it("answers null on delete", () => {
+    expect(deletePlaceResponseSchema.parse(null)).toBeNull();
+    expect(deletePlaceResponseSchema.safeParse(undefined).success).toBe(false);
   });
 
   it("checks the colour and the view", () => {
