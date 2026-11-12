@@ -42,7 +42,16 @@ The owner assigns a task or a subtask to several of their own places (#19 AC1–
 
 ## Down SQL (0003)
 
-To be filled in step 1.
+```sql
+BEGIN;
+DROP TABLE "task_places";
+DROP TABLE "places";
+DROP TABLE "place_owners";
+DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = 'd9ee75d374d0d418c2e0c7a50c80a5498fd1923cacdfb377bb0c45c8c13325dd'; -- sha256 of 0003_places.sql
+COMMIT;
+```
+
+Tried once (automated, Testcontainers, `migrations.integration.test.ts`, "migration 0003 … rolls back with the down SQL"): every task row survives, the three tables are gone, and the migrator applies `0003` again. The 0002 down-SQL test now migrates only up to `0002`: the migrator applies only entries newer than the last one recorded, so a recorded `0003` would keep a rolled-back `0002` from being applied again (roll back in reverse order).
 
 ## Steps taken
 
