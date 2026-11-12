@@ -1628,6 +1628,27 @@ describe("TaskListScreen what has no estimate", () => {
     expect(calls("GET", TASKS_URL)).toHaveLength(2);
   });
 
+  it("keeps a 409's message on screen when the refetch removes the item's form, until the next change", async () => {
+    const message = "A task with subtasks takes its estimate from them";
+    serverTasks = [tile, paint];
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () => {
+      serverTasks = [tile];
+      return fail(409, "conflict", message);
+    });
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    type(amountField(estimateForm()), "400");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(line()).toBeNull());
+    expect((await screen.findByRole("alert")).textContent).toBe(message);
+
+    type(titleField(), "Grout");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
   it("treats a 404 as deleted elsewhere: the item goes and the deleted notice stays", async () => {
     serverTasks = [tile, paint];
     handlers.set(`PATCH ${taskUrl(paint.id)}`, () => {
