@@ -26,11 +26,15 @@ const parent: TaskView = {
   description: "North wall",
   estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
   completed: false,
+  important: false,
+  urgent: false,
   position: "a0",
   unestimatedSubtasks: 1,
   subtasks: [
     {
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       id: "0a1b2c3d-4e5f-4a7b-9c8d-6f1c2d3e4b5a",
       title: "Plaster",
@@ -39,6 +43,8 @@ const parent: TaskView = {
     },
     {
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       id: "9c8d6f1c-2d3e-4b5a-8e9f-0a1b2c3d4e5f",
       title: "Paint",

@@ -11,6 +11,7 @@ import {
   taskViewSchema,
   type UpdateTaskInput,
 } from "@taskly/core";
+import type { Marker } from "@taskly/ui";
 import {
   type Mutation,
   type QueryClient,
@@ -87,14 +88,20 @@ async function writeTasks(
   queryClient.setQueryData<TaskView[]>(queryKey, (tasks) => tasks && update(tasks));
 }
 
-function settle(queryClient: QueryClient, listId: string): void {
-  // The total holds no optimistic state, so it follows every settled change, even while others run.
-  void queryClient.invalidateQueries({ queryKey: queryKeys.futureExpenses(listId) });
+/** Refetches the list once no other task mutation of it is running. */
+function settleTasks(queryClient: QueryClient, listId: string): void {
   const key = queryKeys.tasks(listId);
   // While another task mutation of this list is running, its refetch would drop that mutation's
   // pending row; the last one to settle refetches for all of them.
   if (queryClient.isMutating({ mutationKey: key }) > 1) return;
   void queryClient.invalidateQueries({ queryKey: key });
+}
+
+/** `settleTasks` after a change that can change the future expenses. */
+function settle(queryClient: QueryClient, listId: string): void {
+  // The total holds no optimistic state, so it follows every settled change, even while others run.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.futureExpenses(listId) });
+  settleTasks(queryClient, listId);
 }
 
 /** The tasks of a list, top-level in order, each with its subtasks (`GET …/tasks`). */
@@ -167,6 +174,8 @@ export function useCreateTask(listId: string) {
         description: input.description,
         estimate: input.estimate,
         completed: false,
+        important: false,
+        urgent: false,
         // Unknown until the server answers; pending rows are never sent or completed.
         position: "",
       };
@@ -289,6 +298,37 @@ export function useSetCompleted(
   });
 }
 
+export interface ToggleMarkerVariables {
+  id: string;
+  marker: Marker;
+  on: boolean;
+  /** For the row message if the server refuses it. */
+  title: string;
+}
+
+/**
+ * Sets or clears one marker of a task or subtask (`PATCH { important }` or `{ urgent }`, spec E02
+ * #18). Only that key is sent, so a quick toggle of the other marker never overwrites it. Shown
+ * at once like a completion, by the replay in `useTaskViews`, in the same list queue, so answers
+ * land in the order the toggles were made. A marker changes no amount, so the future expenses
+ * are not refetched.
+ */
+export function useToggleMarker(
+  listId: string,
+  { onError }: { onError?: (error: unknown, variables: ToggleMarkerVariables) => void } = {},
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.taskChange(listId, "marker"),
+    scope: listQueue(listId),
+    mutationFn: async ({ id, marker, on }: ToggleMarkerVariables) =>
+      apiCall(taskPath(id), { method: "PATCH", body: { [marker]: on }, response: taskViewSchema }),
+    onSuccess: (task) => writeTasks(queryClient, listId, (tasks) => putTask(tasks, task, task.id)),
+    onError: (error, variables) => onError?.(error, variables),
+    onSettled: () => settleTasks(queryClient, listId),
+  });
+}
+
 /** A pending change mutation as the replay reads it; the last key part names its kind. */
 function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange {
   const kind = mutation.options.mutationKey!.at(-1) as PendingChange["kind"];
@@ -297,7 +337,7 @@ function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange 
 
 /**
  * The tasks of a list as the screen shows them: the cached server data in read order, with the
- * pending changes (completions) applied in submission order (spec E03, UI/UX). `views` is
+ * pending changes (completions, markers) applied in submission order (spec E03, UI/UX). `views` is
  * undefined until the list has loaded.
  */
 export function useTaskViews(listId: string) {

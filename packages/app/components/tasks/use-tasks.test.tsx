@@ -13,6 +13,7 @@ import { queryKeys } from "../../lib/query-keys";
 import { isPendingTaskId } from "./task-items";
 import {
   type SetCompletedVariables,
+  type ToggleMarkerVariables,
   useAddEstimate,
   useCreateTask,
   useDeleteTask,
@@ -20,6 +21,7 @@ import {
   useSetCompleted,
   useTasks,
   useTaskViews,
+  useToggleMarker,
   useUpdateTask,
 } from "./use-tasks";
 
@@ -34,6 +36,8 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -310,6 +314,8 @@ describe("useCreateTask for a subtask", () => {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
   };
   const own = { minGrosze: 150_000, maxGrosze: 200_000 };
@@ -347,6 +353,8 @@ describe("useCreateTask for a subtask", () => {
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "",
     });
     expect(parent).toEqual({ ...tile, estimate: own, subtasks: [temporary] });
@@ -452,6 +460,8 @@ describe("useUpdateTask", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     const parent = { ...paint, subtasks: [{ ...subtask, title: "Prime twice" }] };
@@ -565,6 +575,8 @@ describe("useDeleteTask", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
     };
     serverTasks = [tile, { ...paint, subtasks: [subtask] }];
@@ -613,6 +625,8 @@ describe("useSetCompleted with useTaskViews", () => {
     description: null,
     estimate: null,
     completed: false,
+    important: false,
+    urgent: false,
     position: "a0",
   };
   const sub2 = { ...sub1, id: crypto.randomUUID(), title: "s2", position: "a1" };
@@ -911,6 +925,250 @@ describe("useSetCompleted with useTaskViews", () => {
     act(() => {
       outcome = result.current
         .mutateAsync({ id: "pending-1", completed: true, title: "x" })
+        .catch((error: unknown) => error);
+    });
+    expect(await outcome).toEqual(new Error("The task is not saved yet"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useToggleMarker with useTaskViews", () => {
+  const a = view("A", { position: "a0" });
+  const b = view("B", { position: "a1" });
+  const { unestimatedSubtasks: _u, subtasks: _s, ...s1 } = view("s1", { position: "a0" });
+  const parent = view("Bathroom", { position: "a2", subtasks: [s1] });
+  const EXPENSES_URL = `/api/lists/${LIST}/future-expenses`;
+  const onError = vi.fn<(error: unknown, variables: ToggleMarkerVariables) => void>();
+
+  beforeEach(() => {
+    serverTasks = [a, b, parent];
+    handlers.set(`GET ${TASKS_URL}`, () => ok(serverTasks));
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: null, unestimated: [] }));
+    onError.mockReset();
+  });
+
+  /** Each PATCH of the row waits for the next gate opened for it. */
+  function patchGates(id: string) {
+    const gates: ReturnType<typeof gate>[] = [];
+    const bodies: unknown[] = [];
+    handlers.set(`PATCH ${taskUrl(id)}`, (body) => {
+      bodies.push(body);
+      const next = gate();
+      gates.push(next);
+      return next.promise;
+    });
+    return { gates, bodies };
+  }
+
+  async function harness() {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () => ({
+        shown: useTaskViews(LIST),
+        expenses: useFutureExpenses(LIST),
+        mark: useToggleMarker(LIST, { onError }),
+        update: useUpdateTask(LIST),
+      }),
+      { wrapper },
+    );
+    const cached = () => client.getQueryData<TaskView[]>(queryKeys.tasks(LIST));
+    await waitFor(() => expect(cached()).toEqual(serverTasks));
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    const toggle = (id: string, marker: "important" | "urgent", on: boolean, title = "x") =>
+      act(() => result.current.mark.mutate({ id, marker, on, title }));
+    const markers = (id: string) => {
+      for (const task of result.current.shown.views ?? []) {
+        const row = task.id === id ? task : task.subtasks.find((subtask) => subtask.id === id);
+        if (row) return [row.important, row.urgent];
+      }
+      return undefined;
+    };
+    return { client, result, cached, toggle, markers };
+  }
+
+  it("shows a marker at once without writing the cache, sends only that key, then keeps the server's answer", async () => {
+    const { gates, bodies } = patchGates(a.id);
+    const { cached, toggle, markers, result } = await harness();
+
+    toggle(a.id, "important", true);
+    await waitFor(() => expect(markers(a.id)).toEqual([true, false]));
+    expect(cached()).toEqual([a, b, parent]);
+    await waitFor(() => expect(bodies).toEqual([{ important: true }]));
+
+    const marked = { ...a, important: true };
+    serverTasks = [marked, b, parent];
+    gates[0]!.open(ok(marked));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(cached()).toEqual([marked, b, parent]);
+    expect(markers(a.id)).toEqual([true, false]);
+    expect(result.current.shown.views?.map((task) => task.title)).toEqual(["A", "B", "Bathroom"]);
+    // A marker changes no amount: the future expenses are not refetched (spec E02, Invalidation).
+    expect(calls("GET", EXPENSES_URL)).toHaveLength(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("shows on → off as off throughout when the first answer is late; the off is sent after it", async () => {
+    const { gates, bodies } = patchGates(a.id);
+    const { toggle, markers } = await harness();
+
+    toggle(a.id, "urgent", true);
+    toggle(a.id, "urgent", false);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(markers(a.id)).toEqual([false, false]);
+
+    gates[0]!.open(ok({ ...a, urgent: true }));
+    await waitFor(() => expect(bodies).toEqual([{ urgent: true }, { urgent: false }]));
+    expect(markers(a.id)).toEqual([false, false]);
+
+    gates[1]!.open(ok(a));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(markers(a.id)).toEqual([false, false]);
+  });
+
+  it("sends important then urgent as two one-key PATCHes in order, and shows both throughout (#18 AC2)", async () => {
+    const { gates, bodies } = patchGates(a.id);
+    const { toggle, markers } = await harness();
+
+    toggle(a.id, "important", true);
+    toggle(a.id, "urgent", true);
+    await waitFor(() => expect(markers(a.id)).toEqual([true, true]));
+    await waitFor(() => expect(bodies).toEqual([{ important: true }]));
+
+    gates[0]!.open(ok({ ...a, important: true }));
+    await waitFor(() => expect(bodies).toEqual([{ important: true }, { urgent: true }]));
+    expect(markers(a.id)).toEqual([true, true]);
+
+    serverTasks = [{ ...a, important: true, urgent: true }, b, parent];
+    gates[1]!.open(ok(serverTasks[0]));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(markers(a.id)).toEqual([true, true]);
+  });
+
+  it("rolls back only the refused toggle and reports it, keeping the next one (#18 AC3)", async () => {
+    const { gates, bodies } = patchGates(b.id);
+    const { toggle, markers } = await harness();
+
+    toggle(b.id, "important", true, "B");
+    toggle(b.id, "urgent", true, "B");
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    gates[0]!.open(fail(500, "internal", "Something went wrong"));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]![1]).toEqual({
+      id: b.id,
+      marker: "important",
+      on: true,
+      title: "B",
+    });
+    expect(markers(b.id)).toEqual([false, true]);
+
+    await waitFor(() => expect(bodies).toEqual([{ important: true }, { urgent: true }]));
+    serverTasks = [a, { ...b, urgent: true }, parent];
+    gates[1]!.open(ok(serverTasks[1]));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(markers(b.id)).toEqual([false, true]);
+  });
+
+  it("marks a subtask only: the server's parent replaces its row, the parent stays unmarked (#18 AC4)", async () => {
+    const { gates, bodies } = patchGates(s1.id);
+    const { toggle, markers } = await harness();
+
+    toggle(s1.id, "important", true);
+    await waitFor(() => expect(markers(s1.id)).toEqual([true, false]));
+    expect(markers(parent.id)).toEqual([false, false]);
+    await waitFor(() => expect(bodies).toEqual([{ important: true }]));
+
+    const answer = { ...parent, subtasks: [{ ...s1, important: true }] };
+    serverTasks = [a, b, answer];
+    gates[0]!.open(ok(answer));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(markers(s1.id)).toEqual([true, false]);
+    expect(markers(parent.id)).toEqual([false, false]);
+  });
+
+  it("sends a toggle after a slow edit's answer and never shows the marker unset meanwhile", async () => {
+    const edit = gate();
+    const bodies: unknown[] = [];
+    const marks: ReturnType<typeof gate>[] = [];
+    handlers.set(`PATCH ${taskUrl(a.id)}`, (body) => {
+      bodies.push(body);
+      if (bodies.length === 1) return edit.promise;
+      const next = gate();
+      marks.push(next);
+      return next.promise;
+    });
+    const { result, toggle, markers } = await harness();
+
+    let editing!: Promise<unknown>;
+    act(() => {
+      editing = result.current.update.mutateAsync({ id: a.id, input: { title: "A2" } });
+    });
+    toggle(a.id, "urgent", true);
+    await waitFor(() => expect(markers(a.id)).toEqual([false, true]));
+    expect(bodies).toEqual([{ title: "A2" }]);
+
+    // The edit's tree has the marker unset; the pending toggle is replayed over it.
+    edit.open(ok({ ...a, title: "A2" }));
+    await editing;
+    expect(markers(a.id)).toEqual([false, true]);
+    await waitFor(() => expect(bodies).toEqual([{ title: "A2" }, { urgent: true }]));
+    expect(markers(a.id)).toEqual([false, true]);
+
+    serverTasks = [{ ...a, title: "A2", urgent: true }, b, parent];
+    marks[0]!.open(ok(serverTasks[0]));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(markers(a.id)).toEqual([false, true]);
+  });
+
+  it("does not let a list refetch that started before the answer land on top of it", async () => {
+    const { gates } = patchGates(a.id);
+    const { client, cached, toggle, markers } = await harness();
+
+    toggle(a.id, "important", true);
+    await waitFor(() => expect(gates).toHaveLength(1));
+    const stale = gate();
+    handlers.set(`GET ${TASKS_URL}`, () => stale.promise);
+    act(() => void client.refetchQueries({ queryKey: queryKeys.tasks(LIST) }));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+
+    const marked = { ...a, important: true };
+    handlers.set(`GET ${TASKS_URL}`, () => ok([marked, b, parent]));
+    gates[0]!.open(ok(marked));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(3));
+    stale.open(ok([a, b, parent]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => expect(cached()).toEqual([marked, b, parent]));
+    expect(markers(a.id)).toEqual([true, false]);
+  });
+
+  it("reports a 404 to onError and refetches, so the row disappears", async () => {
+    handlers.set(`PATCH ${taskUrl(a.id)}`, () => fail(404, "not_found", "Task not found"));
+    const { toggle, result } = await harness();
+    serverTasks = [b, parent];
+
+    toggle(a.id, "urgent", true, "A");
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]![0]).toMatchObject({ status: 404 });
+    await waitFor(() =>
+      expect(result.current.shown.views?.map((task) => task.title)).toEqual(["B", "Bathroom"]),
+    );
+  });
+
+  it("works without an onError and never sends a request for a pending row", async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useToggleMarker(LIST), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    let outcome!: Promise<unknown>;
+    act(() => {
+      outcome = result.current
+        .mutateAsync({ id: "pending-1", marker: "important", on: true, title: "x" })
         .catch((error: unknown) => error);
     });
     expect(await outcome).toEqual(new Error("The task is not saved yet"));
