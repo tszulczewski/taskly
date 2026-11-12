@@ -37,6 +37,9 @@ export type PlaceView = z.infer<typeof placeViewSchema>;
 /** `GET /api/places`: the user's places in their order. */
 export const placeListResponseSchema = z.array(placeViewSchema);
 
+/** `DELETE /api/places/[placeId]` answers nothing. */
+export const deletePlaceResponseSchema = z.null();
+
 /** `POST /api/places`: only a name; the colour comes from `nextPlaceColor` (D26). */
 export const createPlaceInput = z.strictObject({ name: placeNameSchema });
 
