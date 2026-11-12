@@ -4,7 +4,7 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # E02 Order, markers and places
 
-Backlog E02 (#12): E02-S01 reorder tasks and keep the order (#17), E02-S02 mark a task or subtask important and/or urgent (#18), E02-S03 assign a task or subtask to several places (#19). Spec: `.ai/specs/2026-11-03-order-markers-and-spaces.md` (ready; implementation pending). The design decisions below (G1–G6, H1–H10, POSTEP.md) inform its UI/UX. Screen S7.
+Backlog E02 (#12): E02-S01 reorder tasks and keep the order (#17), E02-S02 mark a task or subtask important and/or urgent (#18), E02-S03 assign a task or subtask to several places (#19). Spec: `.ai/specs/2026-11-03-order-markers-and-spaces.md` (ready; Phase 1, markers (#18), implemented; places and reorder pending). The design decisions below (G1–G6, H1–H10, POSTEP.md) inform its UI/UX. Screen S7.
 
 ## Flow
 
@@ -41,6 +41,7 @@ Pattern: [Reorder](?path=/docs/patterns-reorder--docs).
 
 ## Remaining product work
 
-- Implement the ready E02 spec in three phases: markers (#18), places (#19), then reorder (#17); reorder requires E03 completion (#20).
+- Markers (#18, Phase 1) are implemented: "Important" and "Urgent" in the row menu, each its own `PATCH` key, shown at once and put back with "Could not save “X”. It is back as it was." when refused.
+- Implement the remaining phases: places (#19), then reorder (#17); reorder requires E03 completion (#20, implemented).
 - Places are one set per user; only a list owner's places can be assigned to its tasks (E02 Q3, decided).
 - In the app: the reorder call sends only `afterId` and `beforeId`; markers and places are optimistic with rollback.
