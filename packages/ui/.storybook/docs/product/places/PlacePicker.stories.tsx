@@ -74,6 +74,17 @@ export const Loading: Story = {
     await expect(canvas.getByRole("status")).toHaveTextContent("Loading your places…");
     await expect(canvas.queryByText("No places yet.")).toBeNull();
     await expect(canvas.queryByLabelText("New place")).toBeNull();
+    // The popover is raised too: the placeholder bars need a distinct existing surface tone.
+    const panel = canvasElement.querySelector<HTMLElement>(".bg-raised")!;
+    const bars = canvasElement.querySelectorAll<HTMLElement>('[data-slot="skeleton"]');
+    await expect(bars).toHaveLength(3);
+    for (const bar of bars) {
+      await expect(getComputedStyle(bar).backgroundColor).not.toBe(
+        getComputedStyle(panel).backgroundColor,
+      );
+      await expect(bar.getBoundingClientRect().width).toBeGreaterThan(0);
+      await expect(bar.getBoundingClientRect().height).toBeGreaterThan(0);
+    }
   },
 };
 

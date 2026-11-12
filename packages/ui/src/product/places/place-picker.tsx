@@ -293,7 +293,7 @@ function PlacesNotReady({ taskTitle, text, status, onRetry, retrying }: PlacePic
           <ul aria-hidden="true" className="flex flex-col gap-inline">
             {[1, 2, 3].map((row) => (
               <li key={row} className="flex min-h-touch items-center">
-                <Skeleton className="w-2/3" />
+                <Skeleton className="w-2/3 bg-list" />
               </li>
             ))}
           </ul>
