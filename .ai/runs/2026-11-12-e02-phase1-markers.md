@@ -40,7 +40,7 @@ The owner can mark a task or a subtask important and/or urgent, independently, w
 ```sql
 ALTER TABLE "tasks" DROP COLUMN "important";
 ALTER TABLE "tasks" DROP COLUMN "urgent";
-DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = '<sha256 of 0002_task_markers.sql>';
+DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = 'bd9fcd6b0cd1c2b45eeaa788c54bb5a68e073c82f834fd9517efaac00210b900'; -- sha256 of 0002_task_markers.sql
 ```
 
 ## Steps taken
@@ -59,8 +59,8 @@ DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = '<sha256 of 0002_tas
 
 ### Phase 1: markers
 
-- [ ] 1.1 Migration 0002 task_markers
-- [ ] 1.2 Views and PATCH
-- [ ] 1.3 List queue and marker replay
-- [ ] 1.4 App wiring
+- [x] 1.1 Migration 0002 task_markers — 321573c
+- [x] 1.2 Views and PATCH — 0821b72
+- [x] 1.3 List queue and marker replay — aa54213
+- [x] 1.4 App wiring — fb4de48
 - [ ] 1.5 Browser test and wrap-up
