@@ -204,9 +204,17 @@ describe("createTaskInput", () => {
     expect(createTaskInput.parse({ title: "Paint", parentId: null }).parentId).toBeNull();
   });
 
-  it("drops fields it does not own, such as listId and position", () => {
+  it("drops fields it does not own, such as listId, position and the markers (new tasks start unmarked)", () => {
     const listId = "3f1c1e7e-8f5a-4c55-9a59-0f3cc5b4a2d1";
-    expect(createTaskInput.parse({ title: "Paint", listId, position: "a0" })).toStrictEqual({
+    expect(
+      createTaskInput.parse({
+        title: "Paint",
+        listId,
+        position: "a0",
+        important: true,
+        urgent: true,
+      }),
+    ).toStrictEqual({
       title: "Paint",
       description: null,
       estimate: null,
@@ -252,6 +260,24 @@ describe("updateTaskInput", () => {
     expect(updateTaskInput.parse({ title: "x" })).toStrictEqual({ title: "x" });
   });
 
+  it("parses one marker to exactly that marker, so the other one is not written (#18 AC3)", () => {
+    expect(updateTaskInput.parse({ urgent: false })).toStrictEqual({ urgent: false });
+    expect(updateTaskInput.parse({ important: true })).toStrictEqual({ important: true });
+    expect(updateTaskInput.parse({ important: true, urgent: true })).toStrictEqual({
+      important: true,
+      urgent: true,
+    });
+  });
+
+  it.each([null, "true", 1])("rejects a marker that is not a boolean (%j)", (value) => {
+    expect(issues(updateTaskInput.safeParse({ important: value })).map(([path]) => path)).toEqual([
+      "important",
+    ]);
+    expect(issues(updateTaskInput.safeParse({ urgent: value })).map(([path]) => path)).toEqual([
+      "urgent",
+    ]);
+  });
+
   it("keeps an explicit null, which clears the field", () => {
     expect(updateTaskInput.parse({ estimate: null })).toStrictEqual({ estimate: null });
     expect(updateTaskInput.parse({ description: "" })).toStrictEqual({ description: null });
@@ -283,6 +309,8 @@ const subtask = (n: number, estimate: { minGrosze: number; maxGrosze: number } |
   description: null,
   estimate,
   completed: false,
+  important: n % 2 === 0,
+  urgent: false,
   position: `a${n}`,
 });
 const task = {
@@ -291,6 +319,8 @@ const task = {
   description: "Two coats",
   estimate: { minGrosze: 80000, maxGrosze: 90000 },
   completed: true,
+  important: false,
+  urgent: true,
   position: "a0",
   unestimatedSubtasks: 1,
   subtasks: [subtask(2, { minGrosze: 30000, maxGrosze: 40000 }), subtask(3)],
@@ -372,7 +402,7 @@ describe("response schemas", () => {
     const newer = {
       ...task,
       status: "todo",
-      subtasks: [{ ...subtask(2), important: true }],
+      subtasks: [{ ...subtask(2), places: [] }],
     };
     const parsed = taskViewSchema.parse(newer);
     expect(parsed.title).toBe(task.title);
@@ -385,6 +415,8 @@ describe("response schemas", () => {
     "description",
     "estimate",
     "completed",
+    "important",
+    "urgent",
     "position",
     "unestimatedSubtasks",
     "subtasks",
@@ -393,15 +425,21 @@ describe("response schemas", () => {
     expect(issues(taskViewSchema.safeParse(rest)).map(([path]) => path)).toEqual([field]);
   });
 
-  it.each(["id", "title", "description", "estimate", "completed", "position"])(
-    "reject a subtask without %s",
-    (field) => {
-      const { [field as keyof ReturnType<typeof subtask>]: _, ...rest } = subtask(2);
-      expect(
-        issues(taskViewSchema.safeParse({ ...task, subtasks: [rest] })).map(([path]) => path),
-      ).toEqual([`subtasks.0.${field}`]);
-    },
-  );
+  it.each([
+    "id",
+    "title",
+    "description",
+    "estimate",
+    "completed",
+    "important",
+    "urgent",
+    "position",
+  ])("reject a subtask without %s", (field) => {
+    const { [field as keyof ReturnType<typeof subtask>]: _, ...rest } = subtask(2);
+    expect(
+      issues(taskViewSchema.safeParse({ ...task, subtasks: [rest] })).map(([path]) => path),
+    ).toEqual([`subtasks.0.${field}`]);
+  });
 
   it.each([
     ["an invalid range", { estimate: { minGrosze: 2, maxGrosze: 1 } }, "estimate"],

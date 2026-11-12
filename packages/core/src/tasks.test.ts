@@ -87,7 +87,7 @@ const lastTopLevel = {
   params: [listId, 1],
 };
 const insertSql =
-  'insert into "tasks" ("id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at") values (default, $1, $2, $3, $4, default, $5, $6, $7, default, default) returning "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position"';
+  'insert into "tasks" ("id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "important", "urgent", "created_at") values (default, $1, $2, $3, $4, default, $5, $6, $7, default, default, default, default) returning "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position", "important", "urgent"';
 
 // requireTaskRole's queries, also the start of updateTask and deleteTask.
 const readListId = {
@@ -95,11 +95,25 @@ const readListId = {
   params: [taskId],
 };
 const lockTask = {
-  sql: 'select "id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "created_at" from "tasks" where "tasks"."id" = $1 for update',
+  sql: 'select "id", "list_id", "parent_id", "title", "description", "status", "position", "estimate_min_grosze", "estimate_max_grosze", "cost_grosze", "important", "urgent", "created_at" from "tasks" where "tasks"."id" = $1 for update',
   params: [taskId],
 };
 const createdAt = "2026-10-29T10:00:00.000Z";
-const taskRow = [taskId, listId, null, "Tiles", null, "todo", "a0", 100, 200, null, createdAt];
+const taskRow = [
+  taskId,
+  listId,
+  null,
+  "Tiles",
+  null,
+  "todo",
+  "a0",
+  100,
+  200,
+  null,
+  false,
+  false,
+  createdAt,
+];
 /** The same id as a subtask of ids.a. */
 const subtaskRow = [
   taskId,
@@ -112,11 +126,13 @@ const subtaskRow = [
   300,
   400,
   null,
+  false,
+  false,
   createdAt,
 ];
 /** `topLevelView`'s query for the top-level task `id`. */
 const viewQueryOf = (id: string) => ({
-  sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position" from "tasks" where ("tasks"."id" = $1 or "tasks"."parent_id" = $2) order by ("tasks"."status" = \'done\'), "tasks"."position" COLLATE "C", "tasks"."id" asc',
+  sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position", "important", "urgent" from "tasks" where ("tasks"."id" = $1 or "tasks"."parent_id" = $2) order by ("tasks"."status" = \'done\'), "tasks"."position" COLLATE "C", "tasks"."id" asc',
   params: [id, id],
 });
 
@@ -125,7 +141,7 @@ describe("createTask", () => {
     const { db, log } = fakeDb(
       [[listId]],
       [["a0"]],
-      [[taskId, null, "Tiles", "Grey ones", 150000, 200000, "todo", "a0"]],
+      [[taskId, null, "Tiles", "Grey ones", 150000, 200000, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -141,6 +157,8 @@ describe("createTask", () => {
       description: "Grey ones",
       estimate: { minGrosze: 150000, maxGrosze: 200000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -161,7 +179,7 @@ describe("createTask", () => {
     const { db, log } = fakeDb(
       [[listId]],
       [],
-      [[taskId, null, "Paint", null, null, null, "todo", "a0"]],
+      [[taskId, null, "Paint", null, null, null, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -171,6 +189,8 @@ describe("createTask", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -185,7 +205,7 @@ describe("createTask", () => {
     const { db, log } = fakeDb(
       [[listId]],
       [],
-      [[taskId, null, "Rod", null, 5000, 5000, "todo", "a0"]],
+      [[taskId, null, "Rod", null, 5000, 5000, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -205,7 +225,7 @@ describe("createTask", () => {
     const { db, log } = fakeDb(
       [[listId]],
       [],
-      [[taskId, null, "Rod", null, null, null, "todo", "a0"]],
+      [[taskId, null, "Rod", null, null, null, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -254,11 +274,11 @@ describe("createTask", () => {
         [[listId]],
         [[null, "todo"]],
         [["a0"]],
-        [[newId, ids.a, "Paint", "White", 50000, 50000, "todo", "a1"]],
+        [[newId, ids.a, "Paint", "White", 50000, 50000, "todo", "a1", false, false]],
         [
-          [ids.a1, ids.a, "Plaster", null, 30000, 40000, "done", "a0"],
-          [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0"],
-          [newId, ids.a, "Paint", "White", 50000, 50000, "todo", "a1"],
+          [ids.a1, ids.a, "Plaster", null, 30000, 40000, "done", "a0", false, false],
+          [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0", false, false],
+          [newId, ids.a, "Paint", "White", 50000, 50000, "todo", "a1", false, false],
         ],
       );
       grantRole(log);
@@ -276,6 +296,8 @@ describe("createTask", () => {
         description: "Walls",
         estimate: { minGrosze: 80000, maxGrosze: 90000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [
@@ -285,6 +307,8 @@ describe("createTask", () => {
             description: null,
             estimate: { minGrosze: 30000, maxGrosze: 40000 },
             completed: true,
+            important: false,
+            urgent: false,
             position: "a0",
           },
           {
@@ -293,6 +317,8 @@ describe("createTask", () => {
             description: "White",
             estimate: { minGrosze: 50000, maxGrosze: 50000 },
             completed: false,
+            important: false,
+            urgent: false,
             position: "a1",
           },
         ],
@@ -317,7 +343,7 @@ describe("createTask", () => {
         [],
         [[newId, ids.a, "Paint", null, null, null]],
         [
-          [ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0"],
+          [ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0", false, false],
           [newId, ids.a, "Paint", null, null, null],
         ],
       );
@@ -454,17 +480,17 @@ describe("createTask", () => {
 
 describe("listTasks", () => {
   const listQuery = {
-    sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position" from "tasks" where "tasks"."list_id" = $1 order by ("tasks"."status" = \'done\'), "tasks"."position" COLLATE "C", "tasks"."id" asc',
+    sql: 'select "id", "parent_id", "title", "description", "estimate_min_grosze", "estimate_max_grosze", "status", "position", "important", "urgent" from "tasks" where "tasks"."list_id" = $1 order by ("tasks"."status" = \'done\'), "tasks"."position" COLLATE "C", "tasks"."id" asc',
     params: [listId],
   };
 
   it("authorizes read and returns top-level tasks in order, each with its subtasks and rolled-up estimate", async () => {
     const { db, log } = fakeDb([
-      [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0"],
-      [ids.a1, ids.a, "Plaster", null, 30000, 40000, "todo", "a0"],
-      [ids.b, null, "Kitchen", null, 70000, 70000, "todo", "a0"],
-      [ids.a2, ids.a, "Paint", "White", null, null, "todo", "a0"],
-      [ids.b1, ids.b, "Rail", null, 5000, 5000, "todo", "a0"],
+      [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0", false, false],
+      [ids.a1, ids.a, "Plaster", null, 30000, 40000, "todo", "a0", false, false],
+      [ids.b, null, "Kitchen", null, 70000, 70000, "todo", "a0", false, false],
+      [ids.a2, ids.a, "Paint", "White", null, null, "todo", "a0", false, false],
+      [ids.b1, ids.b, "Rail", null, 5000, 5000, "todo", "a0", false, false],
     ]);
     grantRole(log, "viewer");
 
@@ -477,6 +503,8 @@ describe("listTasks", () => {
         description: "Walls",
         estimate: { minGrosze: 30000, maxGrosze: 40000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 1,
         subtasks: [
@@ -486,6 +514,8 @@ describe("listTasks", () => {
             description: null,
             estimate: { minGrosze: 30000, maxGrosze: 40000 },
             completed: false,
+            important: false,
+            urgent: false,
             position: "a0",
           },
           {
@@ -494,6 +524,8 @@ describe("listTasks", () => {
             description: "White",
             estimate: null,
             completed: false,
+            important: false,
+            urgent: false,
             position: "a0",
           },
         ],
@@ -504,6 +536,8 @@ describe("listTasks", () => {
         description: null,
         estimate: { minGrosze: 5000, maxGrosze: 5000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [
@@ -513,6 +547,8 @@ describe("listTasks", () => {
             description: null,
             estimate: { minGrosze: 5000, maxGrosze: 5000 },
             completed: false,
+            important: false,
+            urgent: false,
             position: "a0",
           },
         ],
@@ -524,9 +560,9 @@ describe("listTasks", () => {
 
   it("maps a done row to completed: true and orders open rows before completed ones", async () => {
     const { db, log } = fakeDb([
-      [ids.a, null, "Bathroom", null, null, null, "todo", "a0"],
-      [ids.a1, ids.a, "Plaster", null, null, null, "done", "a1"],
-      [ids.b, null, "Kitchen", null, null, null, "done", "a1"],
+      [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+      [ids.a1, ids.a, "Plaster", null, null, null, "done", "a1", false, false],
+      [ids.b, null, "Kitchen", null, null, null, "done", "a1", false, false],
     ]);
     grantRole(log, "viewer");
 
@@ -547,8 +583,8 @@ describe("listTasks", () => {
 
   it("returns a task's own estimate when it has no subtasks", async () => {
     const { db, log } = fakeDb([
-      [ids.a, null, "Rod", null, 5000, 5000, "todo", "a0"],
-      [ids.b, null, "Shelf", null, null, null, "todo", "a0"],
+      [ids.a, null, "Rod", null, 5000, 5000, "todo", "a0", false, false],
+      [ids.b, null, "Shelf", null, null, null, "todo", "a0", false, false],
     ]);
     grantRole(log);
 
@@ -559,6 +595,8 @@ describe("listTasks", () => {
         description: null,
         estimate: { minGrosze: 5000, maxGrosze: 5000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -569,6 +607,8 @@ describe("listTasks", () => {
         description: null,
         estimate: null,
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -577,7 +617,7 @@ describe("listTasks", () => {
   });
 
   it("treats a half-stored estimate as none (the pair CHECK forbids it)", async () => {
-    const { db, log } = fakeDb([[ids.a, null, "Odd", null, 100, null, "todo", "a0"]]);
+    const { db, log } = fakeDb([[ids.a, null, "Odd", null, 100, null, "todo", "a0", false, false]]);
     grantRole(log);
     const [view] = await listTasks(db, userId, listId);
     expect(view?.estimate).toBeNull();
@@ -619,6 +659,8 @@ describe("requireTaskRole", () => {
       estimateMinGrosze: 100,
       estimateMaxGrosze: 200,
       costGrosze: null,
+      important: false,
+      urgent: false,
       createdAt: new Date(createdAt),
     });
     expect(mockedRequireRole).toHaveBeenCalledWith(expect.anything(), userId, listId, "manage");
@@ -683,7 +725,7 @@ describe("updateTask", () => {
       [taskRow],
       [],
       [],
-      [[taskId, null, "Tiles", "Grey ones", 150000, 200000, "todo", "a0"]],
+      [[taskId, null, "Tiles", "Grey ones", 150000, 200000, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -699,6 +741,8 @@ describe("updateTask", () => {
       description: "Grey ones",
       estimate: { minGrosze: 150000, maxGrosze: 200000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -720,12 +764,79 @@ describe("updateTask", () => {
     ]);
   });
 
+  it("writes only the marker it is sent, with no subtask check, and returns the stored other one (#18 AC3)", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [taskRow],
+      [],
+      [[taskId, null, "Tiles", null, 100, 200, "todo", "a0", true, false]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { urgent: false });
+
+    expect(view).toEqual(expect.objectContaining({ important: true, urgent: false }));
+    expect(log).toEqual([
+      "begin",
+      readListId,
+      "requireRole write",
+      lockTask,
+      update('"urgent" = $1', [false]),
+      viewQuery,
+      "commit",
+    ]);
+  });
+
+  it("writes both markers of a completed task when both are sent (#18 AC2)", async () => {
+    const doneTask = taskRow.map((value, i) => (i === 5 ? "done" : value));
+    const { db, log } = fakeDb(
+      [[listId]],
+      [doneTask],
+      [],
+      [[taskId, null, "Tiles", null, 100, 200, "done", "a0", true, true]],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { important: true, urgent: true });
+
+    expect(view).toEqual(
+      expect.objectContaining({ completed: true, important: true, urgent: true }),
+    );
+    expect(log[4]).toEqual(update('"important" = $1, "urgent" = $2', [true, true]));
+  });
+
+  it("marks a subtask alone and returns its parent with the parent's own markers (#18 AC4)", async () => {
+    const { db, log } = fakeDb(
+      [[listId]],
+      [subtaskRow],
+      [],
+      [
+        [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+        [taskId, ids.a, "Plaster", null, 300, 400, "todo", "a0", true, false],
+      ],
+    );
+    grantRole(log);
+
+    const view = await updateTask(db, userId, taskId, { important: true });
+
+    expect(log[4]).toEqual(update('"important" = $1', [true]));
+    expect(log[5]).toEqual(viewQueryOf(ids.a));
+    expect(view).toEqual(
+      expect.objectContaining({
+        id: ids.a,
+        important: false,
+        urgent: false,
+        subtasks: [expect.objectContaining({ id: taskId, important: true, urgent: false })],
+      }),
+    );
+  });
+
   it("writes only the title when only the title is given, keeping the stored fields", async () => {
     const { db, log } = fakeDb(
       [[listId]],
       [taskRow],
       [],
-      [[taskId, null, "Paint", "Kept", 100, 200, "todo", "a0"]],
+      [[taskId, null, "Paint", "Kept", 100, 200, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -745,7 +856,7 @@ describe("updateTask", () => {
       [[listId]],
       [taskRow],
       [],
-      [[taskId, null, "Tiles", "New", 100, 200, "todo", "a0"]],
+      [[taskId, null, "Tiles", "New", 100, 200, "todo", "a0", false, false]],
     );
     grantRole(log);
     await updateTask(db, userId, taskId, { description: "New" });
@@ -758,7 +869,7 @@ describe("updateTask", () => {
       [taskRow],
       [],
       [],
-      [[taskId, null, "Tiles", null, 5000, 5000, "todo", "a0"]],
+      [[taskId, null, "Tiles", null, 5000, 5000, "todo", "a0", false, false]],
     );
     grantRole(log);
     await updateTask(db, userId, taskId, { estimate: { minGrosze: 5000, maxGrosze: 5000 } });
@@ -774,7 +885,7 @@ describe("updateTask", () => {
       [taskRow],
       [],
       [],
-      [[taskId, null, "Tiles", null, null, null, "todo", "a0"]],
+      [[taskId, null, "Tiles", null, null, null, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -796,7 +907,7 @@ describe("updateTask", () => {
       [[listId]],
       [taskRow],
       [],
-      [[taskId, null, "Rod", null, null, null, "todo", "a0"]],
+      [[taskId, null, "Rod", null, null, null, "todo", "a0", false, false]],
     );
     grantRole(log);
 
@@ -818,9 +929,9 @@ describe("updateTask", () => {
       [taskRow],
       [],
       [
-        [ids.a1, taskId, "Plaster", null, 30000, 40000, "todo", "a0"],
-        [taskId, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0"],
-        [ids.a2, taskId, "Paint", null, null, null, "todo", "a0"],
+        [ids.a1, taskId, "Plaster", null, 30000, 40000, "todo", "a0", false, false],
+        [taskId, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0", false, false],
+        [ids.a2, taskId, "Paint", null, null, null, "todo", "a0", false, false],
       ],
     );
     grantRole(log);
@@ -831,6 +942,8 @@ describe("updateTask", () => {
       description: "Walls",
       estimate: { minGrosze: 30000, maxGrosze: 40000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 1,
       subtasks: [
@@ -840,6 +953,8 @@ describe("updateTask", () => {
           description: null,
           estimate: { minGrosze: 30000, maxGrosze: 40000 },
           completed: false,
+          important: false,
+          urgent: false,
           position: "a0",
         },
         {
@@ -848,6 +963,8 @@ describe("updateTask", () => {
           description: null,
           estimate: null,
           completed: false,
+          important: false,
+          urgent: false,
           position: "a0",
         },
       ],
@@ -884,8 +1001,8 @@ describe("updateTask", () => {
       [taskRow],
       [],
       [
-        [taskId, null, "Bathroom", null, 100, 200, "todo", "a0"],
-        [ids.a1, taskId, "Plaster", null, 30000, 40000, "todo", "a0"],
+        [taskId, null, "Bathroom", null, 100, 200, "todo", "a0", false, false],
+        [ids.a1, taskId, "Plaster", null, 30000, 40000, "todo", "a0", false, false],
       ],
     );
     grantRole(log);
@@ -901,9 +1018,9 @@ describe("updateTask", () => {
       [subtaskRow],
       [],
       [
-        [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0"],
-        [taskId, ids.a, "Plaster", null, 5000, 6000, "todo", "a0"],
-        [ids.a2, ids.a, "Paint", null, 1000, 1000, "todo", "a0"],
+        [ids.a, null, "Bathroom", "Walls", 100000, 200000, "todo", "a0", false, false],
+        [taskId, ids.a, "Plaster", null, 5000, 6000, "todo", "a0", false, false],
+        [ids.a2, ids.a, "Paint", null, 1000, 1000, "todo", "a0", false, false],
       ],
     );
     grantRole(log);
@@ -918,6 +1035,8 @@ describe("updateTask", () => {
       description: "Walls",
       estimate: { minGrosze: 6000, maxGrosze: 7000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 0,
       subtasks: [
@@ -927,6 +1046,8 @@ describe("updateTask", () => {
           description: null,
           estimate: { minGrosze: 5000, maxGrosze: 6000 },
           completed: false,
+          important: false,
+          urgent: false,
           position: "a0",
         },
         {
@@ -935,6 +1056,8 @@ describe("updateTask", () => {
           description: null,
           estimate: { minGrosze: 1000, maxGrosze: 1000 },
           completed: false,
+          important: false,
+          urgent: false,
           position: "a0",
         },
       ],
@@ -1020,8 +1143,8 @@ describe("deleteTask", () => {
       [subtaskRow],
       [],
       [
-        [ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0"],
-        [ids.a2, ids.a, "Paint", null, null, null, "todo", "a0"],
+        [ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0", false, false],
+        [ids.a2, ids.a, "Paint", null, null, null, "todo", "a0", false, false],
       ],
     );
     grantRole(log);
@@ -1032,6 +1155,8 @@ describe("deleteTask", () => {
       description: null,
       estimate: null,
       completed: false,
+      important: false,
+      urgent: false,
       position: "a0",
       unestimatedSubtasks: 1,
       subtasks: [
@@ -1041,6 +1166,8 @@ describe("deleteTask", () => {
           description: null,
           estimate: null,
           completed: false,
+          important: false,
+          urgent: false,
           position: "a0",
         },
       ],
@@ -1061,7 +1188,7 @@ describe("deleteTask", () => {
       [[listId]],
       [subtaskRow],
       [],
-      [[ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0"]],
+      [[ids.a, null, "Bathroom", null, 100000, 200000, "todo", "a0", false, false]],
     );
     grantRole([]);
 
@@ -1072,6 +1199,8 @@ describe("deleteTask", () => {
         id: ids.a,
         estimate: { minGrosze: 100000, maxGrosze: 200000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: "a0",
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -1119,6 +1248,8 @@ describe("setTaskCompleted", () => {
     200,
     status,
     position,
+    false,
+    false,
   ];
   const completeTree = {
     sql: 'update "tasks" set "status" = $1 where ("tasks"."id" = $2 or "tasks"."parent_id" = $3)',
@@ -1143,7 +1274,7 @@ describe("setTaskCompleted", () => {
       [[listId]],
       [taskRow],
       [],
-      [viewRow("done"), [ids.a1, taskId, "Plaster", null, 30, 40, "done", "a0"]],
+      [viewRow("done"), [ids.a1, taskId, "Plaster", null, 30, 40, "done", "a0", false, false]],
     );
     grantRole(log);
 
@@ -1153,6 +1284,8 @@ describe("setTaskCompleted", () => {
       expect.objectContaining({
         id: taskId,
         completed: true,
+        important: false,
+        urgent: false,
         // A completed subtask still counts in its task's sum (R14).
         estimate: { minGrosze: 30, maxGrosze: 40 },
         subtasks: [expect.objectContaining({ id: ids.a1, completed: true })],
@@ -1168,8 +1301,8 @@ describe("setTaskCompleted", () => {
       [subtaskRow],
       [],
       [
-        [ids.a, null, "Bathroom", null, null, null, "todo", "a0"],
-        [taskId, ids.a, "Plaster", null, 300, 400, "done", "a0"],
+        [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+        [taskId, ids.a, "Plaster", null, 300, 400, "done", "a0", false, false],
       ],
     );
     grantRole(log);
@@ -1212,8 +1345,8 @@ describe("setTaskCompleted", () => {
       [],
       [],
       [
-        [ids.a, null, "Bathroom", null, null, null, "done", "a0"],
-        [taskId, ids.a, "Plaster", null, 300, 400, "todo", "a0"],
+        [ids.a, null, "Bathroom", null, null, null, "done", "a0", false, false],
+        [taskId, ids.a, "Plaster", null, 300, 400, "todo", "a0", false, false],
       ],
     );
     grantRole(log);

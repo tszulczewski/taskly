@@ -97,6 +97,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       description: "Grey, 60×60",
       estimate: { minGrosze: 150000, maxGrosze: 200000 },
       completed: false,
+      important: false,
+      urgent: false,
       position: expect.any(String),
       unestimatedSubtasks: 0,
       subtasks: [],
@@ -292,6 +294,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         description: "White",
         estimate: { minGrosze: 200000, maxGrosze: 250000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],
@@ -363,6 +367,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         description: "Grey",
         estimate: { minGrosze: 30000, maxGrosze: 40000 },
         completed: false,
+        important: false,
+        urgent: false,
         position: expect.any(String),
         unestimatedSubtasks: 1,
         subtasks: [
@@ -372,6 +378,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             description: null,
             estimate: { minGrosze: 30000, maxGrosze: 40000 },
             completed: false,
+            important: false,
+            urgent: false,
             position: expect.any(String),
           },
           {
@@ -380,6 +388,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             description: null,
             estimate: null,
             completed: false,
+            important: false,
+            urgent: false,
             position: expect.any(String),
           },
         ],
@@ -419,6 +429,152 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       expect(error).toBeInstanceOf(NotFoundError);
       expect((error as NotFoundError).resource).toBe("Task");
       expect(await rowsOf(listId)).toEqual([row]);
+    });
+  });
+
+  describe("markers (#18)", () => {
+    const markersOf = async (listId: string) =>
+      Object.fromEntries(
+        (await rowsOf(listId)).map((row) => [row.title, [row.important, row.urgent]]),
+      );
+
+    it("starts a new task unmarked, also when the add sends markers", async () => {
+      const listId = await sharedList("Markers new");
+      const view = await createTask(db, ids.alice, listId, {
+        title: "Tiles",
+        important: true,
+        urgent: true,
+      });
+      expect(view).toEqual(expect.objectContaining({ important: false, urgent: false }));
+      expect(await markersOf(listId)).toEqual({ Tiles: [false, false] });
+    });
+
+    it("sets only important: the task is important and not urgent (AC1)", async () => {
+      const { listId, taskId } = await listWithTask("Markers AC1");
+
+      const view = await updateTask(db, ids.ed, taskId, { important: true });
+
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(view).toEqual(expect.objectContaining({ important: true, urgent: false }));
+      expect(await markersOf(listId)).toEqual({ Tiles: [true, false] });
+      expect(await listTasks(db, ids.vi, listId)).toEqual([view]);
+    });
+
+    it("sets both markers one after the other: both show (AC2)", async () => {
+      const { listId, taskId } = await listWithTask("Markers AC2");
+
+      await updateTask(db, ids.alice, taskId, { important: true });
+      const view = await updateTask(db, ids.alice, taskId, { urgent: true });
+
+      expect(view).toEqual(expect.objectContaining({ important: true, urgent: true }));
+      expect(await markersOf(listId)).toEqual({ Tiles: [true, true] });
+    });
+
+    it("clears urgent on an important and urgent task: important stays set (AC3)", async () => {
+      const { listId, taskId, row } = await listWithTask("Markers AC3");
+      await updateTask(db, ids.alice, taskId, { important: true, urgent: true });
+
+      const view = await updateTask(db, ids.alice, taskId, { urgent: false });
+
+      expect(view).toEqual(expect.objectContaining({ important: true, urgent: false }));
+      const [after] = await rowsOf(listId);
+      // Only the marker changed: title, description, estimate and position are as stored.
+      expect(after).toEqual({ ...row, important: true, urgent: false });
+    });
+
+    it("marks a subtask without changing its task, and a task without marking its subtasks (AC4)", async () => {
+      const { listId, taskId } = await listWithTask("Markers AC4");
+      const sub = { id: await addSubtask(listId, taskId, "a0", null) };
+      const other = { id: await addSubtask(listId, taskId, "a1", null) };
+
+      const parent = await updateTask(db, ids.alice, sub.id, { important: true });
+
+      expect(parent).toEqual(
+        expect.objectContaining({
+          id: taskId,
+          important: false,
+          urgent: false,
+          subtasks: [
+            expect.objectContaining({ id: sub.id, important: true, urgent: false }),
+            expect.objectContaining({ id: other.id, important: false, urgent: false }),
+          ],
+        }),
+      );
+
+      const marked = await updateTask(db, ids.alice, taskId, { urgent: true });
+
+      expect(marked).toEqual(
+        expect.objectContaining({
+          important: false,
+          urgent: true,
+          subtasks: [
+            expect.objectContaining({ id: sub.id, important: true, urgent: false }),
+            expect.objectContaining({ id: other.id, important: false, urgent: false }),
+          ],
+        }),
+      );
+      expect(await markersOf(listId)).toEqual({
+        Tiles: [false, true],
+        "Sub a0": [true, false],
+        "Sub a1": [false, false],
+      });
+    });
+
+    it("marks a completed task and keeps it completed", async () => {
+      const { listId, taskId } = await listWithTask("Markers done");
+      await setTaskCompleted(db, ids.alice, taskId, { completed: true });
+
+      const view = await updateTask(db, ids.alice, taskId, { important: true });
+
+      expect(view).toEqual(expect.objectContaining({ completed: true, important: true }));
+      expect((await rowsOf(listId)).map((row) => row.status)).toEqual(["done"]);
+    });
+
+    it("marks a task with subtasks without the estimate rule refusing it", async () => {
+      const { listId, taskId } = await listWithTask("Markers summed");
+      await addSubtask(listId, taskId, "a0", [30000, 40000]);
+
+      const view = await updateTask(db, ids.alice, taskId, { urgent: true });
+
+      expect(view).toEqual(
+        expect.objectContaining({ urgent: true, estimate: { minGrosze: 30000, maxGrosze: 40000 } }),
+      );
+    });
+
+    it("forbids a viewer and changes nothing", async () => {
+      const { listId, taskId, row } = await listWithTask("Markers viewer");
+
+      await expect(updateTask(db, ids.vi, taskId, { important: true })).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+      expect(await rowsOf(listId)).toEqual([row]);
+    });
+
+    it.each(notFoundTargets)(
+      "reports %s as a missing task and marks nothing",
+      async (_name, target) => {
+        const { listId, taskId, row } = await listWithTask("Markers hidden");
+        const [userId, id] = await target(taskId);
+
+        const error: unknown = await updateTask(db, userId, id, { urgent: true }).catch(
+          (e: unknown) => e,
+        );
+
+        expect(error).toBeInstanceOf(NotFoundError);
+        expect((error as NotFoundError).resource).toBe("Task");
+        expect(await rowsOf(listId)).toEqual([row]);
+      },
+    );
+
+    it("keeps both markers when two single-marker PATCHes of the same task run concurrently", async () => {
+      const { listId, taskId } = await listWithTask("Markers race");
+
+      await Promise.all([
+        updateTask(db, ids.alice, taskId, { important: true }),
+        updateTask(db, ids.ed, taskId, { urgent: true }),
+      ]);
+
+      expect(await markersOf(listId)).toEqual({ Tiles: [true, true] });
     });
   });
 
@@ -701,6 +857,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         description: null,
         estimate: est(30000, 40000),
         completed: false,
+        important: false,
+        urgent: false,
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [
@@ -710,6 +868,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
             description: "Two layers",
             estimate: est(30000, 40000),
             completed: false,
+            important: false,
+            urgent: false,
             position: expect.any(String),
           },
         ],
@@ -760,6 +920,8 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         description: null,
         estimate: est(100000, 200000),
         completed: false,
+        important: false,
+        urgent: false,
         position: expect.any(String),
         unestimatedSubtasks: 0,
         subtasks: [],
