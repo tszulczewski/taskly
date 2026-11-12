@@ -8,8 +8,10 @@ export const queryKeys = {
    * `isMutating` counts them too.
    */
   taskChanges: (listId: string) => ["lists", listId, "tasks", "change"] as const,
-  taskChange: (listId: string, kind: "completion" | "marker") =>
+  taskChange: (listId: string, kind: "completion" | "marker" | "place") =>
     ["lists", listId, "tasks", "change", kind] as const,
+  /** The session user's places (spec E02, #19), not a list's: the same in every list. */
+  places: () => ["places"] as const,
   shopping: (listId: string) => ["lists", listId, "shopping"] as const,
   /** Not under `tasks`: it holds no optimistic state, so no task mutation's rule skips it. */
   futureExpenses: (listId: string) => ["lists", listId, "future-expenses"] as const,

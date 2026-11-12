@@ -6,6 +6,7 @@ import {
   type EstimateValues,
   FutureExpenses,
   type Marker,
+  type PlaceOptions,
   QuickAdd,
   type SubmitResult,
   type TaskEdit,
@@ -16,19 +17,23 @@ import {
   type TaskSubmit,
 } from "@taskly/ui";
 import { useLayoutEffect, useRef, useState } from "react";
-import { TASK_COMPLETED_MESSAGE } from "@taskly/core";
+import { PLACE_LIMIT, placeNameError, TASK_COMPLETED_MESSAGE } from "@taskly/core";
 import { ApiError } from "../../lib/api-client";
 import {
   addEstimateError,
   hasTask,
   isNotFound,
+  isPlaceNotFound,
+  placeSubmitError,
   subtaskAdded,
   subtaskDeleted,
   submitError,
+  PLACE_TEXT,
   TASK_SCREEN_TEXT,
   titleOf,
   toCreateInput,
   toEstimate,
+  toPlace,
   toTaskItem,
   toUpdateInput,
   validateEstimate,
@@ -39,11 +44,14 @@ import {
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
+  usePlaces,
   useSetCompleted,
   useTaskViews,
   useToggleMarker,
+  useTogglePlace,
   useUpdateTask,
 } from "./use-tasks";
+import { useCreatePlace, useDeletePlace, useUpdatePlace } from "./use-places";
 
 /** A message in a row: a roll-up note (spec E01) or why a change went back (spec E03). */
 interface RowText {
@@ -85,6 +93,22 @@ export function TaskListScreen({ listId }: { listId: string }) {
   };
   const setCompleted = useSetCompleted(listId, { onError: changeFailed });
   const toggleMarker = useToggleMarker(listId, { onError: changeFailed });
+  const places = usePlaces();
+  const createPlace = useCreatePlace();
+  const updatePlace = useUpdatePlace(listId);
+  const deletePlace = useDeletePlace(listId);
+  // A 404 about the place: deleted meanwhile. Deleted here, its tick was already skipped by the
+  // replay and nothing went back (P9); deleted elsewhere, the row says the tick went back.
+  const togglePlace = useTogglePlace(listId, {
+    onError: (error, variables) => {
+      if (!isPlaceNotFound(error)) return changeFailed(error, variables);
+      const cached = places.data?.some((place) => place.id === variables.placeId) ?? false;
+      if (cached) {
+        setRowError({ taskId: variables.id, text: TASK_SCREEN_TEXT.changeFailed(variables.title) });
+      }
+    },
+  });
+  const [placesRetrying, setPlacesRetrying] = useState(false);
   // A refetch of a list that never loaded goes back to "pending"; the failure stays on screen,
   // with "Trying again…", until it answers.
   const [retrying, setRetrying] = useState(false);
@@ -239,6 +263,47 @@ export function TaskListScreen({ listId }: { listId: string }) {
     toggleMarker.mutate({ id, marker, on, title: titleOf(views, id) });
   };
 
+  const ownPlaces = places.data ?? [];
+  const tickPlace = (id: string, placeId: string, assigned: boolean) => {
+    startChange();
+    togglePlace.mutate({ id, placeId, assigned, title: titleOf(views, id) });
+  };
+  // A refetch keeps the last places, but a failed one shows the error (lesson 2026-11-05), and
+  // "Trying again…" keeps the failure, and its focused button, on screen until the answer.
+  const placeOptions: PlaceOptions = {
+    status:
+      places.isError || placesRetrying ? "error" : places.data !== undefined ? "ready" : "loading",
+    retrying: placesRetrying,
+    onRetry: () => {
+      setPlacesRetrying(true);
+      void places.refetch().then(() => setPlacesRetrying(false));
+    },
+    all: ownPlaces.map(toPlace),
+    atLimit: ownPlaces.length >= PLACE_LIMIT,
+    validateName: (name, placeId) => placeNameError(name, ownPlaces, placeId),
+    onToggle: tickPlace,
+    // Create, then tick through the list queue (the design system's create-and-tick). If the tick
+    // fails, the place stays in the list unticked and the row says so.
+    onCreate: async (taskId, { name }) => {
+      try {
+        const place = await createPlace.mutateAsync(name);
+        tickPlace(taskId, place.id, true);
+        return { ok: true };
+      } catch (error) {
+        return placeSubmitError(error, PLACE_TEXT.createFailed);
+      }
+    },
+    onUpdate: async (placeId, values) => {
+      try {
+        await updatePlace.mutateAsync({ placeId, ...values });
+        return { ok: true };
+      } catch (error) {
+        return placeSubmitError(error, PLACE_TEXT.saveFailed);
+      }
+    },
+    onDelete: (placeId) => deletePlace.mutateAsync(placeId).then(() => true),
+  };
+
   /** A row's item, with the message it currently has. */
   const withText = (item: TaskItem): TaskItem => ({
     ...item,
@@ -285,6 +350,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
           onDelete={remove}
           onToggleComplete={toggleComplete}
           onToggleMarker={markTask}
+          places={placeOptions}
           highlightId={highlightId}
         />
       </div>
