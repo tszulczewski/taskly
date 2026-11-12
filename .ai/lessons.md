@@ -12,6 +12,10 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-12 — agent-browser (Chrome) will not start when `TMPDIR` is a long path: "Socket path too long" for its `SingletonSocket` (the cezar per-task temp dir is long enough). Run `npm run test:integration` with a short `TMPDIR` (e.g. `TMPDIR=/tmp/x`). A fresh git worktree also needs its own `npm ci`: without `node_modules`, `@taskly/*` resolves to the main checkout's packages through the parent directory and typecheck reports missing exports.
+
+- 2026-11-12 — A mutation's hook-level `onError` that decides from another query's data must read it from `queryClient.getQueryData` at error time, not from the render closure: the options a mutation runs with can lag a cache write made in the same tick (E02 P9: a tick whose place this tab had just deleted still found it "cached" and showed a rollback message). Every new screen GET also renews a due session, so browser tests that block "the screen's GETs" must block the new one too (`/api/places`), as the 2026-11-04 lesson says.
+
 - 2026-11-06 — Shell lock scripts: never take over a "stale" lock by reading the owner PID and then renaming or deleting the lock. Two waiters can read the same dead PID, and the second one removes a live lock that was taken in the meantime (PR #63 review). Use `flock(2)` (perl on fd 9), which the kernel releases when the holder dies. Close the descriptor (`9>&-`) for long-lived children such as servers and daemons, or they keep holding the lock. Report a known race window in the PR instead of leaving it out.
 
 - 2026-11-05 — For a money feature that reuses an existing estimate PATCH, SDLC still requires integration evidence for failure, retry and idempotency: assert a refused save changes no stored figure, a corrected retry succeeds, and replaying the same save contributes to future expenses exactly once (PR #62 review).

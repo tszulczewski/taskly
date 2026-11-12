@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-12
 - **Spec:** .ai/specs/2026-11-03-order-markers-and-spaces.md (Phase 2, Implementation Plan steps 6–13)
-- **Outcome:** in progress
+- **Outcome:** complete (Phase 2 implemented; gate green; PR #70 ready for review)
 - **Source doc:** .ai/specs/2026-11-03-order-markers-and-spaces.md
 - **Branch:** `cez/dcece926` (cezar worktree), pushed as `feat/e02-places`; stacked on `feat/e02-markers` (#69)
 - **Engine:** om-auto-create-pr (steps: 8, --loop: no)
@@ -55,13 +55,34 @@ Tried once (automated, Testcontainers, `migrations.integration.test.ts`, "migrat
 
 ## Steps taken
 
+- 2.1–2.6 by task dcece926 (cezar child), interrupted twice by the provider usage limit; a second child (8aa409be) redid 2.4 in parallel and stood down unpushed (its commits are not used).
+- 2.7–2.8 finished by the root task (bb2b5b6b) from dcece926's unpushed WIP `7f9938b`: unit tests for the place replay, the cache patches, the places hooks and the screen wiring; the tick's place-404 now reads the places cache at error time (a render closure lagged a delete in the same tab, found by the P9 screen test).
+- Browser test `test/places-browser.integration.test.ts` (5 cases, QA PLACES-001..005); two older browser tests adjusted for the new places GET and the "Places…" menu item.
+- Design-system status words for #19 (E02 epic page, Screens, What is missing). The limit of 20 and the Q3 answer were already in the epic page.
+
 ## Files changed
+
+`packages/db` (schema, migration 0003, tests); `packages/core` (`place-rules.ts`, `places.ts`, `setTaskPlace` and `places` on the views in `tasks.ts`, schemas, tests); `packages/app` (three route files with tests, `use-places.ts`, `use-tasks.ts`, `task-items.ts`, `task-list-screen.tsx`, `query-keys.ts`, tests); `packages/ui` (`PlacePicker` status/onRetry, stories, MDX); `test/` (places HTTP and browser tests, two adjusted); `.ai/qa/PLACES/`.
 
 ## Verification (commands run and results)
 
+Root worktree, 2026-11-12, HEAD before the last two test fixes and rerun after them:
+
+- `npm run format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`: pass.
+- `npm test`: 82 files, 1201 tests passed; coverage 100% (2007/2007 statements, 1236/1236 branches, 695/695 functions, 1763/1763 lines).
+- `npm run build`: pass. `npm run audit`: pass (4 moderate, the existing esbuild-kit chain).
+- `npm run test:integration` (Testcontainers, `TMPDIR=/tmp/bb2b`): 271 passed, 2 failed (`tasks-browser` renewal: the new places GET renewed the session; `subtasks-browser` AC4: the menu now has "Places…"). Both fixed; the two files rerun: 20/20 passed. Places browser test 5/5.
+- Down SQL tried once by the automated migration test (above).
+
 ## Problems / open questions
 
+- Two cezar children hit the provider usage limit; the root took Phase 2 over to avoid two writers on `feat/e02-places`.
+- agent-browser's Chrome fails to start when `TMPDIR` is long (the cezar per-task temp dir): "Socket path too long". Run integration tests with a short `TMPDIR`.
+
 ## Lessons recorded (links into .ai/lessons.md)
+
+- 2026-11-12 — Chrome socket path and `TMPDIR`.
+- 2026-11-12 — Hook-level `onError` reading another query's data from a render closure.
 
 ## Progress
 
@@ -69,11 +90,11 @@ Tried once (automated, Testcontainers, `migrations.integration.test.ts`, "migrat
 
 ### Phase 2: places
 
-- [ ] 2.1 Migration 0003 places
-- [ ] 2.2 Place rules
-- [ ] 2.3 Places service
-- [ ] 2.4 Task places
-- [ ] 2.5 Routes
-- [ ] 2.6 Picker loading and error
-- [ ] 2.7 App wiring
-- [ ] 2.8 Browser test and wrap-up
+- [x] 2.1 Migration 0003 places
+- [x] 2.2 Place rules
+- [x] 2.3 Places service
+- [x] 2.4 Task places
+- [x] 2.5 Routes
+- [x] 2.6 Picker loading and error
+- [x] 2.7 App wiring
+- [x] 2.8 Browser test and wrap-up
