@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -223,6 +223,40 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       await expect(
         query(`UPDATE tasks SET urgent = NULL WHERE id = '30000000-0000-4000-8000-000000000001'`),
       ).rejects.toMatchObject({ code: "23502", column: "urgent" });
+    });
+
+    it("rolls back with the down SQL of the run log, keeping every task, and applies again", async () => {
+      const columns = `id, title, status, position, estimate_min_grosze, estimate_max_grosze`;
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      await query(
+        `UPDATE tasks SET important = true WHERE id = '30000000-0000-4000-8000-000000000001'`,
+      );
+      const before = await query(`SELECT ${columns} FROM tasks ORDER BY id`);
+      const hash = createHash("sha256")
+        .update(await readFile(join(MIGRATIONS, "0002_task_markers.sql")))
+        .digest("hex");
+
+      // The down SQL in `.ai/runs/2026-11-12-e02-phase1-markers.md`.
+      await query(`BEGIN`);
+      await query(`ALTER TABLE "tasks" DROP COLUMN "important"`);
+      await query(`ALTER TABLE "tasks" DROP COLUMN "urgent"`);
+      await query(`DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = $1`, [hash]);
+      await query(`COMMIT`);
+
+      expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
+      expect(
+        await query(
+          `SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'tasks' AND column_name IN ('important', 'urgent')`,
+        ),
+      ).toEqual([]);
+
+      // Markers set before the rollback are lost: the accepted cost of the down migration.
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      expect(await query(`SELECT important, urgent FROM tasks ORDER BY id`)).toEqual([
+        { important: false, urgent: false },
+        { important: false, urgent: false },
+      ]);
     });
   },
 );
