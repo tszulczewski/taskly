@@ -176,6 +176,7 @@ export function useCreateTask(listId: string) {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         // Unknown until the server answers; pending rows are never sent or completed.
         position: "",
       };

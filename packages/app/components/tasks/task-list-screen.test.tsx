@@ -23,6 +23,7 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -635,6 +636,7 @@ describe("TaskListScreen subtasks", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   });
   const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
@@ -1089,6 +1091,7 @@ describe("TaskListScreen completion", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const bath = view("Bathroom", { position: "a2", subtasks: [plaster] });
@@ -1285,6 +1288,7 @@ describe("TaskListScreen markers (#18)", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const bath = view("Bathroom", { position: "a2", subtasks: [grout] });

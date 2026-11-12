@@ -4,9 +4,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ZodError } from "zod";
-import { ConflictError, NotFoundError } from "./errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
+import { createList } from "./lists";
 import { placeMessages, PREDEFINED_PLACES } from "./place-rules";
 import { createPlace, deletePlace, ensurePlaces, listPlaces, updatePlace } from "./places";
+import { createTask, deleteTask, listTasks, setTaskPlace } from "./tasks";
 import type { Tx } from "./types";
 
 const url = process.env.DATABASE_URL;
@@ -347,6 +349,183 @@ describe.skipIf(!url)("places service (real PostgreSQL)", () => {
       expect(listed).toEqual({ value: names.map((name) => expect.objectContaining({ name })) });
       expect(await stored(alice)).toHaveLength(9);
       expect(await owners(alice)).toHaveLength(1);
+    });
+    /** A project list of `owner`, with an editor and a viewer, and a task with one subtask. */
+    async function listOf(owner: string) {
+      const editor = await newUser();
+      const viewer = await newUser();
+      const { id: listId } = await createList(db, owner, { name: "Flat" });
+      await db.insert(schema.listMembers).values([
+        { listId, userId: editor, role: "editor" },
+        { listId, userId: viewer, role: "viewer" },
+      ]);
+      const task = await createTask(db, owner, listId, { title: "Curtain rod" });
+      const parent = await createTask(db, owner, listId, { title: "Shelf", parentId: task.id });
+      const subtaskId = parent.subtasks[0]!.id;
+      const places = await listPlaces(db, owner);
+      const byName = (name: string) => places.find((place) => place.name === name)!;
+      return { listId, editor, viewer, taskId: task.id, subtaskId, byName };
+    }
+    const assign = (userId: string, taskId: string, placeId: string) =>
+      setTaskPlace(db, userId, taskId, placeId, { assigned: true });
+    const unassign = (userId: string, taskId: string, placeId: string) =>
+      setTaskPlace(db, userId, taskId, placeId, { assigned: false });
+    const namesOn = async (userId: string, listId: string, id: string) => {
+      const views = await listTasks(db, userId, listId);
+      const rows = views.flatMap((view) => [view, ...view.subtasks]);
+      return rows.find((row) => row.id === id)!.places.map((place) => place.name);
+    };
+
+    it("assigns several places, a new one included, and shows them in the places' order (AC2)", async () => {
+      const owner = await newUser();
+      const { listId, taskId, byName } = await listOf(owner);
+      const jadalnia = await createPlace(db, owner, { name: "Jadalnia" });
+
+      await assign(owner, taskId, jadalnia.id);
+      await assign(owner, taskId, byName("Łazienka").id);
+      const view = await assign(owner, taskId, byName("Salon").id);
+
+      expect(view.places.map((place) => place.name)).toEqual(["Salon", "Łazienka", "Jadalnia"]);
+      expect(await namesOn(owner, listId, taskId)).toEqual(["Salon", "Łazienka", "Jadalnia"]);
+    });
+
+    it("is idempotent and removing one keeps the other two (AC3)", async () => {
+      const owner = await newUser();
+      const { listId, editor, taskId, byName } = await listOf(owner);
+      for (const name of ["Salon", "Kuchnia", "Biuro"])
+        await assign(editor, taskId, byName(name).id);
+      await assign(editor, taskId, byName("Salon").id);
+
+      await unassign(editor, taskId, byName("Kuchnia").id);
+      await unassign(editor, taskId, byName("Kuchnia").id);
+
+      expect(await namesOn(owner, listId, taskId)).toEqual(["Salon", "Biuro"]);
+    });
+
+    it("shows a rename on the tasks and a delete keeps their other places (AC6, AC7)", async () => {
+      const owner = await newUser();
+      const { listId, taskId, subtaskId, byName } = await listOf(owner);
+      await assign(owner, taskId, byName("Garaż").id);
+      await assign(owner, taskId, byName("Strych").id);
+      await assign(owner, subtaskId, byName("Garaż").id);
+
+      await updatePlace(db, owner, byName("Strych").id, { name: "Poddasze" });
+      expect(await namesOn(owner, listId, taskId)).toEqual(["Garaż", "Poddasze"]);
+
+      await deletePlace(db, owner, byName("Garaż").id);
+      expect(await namesOn(owner, listId, taskId)).toEqual(["Poddasze"]);
+      expect(await namesOn(owner, listId, subtaskId)).toEqual([]);
+    });
+
+    it("never copies places between a task and its subtasks (AC9)", async () => {
+      const owner = await newUser();
+      const { listId, taskId, subtaskId, byName } = await listOf(owner);
+
+      const parent = await assign(owner, subtaskId, byName("Kuchnia").id);
+      expect(parent.places).toEqual([]);
+      expect(parent.subtasks[0]!.places.map((place) => place.name)).toEqual(["Kuchnia"]);
+      await assign(owner, taskId, byName("Salon").id);
+      expect(await namesOn(owner, listId, subtaskId)).toEqual(["Kuchnia"]);
+      expect(await namesOn(owner, listId, taskId)).toEqual(["Salon"]);
+    });
+
+    it("refuses a place that is not the list owner's with 404 and writes nothing (Q3-1)", async () => {
+      const owner = await newUser();
+      const { listId, editor, taskId } = await listOf(owner);
+      const [editorsOwn] = await listPlaces(db, editor);
+
+      await expect(assign(editor, taskId, editorsOwn!.id)).rejects.toEqual(placeNotFound);
+      await expect(assign(owner, taskId, editorsOwn!.id)).rejects.toEqual(placeNotFound);
+      await expect(assign(owner, taskId, unknownId)).rejects.toEqual(placeNotFound);
+      await expect(assign(owner, taskId, "nope")).rejects.toEqual(placeNotFound);
+      expect(await namesOn(owner, listId, taskId)).toEqual([]);
+    });
+
+    it("accepts a place of either owner of a list with two owner rows (P4)", async () => {
+      const owner = await newUser();
+      const second = await newUser();
+      const { listId, taskId, byName } = await listOf(owner);
+      await db.insert(schema.listMembers).values({ listId, userId: second, role: "owner" });
+      const [secondsSalon] = await listPlaces(db, second);
+
+      await assign(owner, taskId, byName("Biuro").id);
+      const view = await assign(second, taskId, secondsSalon!.id);
+
+      expect(view.places.map((place) => place.name).sort()).toEqual(["Biuro", "Salon"]);
+    });
+
+    it("refuses a viewer with 403 and a non-member with 404", async () => {
+      const owner = await newUser();
+      const { viewer, taskId, byName } = await listOf(owner);
+      await expect(assign(viewer, taskId, byName("Salon").id)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+      await expect(assign(await newUser(), taskId, byName("Salon").id)).rejects.toEqual(
+        new NotFoundError("Task"),
+      );
+      await expect(assign(owner, unknownId, byName("Salon").id)).rejects.toEqual(
+        new NotFoundError("Task"),
+      );
+    });
+
+    it("drops a task's assignments with the task and keeps the places", async () => {
+      const owner = await newUser();
+      const { taskId, byName } = await listOf(owner);
+      await assign(owner, taskId, byName("Salon").id);
+      await deleteTask(db, owner, taskId);
+      expect(
+        await db.select().from(schema.taskPlaces).where(eq(schema.taskPlaces.taskId, taskId)),
+      ).toEqual([]);
+      expect((await listPlaces(db, owner)).map((place) => place.name)).toEqual(PREDEFINED_PLACES);
+    });
+
+    it("answers 404 to a tick that waited for a delete of its place, and writes nothing", async () => {
+      const owner = await newUser();
+      const { listId, taskId, byName } = await listOf(owner);
+      const garage = byName("Garaż");
+      const holder = holdInTransaction((tx) =>
+        tx.delete(schema.places).where(eq(schema.places.id, garage.id)),
+      );
+      let ticked: Settled<unknown> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        const ticking = settle(setTaskPlace(firstDb, owner, taskId, garage.id, { assigned: true }));
+        await waitUntilBlockedBy(firstPid, holderPid);
+        holder.release();
+        ticked = await ticking;
+      } finally {
+        holder.release();
+        await holder.done;
+      }
+      expect(ticked).toEqual({ error: placeNotFound });
+      expect(await namesOn(owner, listId, taskId)).toEqual([]);
+    });
+
+    it("makes a delete wait for a tick holding its place, then removes the new assignment too", async () => {
+      const owner = await newUser();
+      const { listId, taskId, byName } = await listOf(owner);
+      const garage = byName("Garaż");
+      const holder = holdInTransaction(async (tx) => {
+        await tx
+          .select({ id: schema.places.id })
+          .from(schema.places)
+          .where(eq(schema.places.id, garage.id))
+          .for("key share");
+        await tx.insert(schema.taskPlaces).values({ taskId, placeId: garage.id });
+      });
+      let deleted: Settled<unknown> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        const deleting = settle(deletePlace(firstDb, owner, garage.id));
+        await waitUntilBlockedBy(firstPid, holderPid);
+        holder.release();
+        deleted = await deleting;
+      } finally {
+        holder.release();
+        await holder.done;
+      }
+      expect(deleted).toEqual({ value: null });
+      expect(await namesOn(owner, listId, taskId)).toEqual([]);
     });
   });
 });

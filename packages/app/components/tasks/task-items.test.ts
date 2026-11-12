@@ -38,6 +38,7 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -64,6 +65,7 @@ describe("toTaskItem", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       amount: pln("1_500,50"),
       upTo: pln("2_000"),
       unestimatedSubtasks: 0,
@@ -92,6 +94,7 @@ describe("toTaskItem", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const item = toTaskItem({
@@ -109,6 +112,7 @@ describe("toTaskItem", () => {
         completed: false,
         important: false,
         urgent: false,
+        places: [],
         amount: "",
         upTo: "",
         pending: false,
@@ -132,6 +136,7 @@ describe("toTaskItem", () => {
       completed: true,
       important: false,
       urgent: false,
+      places: [],
       position: "a1",
     };
     const item = toTaskItem(view("Paint", { completed: true, subtasks: [done] }));
@@ -149,6 +154,7 @@ describe("toTaskItem", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     // A sum above the typed-amount cap must not reach the (hidden) amount fields.
@@ -168,6 +174,7 @@ describe("toTaskItem", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const own = { minGrosze: 45_000, maxGrosze: 45_000 };
@@ -273,6 +280,7 @@ describe("toUpdateInput", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [subtask] });
@@ -301,6 +309,7 @@ describe("toUpdateInput", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const parent = view("Paint", {
@@ -329,6 +338,7 @@ describe("toUpdateInput", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
@@ -353,6 +363,7 @@ describe("toUpdateInput", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const bare = view("Paint", { estimate: { minGrosze: 30_000, maxGrosze: 40_000 } });
@@ -375,6 +386,7 @@ describe("toUpdateInput", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [temporary] });
@@ -404,6 +416,7 @@ describe("subtaskAdded", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   });
   const own = { minGrosze: 100_000, maxGrosze: 200_000 };
@@ -467,6 +480,7 @@ describe("subtaskDeleted", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     expect(subtaskDeleted(null)).toBeUndefined();
@@ -489,6 +503,7 @@ describe("hasTask and isNotFound", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const parent = view("Paint", { subtasks: [subtask] });

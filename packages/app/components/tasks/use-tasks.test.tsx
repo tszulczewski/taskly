@@ -38,6 +38,7 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -316,6 +317,7 @@ describe("useCreateTask for a subtask", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const own = { minGrosze: 150_000, maxGrosze: 200_000 };
@@ -355,6 +357,7 @@ describe("useCreateTask for a subtask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "",
     });
     expect(parent).toEqual({ ...tile, estimate: own, subtasks: [temporary] });
@@ -462,6 +465,7 @@ describe("useUpdateTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     const parent = { ...paint, subtasks: [{ ...subtask, title: "Prime twice" }] };
@@ -577,6 +581,7 @@ describe("useDeleteTask", () => {
       completed: false,
       important: false,
       urgent: false,
+      places: [],
       position: "a0",
     };
     serverTasks = [tile, { ...paint, subtasks: [subtask] }];
@@ -627,6 +632,7 @@ describe("useSetCompleted with useTaskViews", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const sub2 = { ...sub1, id: crypto.randomUUID(), title: "s2", position: "a1" };
