@@ -2,6 +2,7 @@
 
 import {
   type CreateTaskInput,
+  placeListResponseSchema,
   deleteTaskResponseSchema,
   type Estimate,
   futureExpensesResponseSchema,
@@ -25,6 +26,7 @@ import { apiCall } from "../../lib/api-client";
 import { queryKeys } from "../../lib/query-keys";
 import {
   isPendingTaskId,
+  isPlaceNotFound,
   PENDING_PREFIX,
   type PendingChange,
   replayChanges,
@@ -76,7 +78,8 @@ function withoutTask(tasks: TaskView[], id: string): TaskView[] {
   });
 }
 
-async function writeTasks(
+/** Writes into the cached list after a server answer, first cancelling an in-flight refetch. */
+export async function writeTasks(
   queryClient: QueryClient,
   listId: string,
   update: (tasks: TaskView[]) => TaskView[],
@@ -330,6 +333,56 @@ export function useToggleMarker(
   });
 }
 
+export interface TogglePlaceVariables {
+  id: string;
+  placeId: string;
+  assigned: boolean;
+  /** For the row message if the server refuses it. */
+  title: string;
+}
+
+/**
+ * Assigns a place to a task or subtask or removes it (`PUT|DELETE …/places/[placeId]`, spec E02
+ * #19). Shown at once by the replay in `useTaskViews` (the `place` kind), in the list queue like
+ * every task change. A 404 about the place (deleted meanwhile, P9) also refetches the places; a
+ * place changes no amount, so the future expenses are not refetched.
+ */
+export function useTogglePlace(
+  listId: string,
+  { onError }: { onError?: (error: unknown, variables: TogglePlaceVariables) => void } = {},
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.taskChange(listId, "place"),
+    scope: listQueue(listId),
+    mutationFn: async ({ id, placeId, assigned }: TogglePlaceVariables) =>
+      apiCall(`${taskPath(id)}/places/${encodeURIComponent(placeId)}`, {
+        method: assigned ? "PUT" : "DELETE",
+        response: taskViewSchema,
+      }),
+    onSuccess: (task) => writeTasks(queryClient, listId, (tasks) => putTask(tasks, task, task.id)),
+    onError: (error, variables) => {
+      if (isPlaceNotFound(error))
+        void queryClient.invalidateQueries({ queryKey: queryKeys.places() });
+      onError?.(error, variables);
+    },
+    onSettled: () => settleTasks(queryClient, listId),
+  });
+}
+
+/**
+ * The session user's places (`GET /api/places`), loaded once per session (spec E02, UI/UX): the
+ * place create, rename and delete write the answer into this cache, so it is never stale on its
+ * own. The first load creates the eight predefined places.
+ */
+export function usePlaces() {
+  return useQuery({
+    queryKey: queryKeys.places(),
+    queryFn: ({ signal }) => apiCall("/api/places", { signal, response: placeListResponseSchema }),
+    staleTime: Infinity,
+  });
+}
+
 /** A pending change mutation as the replay reads it; the last key part names its kind. */
 function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange {
   const kind = mutation.options.mutationKey!.at(-1) as PendingChange["kind"];
@@ -338,18 +391,19 @@ function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange 
 
 /**
  * The tasks of a list as the screen shows them: the cached server data in read order, with the
- * pending changes (completions, markers) applied in submission order (spec E03, UI/UX). `views` is
- * undefined until the list has loaded.
+ * pending changes (completions, markers, places) applied in submission order (spec E03, UI/UX). A
+ * place tick takes its place from the places cache. `views` is undefined until the list has loaded.
  */
 export function useTaskViews(listId: string) {
   const query = useTasks(listId);
+  const { data: places } = usePlaces();
   const changes = useMutationState({
     filters: { mutationKey: queryKeys.taskChanges(listId), status: "pending" },
     select: toChange,
   });
   const views = useMemo(
-    () => (query.data === undefined ? undefined : replayChanges(query.data, changes)),
-    [query.data, changes],
+    () => (query.data === undefined ? undefined : replayChanges(query.data, changes, places)),
+    [query.data, changes, places],
   );
   return { query, views };
 }
