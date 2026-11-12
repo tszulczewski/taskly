@@ -75,6 +75,9 @@ export function TaskListScreen({ listId }: { listId: string }) {
   // completion or reopen went back, in its row (spec E03, s04.28).
   const [notice, setNotice] = useState<RowText | null>(null);
   const [rowError, setRowError] = useState<RowText | null>(null);
+  // An "Add estimate" refused with 409 (the item got subtasks elsewhere): its form goes with the
+  // refetch, so the server's message stays here until the next change.
+  const [estimateRefused, setEstimateRefused] = useState<RowText | null>(null);
   // Hook-level, so it runs for every toggle, not only the last one (lesson 2026-10-30). A 404: the
   // row is gone (deleted elsewhere), and the refetch removes it.
   const setCompleted = useSetCompleted(listId, {
@@ -91,6 +94,9 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const listRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
   const views = shown ?? [];
+  const refusedShown =
+    estimateRefused !== null &&
+    !(expenses.data?.unestimated ?? []).some((item) => item.id === estimateRefused.taskId);
   const goneShown = goneId !== null && !hasTask(views, goneId);
 
   // With Cache Components a page the user left is hidden (React Activity), not unmounted; it comes
@@ -101,6 +107,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
       setGoneId(null);
       setNotice(null);
       setRowError(null);
+      setEstimateRefused(null);
     },
     [],
   );
@@ -136,6 +143,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
     setGoneId(null);
     setNotice(null);
     setRowError(null);
+    setEstimateRefused(null);
   };
 
   const add: TaskSubmit = async (values) => {
@@ -216,6 +224,9 @@ export function TaskListScreen({ listId }: { listId: string }) {
       return { ok: true };
     } catch (error) {
       if (isNotFound(error)) setGoneId(id);
+      if (error instanceof ApiError && error.status === 409) {
+        setEstimateRefused({ taskId: id, text: error.message });
+      }
       return addEstimateError(error, values);
     }
   };
@@ -264,6 +275,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
       />
       <QuickAdd validate={validateTaskForm} onSubmit={add} />
       {goneShown ? <Alert title={TASK_SCREEN_TEXT.deleted} /> : null}
+      {refusedShown ? <Alert title={estimateRefused.text} /> : null}
       <div ref={listRef}>
         <TaskList
           status={tasks.data ? "ready" : tasks.isError || retrying ? "error" : "loading"}
