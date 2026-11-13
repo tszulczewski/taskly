@@ -208,17 +208,13 @@ export function TaskList({
 
   return (
     <>
-      {onMove ? (
-        <SortableGroup
-          items={movable.map(({ id, title }) => ({ id, title }))}
-          onMove={onMove}
-          text={t}
-        >
-          {list}
-        </SortableGroup>
-      ) : (
-        list
-      )}
+      <SortableGroup
+        items={movable.map(({ id, title }) => ({ id, title }))}
+        onMove={onMove}
+        text={t}
+      >
+        {list}
+      </SortableGroup>
       <DeleteTaskDialog
         task={deleting}
         onConfirm={(task) => onDelete(task.id)}

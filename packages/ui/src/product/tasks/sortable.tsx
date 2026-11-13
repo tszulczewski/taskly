@@ -109,7 +109,11 @@ export interface SortableText {
 export interface SortableGroupProps {
   /** The rows that can move, in order; their titles are read out while moving. */
   items: { id: string; title: string }[];
-  onMove: (id: string, position: MovePosition) => void;
+  /**
+   * None while the group cannot reorder (a viewer, or the app pausing moves). The group stays
+   * mounted either way, so turning moves off and on keeps the rows' state (expanded, editing).
+   */
+  onMove?: (id: string, position: MovePosition) => void;
   text: SortableText;
   children: ReactNode;
 }
@@ -120,7 +124,7 @@ export interface SortableGroupProps {
  * (AGENTS.md: fractional indexing).
  */
 export function SortableGroup({ items, onMove, text, children }: SortableGroupProps) {
-  const ids = items.map((item) => item.id);
+  const ids = onMove ? items.map((item) => item.id) : [];
   const title = (id: UniqueIdentifier) =>
     items.find((item) => item.id === String(id))?.title ?? String(id);
   const sensors = useSensors(
@@ -131,7 +135,7 @@ export function SortableGroup({ items, onMove, text, children }: SortableGroupPr
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={onMove ? sensors : []}
       collisionDetection={closestCenter}
       modifiers={[verticalOnly]}
       accessibility={{
@@ -149,7 +153,7 @@ export function SortableGroup({ items, onMove, text, children }: SortableGroupPr
       }}
       onDragEnd={({ active, over }) => {
         const target = over ? moveTarget(ids, String(active.id), String(over.id)) : null;
-        if (target) onMove(String(active.id), target);
+        if (target) onMove!(String(active.id), target);
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>

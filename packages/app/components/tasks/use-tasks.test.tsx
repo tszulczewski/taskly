@@ -12,12 +12,14 @@ import { ApiError } from "../../lib/api-client";
 import { queryKeys } from "../../lib/query-keys";
 import { isPendingTaskId } from "./task-items";
 import {
+  type MoveTaskVariables,
   type SetCompletedVariables,
   type ToggleMarkerVariables,
   useAddEstimate,
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
+  useMoveTask,
   useSetCompleted,
   useTasks,
   useTaskViews,
@@ -1175,6 +1177,224 @@ describe("useToggleMarker with useTaskViews", () => {
     act(() => {
       outcome = result.current
         .mutateAsync({ id: "pending-1", marker: "important", on: true, title: "x" })
+        .catch((error: unknown) => error);
+    });
+    expect(await outcome).toEqual(new Error("The task is not saved yet"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useMoveTask with useTaskViews (#17)", () => {
+  const a = view("A", { position: "a0" });
+  const b = view("B", { position: "a1" });
+  const c = view("C", { position: "a2" });
+  const { unestimatedSubtasks: _u, subtasks: _s, ...s1 } = view("s1", { position: "a0" });
+  const s2 = { ...s1, id: crypto.randomUUID(), title: "s2", position: "a1" };
+  const parent = view("Bathroom", { position: "a3", subtasks: [s1, s2] });
+  const EXPENSES_URL = `/api/lists/${LIST}/future-expenses`;
+  const positionUrl = (id: string) => `/api/tasks/${id}/position`;
+  const completionUrl = (id: string) => `/api/tasks/${id}/completion`;
+  const onError = vi.fn<(error: unknown, variables: MoveTaskVariables) => void>();
+
+  beforeEach(() => {
+    serverTasks = [a, b, c, parent];
+    handlers.set(`GET ${TASKS_URL}`, () => ok(serverTasks));
+    handlers.set(`GET ${EXPENSES_URL}`, () => ok({ total: null, unestimated: [] }));
+    onError.mockReset();
+  });
+
+  /** Every request to the URLs waits for the next gate, in the order they were sent. */
+  function gates(...keys: string[]) {
+    const opened: ReturnType<typeof gate>[] = [];
+    const sent: [string, unknown][] = [];
+    for (const key of keys) {
+      handlers.set(key, (body) => {
+        sent.push([key, body]);
+        const next = gate();
+        opened.push(next);
+        return next.promise;
+      });
+    }
+    return { opened, sent };
+  }
+
+  async function harness() {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () => ({
+        shown: useTaskViews(LIST),
+        expenses: useFutureExpenses(LIST),
+        move: useMoveTask(LIST, { onError }),
+        mark: useToggleMarker(LIST),
+        complete: useSetCompleted(LIST),
+      }),
+      { wrapper },
+    );
+    const cached = () => client.getQueryData<TaskView[]>(queryKeys.tasks(LIST));
+    await waitFor(() => expect(cached()).toEqual(serverTasks));
+    await waitFor(() => expect(result.current.expenses.isSuccess).toBe(true));
+    const move = (id: string, afterId: string | null, beforeId: string | null, title = "x") =>
+      act(() => result.current.move.mutate({ id, afterId, beforeId, title }));
+    const order = () => result.current.shown.views?.map((task) => task.title);
+    const subtaskOrder = () =>
+      result.current.shown.views
+        ?.find((task) => task.id === parent.id)
+        ?.subtasks.map((t) => t.title);
+    return { result, cached, move, order, subtaskOrder };
+  }
+
+  it("shows the move at once without writing the cache, sends only the neighbours, then keeps the answer (AC1)", async () => {
+    const { opened, sent } = gates(`PUT ${positionUrl(a.id)}`);
+    const { cached, move, order } = await harness();
+
+    move(a.id, b.id, c.id);
+    await waitFor(() => expect(order()).toEqual(["B", "A", "C", "Bathroom"]));
+    expect(cached()).toEqual([a, b, c, parent]);
+    await waitFor(() =>
+      expect(sent).toEqual([[`PUT ${positionUrl(a.id)}`, { afterId: b.id, beforeId: c.id }]]),
+    );
+
+    const moved = { ...a, position: "a1V" };
+    serverTasks = [moved, b, c, parent];
+    opened[0]!.open(ok(moved));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(order()).toEqual(["B", "A", "C", "Bathroom"]);
+    // A move changes no amount: the future expenses are not refetched.
+    expect(calls("GET", EXPENSES_URL)).toHaveLength(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("sends a second quick move after the first answer, with neighbours picked on the moved view", async () => {
+    const { opened, sent } = gates(`PUT ${positionUrl(a.id)}`, `PUT ${positionUrl(c.id)}`);
+    const { move, order } = await harness();
+
+    move(a.id, b.id, c.id);
+    move(c.id, null, b.id);
+    await waitFor(() => expect(order()).toEqual(["C", "B", "A", "Bathroom"]));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    const movedA = { ...a, position: "a1V" };
+    opened[0]!.open(ok(movedA));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual([`PUT ${positionUrl(c.id)}`, { afterId: null, beforeId: b.id }]);
+    expect(order()).toEqual(["C", "B", "A", "Bathroom"]);
+
+    const movedC = { ...c, position: "Zz" };
+    serverTasks = [movedC, b, movedA, parent];
+    opened[1]!.open(ok(movedC));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(order()).toEqual(["C", "B", "A", "Bathroom"]);
+  });
+
+  it("puts a refused move back and reports it with its variables (s04.24)", async () => {
+    handlers.set(`PUT ${positionUrl(c.id)}`, () =>
+      fail(409, "conflict", "The list changed. Try again."),
+    );
+    const { move, order } = await harness();
+
+    move(c.id, null, a.id, "C");
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]![0]).toMatchObject({ status: 409 });
+    expect(onError.mock.calls[0]![1]).toEqual({
+      id: c.id,
+      afterId: null,
+      beforeId: a.id,
+      title: "C",
+    });
+    await waitFor(() => expect(order()).toEqual(["A", "B", "C", "Bathroom"]));
+  });
+
+  it("keeps a marker toggled while the move's answer is late, and the moved order (Q-1)", async () => {
+    const { opened, sent } = gates(`PUT ${positionUrl(a.id)}`, `PATCH ${taskUrl(a.id)}`);
+    const { result, move, order } = await harness();
+
+    move(a.id, b.id, c.id);
+    act(() => result.current.mark.mutate({ id: a.id, marker: "important", on: true, title: "A" }));
+    const important = () => result.current.shown.views?.find((t) => t.id === a.id)?.important;
+    await waitFor(() => expect(important()).toBe(true));
+    expect(order()).toEqual(["B", "A", "C", "Bathroom"]);
+
+    // The move's tree has the marker unset; the pending toggle is replayed over it.
+    const moved = { ...a, position: "a1V" };
+    opened[0]!.open(ok(moved));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual([`PATCH ${taskUrl(a.id)}`, { important: true }]);
+    expect(important()).toBe(true);
+    expect(order()).toEqual(["B", "A", "C", "Bathroom"]);
+
+    serverTasks = [{ ...moved, important: true }, b, c, parent];
+    opened[1]!.open(ok(serverTasks[0]));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(important()).toBe(true);
+    expect(order()).toEqual(["B", "A", "C", "Bathroom"]);
+  });
+
+  it("moves a subtask, then completes its task while the move's answer is late (AC4)", async () => {
+    const { opened, sent } = gates(`PUT ${positionUrl(s2.id)}`, `PUT ${completionUrl(parent.id)}`);
+    const { result, move, order, subtaskOrder } = await harness();
+
+    move(s2.id, null, s1.id);
+    await waitFor(() => expect(subtaskOrder()).toEqual(["s2", "s1"]));
+    act(() =>
+      result.current.complete.mutate({ id: parent.id, completed: true, title: "Bathroom" }),
+    );
+    await waitFor(() => expect(order()).toEqual(["A", "B", "C", "Bathroom"]));
+    expect(result.current.shown.views?.[3]?.completed).toBe(true);
+    expect(subtaskOrder()).toEqual(["s2", "s1"]);
+
+    const moved = { ...parent, subtasks: [{ ...s2, position: "Zz" }, s1] };
+    opened[0]!.open(ok(moved));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(subtaskOrder()).toEqual(["s2", "s1"]);
+    expect(result.current.shown.views?.[3]?.completed).toBe(true);
+
+    const done = {
+      ...moved,
+      completed: true,
+      subtasks: moved.subtasks.map((row) => ({ ...row, completed: true })),
+    };
+    serverTasks = [a, b, c, done];
+    opened[1]!.open(ok(done));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(subtaskOrder()).toEqual(["s2", "s1"]);
+  });
+
+  it("shows no move for a row whose completion is pending; the server refuses it and it stays completed", async () => {
+    const { opened } = gates(`PUT ${completionUrl(b.id)}`);
+    handlers.set(`PUT ${positionUrl(b.id)}`, () =>
+      fail(409, "conflict", "This task is completed. Reopen it to change it."),
+    );
+    const { result, move, order } = await harness();
+
+    act(() => result.current.complete.mutate({ id: b.id, completed: true, title: "B" }));
+    await waitFor(() => expect(order()).toEqual(["A", "C", "Bathroom", "B"]));
+    move(b.id, null, a.id, "B");
+    expect(order()).toEqual(["A", "C", "Bathroom", "B"]);
+
+    const done = { ...b, completed: true };
+    serverTasks = [a, done, c, parent];
+    opened[0]!.open(ok(done));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(order()).toEqual(["A", "C", "Bathroom", "B"]);
+  });
+
+  it("works without an onError and never sends a request for a pending row", async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useMoveTask(LIST), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    let outcome!: Promise<unknown>;
+    act(() => {
+      outcome = result.current
+        .mutateAsync({ id: "pending-1", afterId: null, beforeId: null, title: "x" })
         .catch((error: unknown) => error);
     });
     expect(await outcome).toEqual(new Error("The task is not saved yet"));

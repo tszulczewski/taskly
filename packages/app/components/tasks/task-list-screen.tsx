@@ -6,6 +6,7 @@ import {
   type EstimateValues,
   FutureExpenses,
   type Marker,
+  type MovePosition,
   type PlaceOptions,
   QuickAdd,
   type SubmitResult,
@@ -25,6 +26,7 @@ import {
   addEstimateError,
   hasTask,
   isNotFound,
+  isPendingTaskId,
   isPlaceNotFound,
   placeSubmitError,
   subtaskAdded,
@@ -46,6 +48,7 @@ import {
   useCreateTask,
   useDeleteTask,
   useFutureExpenses,
+  useMoveTask,
   usePlaces,
   useSetCompleted,
   useTaskViews,
@@ -95,6 +98,12 @@ export function TaskListScreen({ listId }: { listId: string }) {
   };
   const setCompleted = useSetCompleted(listId, { onError: changeFailed });
   const toggleMarker = useToggleMarker(listId, { onError: changeFailed });
+  const moveTask = useMoveTask(listId, {
+    onError: (error, { id, title }) => {
+      if (isNotFound(error)) setGoneId(id);
+      else setRowError({ taskId: id, text: TASK_SCREEN_TEXT.moveFailed(title) });
+    },
+  });
   const places = usePlaces();
   const createPlace = useCreatePlace();
   const updatePlace = useUpdatePlace(listId);
@@ -269,6 +278,19 @@ export function TaskListScreen({ listId }: { listId: string }) {
     toggleMarker.mutate({ id, marker, on, title: titleOf(views, id) });
   };
 
+  // Drag, keyboard and "Move up / Move down" (spec E02, #17): shown at once by the replay, saved
+  // in the list queue with only the new neighbours.
+  const move = (id: string, { afterId, beforeId }: MovePosition) => {
+    startChange();
+    moveTask.mutate({ id, afterId, beforeId, title: titleOf(views, id) });
+  };
+  // A quick add still saving is outside the move groups, so a move picked now could name a last
+  // neighbour that is no longer last once it is saved: no reordering anywhere in the list until
+  // it settles (P1, P10; one `onMove` serves tasks and subtasks).
+  const adding = views.some(
+    (task) => isPendingTaskId(task.id) || task.subtasks.some(({ id }) => isPendingTaskId(id)),
+  );
+
   const ownPlaces = places.data ?? [];
   const tickPlace = (id: string, placeId: string, assigned: boolean) => {
     startChange();
@@ -356,6 +378,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
           onDelete={remove}
           onToggleComplete={toggleComplete}
           onToggleMarker={markTask}
+          onMove={adding ? undefined : move}
           places={placeOptions}
           highlightId={highlightId}
         />

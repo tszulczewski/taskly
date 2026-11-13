@@ -755,6 +755,28 @@ describe("TaskList ordering, markers and places", () => {
     expect(onMove).toHaveBeenCalledWith("plaster", { afterId: "seal", beforeId: null });
   });
 
+  it("keeps a task expanded when moves are turned off and on, as the app does while an add saves", () => {
+    const props = { status: "ready" as const, tasks: [paint], validate: noErrors };
+    const handlers = {
+      onRetry: vi.fn(),
+      onEdit: vi.fn(ok),
+      onAddSubtask: vi.fn(ok),
+      onDelete: vi.fn(),
+    };
+    const { rerender } = render(<TaskList {...props} {...handlers} onMove={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    const subtasks = () => screen.queryByRole("list", { name: "Subtasks of “Paint the ceiling”" });
+    expect(subtasks()).not.toBeNull();
+
+    rerender(<TaskList {...props} {...handlers} />);
+    expect(subtasks()).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /^Move “/ })).toBeNull();
+
+    rerender(<TaskList {...props} {...handlers} onMove={vi.fn()} />);
+    expect(subtasks()).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Move “/ })).toHaveLength(3);
+  });
+
   it("lifts the row while it is picked up with the keyboard", async () => {
     renderList({ tasks: [rods, sealBath], onMove: vi.fn() });
     const handle = screen.getByRole("button", { name: "Move “Hang the curtain rods”" });

@@ -5,6 +5,7 @@ import { ApiError } from "../../lib/api-client";
 import {
   applyCompletion,
   applyMarker,
+  applyMove,
   applyPlace,
   hasTask,
   isPlaceNotFound,
@@ -853,6 +854,55 @@ describe("completion replay", () => {
     });
   });
 
+  describe("applyMove (#17)", () => {
+    it("moves a task between its new open neighbours; completed and temporary rows stay put (AC1)", () => {
+      const a = row("A", "a0");
+      const b = row("B", "a1");
+      const c = row("C", "a3");
+      const done = row("Done", "a2", { completed: true });
+      const views = [a, b, done, c, pendingRow("New")];
+
+      const shown = applyMove(views, { id: a.id, afterId: b.id, beforeId: c.id });
+
+      expect(titles(shown)).toEqual(["B", "A", "C", "New", "Done"]);
+      // Keyed between B and the next stored sibling (the completed one), never equal to it.
+      const moved = shown.find((v) => v.id === a.id)!;
+      expect(moved.position > "a1" && moved.position < "a2").toBe(true);
+      expect(shown.find((v) => v.id === b.id)).toEqual(b);
+      expect(views[0]).toBe(a);
+    });
+
+    it("moves a subtask within its task only (AC4)", () => {
+      const task = row("Bathroom", "a0", { subtasks: [sub("s1", "a0"), sub("s2", "a1")] });
+      const other = row("Kitchen", "a1", { subtasks: [sub("k1", "a0")] });
+
+      const shown = applyMove([task, other], {
+        id: task.subtasks[1]!.id,
+        afterId: null,
+        beforeId: task.subtasks[0]!.id,
+      });
+
+      expect(titles(shown[0]!.subtasks)).toEqual(["s2", "s1"]);
+      expect(shown[1]).toEqual(other);
+    });
+
+    it("changes nothing for a stale move, a completed row, a row no longer in the list or a stay", () => {
+      const a = row("A", "a0");
+      const b = row("B", "a1");
+      const c = row("C", "a2");
+      const done = row("Done", "a3", { completed: true });
+      const views = [a, b, c, done];
+
+      // Neighbours no longer adjacent (M-1), a completed row (AC8), a gone row, and a stay (M-2).
+      expect(applyMove(views, { id: c.id, afterId: null, beforeId: b.id })).toEqual(views);
+      expect(applyMove(views, { id: done.id, afterId: null, beforeId: a.id })).toEqual(views);
+      expect(applyMove(views, { id: crypto.randomUUID(), afterId: null, beforeId: a.id })).toEqual(
+        views,
+      );
+      expect(applyMove(views, { id: b.id, afterId: a.id, beforeId: c.id })).toEqual(views);
+    });
+  });
+
   describe("replayChanges", () => {
     it("replays marker toggles over the server's views, in order, with completions", () => {
       const a = row("A", "a0");
@@ -865,6 +915,7 @@ describe("completion replay", () => {
           { kind: "marker", id: a.id, marker: "urgent", on: true },
           { kind: "completion", id: a.id, completed: true },
           { kind: "marker", id: a.id, marker: "important", on: false },
+          { kind: "move", id: b.id, afterId: null, beforeId: null },
         ],
       );
 

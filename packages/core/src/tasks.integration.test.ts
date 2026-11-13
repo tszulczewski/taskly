@@ -13,6 +13,7 @@ import {
   createTask,
   deleteTask,
   listTasks,
+  moveTask,
   requireTaskRole,
   setTaskCompleted,
   updateTask,
@@ -1424,6 +1425,163 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         expect(result.first).toEqual({ value: expect.objectContaining({ completed: true }) });
         expect(result.second).toEqual({ error: parentCompleted });
         expect(await rowsOf(listId)).toEqual([expect.objectContaining({ status: "done" })]);
+      });
+    });
+  });
+
+  describe("moveTask (#17)", () => {
+    const listChanged = new ConflictError("The list changed. Try again.");
+    const move = (
+      taskId: string,
+      afterId: string | null,
+      beforeId: string | null,
+      userId = ids.ed,
+    ) => moveTask(db, userId, taskId, { afterId, beforeId });
+    const order = async (listId: string) =>
+      (await listTasks(db, ids.alice, listId)).map((task) => task.title).join("");
+    const positions = async (listId: string) =>
+      new Map((await rowsOf(listId)).map((row) => [row.title, row.position]));
+
+    /** Tasks A, B, C, D in this order; A has subtasks s1, s2. */
+    async function planned(name: string) {
+      const listId = await sharedList(name);
+      const made: Record<string, string> = {};
+      for (const title of ["A", "B", "C", "D"]) {
+        made[title] = (await createTask(db, ids.alice, listId, { title })).id;
+      }
+      for (const title of ["s1", "s2"]) {
+        const parent = await createTask(db, ids.alice, listId, { title, parentId: made.A! });
+        made[title] = parent.subtasks.at(-1)!.id;
+      }
+      return { listId, ...made } as Record<string, string> & { listId: string };
+    }
+
+    it("moves a task between two others, writing only its own position (AC1, AC2)", async () => {
+      const t = await planned("Move AC1");
+      const before = await positions(t.listId);
+
+      const view = await move(t.D!, t.A!, t.B!);
+
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(await order(t.listId)).toBe("ADBC");
+      const after = await positions(t.listId);
+      for (const title of ["A", "B", "C", "s1", "s2"]) {
+        expect(after.get(title)).toBe(before.get(title));
+      }
+      expect(after.get("D")).not.toBe(before.get("D"));
+    });
+
+    it("moves a subtask within its task and returns the task (AC4)", async () => {
+      const t = await planned("Move AC4");
+
+      const view = await move(t.s2!, null, t.s1!);
+
+      expect(view.id).toBe(t.A);
+      expect(view.subtasks.map((subtask) => subtask.title)).toEqual(["s2", "s1"]);
+      expect(await order(t.listId)).toBe("ABCD");
+    });
+
+    it("refuses a subtask moved to the top level or into another task, and a task among subtasks (AC5)", async () => {
+      const t = await planned("Move AC5");
+      const b1 = (await createTask(db, ids.alice, t.listId, { title: "b1", parentId: t.B! }))
+        .subtasks[0]!.id;
+      const before = await positions(t.listId);
+
+      expect(await settle(move(t.s1!, t.A!, t.B!))).toEqual({ error: listChanged });
+      expect(await settle(move(t.s1!, b1, null))).toEqual({ error: listChanged });
+      expect(await settle(move(t.C!, t.s1!, t.s2!))).toEqual({ error: listChanged });
+      expect(await positions(t.listId)).toEqual(before);
+    });
+
+    it("refuses a completed row, and moves an open subtask of a completed task (AC9, E03 Q2)", async () => {
+      const t = await planned("Move AC9");
+      await setTaskCompleted(db, ids.alice, t.C!, { completed: true });
+      const before = await positions(t.listId);
+
+      expect(await settle(move(t.C!, null, t.A!))).toEqual({ error: parentCompleted });
+      expect(await positions(t.listId)).toEqual(before);
+
+      await setTaskCompleted(db, ids.alice, t.A!, { completed: true });
+      await setTaskCompleted(db, ids.alice, t.s1!, { completed: false });
+      await setTaskCompleted(db, ids.alice, t.s2!, { completed: false });
+      const view = await move(t.s2!, null, t.s1!);
+      expect(view.subtasks.map((subtask) => subtask.title)).toEqual(["s2", "s1"]);
+    });
+
+    it("keeps the asked open order next to completed siblings, never taking their keys", async () => {
+      const t = await planned("Move past completed");
+      await setTaskCompleted(db, ids.alice, t.B!, { completed: true });
+
+      await move(t.D!, t.A!, t.C!);
+
+      expect(await order(t.listId)).toBe("ADCB");
+      const keys = [...(await positions(t.listId)).values()];
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it("refuses a move whose neighbours are no longer adjacent (M-1: A, C, D, B)", async () => {
+      const t = await planned("Move M-1");
+      await move(t.B!, t.D!, null);
+      const before = await positions(t.listId);
+
+      expect(await settle(move(t.C!, t.A!, t.B!))).toEqual({ error: listChanged });
+      expect(await positions(t.listId)).toEqual(before);
+      expect(await order(t.listId)).toBe("ACDB");
+    });
+
+    it("succeeds with no write when the row already sits there (M-2: A, C, B)", async () => {
+      const listId = await sharedList("Move M-2");
+      const made: string[] = [];
+      for (const title of ["A", "B", "C"]) {
+        made.push((await createTask(db, ids.alice, listId, { title })).id);
+      }
+      const [idA, idB, idC] = made as [string, string, string];
+      await move(idB, idC, null);
+      const before = await positions(listId);
+
+      await move(idC, idA, idB);
+
+      expect(await positions(listId)).toEqual(before);
+      expect(await order(listId)).toBe("ACB");
+    });
+
+    it("lets a viewer read but not move, and hides the task from a non-member (403, 404)", async () => {
+      const t = await planned("Move roles");
+
+      expect(await settle(move(t.D!, null, t.A!, ids.vi))).toEqual({
+        error: expect.any(ForbiddenError),
+      });
+      expect(await settle(move(t.D!, null, t.A!, ids.bob))).toEqual({
+        error: new NotFoundError("Task"),
+      });
+      expect(await settle(move(unknownId, null, t.A!))).toEqual({
+        error: new NotFoundError("Task"),
+      });
+      expect(await order(t.listId)).toBe("ABCD");
+    });
+
+    it("never gives two siblings the same position when two moves race (C-1)", async () => {
+      const t = await planned("Move C-1");
+
+      const results = await Promise.all([
+        settle(move(t.D!, null, t.A!)),
+        settle(move(t.C!, null, t.A!)),
+      ]);
+
+      // Both name A as the first open row; the one that takes the list lock second finds the
+      // other's row already before A, so it is refused.
+      expect(results.filter((result) => "value" in result)).toHaveLength(1);
+      expect(results.filter((result) => "error" in result)).toEqual([{ error: listChanged }]);
+      const keys = (await rowsOf(t.listId))
+        .filter((row) => row.parentId === null)
+        .map((row) => row.position);
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it("rejects input other than the two neighbour ids", async () => {
+      const t = await planned("Move input");
+      expect(await settle(moveTask(db, ids.ed, t.D!, { afterId: "x", beforeId: null }))).toEqual({
+        error: expect.any(ZodError),
       });
     });
   });
