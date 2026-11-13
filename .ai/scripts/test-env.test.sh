@@ -37,6 +37,8 @@ echo "docker $*" >> "$CALLS"
 case "$1" in
   inspect) [ "${FAKE_PG_RUNNING:-0}" = 1 ] || exit 1; [ "$2" = -f ] && echo true; exit 0 ;;
   info) exit "${FAKE_DOCKER_INFO_STATUS:-0}" ;;
+  run) n=$(($(cat "$CALLS.runs" 2>/dev/null || echo 0) + 1)); echo "$n" > "$CALLS.runs"
+       [ "$n" -gt "${FAKE_DOCKER_RUN_FAILS:-0}" ] || { echo "ports are not available" >&2; exit 125; } ;;
 esac
 exit 0
 EOF
@@ -107,6 +109,17 @@ ORDER=$(grep -E "^(build-start|build-end|docker run|docker rm)" "$CALLS" | awk '
 check "up: concurrent bootstraps never overlap" \
   '[ "$ORDER" = "build-start build-end docker rm docker run docker rm build-start build-end docker rm docker run docker rm " ]'
 check "up: concurrent bootstraps leave the lock free" 'lock_free "$R"'
+
+# 2c. A rejected port publish (WSL2: Windows-reserved range) is retried on another port.
+sandbox port-retry
+FAKE_DOCKER_RUN_FAILS=1 FAKE_NPM_FAIL=db:migrate sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"
+PORTS=$(grep "^docker run" "$CALLS" | sed 's/.*-p 127.0.0.1:\([0-9]*\):5432.*/\1/' | tr '\n' ' ')
+check "up: rejected port is retried on a different port" \
+  '[ "$(echo $PORTS | awk "NF == 2 && \$1 != \$2")" ] && grep -q "port rejected; retrying" "$R/err" && grep -q "migrating" "$R/err"'
+sandbox port-exhausted
+FAKE_DOCKER_RUN_FAILS=99 sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"; status=$?
+check "up: gives up after the retry limit and cleans up" \
+  '[ "$status" != 0 ] && [ "$(grep -c "^docker run" "$CALLS")" = 5 ] && grep -q "after 5 attempts" "$R/err" && lock_free "$R"'
 
 # 3. A healthy env is reused, but never with --force-rebuild.
 sandbox force-rebuild
