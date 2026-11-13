@@ -2,6 +2,7 @@
 export * from "./schemas";
 export * from "./authorization";
 export * from "./position";
+export * from "./move";
 export * from "./errors";
 export * from "./http";
 export * from "./money";

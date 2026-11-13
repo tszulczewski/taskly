@@ -95,6 +95,18 @@ export type CompletionInput = z.infer<typeof completionInput>;
 /** The 409 for a subtask added under a completed task (spec E03, Q3); the app recognizes it. */
 export const TASK_COMPLETED_MESSAGE = "Task is completed";
 
+/**
+ * `PUT /api/tasks/[taskId]/position` (spec E02, #17): the moved row's new neighbours among its open
+ * siblings (null is an end of the group); only these are sent, never a whole order.
+ */
+export const moveTaskInput = z.strictObject({
+  afterId: z.uuid().nullable(),
+  beforeId: z.uuid().nullable(),
+});
+export type MoveTaskInput = z.infer<typeof moveTaskInput>;
+/** A move whose neighbours are no longer adjacent open siblings (409). */
+export const LIST_CHANGED_MESSAGE = "The list changed. Try again.";
+
 // Response shapes: no defaults (a missing field fails), and unknown fields are accepted (stripped)
 // so an older client keeps working against a newer server.
 export const subtaskViewSchema = z.object({

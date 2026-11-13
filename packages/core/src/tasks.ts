@@ -4,7 +4,8 @@ import { z } from "zod";
 import { requireRole } from "./access";
 import type { Action } from "./authorization";
 import { rollUpEstimate } from "./estimate";
-import { ConflictError, NotFoundError, NotImplementedError } from "./errors";
+import { ConflictError, NotFoundError } from "./errors";
+import { movePosition } from "./move";
 import type { PlaceView } from "./place-rules";
 import { placeColumns, placeOrder } from "./places";
 import { positionBetween } from "./position";
@@ -12,6 +13,8 @@ import {
   completionInput,
   createTaskInput,
   type Estimate,
+  LIST_CHANGED_MESSAGE,
+  moveTaskInput,
   TASK_COMPLETED_MESSAGE,
   type SubtaskView,
   type TaskView,
@@ -427,13 +430,46 @@ export async function setTaskPlace(
   });
 }
 
+/**
+ * Moves a task, or a subtask within its task, between `afterId` and `beforeId`, its new neighbours
+ * among its open siblings (spec E02, #17), and returns the `TaskView` of the top-level task that
+ * holds it. Under the list lock (the order of `createTask` and a reopen, which choose keys in the
+ * list too), so no two siblings get the same key. Only the moved row is written, and not at all
+ * when it already sits there. A completed row → 409 "Task is completed" (AC9); neighbours that are
+ * not adjacent open siblings, under another parent or at the other level → 409 (AC5, M-1).
+ */
 export async function moveTask(
-  _db: Db,
-  _userId: string,
-  _taskId: string,
-  _input: { afterId: string | null; beforeId: string | null },
-): Promise<unknown> {
-  throw new NotImplementedError("moveTask");
+  db: Db,
+  userId: string,
+  taskId: string,
+  input: unknown,
+): Promise<TaskView> {
+  const { afterId, beforeId } = moveTaskInput.parse(input);
+  return inTransaction(db, async (tx) => {
+    const task = await requireTaskRole(tx, userId, taskId, "write", { withListLock: true });
+    if (task.status === "done") throw new ConflictError(TASK_COMPLETED_MESSAGE);
+    const siblings = await tx
+      .select({ id: tasks.id, position: tasks.position, status: tasks.status })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.listId, task.listId),
+          task.parentId === null ? isNull(tasks.parentId) : eq(tasks.parentId, task.parentId),
+        ),
+      )
+      .orderBy(byPosition);
+    const outcome = movePosition(
+      siblings.map(({ id, position, status }) => ({ id, position, completed: status === "done" })),
+      task.id,
+      afterId,
+      beforeId,
+    );
+    if (outcome.kind === "conflict") throw new ConflictError(LIST_CHANGED_MESSAGE);
+    if (outcome.kind === "move") {
+      await tx.update(tasks).set({ position: outcome.position }).where(eq(tasks.id, task.id));
+    }
+    return topLevelView(tx, task.parentId ?? task.id);
+  });
 }
 
 /**
