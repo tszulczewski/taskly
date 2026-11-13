@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | Medium |
 | Type | UI |
-| Source requirement | #19 AC10; D26; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — API Contracts `POST /api/places` (409 at 20) |
+| Source requirement | #19 AC10; D26; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — API Contracts `POST /api/places` (409 at 20) |
 | Prerequisites | A signed-in owner with the eight places plus twelve more created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 

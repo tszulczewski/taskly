@@ -20,7 +20,7 @@ Filed 2026-10-16 with `om-backlog` through `om-prepare-issue`. Each issue carrie
 | E03-S03 | #47 | The owner sees what still has no estimate and can add one from future expenses | medium, high | E03-S02 |
 | E04 | #14 | Later (parked) | low, low | none |
 
-Open points left in the issue bodies at filing are closed. Subtask nesting depth (one level), editing and deleting tasks, rejecting min above max, and spaces as their own entity rather than lists were settled by spec E01 (`implemented/2026-10-16-tasks-and-subtasks.md`); how spaces are created and whether subtasks reorder were decided on 2026-11-03 (below). E03 (#20, #21, #47) is implemented by spec E03 (`implemented/2026-11-03-completion-and-future-expenses.md`; PRs #56, #58, #62).
+Open points left in the issue bodies at filing are closed. Subtask nesting depth (one level), editing and deleting tasks, rejecting min above max, and spaces as their own entity rather than lists were settled by spec E01 (`implemented/2026-10-16-tasks-and-subtasks.md`); how spaces are created and whether subtasks reorder were decided on 2026-11-03 (below). E03 (#20, #21, #47) is implemented by spec E03 (`implemented/2026-11-03-completion-and-future-expenses.md`; PRs #56, #58, #62). E02 (#18, #19, #17) is implemented by spec E02 (`implemented/2026-11-03-order-markers-and-spaces.md`; stacked PRs #69 markers, #70 places, then reorder).
 
 Decisions made after filing, to apply when writing the E02 and E03 specs: order of completed tasks, reopening, and no drag of completed tasks (server rejects the move) — `research/decisions/2026-10-21-completed-tasks-order.md` (affects E03-S01 #20, E02-S01 #17).
 

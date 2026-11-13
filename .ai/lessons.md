@@ -12,6 +12,7 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-13 — Never switch a subtree between `cond ? <Wrapper>{x}</Wrapper> : x`: when `cond` flips the element type at that spot changes and React remounts everything under it, losing local state (expanded rows, open forms). Turning `onMove` off while a quick add saved collapsed the expanded task, so its pending subtask vanished from view. Keep the wrapper mounted and make it inert instead (`SortableGroup` with an optional `onMove`: no sensors, no items); test the toggle with a `rerender`.
 - 2026-11-12 — agent-browser (Chrome) will not start when `TMPDIR` is a long path: "Socket path too long" for its `SingletonSocket` (the cezar per-task temp dir is long enough). Run `npm run test:integration` with a short `TMPDIR` (e.g. `TMPDIR=/tmp/x`). A fresh git worktree also needs its own `npm ci`: without `node_modules`, `@taskly/*` resolves to the main checkout's packages through the parent directory and typecheck reports missing exports.
 
 - 2026-11-12 — A mutation's hook-level `onError` that decides from another query's data must read it from `queryClient.getQueryData` at error time, not from the render closure: the options a mutation runs with can lag a cache write made in the same tick (E02 P9: a tick whose place this tab had just deleted still found it "cached" and showed a rollback message). Every new screen GET also renews a due session, so browser tests that block "the screen's GETs" must block the new one too (`/api/places`), as the 2026-11-04 lesson says.

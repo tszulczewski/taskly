@@ -1,7 +1,7 @@
 # Order, markers and spaces (E02)
 
 - **Date:** 2026-11-03
-- **Status:** ready (owner accepted the revision on 2026-11-03)
+- **Status:** implemented (Phase 1 #69, Phase 2 #70, Phase 3 PR_PHASE3; 2026-11-13); ready since 2026-11-03 (owner accepted the revision)
 - **Revised:** 2026-11-03, for the pre-implementation audit (`.ai/analysis/2026-11-03-pre-implement-order-markers-and-spaces.md`, no-go): places load and fail visibly (F2); places are initialized once, lazily, under one per-user lock, with no backfill (F3); every task mutation of a list shares one queue, so answers land in order (F4); M-1 rewritten and a no-op case added (F5). See Review changes.
 - **Revised:** 2026-11-04, after a post-merge review of #53 (owner-approved): a list with a quick add still saving cannot be reordered until the add is saved (P1); place edits patch the cached tasks instead of refetching (P2); malformed place ids answer 404 (P3); the owner check does not assume one owner per list (P4); phase PRs target `main` (P5); smaller contract fixes (P6–P8); the replay skips a tick of a deleted place (P9); the reorder pause covers temporary subtasks (P10). See Review changes.
 - **Issue:** #12 (stories #18, #19, #17, in that build order)

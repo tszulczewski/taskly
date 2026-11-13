@@ -6,7 +6,7 @@
 | Category | MARKERS |
 | Priority | High |
 | Type | UI |
-| Source requirement | Issue #18 AC4; D21; decision record `2026-11-03-e02-e03-epic-alignment.md` decision 7 (no inheritance); `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX "Markers (#18)" ("A subtask's markers are its own") |
+| Source requirement | Issue #18 AC4; D21; decision record `2026-11-03-e02-e03-epic-alignment.md` decision 7 (no inheritance); `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX "Markers (#18)" ("A subtask's markers are its own") |
 | Prerequisites | A new signed-in owner; tasks A (with s1, s2) and B created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 
