@@ -29,7 +29,8 @@ Implement #17 (E02-S01) as the third stacked PR of E02, on top of #70 (places), 
 
 - `npm test`: 84 files, 1243 tests passed, coverage 100% (statements, branches, functions, lines).
 - `npm run typecheck`, `npm run lint`, `npm run format:check`: clean.
-- Integration and the remaining gate: see below once run.
+- `check:agents`, `test:env-scripts`, `build`, `audit` (4 moderate, below high), `packages/ui` `check:tokens`, `test:storybook` (932), `build-storybook`: pass.
+- CI run 43387940996 (first integration run, Docker unavailable locally): 286/288 passed, `reorder-browser` all green. Two test bugs fixed: the C-completed key check compared subtask keys with task keys (keys are unique per sibling group only), and `subtasks-browser` AC4's menu list lacked "Move up" / "Move down", which subtasks now have.
 
 ## Problems / open questions
 

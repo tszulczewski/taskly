@@ -1515,8 +1515,10 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       await move(t.D!, t.A!, t.C!);
 
       expect(await order(t.listId)).toBe("ADCB");
-      const keys = [...(await positions(t.listId)).values()];
-      expect(new Set(keys).size).toBe(keys.length);
+      // Keys are unique among siblings; subtasks have their own sequence.
+      const stored = await positions(t.listId);
+      const keys = ["A", "B", "C", "D"].map((title) => stored.get(title));
+      expect(new Set(keys).size).toBe(4);
     });
 
     it("refuses a move whose neighbours are no longer adjacent (M-1: A, C, D, B)", async () => {
