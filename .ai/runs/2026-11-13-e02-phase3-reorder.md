@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-13
 - **Spec:** .ai/specs/implemented/2026-11-03-order-markers-and-spaces.md (Phase 3, steps 14–18)
-- **Outcome:** in progress
+- **Outcome:** success (PR #72 ready; review and maintainer QA pending)
 
 ## Goal
 
@@ -31,9 +31,11 @@ Implement #17 (E02-S01) as the third stacked PR of E02, on top of #70 (places), 
 - `npm run typecheck`, `npm run lint`, `npm run format:check`: clean.
 - `check:agents`, `test:env-scripts`, `build`, `audit` (4 moderate, below high), `packages/ui` `check:tokens`, `test:storybook` (932), `build-storybook`: pass.
 - CI run 43387940996 (first integration run, Docker unavailable locally): 286/288 passed, `reorder-browser` all green. Two test bugs fixed: the C-completed key check compared subtask keys with task keys (keys are unique per sibling group only), and `subtasks-browser` AC4's menu list lacked "Move up" / "Move down", which subtasks now have.
+- CI run on a2cf7bb: all six jobs green (integration 7m12s, design system, unit 100%, lint/typecheck, build, audit).
 
 ## Problems / open questions
 
+- Open: an independent code review (author-account review from a run that did not write the change) and maintainer QA with a manual phone-viewport check of long press and pointer drag (AC7).
 - Docker is not available in this session (no `/var/run/docker.sock`) and no local PostgreSQL listens on 5432, so `npm run test:integration` (Testcontainers) could not run here yet.
 
 ## Lessons recorded (links into .ai/lessons.md)
