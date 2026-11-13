@@ -153,6 +153,7 @@ export function SortableGroup({ items, onMove, text, children }: SortableGroupPr
       }}
       onDragEnd={({ active, over }) => {
         const target = over ? moveTarget(ids, String(active.id), String(over.id)) : null;
+        // Without `onMove` there are no sensors and no items, so no drag ever ends here.
         if (target) onMove!(String(active.id), target);
       }}
     >

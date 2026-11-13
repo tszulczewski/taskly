@@ -366,6 +366,51 @@ describe("task routes over HTTP", () => {
     expect((await taskRow(parent.id))?.status).toBe("todo");
   });
 
+  it("moves a task between its new neighbours and answers 400 and 409 where the move rules say so (#17)", async () => {
+    const first = await createOwnerTask("Porch");
+    const last = await createOwnerTask("Gate");
+    const move = (id: string, body: unknown) =>
+      api(`/tasks/${id}/position`, { method: "PUT", cookie: owner.cookie, body });
+
+    // Porch goes after Gate, the last open task: only Porch's key changes.
+    const lastBefore = await taskRow(last.id);
+    const moved = taskViewSchema.parse(
+      await okData(await move(first.id, { afterId: last.id, beforeId: null })),
+    );
+    expect(moved).toEqual({ ...first, position: expect.any(String) });
+    expect(moved.position > last.position).toBe(true);
+    expect((await taskRow(first.id))?.position).toBe(moved.position);
+    expect(await taskRow(last.id)).toEqual(lastBefore);
+
+    for (const body of [
+      {},
+      { afterId: "x", beforeId: null },
+      { afterId: null, beforeId: null, position: "a0" },
+      "{afterId:",
+    ]) {
+      expect((await failure(await move(first.id, body), 400)).code).toBe("validation_error");
+    }
+    // Neighbours that are not adjacent open siblings any more.
+    expect(
+      await failure(await move(last.id, { afterId: first.id, beforeId: UNKNOWN_ID }), 409),
+    ).toEqual({
+      code: "conflict",
+      message: "The list changed. Try again.",
+    });
+    await okData(
+      await api(`/tasks/${first.id}/completion`, {
+        method: "PUT",
+        cookie: owner.cookie,
+        body: { completed: true },
+      }),
+    );
+    expect(await failure(await move(first.id, { afterId: null, beforeId: null }), 409)).toEqual({
+      code: "conflict",
+      message: "Task is completed",
+    });
+    expect((await taskRow(first.id))?.position).toBe(moved.position);
+  });
+
   it("answers the future expenses of open main tasks in grosze, following completion", async () => {
     const planner = await signIn("planner");
     const listId = await ensureDefaultList(db, planner.id);
@@ -492,6 +537,7 @@ describe("task routes over HTTP", () => {
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "Sneaky" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${task.id}/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: owner.cookie, csrf: false });
@@ -549,6 +595,7 @@ describe("task routes over HTTP", () => {
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${task.id}/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
       [expensesPath(owner.listId), {}],
     ];
     const stale = `${owner.cookie.split("=")[0]}=not-a-session.sig`;
@@ -572,7 +619,10 @@ describe("task routes over HTTP", () => {
       [`/tasks/${UNKNOWN_ID}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/not-a-uuid`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${task.id}/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
       [`/tasks/${UNKNOWN_ID}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${UNKNOWN_ID}/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
+      [`/tasks/not-a-uuid/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
       [expensesPath(owner.listId), {}],
       [expensesPath(UNKNOWN_ID), {}],
       [expensesPath("not-a-uuid"), {}],
@@ -602,6 +652,7 @@ describe("task routes over HTTP", () => {
       [`/tasks/${task.id}`, { method: "PATCH", body: { title: "x" } }],
       [`/tasks/${task.id}`, { method: "DELETE" }],
       [`/tasks/${task.id}/completion`, { method: "PUT", body: { completed: true } }],
+      [`/tasks/${task.id}/position`, { method: "PUT", body: { afterId: null, beforeId: null } }],
     ];
     for (const [path, call] of calls) {
       const res = await api(path, { ...call, cookie: viewer.cookie });

@@ -1371,29 +1371,56 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
       expect(await rowsOf(listId)).toEqual([]);
     });
 
-    describe("a completion racing a subtask add on the same task (C-1)", () => {
-      /**
-       * Holds the list row, queues `first` (owner) and then `second` (editor) behind it, and
-       * releases: waiters on a row lock are served in order, so `first` commits before `second`
-       * reads the parent.
-       */
-      async function race<A, B>(listId: string, first: () => Promise<A>, second: () => Promise<B>) {
-        const holder = lockRow("lists", listId, "no key update");
-        let firstRun: Promise<Settled<A>> | undefined;
-        let secondRun: Promise<Settled<B>> | undefined;
-        try {
-          const holderPid = await holder.pid;
-          firstRun = settle(first());
-          await waitUntilBlockedBy(ownerPid, holderPid);
-          secondRun = settle(second());
-          await waitUntilBlockedBy(editorPid, ownerPid);
-        } finally {
-          holder.release();
-          await holder.done;
-        }
-        return { first: await firstRun, second: await secondRun };
+    /**
+     * Holds the list row, queues `first` (owner) and then `second` (editor) behind it, and
+     * releases: waiters on a row lock are served in order, so `first` commits before `second`
+     * reads what the first wrote.
+     */
+    async function race<A, B>(listId: string, first: () => Promise<A>, second: () => Promise<B>) {
+      const holder = lockRow("lists", listId, "no key update");
+      let firstRun: Promise<Settled<A>> | undefined;
+      let secondRun: Promise<Settled<B>> | undefined;
+      try {
+        const holderPid = await holder.pid;
+        firstRun = settle(first());
+        await waitUntilBlockedBy(ownerPid, holderPid);
+        secondRun = settle(second());
+        await waitUntilBlockedBy(editorPid, ownerPid);
+      } finally {
+        holder.release();
+        await holder.done;
       }
+      return { first: await firstRun, second: await secondRun };
+    }
 
+    describe("two moves racing in the same list (#17 C-1)", () => {
+      it("lets the first move commit and refuses the second, whose neighbours changed", async () => {
+        const listId = await sharedList("Move C-1");
+        const made: string[] = [];
+        for (const title of ["A", "B", "C", "D"]) {
+          made.push((await createTask(db, ids.alice, listId, { title })).id);
+        }
+        const [idA, , idC, idD] = made as [string, string, string, string];
+
+        // Both name A as the first open row; the second, served after the first committed, finds
+        // D already before A.
+        const result = await race(
+          listId,
+          () => moveTask(ownerDb, ids.alice, idD, { afterId: null, beforeId: idA }),
+          () => moveTask(editorDb, ids.ed, idC, { afterId: null, beforeId: idA }),
+        );
+
+        expect(result.first).toEqual({ value: expect.objectContaining({ id: idD }) });
+        expect(result.second).toEqual({
+          error: new ConflictError("The list changed. Try again."),
+        });
+        const rows = await rowsOf(listId);
+        expect(rows.map((row) => row.title).join("")).toBe("DABC");
+        expect(new Set(rows.map((row) => row.position)).size).toBe(4);
+      });
+    });
+
+    describe("a completion racing a subtask add on the same task (C-1)", () => {
       it("completes the new subtask too when the add commits first", async () => {
         const { listId, parentId } = await parentTask("Race add then complete");
 
@@ -1560,24 +1587,6 @@ describe.skipIf(!url)("tasks service (real PostgreSQL)", () => {
         error: new NotFoundError("Task"),
       });
       expect(await order(t.listId)).toBe("ABCD");
-    });
-
-    it("never gives two siblings the same position when two moves race (C-1)", async () => {
-      const t = await planned("Move C-1");
-
-      const results = await Promise.all([
-        settle(move(t.D!, null, t.A!)),
-        settle(move(t.C!, null, t.A!)),
-      ]);
-
-      // Both name A as the first open row; the one that takes the list lock second finds the
-      // other's row already before A, so it is refused.
-      expect(results.filter((result) => "value" in result)).toHaveLength(1);
-      expect(results.filter((result) => "error" in result)).toEqual([{ error: listChanged }]);
-      const keys = (await rowsOf(t.listId))
-        .filter((row) => row.parentId === null)
-        .map((row) => row.position);
-      expect(new Set(keys).size).toBe(keys.length);
     });
 
     it("rejects input other than the two neighbour ids", async () => {

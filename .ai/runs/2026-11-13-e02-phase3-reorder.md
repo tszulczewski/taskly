@@ -31,6 +31,7 @@ Implement #17 (E02-S01) as the third stacked PR of E02, on top of #70 (places), 
 - `npm run typecheck`, `npm run lint`, `npm run format:check`: clean.
 - `check:agents`, `test:env-scripts`, `build`, `audit` (4 moderate, below high), `packages/ui` `check:tokens`, `test:storybook` (932), `build-storybook`: pass.
 - CI run 43387940996 (first integration run, Docker unavailable locally): 286/288 passed, `reorder-browser` all green. Two test bugs fixed: the C-completed key check compared subtask keys with task keys (keys are unique per sibling group only), and `subtasks-browser` AC4's menu list lacked "Move up" / "Move down", which subtasks now have.
+- Independent review (author-account comment, head 3210c07): APPROVED, two minor findings and a nit, all addressed: HTTP integration cases for `PUT …/position` (move, 400, 409 stale and completed, and the CSRF, 401, 404 and viewer 403 lists) in `test/tasks-http.integration.test.ts` (spec step 16); the C-1 move race made deterministic with the list-row holder (`race`, moved up to the concurrency describe); a comment on the unreachable `onMove!` in `SortableGroup`.
 - CI run on a2cf7bb: all six jobs green (integration 7m12s, design system, unit 100%, lint/typecheck, build, audit).
 
 ## Problems / open questions
