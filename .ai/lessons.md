@@ -12,6 +12,8 @@ Long-term memory for AI agents working on this project. Read this file **before 
 
 ## Index
 
+- 2026-11-13 — WSL2 + Docker Desktop: `docker run -p 127.0.0.1:55432:…` fails with `ports are not available … /forwards/expose returned unexpected status: 500` when the port is in a Windows-reserved range (`cmd.exe /c "netsh interface ipv4 show excludedportrange protocol=tcp"`; the ranges move after a Windows reboot). A free-port check inside Linux does not see these ranges. Retry the publish on another port instead of trusting the check (`test-env-up.sh`, `PG_PORT_ATTEMPTS`).
+
 - 2026-11-06 — Shell lock scripts: never take over a "stale" lock by reading the owner PID and then renaming or deleting the lock. Two waiters can read the same dead PID, and the second one removes a live lock that was taken in the meantime (PR #63 review). Use `flock(2)` (perl on fd 9), which the kernel releases when the holder dies. Close the descriptor (`9>&-`) for long-lived children such as servers and daemons, or they keep holding the lock. Report a known race window in the PR instead of leaving it out.
 
 - 2026-11-05 — For a money feature that reuses an existing estimate PATCH, SDLC still requires integration evidence for failure, retry and idempotency: assert a refused save changes no stored figure, a corrected retry succeeds, and replaying the same save contributes to future expenses exactly once (PR #62 review).

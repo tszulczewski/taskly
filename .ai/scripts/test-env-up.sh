@@ -8,6 +8,7 @@
 #     reuse and build cache compare a content-based fingerprint (deletions and same-second edits count)
 #   2026-11-06 repair (PR #63 second review): flock(2) lock held for the bootstrap only (app and
 #     agent-browser daemon start with 9>&-); a run that waited re-checks reuse before rebuilding
+#   2026-11-13 repair: retry the postgres publish on a fresh port (WSL2: Windows-reserved port ranges)
 set -eu
 
 # ---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ set -eu
 # ---------------------------------------------------------------------------
 APP_PORT_PREFERRED=3300            # 3000 = dev/prod, 3200 = integration tests
 PG_PORT_PREFERRED=55432
+PG_PORT_ATTEMPTS=5                 # retries on a fresh port when Docker rejects the publish
 PG_IMAGE=postgres:16-alpine        # the image test/global-setup.ts uses
 PG_USER=taskly
 PG_DB=taskly
@@ -151,12 +153,23 @@ fi
 docker info >/dev/null 2>&1 || { log "Docker is not available (WSL2: enable Docker Desktop's WSL integration)"; exit 1; }
 PG_PORT=$(pick_port "$PG_PORT_PREFERRED")
 PG_PASSWORD=$(node -e 'console.log(require("crypto").randomBytes(12).toString("hex"))')
-docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+start_pg() {
+  docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+  docker run -d --rm --name "$PG_CONTAINER" -p "127.0.0.1:$1:5432" \
+    -e POSTGRES_USER="$PG_USER" -e POSTGRES_PASSWORD="$PG_PASSWORD" -e POSTGRES_DB="$PG_DB" \
+    "$PG_IMAGE" >/dev/null
+}
 log "starting $PG_IMAGE on 127.0.0.1:$PG_PORT"
-docker run -d --rm --name "$PG_CONTAINER" -p "127.0.0.1:$PG_PORT:5432" \
-  -e POSTGRES_USER="$PG_USER" -e POSTGRES_PASSWORD="$PG_PASSWORD" -e POSTGRES_DB="$PG_DB" \
-  "$PG_IMAGE" >/dev/null
 CREATED_PG=1
+attempt=1
+# WSL2 + Docker Desktop: Windows reserves port ranges (netsh interface ipv4 show excludedportrange)
+# that still look free from inside Linux, so the publish can fail although port_free passed.
+until start_pg "$PG_PORT"; do
+  [ "$attempt" -lt "$PG_PORT_ATTEMPTS" ] || { log "could not publish a postgres port after $attempt attempts"; exit 1; }
+  attempt=$((attempt + 1))
+  PG_PORT=$(free_port)
+  log "port rejected; retrying on 127.0.0.1:$PG_PORT"
+done
 ready=0
 for _ in $(seq 1 60); do
   # pg_isready over TCP: the init script's temporary server listens on the socket only.
