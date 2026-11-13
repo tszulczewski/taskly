@@ -52,3 +52,7 @@ Tytuł: „Właściciel wybiera miejsca podczas dodawania zadania lub podzadania
 ## Granice weryfikacji
 
 Przeczytano spec E02, backlog, powiązane fragmenty E01 i briefu oraz wskazany kod. Odczytano zgłoszenia #14 i #19 przez gh. Nie uruchamiano aplikacji ani testów: to analiza wymagań, bez zmiany kodu. Nie zmieniano zgłoszeń, zatwierdzonych specyfikacji ani planu wydania.
+
+## Aktualizacja po autoryzacji (2026-11-13)
+
+Ponowny odczyt trackera wykazał, że PR #70 (bazowe miejsca) scalono 2026-11-12; lokalna gałąź analizowana wyżej jest starsza. Otwarty pozostaje PR #72 (reorder). Zgodnie z poleceniem kontynuowania uzupełniono spec E02, brief i backlog oraz zgłoszenia #19 i #12 o AC11–AC18 jako osobny follow-up E02. Poprzednia rekomendacja nowej historii jest zastąpiona rozszerzeniem nadal otwartego #19. Nie zmieniano kodu ani PR-a #72. Wymagania są teraz zapisane w trackerze; pliki spec/brief/backlog pozostają lokalne, bez commita/pusha.

@@ -7,6 +7,8 @@
 - **Issue:** #12 (stories #18, #19, #17, in that build order)
 - **Depends on:** E01, shipped (`.ai/specs/implemented/2026-10-16-tasks-and-subtasks.md`, #43). Phase 3 (#17) also needs E03 Phase 1 (`.ai/specs/implemented/2026-11-03-completion-and-future-expenses.md`, #20) merged: it reads `completed`, `position` and the open-before-completed order (decision 2026-11-03, point 5). Phases 1 and 2 do not depend on E03.
 
+- **Revised:** 2026-11-13, owner requested places during task creation and authorized completing the documentation update. Phase 2 shipped in PR #70 on 2026-11-12; the creation extension below is outstanding and must ship in a follow-up PR in E02/#19. PR #72 (reorder) does not deliver it.
+
 ## 📝 TLDR
 
 The owner has many low-impact tasks and forgets some when choosing what to do next (brief, Problems). Today Taskly lists tasks and subtasks in the order they were added: `moveTask` throws `NotImplementedError`, and tasks have no markers and no spaces. Proposed (future behaviour): the owner marks each task or subtask important and/or urgent (#18, D07); assigns them to several spaces from their own ready, editable list of eight Polish-named spaces (#19, D09, D26); and reorders tasks, and subtasks within their own task, by drag and drop, "Move up / Move down" and the keyboard, with moves of completed rows refused by the server (#17, D25). The design system already ships the screens (`Markers`, `PlacePicker`, `SortableGroup`), so the work is two migrations, `core` services, routes and the app wiring.
@@ -202,6 +204,14 @@ subtaskViewSchema += {
 
 `taskFields += { important: z.boolean(), urgent: z.boolean() }`. Only the keys present are written, as today; a body of `{ urgent: false }` leaves `important` alone (AC3). `createTaskInput` does not take them: new tasks start unmarked. Response unchanged (`taskViewSchema` of the top-level task). Allowed on completed rows too.
 
+### Creating a task with places (Phase 2 follow-up, #19 AC11–AC18)
+
+`POST /api/lists/[listId]/tasks` gains `placeIds: z.array(z.uuid()).max(20).default([])` in `createTaskInput`; reject duplicate IDs with 400. Existing callers omitting it still create a task without places. The same endpoint handles subtasks through `parentId`. No migration beyond Phase 2's tables is needed.
+
+`createTask` parses input, checks list write access and takes the existing list lock. After validating/locking the parent when applicable, lock all requested places in deterministic UUID order `FOR KEY SHARE`, checking each with the same owner-membership `EXISTS` rule as `setTaskPlace` (Q3, including multiple owners). A missing, deleted or wrong-owner place produces 404 Place; viewer produces 403; malformed UUID, duplicates or more than 20 IDs produce 400. No task or assignment is committed on refusal. Insert the task and every `task_places` row in this same transaction, then return the complete top-level `TaskView`, including places in display order. For a subtask return its parent's tree. Never implement this as a task POST followed by independent assignment PUTs.
+
+Lock order: membership → list → parent (if any) → requested places in UUID order → inserts. A concurrent place delete either wins before validation (404, no task), or waits for commit and then removes its assignments normally. Task creation does not seed the catalog; choosing places uses the existing catalog query.
+
 ### Places (Phase 2, session user only; no list role involved)
 
 | Route | Request | Response | Errors |
@@ -254,6 +264,12 @@ Prototype: `prototypes/task-list-v1/`, states s04.22–s04.24 and s04.29 (`.ai/s
   - **E01 behaviour kept:** quick adds still show their temporary rows at once and keep them while queued; the "skip invalidation while other task mutations are pending" rule stays.
   - **Refused or failed:** the change leaves `pending`, so it is no longer replayed and the row goes back by itself. The hook-level `onError` sets the row message (markers and places: "Could not save “…”. It is back as it was."; moves: "Could not move “…”. It is back where it was.", s04.24) and invalidates the list. A 404 refetches and the row disappears with the existing "gone" message; a 404 place also refetches the places.
 - **Markers (#18):** "Important" / "Urgent" in "…" (`MenuCheckboxItem`); the meta line shows the words (`Markers`). A subtask's markers are its own (AC4).
+- **Places during quick add (#19, follow-up after PR #70):**
+  - Both the main-task and subtask `QuickAdd` expose a keyboard-accessible “Places…” toggle next to the description action. Reuse `PlacePicker` in a popover; selected names/dots remain visible in the draft. Selection is local until Add and optional, with no inheritance from the parent. The picker uses the catalog's existing ready/loading/error/retry states; a failed catalog load does not prevent adding a task with no selection.
+  - New place uses the existing `POST /api/places`; on success add it to the catalog and select its ID locally, without calling `setTaskPlace` for a nonexistent task. Duplicate/limit/name errors stay in the picker. An explicitly created catalog entry survives cancelling the draft or a failed task save; there is no automatic catalog deletion on cancel.
+  - Extend the quick-add value/submit contract with selected IDs separately from text field values; propagate catalog data/actions through TaskList and TaskRow to the subtask form. Existing edit forms keep their current contract. On submit send a snapshot of `placeIds` in the list's `tasks:<listId>` queue. Freeze selection while submitting and while a new-place request is pending, and prevent Add/cancel racing that request. A pending draft row includes the selected places.
+  - Reset fields, selection and description only on successful task creation; focus returns to the title. Failure keeps the entered fields and selection for correction/retry. Closing the picker restores focus to its trigger; cancelling a subtask restores focus to its parent row's add-subtask control. The next task starts without places.
+  - Keep selected IDs as draft state; resolve current names/colours from the catalog. Rename/recolour updates labels; a deleted selected ID shows an unavailable-place error and requires removal or correction, rather than silently saving fewer places. On server 404 Place refetch the catalog, retain the draft and show an actionable error. Catalog patches must preserve temporary task/subtask rows and other pending changes as specified below.
 - **Places (#19):**
   - `usePlaces()` loads `GET /api/places` once per session (query key `places`), next to the tasks query and independent of it. The row's "Places…" opens `PlacePicker` with `all`, `atLimit = places.length >= PLACE_LIMIT` and `validateName` from `place-rules.ts` plus the cached names.
   - **Loading and failure (F2):** the picker never receives `[]` in place of places it does not have.
@@ -337,7 +353,7 @@ Owner of all of them: the product owner.
 
 ## ✅ Acceptance criteria
 
-The issues' criteria are binding: **#18 AC1–AC4, #19 AC1–AC10, #17 AC1–AC9**. Added by this spec:
+The issues' criteria are binding: **#18 AC1–AC4, #19 AC1–AC18, #17 AC1–AC9**. Added by this spec:
 
 - **Q3-1:** Given a list and a place that does not belong to the list's owner, when a request to assign it to one of the list's tasks reaches the server, then it is refused with 404 and nothing is written.
 - **S-1 (seeding once):** Given an owner who deleted every place, when they reload, then they still have no places.
@@ -349,13 +365,22 @@ The issues' criteria are binding: **#18 AC1–AC4, #19 AC1–AC10, #17 AC1–AC9
 - **Q-1 (answers in order):** Given a move and then a marker toggle on the same tree, with the move's answer delayed, then the marker request is not sent before the move's answer is in, and the row never shows the marker unset, before or after any refetch.
 - **M-3 (no reorder while an add is saving):** Given open tasks A, B, C and a quick add of D still saving, then no row shows a drag handle or "Move up / Move down"; when D is saved, "Move down" on B moves it after C and the server accepts it. The same holds for a quick add of a subtask under A: while it saves, neither the tasks nor any subtasks show a handle or move items.
 
+- **AC11 (choose before saving):** Before Add, select several existing places in either main-task or subtask QuickAdd. Add saves them with the task; the row and a reload show the same assignments. Places are optional.
+- **AC12 (new place in draft):** Create Jadalnia from QuickAdd, select it automatically, and save it alongside existing places. Name, colour and limit rules AC4–AC8/AC10 still apply.
+- **AC13 (independence):** A new subtask starts with no selected places. Its choices change neither its parent nor siblings, and the parent's choices are not copied to it.
+- **AC14 (reset and retry):** On success clear all draft fields/places and focus the title; the next task has none selected. A refused save preserves the draft and selection; after correction one successful retry adds one task and contributes its estimate once. The refused attempt writes no task or assignments. Existing POST semantics for an ambiguous lost response are unchanged; automatic replay of a possibly committed POST is not introduced.
+- **AC15 (catalog unavailable):** Loading and error/retry are visible in the draft picker; no false empty catalog or New place action. A task with no selected places can still be added.
+- **AC16 (atomic authorization):** Wrong-owner or deleted place → 404; viewer → 403; malformed/duplicate/excess IDs → 400. No task, assignments or estimate contribution is committed on refusal. Cover multi-owner lists and deletion racing creation.
+- **AC17 (cancel):** Cancelling a draft creates no task or assignments. A catalog place explicitly created from it remains available. A pending new-place request cannot race Add/cancel.
+- **AC18 (draft catalog changes):** Rename/recolour updates selected labels; deletion marks the selection unavailable for correction. Queued adds and temporary rows survive catalog changes. Keyboard selection, closing the picker, cancellation and success restore focus as specified in UI/UX.
+
 ## 📋 Phasing
 
 - **Phase 1: markers (#18).** Shippable alone; no E03 dependency.
-- **Phase 2: spaces (#19).** Shippable alone; no E03 dependency.
+- **Phase 2: spaces (#19).** Base shipped in PR #70. The creation extension (AC11–AC18, steps 9a–13a) ships as a separate E02 follow-up PR; no E03 or reorder dependency. It remains outstanding until separately verified.
 - **Phase 3: reorder (#17).** Starts after E03 Phase 1 (#20) is merged.
 
-Each phase is one PR against `main`, labelled `risk-high` for Phases 1–2 (migrations) and `risk-medium` for Phase 3, closes its story, runs the full gate (`AGENTS.md`) and a manual check in the running app.
+Each original phase is one PR against `main`; the 2026-11-13 Phase 2 creation extension is a separate follow-up PR referencing #19. PRs are labelled `risk-high` for Phases 1–2 (migrations) and `risk-medium` for Phase 3, closes its story, runs the full gate (`AGENTS.md`) and a manual check in the running app.
 
 ## 📋 Implementation Plan
 
@@ -373,10 +398,16 @@ Each phase is one PR against `main`, labelled `risk-high` for Phases 1–2 (migr
 7. **Rules (isomorphic).** `place-rules.ts`: `placeNameSchema`, `placeNameKey`, `nextPlaceColor`, `PLACE_LIMIT`, `PREDEFINED_PLACES`, messages; exported from `@taskly/core`. Unit tests: trim, NFC, 30 characters, "Łazienka" = "łazienka", NFD = NFC, colours 9, 10, 1.
 8. **Places service.** `places.ts` (`server-only`): `ensurePlaces` (the `place_owners` insert, the seed, the lock), `listPlaces`, `createPlace` (owner-row lock, limit, append key, colour), `updatePlace`, `deletePlace`; the 23505 translation to the duplicate-name 409. Unit tests (SQL and lock clauses over the fake pg client); integration: AC1 (a user's eight on first use, each user their own), AC4, AC5, AC6, AC8, AC10, S-1, S-2, C-1 (creates racing at 19; a create racing the first load, both orders, with the row-lock holder technique, lesson 2026-10-30), another user's place → 404 on update and delete; a malformed `placeId` → 404; update and delete by a user who never loaded places → 404 with no `place_owners` row written.
 9. **Task places.** `setTaskPlace`; views gain `places` (one extra query in `listTasks` and `topLevelView`, in place order). Integration: AC2, AC3, AC7 (delete keeps the other places), AC9, Q3-1, a list with two `owner` rows (either owner's place assigns, no SQL error; P4), viewer 403, idempotent repeats, delete vs. assign race (the place lock).
+9a. **Atomic creation follow-up (AC11–AC18).** Extend `createTaskInput` and `createTask` with the contract above, reuse Phase 2 authorization, lock requested places deterministically, insert relations in the task transaction and return complete views. Unit and DB integration tests for main/subtask success, optional field compatibility, duplicates, excess/malformed IDs, viewer, nonmember, wrong-owner place, multiple owners and delete/create race; verify rollback includes task, assignments and future-expense contribution.
 10. **Routes.** `app/api/places/route.ts` (`GET`, `POST`), `app/api/places/[placeId]/route.ts` (`PATCH`, `DELETE`), `app/api/tasks/[taskId]/places/[placeId]/route.ts` (`PUT`, `DELETE`); route unit tests; HTTP integration cases (200, 400, 401, 404 including a malformed `placeId`, 409, CSRF header) in `test/places-http.integration.test.ts`.
+10a. **Creation HTTP follow-up.** Exercise extended POST input/output and consumer compatibility, 400/401/403/404 and all-or-nothing writes in HTTP integration tests.
 11. **Picker loading and error (design system).** `PlaceOptions` / `PlacePicker` gain `status` and `onRetry`; the `loading` skeleton and the `error` state with "Try again" (shared `Skeleton`, `ErrorState`); stories "Loading" and "Load Failed" and the state table in `PlacePicker.mdx`; component tests (no New place and no "No places yet." outside `ready`; focus after retry). 100% coverage in `packages/ui`.
+11a. **Quick-add design-system follow-up.** Add the draft picker/selected labels to main/subtask QuickAdd, propagate the contract through TaskList/TaskRow, cover accessibility/focus and pending states with tests and Storybook stories; update QuickAdd/PlacePicker/E02 docs. No core imports in UI.
 12. **App wiring.** `use-places.ts` (query, create, update, delete); `useTogglePlace` in the list queue with the `place` kind in the replay; `places` on `TaskList` (`PlaceOptions`, `status` from the query); create-and-tick; 409 → the name field; the pure patch of cached task views after rename, recolour and delete (no tasks refetch); `toTaskItem` maps places. Unit tests at 100%, including create succeeding and the tick failing, a rename and a delete while a quick add is saving (the temporary row stays, rows show the change), a delete while a tick of the same place is queued (the replay skips it, no error; the 404 answer refetches) (P9), and the places query delayed, failing, then retried (P-1).
+12a. **Draft app wiring follow-up.** Pass draft IDs through submit mapping and `useCreateTask`, keep list queue and temporary rows, support create-and-select without task assignment, preserve drafts on error and clear only on success. Unit tests at 100%, including catalog changes, queued adds, separate subtask drafts and pending create guards.
 13. **Browser test and wrap-up.** `test/places-browser.integration.test.ts`: the eight on first use, AC2 with a new place Jadalnia, AC3, AC5 message, AC6 rename visible on the row, AC7 question and result, AC8 colour change, AC9, AC10 at 20, P-1 (the places route aborted, then restored). Correct `E02OrderMarkersPlaces.mdx` (limit 20, the Q3 answer); status words for #19. Full gate, manual check.
+
+13a. **Creation browser test and wrap-up.** Cover AC11–AC18: main/subtask, multiple existing and one new place, reload, optional places, no inheritance, denied save then corrected retry without duplicate task/cost, reset/focus, unavailable catalog and concurrent deletion. Record manual narrow-viewport/keyboard verification and run the full configured gate before calling this extension implemented. Base PR #70 alone does not satisfy these criteria.
 
 ### Phase 3: reorder (#17, after E03 Phase 1)
 

@@ -39,3 +39,7 @@ Decisions made after filing (2026-11-03, epic alignment): `research/decisions/20
 - **E02-S01 #17:** depends on E03-S01; subtasks reorder within their own task only, by drag and drop too; "Move up / Move down" and the keyboard; the refused move; 2026-10-21 criteria 5–6, the server refusing with 409.
 - **E02-S02 #18, E02-S03 #19:** no inheritance of markers or spaces between a task and its subtasks. #19 adds the predefined, editable spaces (Polish names, rename, delete with confirmation, colour assigned by the app, case-insensitive unique names).
 - **Brief:** R11 and Q18 confirmed; D25 (subtask reordering), D26 (spaces), D27 (the list of what has no estimate) added. Place colours: the app assigns them in turn from 10 colours, repeating from the eleventh, and the owner can change one; at most 20 places (replacing G4's picker and G5's limit of 10). #18 and #19 raised to `risk-high` (schema migrations, SDLC.md).
+
+## 2026-11-13 — places while creating a task (E02 follow-up)
+
+The owner requested choosing/creating places before Add for tasks and subtasks and authorized updating the requirements. E02 Phase 2's base shipped in PR #70 (merged 2026-11-12); #19 remains open at verification. AC11–AC18 and steps 9a–13a in the E02 spec define the outstanding creation extension: draft selection, new catalog entry, atomic save, reset/retry, isolation and browser coverage. Deliver in a separate E02/#19 follow-up PR, without adding it to reorder PR #72 or E04 (parked). Do not treat #70 as evidence that the extension shipped.

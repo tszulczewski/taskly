@@ -129,6 +129,12 @@ The other references in the benchmark note were not compared with the owner's pr
 | N02 | Sharing and invitations in the first version | first version is for the owner alone | owner | proposal | when friends are added | owner approves a superseding row | `[INTERVIEW]` interviews/2026-10-15-owner-renovating.md | none |
 | N03 | The benchmark's wider MVP as the starting scope | the owner starts with their own biggest problem; the benchmark is a competitor scan whose proposed MVP is the team's belief, not demand evidence | owner | proposal | after first use | owner approves a superseding row | `[DOCUMENT]` 2026-10-15_taskly_benchmark.md | none |
 
+## Places during creation (2026-11-13 clarification of D09, D21 and D26)
+
+The owner requested choosing/adding places already while adding a task, rather than only after saving it, and subsequently authorized completing the documentation autonomously. This applies to both tasks and subtasks. The draft supports multiple existing places and creating a new catalog place; selection is optional, with no inheritance. Save commits the task and its assignments atomically. A failed save retains the draft; a successful save clears the selection for the next task. An explicitly created catalog place remains after cancelling the draft. These failure/cancel details are implementation defaults chosen for the authorized update, not additional interview observations.
+
+Delivery: E02-S03 #19, AC11–AC18 and the Phase 2 follow-up in `2026-11-03-order-markers-and-spaces.md`; the base places implementation in PR #70 does not include this extension. This remains version 1 scope, not E04 Later.
+
 ## Decisions
 
 | Id | Date | Decision | Why | Owner | Status | Review by | Required path to change | Source | Supersedes |
