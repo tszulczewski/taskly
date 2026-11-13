@@ -34,6 +34,8 @@ Implement #17 (E02-S01) as the third stacked PR of E02, on top of #70 (places), 
 - Independent review (author-account comment, head 3210c07): APPROVED, two minor findings and a nit, all addressed: HTTP integration cases for `PUT …/position` (move, 400, 409 stale and completed, and the CSRF, 401, 404 and viewer 403 lists) in `test/tasks-http.integration.test.ts` (spec step 16); the C-1 move race made deterministic with the list-row holder (`race`, moved up to the concurrency describe); a comment on the unreachable `onMove!` in `SortableGroup`.
 - CI run on a2cf7bb: all six jobs green (integration 7m12s, design system, unit 100%, lint/typecheck, build, audit).
 
+- Manual QA by the owner (2026-11-13) found a stuck keyboard move: a click elsewhere during it left the row lifted (covering the menu of the row above) and blocked mouse drags. Reproduced in the dev app on an embedded PostgreSQL with agent-browser; fixed in `HandleKeyboardSensor` (any pointer press cancels it as Escape does); regression tests in `tasks.test.tsx` (fails on the old code) and REORDER-001's browser test; verified by hand in the dev app (cancel announced, mouse drag and menus work, keyboard drop unchanged).
+
 ## Problems / open questions
 
 - Open: an independent code review (author-account review from a run that did not write the change) and maintainer QA with a manual phone-viewport check of long press and pointer drag (AC7).

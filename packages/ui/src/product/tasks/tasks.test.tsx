@@ -794,6 +794,31 @@ describe("TaskList ordering, markers and places", () => {
     expect(row.dataset.dragging).toBeUndefined();
   });
 
+  it("cancels a keyboard move when the pointer is pressed anywhere, so the row is not left lifted", async () => {
+    const onMove = vi.fn();
+    renderList({ tasks: [rods, sealBath], onMove });
+    const handle = screen.getByRole("button", { name: "Move “Hang the curtain rods”" });
+    handle.focus();
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+    });
+    const row = handle.closest("li")!;
+    expect(row.dataset.dragging).toBe("true");
+
+    await act(async () => {
+      fireEvent.pointerDown(document.body);
+    });
+
+    expect(row.dataset.dragging).toBeUndefined();
+    expect(row.style.zIndex).toBe("");
+    // The cancelled move's keys no longer reach it: Space does not drop it somewhere.
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+    });
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
   it("keeps an error under the title, past the handle column", () => {
     renderList({
       tasks: [{ ...paint, error: "Could not move “Paint the ceiling”." }],

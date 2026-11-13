@@ -29,5 +29,6 @@
 
 ## Edge cases
 
+- A click elsewhere while a keyboard move is in progress cancels it (the row goes back, nothing is saved); afterwards a mouse drag and every row menu work as usual (found in manual QA, 2026-11-13).
 - `packages/core/src/tasks.integration.test.ts` › `moveTask (#17)` — first, middle and last places, completed siblings, two racing moves (C-1)
 - `use-tasks.test.tsx` › `useMoveTask with useTaskViews (#17)` — two quick moves with the first answer late

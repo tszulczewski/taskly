@@ -155,6 +155,20 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     browser.reload();
     await browser.waitForHydrated('[role="checkbox"]');
     await expectShown("Tasks", ["B", "A", "C"]);
+
+    // A click elsewhere during a keyboard move cancels it: no row is left lifted over the menus.
+    browser.focus('button[aria-label="Move “C”"]');
+    browser.press("Space");
+    await browser.waitForAnimations();
+    browser.press("ArrowUp");
+    await browser.waitForAnimations();
+    browser.click("h1");
+    await browser.waitFor(
+      () => browser.count("[data-dragging]") === 0,
+      () => "the keyboard move to be cancelled by the click",
+    );
+    await expectShown("Tasks", ["B", "A", "C"]);
+    expect(await stored(user.listId)).toEqual(["B", "A", "C"]);
   });
 
   // REORDER-002 (#17 AC4, AC6).
