@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | High |
 | Type | UI |
-| Source requirement | `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX Places "Loading and failure (F2)", acceptance P-1 |
+| Source requirement | `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX Places "Loading and failure (F2)", acceptance P-1 |
 | Prerequisites | A signed-in owner with task B; `**/api/places` aborted in the browser before `/` opens |
 | Status | draft (AI-written, awaiting human review) |
 

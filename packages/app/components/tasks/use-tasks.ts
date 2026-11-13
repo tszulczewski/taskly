@@ -333,6 +333,40 @@ export function useToggleMarker(
   });
 }
 
+export interface MoveTaskVariables {
+  id: string;
+  afterId: string | null;
+  beforeId: string | null;
+  /** For the row message if the server refuses it. */
+  title: string;
+}
+
+/**
+ * Moves a task, or a subtask within its task, between its new neighbours (`PUT …/position`, spec
+ * E02 #17); only `afterId` and `beforeId` are sent. Shown at once by the replay in `useTaskViews`
+ * (the `move` kind), in the list queue, so each move's neighbours were picked on a view that holds
+ * every earlier change. A move changes no amount, so the future expenses are not refetched.
+ */
+export function useMoveTask(
+  listId: string,
+  { onError }: { onError?: (error: unknown, variables: MoveTaskVariables) => void } = {},
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.taskChange(listId, "move"),
+    scope: listQueue(listId),
+    mutationFn: async ({ id, afterId, beforeId }: MoveTaskVariables) =>
+      apiCall(`${taskPath(id)}/position`, {
+        method: "PUT",
+        body: { afterId, beforeId },
+        response: taskViewSchema,
+      }),
+    onSuccess: (task) => writeTasks(queryClient, listId, (tasks) => putTask(tasks, task, task.id)),
+    onError: (error, variables) => onError?.(error, variables),
+    onSettled: () => settleTasks(queryClient, listId),
+  });
+}
+
 export interface TogglePlaceVariables {
   id: string;
   placeId: string;
@@ -391,7 +425,7 @@ function toChange(mutation: Mutation<unknown, unknown, unknown>): PendingChange 
 
 /**
  * The tasks of a list as the screen shows them: the cached server data in read order, with the
- * pending changes (completions, markers, places) applied in submission order (spec E03, UI/UX). A
+ * pending changes (completions, markers, places, moves) applied in submission order (spec E03, UI/UX). A
  * place tick takes its place from the places cache. `views` is undefined until the list has loaded.
  */
 export function useTaskViews(listId: string) {

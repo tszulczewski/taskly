@@ -24,6 +24,9 @@ describe("entry points", () => {
     // The place picker checks names and reads places in the browser (spec E02, #19).
     expect(isomorphic.placeNameError).toBeTypeOf("function");
     expect(isomorphic.placeListResponseSchema).toBeDefined();
+    // The app computes a moved row's key with the server's rule (spec E02, #17).
+    expect(isomorphic.movePosition).toBeTypeOf("function");
+    expect(isomorphic.moveTaskInput).toBeDefined();
   });
 
   it("exports services from the server entry and keeps the root exports", () => {

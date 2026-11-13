@@ -566,7 +566,7 @@ export function TaskRow({
               <p className="max-w-measure break-words whitespace-pre-line">{task.description}</p>
             </UnderTitle>
           ) : null}
-          {subtasks.length === 0 ? null : onMove ? (
+          {subtasks.length === 0 ? null : (
             <SortableGroup
               items={movableSubtasks.map(({ id, title }) => ({ id, title }))}
               onMove={onMove}
@@ -574,8 +574,6 @@ export function TaskRow({
             >
               {subtaskList}
             </SortableGroup>
-          ) : (
-            subtaskList
           )}
           {addSubtask && !completed ? (
             <UnderTitle columns={columns} className="py-row-y">

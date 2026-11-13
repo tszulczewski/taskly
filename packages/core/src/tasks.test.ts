@@ -11,6 +11,7 @@ import {
   createTask,
   deleteTask,
   listTasks,
+  moveTask,
   requireTaskRole,
   setTaskCompleted,
   setTaskPlace,
@@ -1583,5 +1584,110 @@ describe("setTaskPlace", () => {
       new ForbiddenError(),
     );
     expect(log).toEqual(["begin", readListId, "rollback"]);
+  });
+});
+
+describe("moveTask", () => {
+  const start = ["begin", readListId, "requireRole write", lockList, lockTask];
+  const siblingsOf = (parent: string | null) => ({
+    sql:
+      parent === null
+        ? 'select "id", "position", "status" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" is null) order by "tasks"."position" COLLATE "C"'
+        : 'select "id", "position", "status" from "tasks" where ("tasks"."list_id" = $1 and "tasks"."parent_id" = $2) order by "tasks"."position" COLLATE "C"',
+    params: parent === null ? [listId] : [listId, parent],
+  });
+  const writePosition = (position: string) => ({
+    sql: 'update "tasks" set "position" = $1 where "tasks"."id" = $2',
+    params: [position, taskId],
+  });
+  const tree = (position: string) => [
+    [taskId, null, "Tiles", null, 100, 200, "todo", position, false, false],
+  ];
+  // Stored: the task (a0), A (a1), B (a2); the task moves between A and B.
+  const siblings = [
+    [taskId, "a0", "todo"],
+    [ids.a, "a1", "todo"],
+    [ids.b, "a2", "todo"],
+  ];
+
+  it("authorizes write, locks the list then the task, and writes only the moved row's new key (AC1, AC2)", async () => {
+    const { db, log } = fakeDb([[listId]], [[listId]], [taskRow], siblings, [], tree("a1V"));
+    grantRole(log);
+
+    const view = await moveTask(db, userId, taskId, { afterId: ids.a, beforeId: ids.b });
+
+    expect(view).toMatchObject({ id: taskId, position: "a1V" });
+    expect(log).toEqual([
+      ...start,
+      siblingsOf(null),
+      writePosition("a1V"),
+      viewQueryOf(taskId),
+      "commit",
+    ]);
+  });
+
+  it("writes nothing when the row already sits there (M-2)", async () => {
+    const { db, log } = fakeDb([[listId]], [[listId]], [taskRow], siblings, tree("a0"));
+    grantRole(log);
+
+    await moveTask(db, userId, taskId, { afterId: null, beforeId: ids.a });
+
+    expect(log).toEqual([...start, siblingsOf(null), viewQueryOf(taskId), "commit"]);
+  });
+
+  it("moves a subtask within its task and returns the task's view (AC4)", async () => {
+    const subSiblings = [
+      [taskId, "a0", "todo"],
+      [ids.a1, "a1", "todo"],
+    ];
+    const parentTree = [
+      [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+      [ids.a1, ids.a, "Grout", null, null, null, "todo", "a1", false, false],
+      [taskId, ids.a, "Plaster", null, 300, 400, "todo", "a2", false, false],
+    ];
+    const { db, log } = fakeDb([[listId]], [[listId]], [subtaskRow], subSiblings, [], parentTree);
+    grantRole(log);
+
+    await moveTask(db, userId, taskId, { afterId: ids.a1, beforeId: null });
+
+    expect(log).toEqual([
+      ...start,
+      siblingsOf(ids.a),
+      writePosition("a2"),
+      viewQueryOf(ids.a),
+      "commit",
+    ]);
+  });
+
+  it("refuses neighbours that are not adjacent open siblings with 409 and writes nothing (AC5, M-1)", async () => {
+    const { db, log } = fakeDb([[listId]], [[listId]], [taskRow], siblings);
+    grantRole(log);
+
+    await expect(moveTask(db, userId, taskId, { afterId: ids.b, beforeId: ids.a })).rejects.toEqual(
+      new ConflictError("The list changed. Try again."),
+    );
+    expect(log).toEqual([...start, siblingsOf(null), "rollback"]);
+  });
+
+  it("refuses a completed row with 409 before reading its siblings (AC9)", async () => {
+    const doneRow = taskRow.map((value, i) => (i === 5 ? "done" : value));
+    const { db, log } = fakeDb([[listId]], [[listId]], [doneRow]);
+    grantRole(log);
+
+    await expect(moveTask(db, userId, taskId, { afterId: null, beforeId: ids.a })).rejects.toEqual(
+      new ConflictError("Task is completed"),
+    );
+    expect(log).toEqual([...start, "rollback"]);
+  });
+
+  it("parses the input first: only the two neighbour ids, uuids or null", async () => {
+    const { db, log } = fakeDb();
+    await expect(
+      moveTask(db, userId, taskId, { afterId: "x", beforeId: null }),
+    ).rejects.toBeInstanceOf(ZodError);
+    await expect(
+      moveTask(db, userId, taskId, { afterId: null, beforeId: null, position: "a0" }),
+    ).rejects.toBeInstanceOf(ZodError);
+    expect(log).toEqual([]);
   });
 });

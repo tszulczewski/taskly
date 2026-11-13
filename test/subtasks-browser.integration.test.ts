@@ -580,7 +580,8 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       subtaskFormClosed,
     );
 
-    // A subtask's menu has the task actions except "Add subtask" (one level only).
+    // A subtask's menu has the task actions except "Add subtask" (one level only); it moves
+    // among its task's subtasks (#17).
     browser.clickRole("button", "More actions for “Sink”");
     await browser.waitFor(
       () => browser.count('[role="menuitem"]') > 0,
@@ -590,7 +591,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       browser.evaluate<string[]>(
         `[...document.querySelectorAll('[role="menuitem"]')].map((e) => e.textContent.trim())`,
       ),
-    ).toEqual(["Edit", "Places…", "Delete"]);
+    ).toEqual(["Edit", "Places…", "Move up", "Move down", "Delete"]);
     browser.clickRole("menuitem", "Edit");
 
     // An exact price opens in "Amount" only; filling "up to" makes it a range.

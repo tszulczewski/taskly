@@ -263,14 +263,13 @@ describe("what has no estimate, in the browser (#47, sign-up closed)", () => {
     await createTask(db, user.id, user.listId, { title: "Handle", parentId: door.id });
     saveEstimate("100");
 
-    // The spec also asks for the server's 409 message; the screen shows none (product finding #66, see
-    // .ai/qa/EXPENSES/EXPENSES-004), so only what it does show is asserted here.
     await browser.waitFor(
       () =>
         browser.count(ESTIMATE_FORM) === 0 &&
         items().join("|") === "Handle · Door Add estimate|Lamp Add estimate",
       () => `the subtask in place of “Door” (items: ${JSON.stringify(items())})`,
     );
+    expect(browser.alerts()).toContain("A task with subtasks takes its estimate from them");
     await expectLine("1 task and 1 subtask without an estimate");
     await expectTotal("No estimates yet");
     const [stored] = await db

@@ -1419,6 +1419,173 @@ describe("TaskListScreen markers (#18)", () => {
   });
 });
 
+describe("TaskListScreen reorder (#17)", () => {
+  const grout: SubtaskView = {
+    id: crypto.randomUUID(),
+    title: "Grout",
+    description: null,
+    estimate: null,
+    completed: false,
+    important: false,
+    urgent: false,
+    places: [],
+    position: "a0",
+  };
+  const prime: SubtaskView = { ...grout, id: crypto.randomUUID(), title: "Prime", position: "a1" };
+  const top = { ...tile, position: "a0" };
+  const second = { ...seal, position: "a1" };
+  const bath = view("Bathroom", { position: "a2", subtasks: [grout, prime] });
+  const positionUrl = (id: string) => `/api/tasks/${id}/position`;
+  const titles = () =>
+    rows()
+      .filter((row) => row.closest('ul[aria-label="Tasks"] > li ul') === null)
+      .map((row) => row.querySelector('[data-slot="task-title"]')?.textContent);
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  const alertOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("alert")
+      .map((region) => region.textContent)
+      .join("");
+  const handles = () => screen.queryAllByRole("button", { name: /^Move “/ });
+  const moveItems = (title: string) => {
+    openMenu(title);
+    const items = screen
+      .queryAllByRole("menuitem")
+      .map((item) => item.textContent)
+      .filter((text) => text?.startsWith("Move"));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    return items;
+  };
+
+  beforeEach(() => {
+    serverTasks = [top, second, bath];
+  });
+
+  it("moves a task down at once and sends only its new neighbours (AC1, AC6)", async () => {
+    const put = gate();
+    handlers.set(`PUT ${positionUrl(top.id)}`, () => put.promise);
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    await waitFor(() => expect(titles()).toEqual(["Seal the bath", "Tile the wall", "Bathroom"]));
+    expect(sent("PUT", positionUrl(top.id))).toEqual({ afterId: second.id, beforeId: bath.id });
+    await act(async () => put.open(saved({ ...top, position: "a1V" })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(titles()).toEqual(["Seal the bath", "Tile the wall", "Bathroom"]);
+  });
+
+  it("moves a subtask within its task (AC4)", async () => {
+    handlers.set(`PUT ${positionUrl(prime.id)}`, () =>
+      saved({ ...bath, subtasks: [grout, { ...prime, position: "Zz" }] }),
+    );
+    await renderLoaded();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+
+    openMenu("Prime");
+    await choose("Move up");
+
+    expect(sent("PUT", positionUrl(prime.id))).toEqual({ afterId: null, beforeId: grout.id });
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Subtasks of “Bathroom”" }))
+          .getAllByRole("listitem")
+          .map((item) => item.querySelector('[data-slot="task-title"]')?.textContent),
+      ).toEqual(["Prime", "Grout"]),
+    );
+  });
+
+  it("puts a refused move back with a message in its row (s04.24)", async () => {
+    handlers.set(`PUT ${positionUrl(top.id)}`, () =>
+      fail(409, "conflict", "The list changed. Try again."),
+    );
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    await waitFor(() =>
+      expect(alertOf("Tile the wall")).toBe(
+        "Could not move “Tile the wall”. It is back where it was.",
+      ),
+    );
+    expect(titles()).toEqual(["Tile the wall", "Seal the bath", "Bathroom"]);
+  });
+
+  it("treats a 404 as deleted elsewhere: the refetch removes the row and the message shows", async () => {
+    handlers.set(`PUT ${positionUrl(top.id)}`, () => {
+      serverTasks = serverTasks.filter((task) => task.id !== top.id);
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(rowOf("Tile the wall")).toBeUndefined();
+  });
+
+  it("offers no reordering while a quick add is saving, and again once it is saved (M-3, P1)", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+    expect(handles()).toHaveLength(3);
+
+    type(titleField(), "Fit the mirror");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).not.toBeNull());
+    expect(handles()).toEqual([]);
+    expect(moveItems("Seal the bath")).toEqual([]);
+
+    await act(async () => post.open(created(view("Fit the mirror", { position: "a3" }))));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
+    expect(handles()).toHaveLength(4);
+    expect(moveItems("Seal the bath")).toEqual(["Move up", "Move down"]);
+  });
+
+  it("offers reordering again when the quick add fails", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+
+    type(titleField(), "Fit the mirror");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(handles()).toEqual([]));
+
+    await act(async () => post.open(fail(500, "internal_error", "Something went wrong")));
+    await waitFor(() => expect(handles()).toHaveLength(3));
+  });
+
+  it("pauses the whole list while a subtask add is saving, its task staying open (M-3, P10)", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+    expect(handles()).toHaveLength(5);
+
+    openMenu("Bathroom");
+    await choose("Add subtask");
+    const form = within(screen.getByRole("textbox", { name: "New subtask" }).closest("form")!);
+    type(form.getByRole("textbox", { name: "New subtask" }), "Seal");
+    await click(form.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(rowOf("Seal")).toBeDefined());
+    expect(handles()).toEqual([]);
+    expect(moveItems("Tile the wall")).toEqual([]);
+    expect(moveItems("Grout")).toEqual([]);
+
+    const sealSubtask = { ...grout, id: crypto.randomUUID(), title: "Seal", position: "a2" };
+    await act(async () => post.open(saved({ ...bath, subtasks: [grout, prime, sealSubtask] })));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
+    expect(handles()).toHaveLength(6);
+  });
+});
+
 describe("TaskListScreen places (#19)", () => {
   const salon: PlaceView = { id: crypto.randomUUID(), name: "Salon", color: 1 };
   const kuchnia: PlaceView = { id: crypto.randomUUID(), name: "Kuchnia", color: 4 };
@@ -1875,6 +2042,27 @@ describe("TaskListScreen what has no estimate", () => {
     ).toBeDefined();
     await waitFor(() => expect(calls("GET", EXPENSES_URL)).toHaveLength(2));
     expect(calls("GET", TASKS_URL)).toHaveLength(2);
+  });
+
+  it("keeps a 409's message on screen when the refetch removes the item's form, until the next change", async () => {
+    const message = "A task with subtasks takes its estimate from them";
+    serverTasks = [tile, paint];
+    handlers.set(`PATCH ${taskUrl(paint.id)}`, () => {
+      serverTasks = [tile];
+      return fail(409, "conflict", message);
+    });
+    renderScreen();
+    await openLine();
+    await click(addFor("Add estimate for “Paint”"));
+    type(amountField(estimateForm()), "400");
+    await click(estimateForm().getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(line()).toBeNull());
+    expect((await screen.findByRole("alert")).textContent).toBe(message);
+
+    type(titleField(), "Grout");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    expect(screen.queryByText(message)).toBeNull();
   });
 
   it("treats a 404 as deleted elsewhere: the item goes and the deleted notice stays", async () => {

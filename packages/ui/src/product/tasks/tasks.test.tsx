@@ -755,6 +755,28 @@ describe("TaskList ordering, markers and places", () => {
     expect(onMove).toHaveBeenCalledWith("plaster", { afterId: "seal", beforeId: null });
   });
 
+  it("keeps a task expanded when moves are turned off and on, as the app does while an add saves", () => {
+    const props = { status: "ready" as const, tasks: [paint], validate: noErrors };
+    const handlers = {
+      onRetry: vi.fn(),
+      onEdit: vi.fn(ok),
+      onAddSubtask: vi.fn(ok),
+      onDelete: vi.fn(),
+    };
+    const { rerender } = render(<TaskList {...props} {...handlers} onMove={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+    const subtasks = () => screen.queryByRole("list", { name: "Subtasks of “Paint the ceiling”" });
+    expect(subtasks()).not.toBeNull();
+
+    rerender(<TaskList {...props} {...handlers} />);
+    expect(subtasks()).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /^Move “/ })).toBeNull();
+
+    rerender(<TaskList {...props} {...handlers} onMove={vi.fn()} />);
+    expect(subtasks()).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Move “/ })).toHaveLength(3);
+  });
+
   it("lifts the row while it is picked up with the keyboard", async () => {
     renderList({ tasks: [rods, sealBath], onMove: vi.fn() });
     const handle = screen.getByRole("button", { name: "Move “Hang the curtain rods”" });
@@ -770,6 +792,31 @@ describe("TaskList ordering, markers and places", () => {
       fireEvent.keyDown(handle, { key: "Escape", code: "Escape" });
     });
     expect(row.dataset.dragging).toBeUndefined();
+  });
+
+  it("cancels a keyboard move when the pointer is pressed anywhere, so the row is not left lifted", async () => {
+    const onMove = vi.fn();
+    renderList({ tasks: [rods, sealBath], onMove });
+    const handle = screen.getByRole("button", { name: "Move “Hang the curtain rods”" });
+    handle.focus();
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+    });
+    const row = handle.closest("li")!;
+    expect(row.dataset.dragging).toBe("true");
+
+    await act(async () => {
+      fireEvent.pointerDown(document.body);
+    });
+
+    expect(row.dataset.dragging).toBeUndefined();
+    expect(row.style.zIndex).toBe("");
+    // The cancelled move's keys no longer reach it: Space does not drop it somewhere.
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+      fireEvent.keyDown(handle, { key: " ", code: "Space" });
+    });
+    expect(onMove).not.toHaveBeenCalled();
   });
 
   it("keeps an error under the title, past the handle column", () => {

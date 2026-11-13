@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | High |
 | Type | UI |
-| Source requirement | #19 AC5–AC8; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX Places "Rename, recolour, delete" (patched views, no refetch) |
+| Source requirement | #19 AC5–AC8; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX Places "Rename, recolour, delete" (patched views, no refetch) |
 | Prerequisites | A signed-in owner with the eight places; A and B both assigned Salon and Kuchnia in the DB |
 | Status | draft (AI-written, awaiting human review) |
 

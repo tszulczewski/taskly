@@ -8,6 +8,7 @@ import {
   closestCenter,
   useSensor,
   useSensors,
+  type KeyboardSensorProps,
   type Modifier,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
@@ -78,6 +79,14 @@ export class HandleMouseSensor extends MouseSensor {
   ];
 }
 
+/** The parts of dnd-kit 6's `KeyboardSensor` that TypeScript marks private but the cancel needs. */
+interface KeyboardSensorInternals {
+  windowListeners: {
+    add(eventName: string, handler: () => void, options?: AddEventListenerOptions): void;
+  };
+  detach(): void;
+}
+
 export class HandleKeyboardSensor extends KeyboardSensor {
   static activators: typeof KeyboardSensor.activators = [
     {
@@ -87,6 +96,25 @@ export class HandleKeyboardSensor extends KeyboardSensor {
         keyboardActivator!.handler(event, options, context),
     },
   ];
+
+  /**
+   * dnd-kit ends a keyboard move only on Space, Enter or Escape, so a click elsewhere left the
+   * row lifted (above the menus) and blocked every pointer drag until a key was pressed. Any
+   * pointer press now cancels it as Escape does; it is not prevented, so the same click still
+   * opens a menu or picks up a handle. The listener goes with the sensor's own on end or cancel.
+   */
+  constructor(props: KeyboardSensorProps) {
+    super(props);
+    const sensor = this as unknown as KeyboardSensorInternals;
+    sensor.windowListeners.add(
+      "pointerdown",
+      () => {
+        sensor.detach();
+        props.onCancel();
+      },
+      { capture: true },
+    );
+  }
 }
 
 /** Rows move only up and down. */
@@ -109,7 +137,11 @@ export interface SortableText {
 export interface SortableGroupProps {
   /** The rows that can move, in order; their titles are read out while moving. */
   items: { id: string; title: string }[];
-  onMove: (id: string, position: MovePosition) => void;
+  /**
+   * None while the group cannot reorder (a viewer, or the app pausing moves). The group stays
+   * mounted either way, so turning moves off and on keeps the rows' state (expanded, editing).
+   */
+  onMove?: (id: string, position: MovePosition) => void;
   text: SortableText;
   children: ReactNode;
 }
@@ -120,7 +152,7 @@ export interface SortableGroupProps {
  * (AGENTS.md: fractional indexing).
  */
 export function SortableGroup({ items, onMove, text, children }: SortableGroupProps) {
-  const ids = items.map((item) => item.id);
+  const ids = onMove ? items.map((item) => item.id) : [];
   const title = (id: UniqueIdentifier) =>
     items.find((item) => item.id === String(id))?.title ?? String(id);
   const sensors = useSensors(
@@ -131,7 +163,7 @@ export function SortableGroup({ items, onMove, text, children }: SortableGroupPr
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={onMove ? sensors : []}
       collisionDetection={closestCenter}
       modifiers={[verticalOnly]}
       accessibility={{
@@ -149,7 +181,8 @@ export function SortableGroup({ items, onMove, text, children }: SortableGroupPr
       }}
       onDragEnd={({ active, over }) => {
         const target = over ? moveTarget(ids, String(active.id), String(over.id)) : null;
-        if (target) onMove(String(active.id), target);
+        // Without `onMove` there are no sensors and no items, so no drag ever ends here.
+        if (target) onMove!(String(active.id), target);
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>

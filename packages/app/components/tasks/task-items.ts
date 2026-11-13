@@ -7,6 +7,7 @@ import {
   formatPlnAmount,
   formatPlnRange,
   type FutureExpenses,
+  movePosition,
   type PlaceView,
   positionBetween,
   type SubtaskView,
@@ -54,6 +55,8 @@ export const TASK_SCREEN_TEXT = {
     `The estimate of “${title}” is back to your amount: ${amount}.`,
   /** A refused completion or reopen, after the row went back (spec E03, s04.28). */
   changeFailed: (title: string) => `Could not save “${title}”. It is back as it was.`,
+  /** A refused or failed move, after the row went back (spec E02, s04.24). */
+  moveFailed: (title: string) => `Could not move “${title}”. It is back where it was.`,
   /** A subtask add refused because its task was completed meanwhile (spec E03, Q3). */
   addToCompleted: (title: string, taskTitle: string) =>
     `Could not add “${title}”. “${taskTitle}” is completed.`,
@@ -369,7 +372,8 @@ export function addEstimateError(
 export type PendingChange =
   | { kind: "completion"; id: string; completed: boolean }
   | { kind: "marker"; id: string; marker: Marker; on: boolean }
-  | { kind: "place"; id: string; placeId: string; assigned: boolean };
+  | { kind: "place"; id: string; placeId: string; assigned: boolean }
+  | { kind: "move"; id: string; afterId: string | null; beforeId: string | null };
 
 /** Open saved rows, then temporary ones (an add in flight, appended by the server), then completed. */
 const rank = (row: SubtaskView) => (row.completed ? 2 : isPendingTaskId(row.id) ? 1 : 0);
@@ -506,6 +510,28 @@ export function withPlaceDeleted(views: readonly TaskView[], placeId: string): T
   );
 }
 
+/**
+ * What `PUT …/position` does, applied to the views: the row gets the key `movePosition` gives over
+ * its saved siblings, and the list is sorted again (spec E02, #17). Neighbours no longer adjacent
+ * in the view, a completed row, or a row no longer in the list change nothing: the server refuses
+ * such a move.
+ */
+export function applyMove(
+  views: readonly TaskView[],
+  { id, afterId, beforeId }: { id: string; afterId: string | null; beforeId: string | null },
+): TaskView[] {
+  const parent = views.find((task) => task.subtasks.some((subtask) => subtask.id === id));
+  const group: readonly SubtaskView[] = parent ? parent.subtasks : views;
+  const saved = group.filter((row) => !isPendingTaskId(row.id));
+  // A completed row (also one whose completion is still pending) is refused by the server.
+  if (saved.find((row) => row.id === id)?.completed !== false) return [...views];
+  const outcome = movePosition(saved, id, afterId, beforeId);
+  if (outcome.kind !== "move") return [...views];
+  const moved = <T extends SubtaskView>(row: T): T =>
+    row.id === id ? { ...row, position: outcome.position } : row;
+  return sortTasks(mapRows(views, moved));
+}
+
 function applyChange(
   views: readonly TaskView[],
   change: PendingChange,
@@ -518,6 +544,8 @@ function applyChange(
       return applyMarker(views, change);
     case "place":
       return applyPlace(views, change, places);
+    case "move":
+      return applyMove(views, change);
   }
 }
 

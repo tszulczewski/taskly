@@ -8,7 +8,7 @@ export const queryKeys = {
    * `isMutating` counts them too.
    */
   taskChanges: (listId: string) => ["lists", listId, "tasks", "change"] as const,
-  taskChange: (listId: string, kind: "completion" | "marker" | "place") =>
+  taskChange: (listId: string, kind: "completion" | "marker" | "place" | "move") =>
     ["lists", listId, "tasks", "change", kind] as const,
   /** The session user's places (spec E02, #19), not a list's: the same in every list. */
   places: () => ["places"] as const,
