@@ -8,7 +8,7 @@
 | Type | UI |
 | Source requirement | `.ai/specs/implemented/2026-11-03-completion-and-future-expenses.md` — Edge Cases "An unestimated item was … given subtasks in another tab" (409, the server's message, refetch, and its subtasks are listed instead); UI/UX "Add estimate" (on a 409/404 the form shows the server's message and both queries refetch); API Contracts "Add estimate" |
 | Prerequisites | A new signed-in owner with "Door" and "Lamp", both without an estimate; the subtask "Handle" created under "Door" through the core service |
-| Status | needs human review — the spec's message is not shown (Finding below) |
+| Status | draft (AI-written, awaiting human review) |
 
 ## Scenario
 
@@ -17,7 +17,7 @@
 - **Then** the form closes and "Handle · Door" is listed in place of "Door", then "Lamp"
 - **And** the line reads "1 task and 1 subtask without an estimate" and the total "No estimates yet"
 - **And** "Door" stores no figure
-- **And** the server's message "A task with subtasks takes its estimate from them" is shown — **not met** (Finding)
+- **And** the server's message "A task with subtasks takes its estimate from them" is shown in an alert that survives the refetch and goes away with the next change
 
 ## Steps
 
@@ -26,7 +26,7 @@
 | 1 | Open `/`, open "2 tasks without an estimate" | Door, Lamp listed |
 | 2 | "Add estimate for “Door”" | The form opens |
 | 3 | Create "Handle" under "Door" (the other tab) | — |
-| 4 | Type 100, submit | The form closes; "Handle · Door", "Lamp" listed; the line and total as above; no message anywhere on the page |
+| 4 | Type 100, submit | The form closes; "Handle · Door", "Lamp" listed; the line and total as above; the message is shown in an alert |
 | 5 | Read the DB | "Door" min and max null |
 
 ## Edge cases
@@ -36,4 +36,4 @@
 
 ## Finding
 
-Observed on 2026-11-06 against the production build: after the 409 the refetch removes "Door" from the unestimated items, which unmounts its form together with the `formError` that `addEstimate` returns (`packages/app/components/tasks/task-list-screen.tsx`, `addEstimate`). No other place shows the message, so the owner sees the item turn into its subtask with no explanation. The spec asks for the server's message. The executable test asserts only what the spec and the screen agree on; the message check is left out until the product owner decides whether to fix the screen (e.g. a notice like the 404 one) or to amend the spec. Tracked in #66.
+Fixed in #66: after the 409 the refetch removed "Door" and its form, and the form's `formError` with it. `addEstimate` now also keeps the server's message in a screen-level alert (`estimateRefused`, `packages/app/components/tasks/task-list-screen.tsx`) until the next change.
