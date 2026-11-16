@@ -47,7 +47,7 @@ Multi-tenancy: there are no tenants. The list is the unit of access. `requireRol
 | --- | --- | --- | --- |
 | app | `GET/POST /api/auth/[...all]` (sign-in, sign-up, sign-out, session) | no | Better Auth; rate limit 30 requests per 60 s per client IP, in memory (`packages/core/src/auth.ts:28`); origin check against `BETTER_AUTH_URL` |
 | app | `GET /`, `/sign-in`, `/sign-up` (pages) | `/` yes | `requireSessionUser` redirects to `/sign-in`; page reads never renew the session |
-| app | `GET`, `POST /api/lists/{listId}/tasks` | yes | `requireRole` read / write |
+| app | `GET`, `POST /api/lists/{listId}/tasks` | yes | `requireRole` read / write; the POST body's `placeIds` (at most 20 UUIDs) resolve only to places of an owner of the list, locked with the task's write; any other id → 404 and nothing is written (#83) |
 | app | `GET /api/lists/{listId}/future-expenses` | yes | `requireRole` read |
 | app | `PATCH`, `DELETE /api/tasks/{taskId}`; `PUT /api/tasks/{taskId}/completion` | yes | `requireTaskRole` write; task → list → membership |
 | app (planned) | invitations, member removal, list rename and delete, move, shopping, SSE stream, AI estimate | yes | Stubs in `core` throw `NotImplementedError`; no routes yet |
@@ -181,4 +181,5 @@ The "How we verify" column, grouped by method.
 
 ## Changelog
 
+- 2026-11-16 Task creation takes `placeIds` (#83): another object type referenced by id in a body, scoped to the list owner's places
 - 2026-11-16 Initial model (version 1 shipped: sign-in, tasks and subtasks, completion, future expenses, markers; version 2 features modelled from their `core` stubs)

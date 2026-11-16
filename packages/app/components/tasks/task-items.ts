@@ -171,8 +171,8 @@ export function validateTaskForm(values: TaskFormValues): TaskFieldErrors {
 
 /**
  * What quick add sends (`createTaskInput`), or "Add subtask" with the parent's `parentId`, with
- * the places chosen in the form (spec E02, #83). The forms submit only text `validateTaskForm` accepted, so invalid text throws, which the form
- * shows as "Something went wrong".
+ * the places chosen in the form (spec E02, #83). The forms submit only text `validateTaskForm`
+ * accepted, so invalid text throws, which the form shows as "Something went wrong".
  */
 export function toCreateInput(
   values: TaskFormValues,
