@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | High |
 | Type | UI |
-| Source requirement | #83 AC11, AC12, AC14, AC17; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — API "Creating a task with places", UI/UX "Places during quick add" |
+| Source requirement | #83 AC11, AC12, AC14, AC17; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — API "Creating a task with places", UI/UX "Places during quick add" |
 | Prerequisites | A signed-in owner with tasks A (with s1) and B |
 | Status | draft (AI-written, awaiting human review) |
 

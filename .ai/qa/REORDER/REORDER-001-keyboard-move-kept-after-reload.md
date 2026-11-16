@@ -6,7 +6,7 @@
 | Category | REORDER |
 | Priority | High |
 | Type | UI |
-| Source requirement | #17 AC1, AC2, AC7 (keyboard); `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX Reorder, API Contracts `PUT /api/tasks/[taskId]/position` |
+| Source requirement | #17 AC1, AC2, AC7 (keyboard); `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX Reorder, API Contracts `PUT /api/tasks/[taskId]/position` |
 | Prerequisites | A signed-in owner with tasks A (subtasks s1, s2), B, C in that order, created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 

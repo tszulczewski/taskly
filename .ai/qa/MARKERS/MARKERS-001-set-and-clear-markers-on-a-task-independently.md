@@ -6,7 +6,7 @@
 | Category | MARKERS |
 | Priority | High |
 | Type | UI |
-| Source requirement | Issue #18 AC1, AC2, AC3; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX "Markers (#18)", API Contracts "PATCH /api/tasks/[taskId]" (only the keys sent are written) |
+| Source requirement | Issue #18 AC1, AC2, AC3; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX "Markers (#18)", API Contracts "PATCH /api/tasks/[taskId]" (only the keys sent are written) |
 | Prerequisites | A new signed-in owner; tasks A (with s1, s2) and B created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 
