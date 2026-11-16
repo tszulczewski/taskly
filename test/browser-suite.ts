@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { ensureDefaultList } from "@taskly/core/server";
 import { schema } from "@taskly/db";
 import { like } from "drizzle-orm";
@@ -32,7 +33,7 @@ export type SignedInUser = { id: string; cookie: string; listId: string };
  * deletes the run's users (their places, lists and tasks go with them). Call inside `describe`.
  */
 export function useSignedInBrowserSuite({ run, port, session }: BrowserSuiteOptions) {
-  const password = "correct-horse-battery";
+  const password = randomBytes(18).toString("base64url");
   const email = (slug: string) => `${run}-${slug}@example.test`;
   const browser = createBrowser(session);
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
