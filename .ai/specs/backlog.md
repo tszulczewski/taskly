@@ -14,13 +14,14 @@ Filed 2026-10-16 with `om-backlog` through `om-prepare-issue`. Each issue carrie
 | E02-S01 | #17 | The owner can reorder tasks and the order persists | medium, medium | E01-S01, E03-S01 |
 | E02-S02 | #18 | The owner can mark a task or subtask important and/or urgent, independently | medium, high | E01-S01 |
 | E02-S03 | #19 | The owner can assign a task or subtask to several spaces at once | medium, high | E01-S01 |
+| E02-S04 | #83 | The owner can choose and create places while adding a task or subtask | medium, high | E02-S03 |
 | E03 | #13 | Completion and future expenses | medium, high | none |
 | E03-S01 | #20 | The owner can complete and reopen tasks and subtasks | medium, medium | E01-S02 |
 | E03-S02 | #21 | The owner sees future expenses as one min–max range | medium, high | E01-S01, E03-S01 |
 | E03-S03 | #47 | The owner sees what still has no estimate and can add one from future expenses | medium, high | E03-S02 |
 | E04 | #14 | Later (parked) | low, low | none |
 
-Open points left in the issue bodies at filing are closed. Subtask nesting depth (one level), editing and deleting tasks, rejecting min above max, and spaces as their own entity rather than lists were settled by spec E01 (`implemented/2026-10-16-tasks-and-subtasks.md`); how spaces are created and whether subtasks reorder were decided on 2026-11-03 (below). E03 (#20, #21, #47) is implemented by spec E03 (`implemented/2026-11-03-completion-and-future-expenses.md`; PRs #56, #58, #62). E02 (#18, #19, #17) is implemented by spec E02 (`implemented/2026-11-03-order-markers-and-spaces.md`; stacked PRs #69 markers, #70 places, #72 reorder).
+Open points left in the issue bodies at filing are closed. Subtask nesting depth (one level), editing and deleting tasks, rejecting min above max, and spaces as their own entity rather than lists were settled by spec E01 (`implemented/2026-10-16-tasks-and-subtasks.md`); how spaces are created and whether subtasks reorder were decided on 2026-11-03 (below). E03 (#20, #21, #47) is implemented by spec E03 (`implemented/2026-11-03-completion-and-future-expenses.md`; PRs #56, #58, #62). E02 (#18, #19, #17) is implemented by spec E02 (`2026-11-03-order-markers-and-spaces.md`; #69 markers; #70 places and #72 reorder, landed on `main` in #75); its places-during-creation extension (#83) is still open, so the spec stays in `specs/`.
 
 Decisions made after filing, to apply when writing the E02 and E03 specs: order of completed tasks, reopening, and no drag of completed tasks (server rejects the move) — `research/decisions/2026-10-21-completed-tasks-order.md` (affects E03-S01 #20, E02-S01 #17).
 
@@ -39,3 +40,11 @@ Decisions made after filing (2026-11-03, epic alignment): `research/decisions/20
 - **E02-S01 #17:** depends on E03-S01; subtasks reorder within their own task only, by drag and drop too; "Move up / Move down" and the keyboard; the refused move; 2026-10-21 criteria 5–6, the server refusing with 409.
 - **E02-S02 #18, E02-S03 #19:** no inheritance of markers or spaces between a task and its subtasks. #19 adds the predefined, editable spaces (Polish names, rename, delete with confirmation, colour assigned by the app, case-insensitive unique names).
 - **Brief:** R11 and Q18 confirmed; D25 (subtask reordering), D26 (spaces), D27 (the list of what has no estimate) added. Place colours: the app assigns them in turn from 10 colours, repeating from the eleventh, and the owner can change one; at most 20 places (replacing G4's picker and G5's limit of 10). #18 and #19 raised to `risk-high` (schema migrations, SDLC.md).
+
+## 2026-11-13 — places while creating a task (E02 follow-up)
+
+The owner requested choosing/creating places before Add for tasks and subtasks and authorized updating the requirements. E02 Phase 2's base shipped in PR #70 (merged 2026-11-12); #19 remains open at verification. AC11–AC18 and steps 9a–13a in the E02 spec define the outstanding creation extension: draft selection, new catalog entry, atomic save, reset/retry, isolation and browser coverage. Deliver in a separate E02/#19 follow-up PR, without adding it to reorder PR #72 or E04 (parked). Do not treat #70 as evidence that the extension shipped.
+
+## 2026-11-16 — #19 split
+
+#75 (merged as 711b12f) landed E02 Phases 2–3 and closed #19 with AC1–AC10. AC11–AC18 from the note above moved to the new story E02-S04 #83, on the owner's decision. The epic #12 stays open until #83 ships; E01 #11 and E03 #13 were closed with all their stories done.
