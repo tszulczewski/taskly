@@ -258,6 +258,10 @@ export function createBrowser(session: string) {
       run("press", "Control+a");
       run("keyboard", "type", text);
     },
+    /** Focuses the element matching a CSS selector, e.g. a drag handle before keyboard moves. */
+    focus: (selector: string) => run("focus", selector),
+    /** Presses one key (or chord) on the focused element with a real key event. */
+    press: (key: string) => run("press", key),
     /** Clicks the element matching a CSS selector, e.g. a button scoped to one of two forms. */
     click: (selector: string) => run("click", selector),
     /** Clicks the element with this ARIA role and exact accessible name. */

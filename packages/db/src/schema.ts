@@ -7,6 +7,8 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -127,6 +129,56 @@ export const shoppingItems = pgTable(
   },
   (t) => [index("shopping_items_list_idx").on(t.listId)],
 );
+
+// Places belong to a user, not a list (spec E02, Q3): only the list owner's can be assigned.
+export const places = pgTable(
+  "places",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // `placeNameKey(name)` from core: the name folded for the case-insensitive unique check.
+    nameKey: text("name_key").notNull(),
+    color: smallint("color").notNull(),
+    // Fractional-indexing key; compare with COLLATE "C".
+    position: text("position").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("places_user_name_key_uq").on(t.userId, t.nameKey),
+    unique("places_user_position_uq").on(t.userId, t.position),
+    check("places_color_chk", sql`${t.color} BETWEEN 1 AND 10`),
+  ],
+);
+
+export const taskPlaces = pgTable(
+  "task_places",
+  {
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    placeId: uuid("place_id")
+      .notNull()
+      .references(() => places.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: "task_places_pk", columns: [t.taskId, t.placeId] }),
+    // The PK leads with task_id; a place's delete cascade needs its own index.
+    index("task_places_place_idx").on(t.placeId),
+  ],
+);
+
+// One row per user whose eight places were created: the durable "seeded" marker (deleting every
+// place keeps it) and the lock row every place-creating path takes.
+export const placeOwners = pgTable("place_owners", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+});
 
 export const listsRelations = relations(lists, ({ many }) => ({
   members: many(listMembers),

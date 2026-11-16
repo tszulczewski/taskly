@@ -17,6 +17,7 @@ const view = (completed: boolean, minGrosze: number, maxGrosze: number): TaskVie
   completed,
   important: false,
   urgent: false,
+  places: [],
   position: "a0",
   unestimatedSubtasks: 0,
   subtasks: [],

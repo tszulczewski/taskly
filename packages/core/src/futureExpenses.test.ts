@@ -19,6 +19,7 @@ function subtask(estimate: Estimate | null, completed = false, title = "Subtask"
     completed,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
 }
@@ -44,6 +45,7 @@ function task(
     completed,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
     unestimatedSubtasks,
     subtasks,

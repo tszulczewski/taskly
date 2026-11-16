@@ -96,6 +96,10 @@ export const longPlace: Place = {
 export const polishPlaceText: Partial<PlaceText> = {
   placesFor: (title) => `Miejsca „${title}”`,
   noPlaces: "Nie ma jeszcze miejsc.",
+  loading: "Wczytuję twoje miejsca…",
+  loadFailed: "Nie udało się wczytać twoich miejsc.",
+  retry: "Spróbuj ponownie",
+  retrying: "Próbuję ponownie…",
   newPlace: "Nowe miejsce",
   create: "Utwórz",
   creating: "Tworzenie…",

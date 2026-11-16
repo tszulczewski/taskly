@@ -103,6 +103,7 @@ export { PlaceColorPicker, type PlaceColorPickerProps } from "./product/places/p
 export {
   PlacePicker,
   type PlacePickerProps,
+  type PlacesState,
   type NewPlaceValues,
   type PlaceSubmit,
   type PlaceValues,

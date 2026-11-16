@@ -13,6 +13,7 @@ describe("queryKeys", () => {
       "change",
       "completion",
     ]);
+    expect(queryKeys.places()).toEqual(["places"]);
     expect(queryKeys.shopping("l1")).toEqual(["lists", "l1", "shopping"]);
     expect(queryKeys.futureExpenses("l1")).toEqual(["lists", "l1", "future-expenses"]);
   });
