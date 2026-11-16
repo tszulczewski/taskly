@@ -9,6 +9,8 @@
 #   2026-11-06 repair (PR #63 second review): flock(2) lock held for the bootstrap only (app and
 #     agent-browser daemon start with 9>&-); a run that waited re-checks reuse before rebuilding
 #   2026-11-13 repair: retry the postgres publish on a fresh port (WSL2: Windows-reserved port ranges)
+#   2026-11-16 repair (#82): app.pid is node itself; under bash a backgrounded `cd && node` subshell was
+#     recorded instead and kept the lock for the environment's lifetime
 set -eu
 
 # ---------------------------------------------------------------------------
@@ -208,10 +210,12 @@ cp -R "$APP_DIR/public/." "$STANDALONE/public/" 2>/dev/null || { mkdir -p "$STAN
 mkdir -p "$STANDALONE/.next/static"
 cp -R "$APP_DIR/.next/static/." "$STANDALONE/.next/static/"
 log "starting app on $BASE_URL"
-(cd "$STANDALONE" && NODE_ENV=production HOSTNAME=127.0.0.1 PORT="$APP_PORT" \
-  nohup node server.js > "$ROOT/$APP_LOG" 2>&1 9>&- &
-  echo $! > "$ROOT/$QA_DIR/test-env-app.pid")
-APP_PID=$(cat "$QA_DIR/test-env-app.pid"); rm -f "$QA_DIR/test-env-app.pid"
+# Background the simple command only: bash forks a subshell for a backgrounded list
+# (`cd … && node … &`), so $! would be that subshell, which keeps fd 9 (the lock) and outlives teardown.
+cd "$STANDALONE"
+NODE_ENV=production HOSTNAME=127.0.0.1 PORT="$APP_PORT" nohup node server.js > "$ROOT/$APP_LOG" 2>&1 9>&- &
+APP_PID=$!
+cd "$ROOT"
 healthy=0
 for _ in $(seq 1 $((APP_WAIT_SECONDS * 2))); do
   alive "$APP_PID" || { log "app exited during startup"; tail -n 20 "$APP_LOG" >&2; exit 1; }

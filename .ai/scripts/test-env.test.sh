@@ -45,9 +45,13 @@ EOF
   cat > "$R/bin/curl" <<'EOF'
 #!/bin/sh
 echo "curl $*" >> "$CALLS"
-case "$*" in *get-session*) echo '{"user":{"email":"qa-demo@taskly.test"}}' ;; esac
+case "$*" in
+  *get-session*) echo '{"user":{"email":"qa-demo@taskly.test"}}' ;;
+  *sign-in*) printf 'HTTP/1.1 200 OK\r\nSet-Cookie: __Secure-better-auth.session_token=tok; Path=/\r\n\r\n' ;;
+esac
 exit 0
 EOF
+  printf '#!/bin/sh\necho "npx $*" >> "$CALLS"\n' > "$R/bin/npx"
   cat > "$R/bin/npm" <<'EOF'
 #!/bin/sh
 echo "npm $*" >> "$CALLS"
@@ -147,6 +151,29 @@ descriptor "$R" "$APP" "$FP3"
 rm "$R/packages/app/src/a.ts"
 FAKE_PG_RUNNING=1 FAKE_DOCKER_INFO_STATUS=1 sh "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"
 check "up: a deleted source file rejects reuse" '! grep -q "^TEST_ENV_REUSED=1" "$R/out" && grep -q "sources changed" "$R/err"'
+
+# 5. A full bootstrap (#82) records node itself as app.pid and frees the lock before it returns, so
+# teardown runs at once and stops the server. bash forks a subshell for a backgrounded list where
+# dash execs its last command, so run the scripts under both.
+for SH in sh bash; do
+  sandbox "boot-$SH"
+  mkdir -p "$R/packages/app/public" "$R/packages/app/.next/static" "$R/packages/app/.next/standalone/packages/app"
+  printf 'require("fs").writeFileSync(__dirname + "/server.pid", String(process.pid));\nsetInterval(() => {}, 1000);\n' \
+    > "$R/packages/app/.next/standalone/packages/app/server.js"
+  SERVER_PID_FILE=$R/packages/app/.next/standalone/packages/app/server.pid
+  "$SH" "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"; status=$?
+  i=0; while [ ! -s "$SERVER_PID_FILE" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+  SERVER=$(cat "$SERVER_PID_FILE" 2>/dev/null); PIDS="$PIDS $SERVER"
+  APP=$(cd "$R" && ROOT=$R && . .ai/scripts/test-env-lib.sh && json_get "$DESCRIPTOR" app.pid)
+  check "up ($SH): full bootstrap succeeds" '[ "$status" = 0 ] && grep -q "^TEST_ENV_STATUS=running" "$R/out"'
+  check "up ($SH): app.pid is the node server" '[ -n "$SERVER" ] && [ "$APP" = "$SERVER" ]'
+  check "up ($SH): the lock is free once bootstrap returns" 'lock_free "$R"'
+  FAKE_PG_RUNNING=1 TEST_ENV_LOCK_WAIT_SECONDS=1 "$SH" "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"
+  check "up ($SH): the next run reuses the environment" 'grep -q "^TEST_ENV_REUSED=1" "$R/out"'
+  TEST_ENV_LOCK_WAIT_SECONDS=1 "$SH" "$R/.ai/scripts/test-env-down.sh" > "$R/out" 2> "$R/err"; status=$?
+  check "down ($SH): runs at once after bootstrap" '[ "$status" = 0 ] && grep -q "^TEST_ENV_STATUS=stopped" "$R/out"'
+  check "down ($SH): no server is left running" '[ -n "$SERVER" ] && ! kill -0 "$SERVER" 2>/dev/null'
+done
 
 [ "$FAILED" = 0 ] && echo "all test-env script checks passed"
 exit "$FAILED"
