@@ -188,6 +188,15 @@ export type BrowserRequest = { url: string; method: string };
 /** How long the `waitFor*` browser helpers poll before failing. */
 const BROWSER_WAIT_MS = 15_000;
 
+/**
+ * agent-browser's refusals that mean nothing was clicked or focused: the target is not rendered
+ * yet, or not reachable yet (off-screen, hidden, disabled, covered). Its commands take a few ms,
+ * so an action sent right after a state change can beat React's render.
+ */
+const NOT_ACTIONABLE =
+  /No element found|but none match name|so the click would not reach it|so the input would land on that element/;
+const pause = new Int32Array(new SharedArrayBuffer(4));
+
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
 export function createBrowser(session: string) {
   const bin = resolve(root, "node_modules/.bin/agent-browser");
@@ -196,6 +205,35 @@ export function createBrowser(session: string) {
       encoding: "utf8",
       timeout: 60_000,
     }).trim();
+
+  /**
+   * Runs an action on the element matching `selector` (null for a `find` locator), retrying it
+   * while agent-browser refuses it as not actionable yet.
+   */
+  function act(selector: string | null, ...args: string[]) {
+    const deadline = Date.now() + BROWSER_WAIT_MS;
+    for (;;) {
+      try {
+        return run(...args);
+      } catch (error) {
+        if (Date.now() > deadline || !NOT_ACTIONABLE.test(String(error))) throw error;
+        // For a CSS selector, agent-browser scrolls only a target that is wholly off-screen, then
+        // refuses one whose click point (its centre) is not on screen: a button showing 3px above
+        // the viewport's bottom edge is refused on every try. (`find` scrolls such a target.)
+        if (selector && String(error).includes("outside the viewport")) {
+          try {
+            evaluate(
+              `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: "center" }) ?? null`,
+            );
+          } catch {
+            // The page is navigating; the next try reports on the new one.
+          }
+        }
+        // The helpers are synchronous, so sleep without yielding to the event loop.
+        Atomics.wait(pause, 0, 0, 100);
+      }
+    }
+  }
 
   /** Runs a JavaScript expression in the page and returns its (JSON-serializable) value. */
   function evaluate<T>(expression: string): T {
@@ -249,12 +287,12 @@ export function createBrowser(session: string) {
     waitFor,
     /** Focuses the field and types with real key events (setting `value` by script misleads React). */
     typeInto: (selector: string, text: string) => {
-      run("focus", selector);
+      act(selector, "focus", selector);
       run("keyboard", "type", text);
     },
     /** Like `typeInto`, but first selects the field's text so the typing replaces it. */
     retypeInto: (selector: string, text: string) => {
-      run("focus", selector);
+      act(selector, "focus", selector);
       run("press", "Control+a");
       run("keyboard", "type", text);
     },
@@ -263,10 +301,10 @@ export function createBrowser(session: string) {
     /** Presses one key (or chord) on the focused element with a real key event. */
     press: (key: string) => run("press", key),
     /** Clicks the element matching a CSS selector, e.g. a button scoped to one of two forms. */
-    click: (selector: string) => run("click", selector),
+    click: (selector: string) => act(selector, "click", selector),
     /** Clicks the element with this ARIA role and exact accessible name. */
     clickRole: (role: string, name: string) =>
-      run("find", "role", role, "click", "--name", name, "--exact"),
+      act(null, "find", "role", role, "click", "--name", name, "--exact"),
     /** Texts of the `role="alert"` elements on the page. */
     alerts: () =>
       evaluate<string[]>(

@@ -11,12 +11,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
-    "@better-auth/core": "1.7.7",
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@better-auth/core": "1.7.25",
     "@taskly/db": "*",
-    "better-auth": "^1.7.7",
-    "drizzle-orm": "^0.45.2",
-    "fractional-indexing": "^3",
+    "better-auth": "^1.7.25",
+    "drizzle-orm": "^0.45.4",
+    "fractional-indexing": "^4.0.0",
     "server-only": "^0.0.1",
     "zod": "^4"
   }

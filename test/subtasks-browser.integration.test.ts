@@ -121,8 +121,10 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
 
   async function listReady() {
     await browser.waitForHydrated(field("title"));
+    // The loaded list: its rows, or the empty state. (The loading skeleton is a plain surface, so
+    // waiting for it to go would also pass before the list has rendered at all.)
     await browser.waitFor(
-      () => browser.count('[data-slot="task-list"][aria-busy="true"]') === 0,
+      () => browser.count('[data-slot="task-list"], [data-slot="empty-state"]') === 1,
       () => "the task list to load",
     );
   }
@@ -224,6 +226,9 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       );
       browser.typeInto(subtaskField("description"), description);
     }
+    // The row of a task added just before may still be opening or moving, and a click on a
+    // moving button can miss it.
+    await browser.waitForAnimations();
     browser.click(`${SUBTASK_ADD} button[type="submit"]`);
   }
 
