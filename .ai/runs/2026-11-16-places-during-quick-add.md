@@ -59,11 +59,11 @@ The owner can tick existing places and create a new one in the quick add of a ta
 
 ### Phase 2: design system
 
-- [ ] 2.1 Draft places picker in QuickAdd
+- [x] 2.1 Draft places picker in QuickAdd — 162bd06
 
 ### Phase 3: app
 
-- [ ] 3.1 Draft places wiring in the task screen
+- [x] 3.1 Draft places wiring in the task screen — a8a8e92
 
 ### Phase 4: verification and wrap-up
 
