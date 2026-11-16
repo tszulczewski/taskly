@@ -270,6 +270,7 @@ describe("TaskListScreen quick add", () => {
       description: null,
       estimate: { minGrosze: 150_000, maxGrosze: 200_000 },
       parentId: null,
+      placeIds: [],
     });
     await waitFor(() => expect(rows()).toHaveLength(3));
     const pending = rows()[2]!;
@@ -338,6 +339,7 @@ describe("TaskListScreen quick add", () => {
       description: null,
       estimate,
       parentId: null,
+      placeIds: [],
     });
     await waitFor(() => expect(estimateOf(rows()[2])).toBe(pln(shown)));
     expect(rows()[2]?.querySelector("[data-pending]")).toBeNull();
@@ -730,6 +732,7 @@ describe("TaskListScreen subtasks", () => {
       description: "Two coats",
       estimate: range(300, 400),
       parentId: bath.id,
+      placeIds: [],
     });
     const pending = await waitFor(() => {
       const found = rowOf("Prime");
