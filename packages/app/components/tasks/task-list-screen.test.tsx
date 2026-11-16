@@ -1897,19 +1897,21 @@ describe("TaskListScreen places while adding (#83)", () => {
     await waitFor(() => expect(tagsOf("Table")).toEqual(["Jadalnia"]));
   });
 
-  it("shows a refused new place under its name in the draft picker", async () => {
+  it("shows the server's refusal of a new place under its name in the draft picker", async () => {
+    // Another tab created it first: the name passes the local check, the server refuses it.
     handlers.set("POST /api/places", () =>
       fail(409, "conflict", "A place with this name already exists."),
     );
     await renderLoaded();
 
     await openDraftPicker();
-    type(panel().getByRole("textbox", { name: "New place" }), "salon");
+    type(panel().getByRole("textbox", { name: "New place" }), "Jadalnia");
     await click(panel().getByRole("button", { name: "Create" }));
 
     await waitFor(() =>
       expect(panel().getByText("A place with this name already exists.")).toBeDefined(),
     );
+    expect(sent("POST", "/api/places")).toEqual({ name: "Jadalnia" });
     expect(chosenIn()).toBe("");
   });
 
