@@ -54,8 +54,8 @@ The owner can tick existing places and create a new one in the quick add of a ta
 
 ### Phase 1: server
 
-- [ ] 1.1 Atomic task creation with places in core
-- [ ] 1.2 HTTP contract and integration cases
+- [x] 1.1 Atomic task creation with places in core — 1239ffb
+- [x] 1.2 HTTP contract and integration cases — 64c6b5c
 
 ### Phase 2: design system
 
