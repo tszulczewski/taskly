@@ -44,6 +44,8 @@ const DELETE_FAILED = "Could not delete the task. Try again.";
 const AMOUNT_FORMAT = "Enter an amount like 1 500,50";
 // The screen's other GET (spec E03, #21); it renews a due session too.
 const EXPENSES_API = "**/api/lists/*/future-expenses";
+// The places load next to the tasks (spec E02, #19); their GET renews a due session too.
+const PLACES_API = "**/api/places";
 
 type Row = { title: string; estimate: string; pending: boolean; description: string | null };
 type NewTask = { title: string; amount?: string; upTo?: string; description?: string };
@@ -174,6 +176,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     browser.unroute(TASKS_API);
     browser.unroute(TASK_API);
     browser.unroute(EXPENSES_API);
+    browser.unroute(PLACES_API);
   });
 
   afterAll(async () => {
@@ -609,6 +612,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
 
     browser.abortRequests(TASKS_API);
     browser.abortRequests(EXPENSES_API);
+    browser.abortRequests(PLACES_API);
     browser.setSessionCookie(user.cookie, app.url);
     browser.open(`${app.url}/`);
     await browser.waitForText("Could not load your tasks.");

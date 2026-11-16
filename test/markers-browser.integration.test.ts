@@ -1,23 +1,10 @@
-import { createTask, ensureDefaultList } from "@taskly/core/server";
+import { createTask } from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { and, eq, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  authRequest,
-  clientIps,
-  closeUserDb,
-  createBrowser,
-  createUser,
-  type RunningApp,
-  sessionCookie,
-  startApp,
-} from "./helpers";
+import { and, eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+import { useSignedInBrowserSuite } from "./browser-suite";
 
 const run = `markersbrowser${Date.now()}`;
-const email = (slug: string) => `${run}-${slug}@example.test`;
-const password = "correct-horse-battery";
 
 type Marker = "Important" | "Urgent";
 
@@ -25,22 +12,11 @@ type Marker = "Important" | "Urgent";
 // row menu and a reload, a failed toggle rolled back with the row message, and two quick toggles
 // of one row while the first answer is held back (the list queue, spec E02 Q-1 for markers).
 describe("marking tasks important and urgent in the browser (#18, sign-up closed)", () => {
-  let app: RunningApp;
-  const browser = createBrowser("taskly-markers-browser");
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
-  const db = drizzle(pool, { schema });
-  const nextIp = clientIps(60);
-
-  async function signIn(slug: string) {
-    const user = await createUser({ name: `User ${slug}`, email: email(slug), password });
-    const res = await authRequest(app, "/sign-in/email", {
-      forwardedFor: nextIp(),
-      body: { email: email(slug), password },
-    });
-    const cookie = sessionCookie(res);
-    if (!cookie) throw new Error(`Sign-in over HTTP failed with ${res.status}`);
-    return { id: user.id, cookie, listId: await ensureDefaultList(db, user.id) };
-  }
+  const { app, browser, pool, db, signIn } = useSignedInBrowserSuite({
+    run,
+    port: 3211,
+    session: "taskly-markers-browser",
+  });
 
   /** Tasks A (with subtasks s1, s2) and B; then `/` opened, signed in. */
   async function openPlanned(slug: string) {
@@ -50,8 +26,8 @@ describe("marking tasks important and urgent in the browser (#18, sign-up closed
       await createTask(db, user.id, user.listId, { title, parentId: a.id });
     }
     await createTask(db, user.id, user.listId, { title: "B" });
-    browser.setSessionCookie(user.cookie, app.url);
-    browser.open(`${app.url}/`);
+    browser.setSessionCookie(user.cookie, app().url);
+    browser.open(`${app().url}/`);
     await browser.waitForHydrated('[role="checkbox"]');
     browser.clearRequests();
     return user;
@@ -129,31 +105,6 @@ describe("marking tasks important and urgent in the browser (#18, sign-up closed
           .where(eq(schema.tasks.listId, listId))
       ).map((row) => [row.title, [row.important, row.urgent]]),
     );
-
-  beforeAll(async () => {
-    app = await startApp(process.env.DATABASE_URL as string, {
-      port: 3211,
-      env: { ALLOW_SIGN_UP: "false" },
-    });
-  });
-
-  beforeEach(() => {
-    browser.open("about:blank");
-    browser.clearCookies();
-  });
-
-  afterAll(async () => {
-    try {
-      browser.close();
-    } catch {
-      // browser was never opened
-    }
-    await app?.stop();
-    // Default lists, with their tasks, go with their user.
-    await db.delete(schema.user).where(like(schema.user.email, `${run}-%`));
-    await pool.end();
-    await closeUserDb();
-  });
 
   // MARKERS-001 (#18 AC1–AC3).
   it("sets important alone, then urgent too, clears urgent keeping important, and keeps them after a reload", async () => {

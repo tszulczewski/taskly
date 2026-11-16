@@ -229,6 +229,97 @@ describe.skipIf(!url)("schema (real PostgreSQL)", () => {
       }
     });
 
+    const newPlace = async (
+      values: Partial<typeof schema.places.$inferInsert> & { userId: string },
+    ) => {
+      const name = `Place ${randomUUID()}`;
+      const [place] = await db
+        .insert(schema.places)
+        .values({ name, nameKey: name.toLowerCase(), color: 1, position: randomUUID(), ...values })
+        .returning();
+      return place!;
+    };
+    const placesOf = (taskId: string) =>
+      db.select().from(schema.taskPlaces).where(eq(schema.taskPlaces.taskId, taskId));
+
+    it("keeps a place's colour within the ten (migration 0003)", async () => {
+      const userId = await newUser();
+      expect((await newPlace({ userId, color: 1 })).color).toBe(1);
+      expect((await newPlace({ userId, color: 10 })).color).toBe(10);
+      for (const color of [0, 11]) {
+        await expect(newPlace({ userId, color })).rejects.toMatchObject(
+          violation(CHECK, "places_color_chk"),
+        );
+      }
+    });
+
+    it("keeps name keys and positions unique per user, not across users (migration 0003)", async () => {
+      const userA = await newUser();
+      const userB = await newUser();
+      await newPlace({ userId: userA, nameKey: "kuchnia", position: "a0" });
+      await expect(newPlace({ userId: userA, nameKey: "kuchnia" })).rejects.toMatchObject(
+        violation(UNIQUE, "places_user_name_key_uq"),
+      );
+      await expect(newPlace({ userId: userA, position: "a0" })).rejects.toMatchObject(
+        violation(UNIQUE, "places_user_position_uq"),
+      );
+      await newPlace({ userId: userB, nameKey: "kuchnia", position: "a0" });
+    });
+
+    it("assigns a place to a task once (migration 0003)", async () => {
+      const place = await newPlace({ userId: await newUser() });
+      const task = await newTask({ listId });
+      await db.insert(schema.taskPlaces).values({ taskId: task.id, placeId: place.id });
+      await expect(
+        db.insert(schema.taskPlaces).values({ taskId: task.id, placeId: place.id }),
+      ).rejects.toMatchObject(violation(UNIQUE, "task_places_pk"));
+      await expect(
+        db.insert(schema.taskPlaces).values({ taskId: task.id, placeId: randomUUID() }),
+      ).rejects.toMatchObject(violation(FOREIGN_KEY, "task_places_place_id_places_id_fk"));
+    });
+
+    it("drops assignments with their task or place, and places with their user (migration 0003)", async () => {
+      const userId = await newUser();
+      const [kept, gone] = [await newPlace({ userId }), await newPlace({ userId })];
+      const task = await newTask({ listId });
+      const other = await newTask({ listId });
+      await db.insert(schema.taskPlaces).values([
+        { taskId: task.id, placeId: kept.id },
+        { taskId: task.id, placeId: gone.id },
+        { taskId: other.id, placeId: kept.id },
+      ]);
+
+      await db.delete(schema.places).where(eq(schema.places.id, gone.id));
+      expect((await placesOf(task.id)).map((row) => row.placeId)).toEqual([kept.id]);
+
+      await db.delete(schema.tasks).where(eq(schema.tasks.id, task.id));
+      expect(await placesOf(task.id)).toEqual([]);
+      expect(
+        await db.select().from(schema.places).where(eq(schema.places.id, kept.id)),
+      ).toHaveLength(1);
+
+      await db.insert(schema.placeOwners).values({ userId });
+      await db.delete(schema.user).where(eq(schema.user.id, userId));
+      expect(await db.select().from(schema.places).where(eq(schema.places.userId, userId))).toEqual(
+        [],
+      );
+      expect(
+        await db.select().from(schema.placeOwners).where(eq(schema.placeOwners.userId, userId)),
+      ).toEqual([]);
+      expect(await placesOf(other.id)).toEqual([]);
+    });
+
+    it("keeps one place_owners row per user (migration 0003)", async () => {
+      const userId = await newUser();
+      await db.insert(schema.placeOwners).values({ userId });
+      await expect(db.insert(schema.placeOwners).values({ userId })).rejects.toMatchObject(
+        violation(UNIQUE, "place_owners_pkey"),
+      );
+      await expect(
+        db.insert(schema.placeOwners).values({ userId: `missing-${randomUUID()}` }),
+      ).rejects.toMatchObject(violation(FOREIGN_KEY, "place_owners_user_id_user_id_fk"));
+    });
+
     it("deletes a user's default lists with the user", async () => {
       const userId = await newUser();
       const list = await newList({ defaultForUserId: userId });

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { futureExpenses, type SubtaskView, type TaskView } from "@taskly/core";
+import { futureExpenses, type PlaceView, type SubtaskView, type TaskView } from "@taskly/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Activity } from "react";
@@ -23,6 +23,7 @@ function view(title: string, extra: Partial<TaskView> = {}): TaskView {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
     unestimatedSubtasks: 0,
     subtasks: [],
@@ -52,6 +53,7 @@ function gate() {
 type Handler = (body: unknown) => Response | Promise<Response>;
 let handlers: Map<string, Handler>;
 let serverTasks: TaskView[];
+let serverPlaces: PlaceView[];
 const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
   const key = `${init.method ?? "GET"} ${url}`;
   const handler = handlers.get(key);
@@ -81,8 +83,10 @@ let reducedMotion = false;
 
 beforeEach(() => {
   serverTasks = [tile, seal];
+  serverPlaces = [];
   handlers = new Map([
     [`GET ${TASKS_URL}`, () => ok(serverTasks)],
+    ["GET /api/places", () => ok(serverPlaces)],
     // The server's total over what it holds (the real rule from core).
     [`GET ${EXPENSES_URL}`, () => ok(futureExpenses(serverTasks))],
   ]);
@@ -635,6 +639,7 @@ describe("TaskListScreen subtasks", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   });
   const range = (min: number, max = min) => ({ minGrosze: min * 100, maxGrosze: max * 100 });
@@ -1089,6 +1094,7 @@ describe("TaskListScreen completion", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const bath = view("Bathroom", { position: "a2", subtasks: [plaster] });
@@ -1285,6 +1291,7 @@ describe("TaskListScreen markers (#18)", () => {
     completed: false,
     important: false,
     urgent: false,
+    places: [],
     position: "a0",
   };
   const bath = view("Bathroom", { position: "a2", subtasks: [grout] });
@@ -1409,6 +1416,415 @@ describe("TaskListScreen markers (#18)", () => {
       await screen.findByText("This task was deleted. The list has been refreshed."),
     ).toBeDefined();
     expect(rowOf("Tile the wall")).toBeUndefined();
+  });
+});
+
+describe("TaskListScreen reorder (#17)", () => {
+  const grout: SubtaskView = {
+    id: crypto.randomUUID(),
+    title: "Grout",
+    description: null,
+    estimate: null,
+    completed: false,
+    important: false,
+    urgent: false,
+    places: [],
+    position: "a0",
+  };
+  const prime: SubtaskView = { ...grout, id: crypto.randomUUID(), title: "Prime", position: "a1" };
+  const top = { ...tile, position: "a0" };
+  const second = { ...seal, position: "a1" };
+  const bath = view("Bathroom", { position: "a2", subtasks: [grout, prime] });
+  const positionUrl = (id: string) => `/api/tasks/${id}/position`;
+  const titles = () =>
+    rows()
+      .filter((row) => row.closest('ul[aria-label="Tasks"] > li ul') === null)
+      .map((row) => row.querySelector('[data-slot="task-title"]')?.textContent);
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  const alertOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("alert")
+      .map((region) => region.textContent)
+      .join("");
+  const handles = () => screen.queryAllByRole("button", { name: /^Move “/ });
+  const moveItems = (title: string) => {
+    openMenu(title);
+    const items = screen
+      .queryAllByRole("menuitem")
+      .map((item) => item.textContent)
+      .filter((text) => text?.startsWith("Move"));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    return items;
+  };
+
+  beforeEach(() => {
+    serverTasks = [top, second, bath];
+  });
+
+  it("moves a task down at once and sends only its new neighbours (AC1, AC6)", async () => {
+    const put = gate();
+    handlers.set(`PUT ${positionUrl(top.id)}`, () => put.promise);
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    await waitFor(() => expect(titles()).toEqual(["Seal the bath", "Tile the wall", "Bathroom"]));
+    expect(sent("PUT", positionUrl(top.id))).toEqual({ afterId: second.id, beforeId: bath.id });
+    await act(async () => put.open(saved({ ...top, position: "a1V" })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(titles()).toEqual(["Seal the bath", "Tile the wall", "Bathroom"]);
+  });
+
+  it("moves a subtask within its task (AC4)", async () => {
+    handlers.set(`PUT ${positionUrl(prime.id)}`, () =>
+      saved({ ...bath, subtasks: [grout, { ...prime, position: "Zz" }] }),
+    );
+    await renderLoaded();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+
+    openMenu("Prime");
+    await choose("Move up");
+
+    expect(sent("PUT", positionUrl(prime.id))).toEqual({ afterId: null, beforeId: grout.id });
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Subtasks of “Bathroom”" }))
+          .getAllByRole("listitem")
+          .map((item) => item.querySelector('[data-slot="task-title"]')?.textContent),
+      ).toEqual(["Prime", "Grout"]),
+    );
+  });
+
+  it("puts a refused move back with a message in its row (s04.24)", async () => {
+    handlers.set(`PUT ${positionUrl(top.id)}`, () =>
+      fail(409, "conflict", "The list changed. Try again."),
+    );
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    await waitFor(() =>
+      expect(alertOf("Tile the wall")).toBe(
+        "Could not move “Tile the wall”. It is back where it was.",
+      ),
+    );
+    expect(titles()).toEqual(["Tile the wall", "Seal the bath", "Bathroom"]);
+  });
+
+  it("treats a 404 as deleted elsewhere: the refetch removes the row and the message shows", async () => {
+    handlers.set(`PUT ${positionUrl(top.id)}`, () => {
+      serverTasks = serverTasks.filter((task) => task.id !== top.id);
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Move down");
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+    expect(rowOf("Tile the wall")).toBeUndefined();
+  });
+
+  it("offers no reordering while a quick add is saving, and again once it is saved (M-3, P1)", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+    expect(handles()).toHaveLength(3);
+
+    type(titleField(), "Fit the mirror");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).not.toBeNull());
+    expect(handles()).toEqual([]);
+    expect(moveItems("Seal the bath")).toEqual([]);
+
+    await act(async () => post.open(created(view("Fit the mirror", { position: "a3" }))));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
+    expect(handles()).toHaveLength(4);
+    expect(moveItems("Seal the bath")).toEqual(["Move up", "Move down"]);
+  });
+
+  it("offers reordering again when the quick add fails", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+
+    type(titleField(), "Fit the mirror");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(handles()).toEqual([]));
+
+    await act(async () => post.open(fail(500, "internal_error", "Something went wrong")));
+    await waitFor(() => expect(handles()).toHaveLength(3));
+  });
+
+  it("pauses the whole list while a subtask add is saving, its task staying open (M-3, P10)", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+    await click(screen.getByRole("button", { name: "Bathroom" }));
+    expect(handles()).toHaveLength(5);
+
+    openMenu("Bathroom");
+    await choose("Add subtask");
+    const form = within(screen.getByRole("textbox", { name: "New subtask" }).closest("form")!);
+    type(form.getByRole("textbox", { name: "New subtask" }), "Seal");
+    await click(form.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(rowOf("Seal")).toBeDefined());
+    expect(handles()).toEqual([]);
+    expect(moveItems("Tile the wall")).toEqual([]);
+    expect(moveItems("Grout")).toEqual([]);
+
+    const sealSubtask = { ...grout, id: crypto.randomUUID(), title: "Seal", position: "a2" };
+    await act(async () => post.open(saved({ ...bath, subtasks: [grout, prime, sealSubtask] })));
+    await waitFor(() => expect(document.querySelector("[data-pending]")).toBeNull());
+    expect(handles()).toHaveLength(6);
+  });
+});
+
+describe("TaskListScreen places (#19)", () => {
+  const salon: PlaceView = { id: crypto.randomUUID(), name: "Salon", color: 1 };
+  const kuchnia: PlaceView = { id: crypto.randomUUID(), name: "Kuchnia", color: 4 };
+  const tickUrl = (taskId: string, placeId: string) => `/api/tasks/${taskId}/places/${placeId}`;
+  const placeUrl = (placeId: string) => `/api/places/${placeId}`;
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  /** The place names on a row (its tags). */
+  const tagsOf = (title: string) =>
+    Array.from(rowOf(title)?.querySelectorAll('[data-slot="place-tag"]') ?? []).map(
+      (tag) => tag.textContent,
+    );
+  const alertOf = (title: string) =>
+    within(rowOf(title)!)
+      .queryAllByRole("alert")
+      .map((region) => region.textContent)
+      .join("");
+  const openPlaces = async (title: string) => {
+    openMenu(title);
+    await choose("Places…");
+  };
+  const picker = () => within(document.querySelector<HTMLElement>('[data-slot="place-picker"]')!);
+  const pressIn = (name: string) => click(picker().getByRole("button", { name }));
+
+  beforeEach(() => {
+    // Radix measures the hidden input of a colour radio inside a form; jsdom has no ResizeObserver.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    serverPlaces = [salon, kuchnia];
+    serverTasks = [tile, { ...seal, places: [kuchnia] }];
+  });
+
+  it("ticks a place at once, PUTs it and keeps it after the answer (AC2)", async () => {
+    const put = gate();
+    handlers.set(`PUT ${tickUrl(tile.id, salon.id)}`, () => put.promise);
+    await renderLoaded();
+
+    await openPlaces("Tile the wall");
+    await click(picker().getByRole("checkbox", { name: "Salon" }));
+
+    await waitFor(() => expect(tagsOf("Tile the wall")).toEqual(["Salon"]));
+    await act(async () => put.open(saved({ ...tile, places: [salon] })));
+    await waitFor(() => expect(calls("GET", TASKS_URL)).toHaveLength(2));
+    expect(tagsOf("Tile the wall")).toEqual(["Salon"]);
+    expect(tagsOf("Seal the bath")).toEqual(["Kuchnia"]);
+  });
+
+  it("puts a refused tick back with the row message", async () => {
+    handlers.set(`DELETE ${tickUrl(seal.id, kuchnia.id)}`, () =>
+      fail(500, "internal_error", "Something went wrong"),
+    );
+    await renderLoaded();
+
+    await openPlaces("Seal the bath");
+    await click(picker().getByRole("checkbox", { name: "Kuchnia" }));
+
+    await waitFor(() =>
+      expect(alertOf("Seal the bath")).toBe(
+        "Could not save “Seal the bath”. It is back as it was.",
+      ),
+    );
+    expect(tagsOf("Seal the bath")).toEqual(["Kuchnia"]);
+  });
+
+  it("says a tick went back when its place was deleted elsewhere, and refetches the places", async () => {
+    handlers.set(`PUT ${tickUrl(tile.id, salon.id)}`, () => {
+      serverPlaces = [kuchnia];
+      return fail(404, "not_found", "Place not found");
+    });
+    await renderLoaded();
+
+    await openPlaces("Tile the wall");
+    await click(picker().getByRole("checkbox", { name: "Salon" }));
+
+    await waitFor(() =>
+      expect(alertOf("Tile the wall")).toBe(
+        "Could not save “Tile the wall”. It is back as it was.",
+      ),
+    );
+    await waitFor(() => expect(calls("GET", "/api/places")).toHaveLength(2));
+    expect(tagsOf("Tile the wall")).toEqual([]);
+  });
+
+  it("shows no message for a tick whose place this tab deleted meanwhile (P9)", async () => {
+    const put = gate();
+    handlers.set(`PUT ${tickUrl(tile.id, salon.id)}`, () => put.promise);
+    const { client } = await renderLoaded();
+
+    await openPlaces("Tile the wall");
+    await click(picker().getByRole("checkbox", { name: "Salon" }));
+    await waitFor(() => expect(calls("PUT", tickUrl(tile.id, salon.id))).toHaveLength(1));
+    act(() => client.setQueryData(queryKeys.places(), [kuchnia]));
+    serverPlaces = [kuchnia];
+    await act(async () => put.open(fail(404, "not_found", "Place not found")));
+
+    await waitFor(() => expect(calls("GET", "/api/places")).toHaveLength(2));
+    expect(alertOf("Tile the wall")).toBe("");
+    expect(tagsOf("Tile the wall")).toEqual([]);
+  });
+
+  it("treats a 404 about the task as deleted elsewhere", async () => {
+    handlers.set(`PUT ${tickUrl(tile.id, salon.id)}`, () => {
+      serverTasks = serverTasks.filter((task) => task.id !== tile.id);
+      return fail(404, "not_found", "Task not found");
+    });
+    await renderLoaded();
+
+    await openPlaces("Tile the wall");
+    await click(picker().getByRole("checkbox", { name: "Salon" }));
+
+    expect(
+      await screen.findByText("This task was deleted. The list has been refreshed."),
+    ).toBeDefined();
+  });
+
+  it("creates a place and ticks it, and keeps a refused name under the field (AC4, AC5)", async () => {
+    const jadalnia: PlaceView = { id: crypto.randomUUID(), name: "Jadalnia", color: 9 };
+    handlers.set("POST /api/places", (body) => {
+      if ((body as { name: string }).name === "Taken") {
+        return fail(409, "conflict", "A place with this name already exists.");
+      }
+      serverPlaces = [...serverPlaces, jadalnia];
+      return ok(jadalnia);
+    });
+    handlers.set(`PUT ${tickUrl(tile.id, jadalnia.id)}`, () =>
+      saved({ ...tile, places: [jadalnia] }),
+    );
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+
+    type(picker().getByRole("textbox", { name: "New place" }), "Taken");
+    await pressIn("Create");
+    expect(await picker().findByText("A place with this name already exists.")).toBeDefined();
+
+    type(picker().getByRole("textbox", { name: "New place" }), "Jadalnia");
+    await pressIn("Create");
+    await waitFor(() => expect(tagsOf("Tile the wall")).toEqual(["Jadalnia"]));
+    expect(picker().getByRole("checkbox", { name: "Jadalnia" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+  });
+
+  it("checks a new name against the cached places before sending (AC5)", async () => {
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+
+    type(picker().getByRole("textbox", { name: "New place" }), "kuchnia");
+    await pressIn("Create");
+
+    expect(await picker().findByText("A place with this name already exists.")).toBeDefined();
+    expect(calls("POST", "/api/places")).toHaveLength(0);
+  });
+
+  it("shows a failed create above the form", async () => {
+    handlers.set("POST /api/places", () => fail(500, "internal_error", "Something went wrong"));
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+
+    type(picker().getByRole("textbox", { name: "New place" }), "Jadalnia");
+    await pressIn("Create");
+
+    expect(await picker().findByText("Could not create the place. Try again.")).toBeDefined();
+  });
+
+  it("renames a place on every row holding it, and shows a failed save (AC6)", async () => {
+    let answer = () => ok({ ...kuchnia, name: "Aneks" });
+    handlers.set(`PATCH ${placeUrl(kuchnia.id)}`, () => answer());
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+    await pressIn("Edit places");
+    await pressIn("Edit Kuchnia");
+
+    answer = () => fail(500, "internal_error", "Something went wrong");
+    type(picker().getByRole("textbox", { name: "Name" }), "Aneks");
+    await pressIn("Save");
+    expect(await picker().findByText("Could not save the place. Try again.")).toBeDefined();
+
+    answer = () => ok({ ...kuchnia, name: "Aneks" });
+    await pressIn("Save");
+    await waitFor(() => expect(tagsOf("Seal the bath")).toEqual(["Aneks"]));
+    expect(sent("PATCH", placeUrl(kuchnia.id))).toEqual({ name: "Aneks" });
+    expect(calls("GET", TASKS_URL)).toHaveLength(1);
+  });
+
+  it("deletes a place from every row after asking (AC7)", async () => {
+    handlers.set(`DELETE ${placeUrl(kuchnia.id)}`, () => ok(null));
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+    await pressIn("Edit places");
+    await pressIn("Edit Kuchnia");
+    await pressIn("Delete place");
+    await pressIn("Delete place");
+
+    await waitFor(() => expect(tagsOf("Seal the bath")).toEqual([]));
+    expect(calls("DELETE", placeUrl(kuchnia.id))).toHaveLength(1);
+  });
+
+  it("shows the limit instead of New place at 20 places (AC10)", async () => {
+    serverPlaces = Array.from({ length: 20 }, (_, index) => ({
+      id: crypto.randomUUID(),
+      name: `Place ${index + 1}`,
+      color: (index % 10) + 1,
+    }));
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+
+    expect(
+      picker().getByText("You can have up to 20 places. Delete one to add another."),
+    ).toBeDefined();
+    expect(picker().queryByRole("textbox", { name: "New place" })).toBeNull();
+  });
+
+  it("shows loading, then a failure with Try again that loads the places (P-1)", async () => {
+    const first = gate();
+    let load = () => first.promise;
+    handlers.set("GET /api/places", () => load());
+    await renderLoaded();
+    await openPlaces("Tile the wall");
+    expect(picker().getByRole("status").textContent).toBe("Loading your places…");
+
+    await act(async () => first.open(fail(500, "internal_error", "Something went wrong")));
+    expect(await picker().findByText("Could not load your places.")).toBeDefined();
+    expect(picker().queryByText("No places yet.")).toBeNull();
+    expect(picker().queryByRole("textbox", { name: "New place" })).toBeNull();
+    // The task list keeps working.
+    expect(tagsOf("Seal the bath")).toEqual(["Kuchnia"]);
+
+    const second = gate();
+    load = () => second.promise;
+    await pressIn("Try again");
+    expect(picker().getByRole("button", { name: "Trying again…" })).toBeDefined();
+    await act(async () => second.open(ok(serverPlaces)));
+    expect(await picker().findByRole("checkbox", { name: "Salon" })).toBeDefined();
   });
 });
 

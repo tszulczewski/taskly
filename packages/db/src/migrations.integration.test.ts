@@ -165,6 +165,9 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
     const admin = new Pool({ connectionString: url, max: 1 });
     let client: Client;
     let upTo0001: string;
+    // Stops at 0002: the migrator applies only entries newer than the last applied one, so after
+    // the 0002 down SQL a recorded 0003 would keep 0002 from being applied again.
+    let upTo0002: string;
 
     const query = async <T extends object>(text: string, values: unknown[] = []) =>
       (await client.query<T>(text, values)).rows;
@@ -176,6 +179,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       client = new Client({ connectionString: target.toString() });
       await client.connect();
       upTo0001 = await migrationsUpTo(2);
+      upTo0002 = await migrationsUpTo(3);
       await migrate(drizzle(client), { migrationsFolder: upTo0001 });
 
       await query(
@@ -205,6 +209,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
       await admin.end();
       if (upTo0001) await rm(upTo0001, { recursive: true, force: true });
+      if (upTo0002) await rm(upTo0002, { recursive: true, force: true });
     });
 
     it("keeps every task and leaves them unmarked", async () => {
@@ -213,7 +218,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       const before = await query(`SELECT ${columns} FROM tasks ORDER BY id`);
       expect(before).toHaveLength(2);
 
-      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      await migrate(drizzle(client), { migrationsFolder: upTo0002 });
 
       expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
       expect(await query(`SELECT important, urgent FROM tasks ORDER BY id`)).toEqual([
@@ -227,7 +232,7 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
 
     it("rolls back with the down SQL of the run log, keeping every task, and applies again", async () => {
       const columns = `id, title, status, position, estimate_min_grosze, estimate_max_grosze`;
-      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      await migrate(drizzle(client), { migrationsFolder: upTo0002 });
       await query(
         `UPDATE tasks SET important = true WHERE id = '30000000-0000-4000-8000-000000000001'`,
       );
@@ -252,11 +257,114 @@ describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
       ).toEqual([]);
 
       // Markers set before the rollback are lost: the accepted cost of the down migration.
-      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      await migrate(drizzle(client), { migrationsFolder: upTo0002 });
       expect(await query(`SELECT important, urgent FROM tasks ORDER BY id`)).toEqual([
         { important: false, urgent: false },
         { important: false, urgent: false },
       ]);
+    });
+  },
+);
+
+describe.skipIf(!url || process.env.TEST_DATABASE_URL !== undefined)(
+  "migration 0003 on a database with 0002 data (Testcontainers only)",
+  () => {
+    const name = `taskly_upgrade_${randomBytes(6).toString("hex")}`;
+    const admin = new Pool({ connectionString: url, max: 1 });
+    let client: Client;
+    let upTo0002: string;
+
+    const query = async <T extends object>(text: string, values: unknown[] = []) =>
+      (await client.query<T>(text, values)).rows;
+
+    beforeAll(async () => {
+      await admin.query(`CREATE DATABASE "${name}"`);
+      const target = new URL(url!);
+      target.pathname = `/${name}`;
+      client = new Client({ connectionString: target.toString() });
+      await client.connect();
+      upTo0002 = await migrationsUpTo(3);
+      await migrate(drizzle(client), { migrationsFolder: upTo0002 });
+
+      await query(
+        `INSERT INTO "user" (id, name, email) VALUES ('m3-u1', 'Owner', 'm3@example.test')`,
+      );
+      await query(
+        `INSERT INTO lists (id, name, default_for_user_id) VALUES
+          ('20000000-0000-4000-8000-000000000003', 'My renovation', 'm3-u1')`,
+      );
+      await query(
+        `INSERT INTO list_members (list_id, user_id, role) VALUES
+          ('20000000-0000-4000-8000-000000000003', 'm3-u1', 'owner')`,
+      );
+      await query(
+        `INSERT INTO tasks (id, list_id, parent_id, title, status, position, important, urgent)
+        VALUES
+          ('30000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000003', NULL,
+            'Curtain rod', 'todo', 'a0', true, false),
+          ('30000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000003',
+            '30000000-0000-4000-8000-000000000003', 'Drill', 'done', 'a0', false, true)`,
+      );
+    });
+
+    afterAll(async () => {
+      await client?.end();
+      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
+      await admin.end();
+      if (upTo0002) await rm(upTo0002, { recursive: true, force: true });
+    });
+
+    const columns = `id, list_id, parent_id, title, status, position, important, urgent, created_at`;
+
+    it("keeps every task and seeds no places: a user from before has none until first use", async () => {
+      const before = await query(`SELECT ${columns} FROM tasks ORDER BY id`);
+      expect(before).toHaveLength(2);
+
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+
+      expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
+      expect(await query(`SELECT * FROM place_owners`)).toEqual([]);
+      expect(await query(`SELECT * FROM places`)).toEqual([]);
+      expect(await query(`SELECT * FROM task_places`)).toEqual([]);
+    });
+
+    it("rolls back with the down SQL of the run log, keeping every task, and applies again", async () => {
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      await query(`INSERT INTO place_owners (user_id) VALUES ('m3-u1')`);
+      const [place] = await query<{ id: string }>(
+        `INSERT INTO places (user_id, name, name_key, color, position)
+          VALUES ('m3-u1', 'Salon', 'salon', 1, 'a0') RETURNING id`,
+      );
+      await query(
+        `INSERT INTO task_places (task_id, place_id)
+          VALUES ('30000000-0000-4000-8000-000000000003', $1)`,
+        [place!.id],
+      );
+      const before = await query(`SELECT ${columns} FROM tasks ORDER BY id`);
+      const hash = createHash("sha256")
+        .update(await readFile(join(MIGRATIONS, "0003_places.sql")))
+        .digest("hex");
+
+      // The down SQL in `.ai/runs/2026-11-12-e02-phase2-places.md`.
+      await query(`BEGIN`);
+      await query(`DROP TABLE "task_places"`);
+      await query(`DROP TABLE "places"`);
+      await query(`DROP TABLE "place_owners"`);
+      await query(`DELETE FROM "drizzle"."__drizzle_migrations" WHERE "hash" = $1`, [hash]);
+      await query(`COMMIT`);
+
+      expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
+      expect(
+        await query(
+          `SELECT table_name FROM information_schema.tables
+            WHERE table_name IN ('places', 'task_places', 'place_owners')`,
+        ),
+      ).toEqual([]);
+
+      // Places entered before the rollback are lost: the accepted cost of the down migration.
+      await migrate(drizzle(client), { migrationsFolder: MIGRATIONS });
+      expect(await query(`SELECT ${columns} FROM tasks ORDER BY id`)).toEqual(before);
+      expect(await query(`SELECT * FROM places`)).toEqual([]);
     });
   },
 );

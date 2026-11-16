@@ -4,6 +4,11 @@ import type { PlaceColor } from "./types";
 export interface PlaceText {
   placesFor: (title: string) => string;
   noPlaces: string;
+  /** Read out while the places load (the skeleton itself is hidden). */
+  loading: string;
+  loadFailed: string;
+  retry: string;
+  retrying: string;
   newPlace: string;
   create: string;
   creating: string;
@@ -30,6 +35,10 @@ export interface PlaceText {
 export const defaultPlaceText: PlaceText = {
   placesFor: (title) => `Places for “${title}”`,
   noPlaces: "No places yet.",
+  loading: "Loading your places…",
+  loadFailed: "Could not load your places.",
+  retry: "Try again",
+  retrying: "Trying again…",
   newPlace: "New place",
   create: "Create",
   creating: "Creating…",

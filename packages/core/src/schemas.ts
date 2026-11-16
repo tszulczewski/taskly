@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_ESTIMATE_GROSZE } from "./money";
+import { placeViewSchema } from "./place-rules";
 
 export const roleSchema = z.enum(["owner", "editor", "viewer"]);
 export type Role = z.infer<typeof roleSchema>;
@@ -94,6 +95,18 @@ export type CompletionInput = z.infer<typeof completionInput>;
 /** The 409 for a subtask added under a completed task (spec E03, Q3); the app recognizes it. */
 export const TASK_COMPLETED_MESSAGE = "Task is completed";
 
+/**
+ * `PUT /api/tasks/[taskId]/position` (spec E02, #17): the moved row's new neighbours among its open
+ * siblings (null is an end of the group); only these are sent, never a whole order.
+ */
+export const moveTaskInput = z.strictObject({
+  afterId: z.uuid().nullable(),
+  beforeId: z.uuid().nullable(),
+});
+export type MoveTaskInput = z.infer<typeof moveTaskInput>;
+/** A move whose neighbours are no longer adjacent open siblings (409). */
+export const LIST_CHANGED_MESSAGE = "The list changed. Try again.";
+
 // Response shapes: no defaults (a missing field fails), and unknown fields are accepted (stripped)
 // so an older client keeps working against a newer server.
 export const subtaskViewSchema = z.object({
@@ -105,6 +118,11 @@ export const subtaskViewSchema = z.object({
   /** The row's own markers; a task's and its subtasks' are independent (D21). */
   important: z.boolean(),
   urgent: z.boolean(),
+  /**
+   * The row's own places (D21), in the places' order; a place of the list's owner (Q3). Readers
+   * of the list see them through the task, whoever owns them.
+   */
+  places: z.array(placeViewSchema),
   /**
    * The stored fractional key: opaque to the client, only compared bytewise (JS `<` on these
    * ASCII keys equals `COLLATE "C"`), never sent back.

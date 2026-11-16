@@ -6,6 +6,7 @@ export * from "./types";
 export * from "./access";
 export * from "./lists";
 export * from "./tasks";
+export * from "./places";
 export * from "./shopping";
 export * from "./invitations";
 export * from "./futureExpensesService";

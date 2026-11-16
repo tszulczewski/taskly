@@ -1,12 +1,14 @@
 "use client";
 
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { ErrorState } from "../../components/error-state";
 import { FormField } from "../../components/form-field";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Skeleton } from "../../components/ui/skeleton";
 import { TextAction } from "../../components/ui/text-action";
 import { useForm, type SubmitResult } from "../../lib/use-form";
 import { PlaceColorPicker } from "./place-color-picker";
@@ -24,7 +26,19 @@ export type NewPlaceValues = Pick<PlaceValues, "name">;
 
 export type PlaceSubmit = (values: NewPlaceValues) => Promise<SubmitResult<"name">>;
 
-export interface PlacePickerProps {
+/**
+ * Whether the owner's places have loaded (spec E02, F2). Only `ready` shows the places, "New place"
+ * and "Edit places", so a list that has not arrived never reads as "No places yet.". `loading`
+ * shows a skeleton; `error` the failure with "Try again" (`onRetry`), kept on screen with
+ * "Trying again…" while `retrying`.
+ */
+export interface PlacesState {
+  status: "loading" | "error" | "ready";
+  onRetry: () => void;
+  retrying?: boolean;
+}
+
+export interface PlacePickerProps extends PlacesState {
   /** The task whose places are chosen; names the panel. */
   taskTitle: string;
   /** Every place of the owner, the predefined ones included (D26). */
@@ -35,7 +49,8 @@ export interface PlacePickerProps {
   onToggle: (placeId: string, assigned: boolean) => void;
   /** Creates a place, coloured by the app, and adds this task to it. */
   onCreate: PlaceSubmit;
-  onUpdate: (placeId: string, values: PlaceValues) => Promise<SubmitResult<"name">>;
+  /** Only fields changed from the values when the edit opened; unchanged saves do not write. */
+  onUpdate: (placeId: string, values: Partial<PlaceValues>) => Promise<SubmitResult<"name">>;
   /** Deletes a place everywhere; resolve `false` (or throw) to show the failure. */
   onDelete: (placeId: string) => Promise<boolean>;
   /** The app's name rules (not empty, at most 30 characters, unique ignoring case, G4, D26); `placeId` when renaming. */
@@ -131,6 +146,7 @@ function EditPlace({
   validateName: PlacePickerProps["validateName"];
   t: PlaceText;
 }) {
+  const [opened] = useState(place);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(false);
@@ -165,12 +181,19 @@ function EditPlace({
     <div className="flex flex-col gap-between-groups border-y border-divider py-group">
       <PlaceForm
         placeId={place.id}
-        initialName={place.name}
+        initialName={opened.name}
         nameLabel={t.name}
         submitLabel={t.save}
         pendingLabel={t.saving}
         onSubmit={async (name) => {
-          const result = await onUpdate(place.id, { name, color });
+          // A stale form must not overwrite a field edited elsewhere or refreshed while open.
+          const changes: Partial<PlaceValues> = {};
+          if (name !== opened.name) changes.name = name;
+          if (color !== opened.color) changes.color = color;
+          const result =
+            Object.keys(changes).length === 0
+              ? { ok: true as const }
+              : await onUpdate(place.id, changes);
           if (result.ok) onClose();
           return result;
         }}
@@ -219,7 +242,71 @@ function EditPlace({
  * owner starts with the predefined places; the app colours a new one and allows up to 20 (D26).
  * Shown in a popover from the row's "…" menu.
  */
-export function PlacePicker({
+export function PlacePicker(props: PlacePickerProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const retried = useRef(false);
+  const ready = props.status === "ready";
+
+  // "Try again" goes with the failure, so once the places arrive the first one takes the focus
+  // (or "New place" when there are none), not the page (WCAG 2.4.3).
+  useLayoutEffect(() => {
+    if (!ready || !retried.current) return;
+    retried.current = false;
+    rootRef.current?.querySelector<HTMLElement>('[role="checkbox"], input')?.focus();
+  }, [ready]);
+
+  const retry = () => {
+    retried.current = true;
+    props.onRetry();
+  };
+
+  return (
+    <div ref={rootRef} className="contents">
+      {ready ? <ReadyPicker {...props} /> : <PlacesNotReady {...props} onRetry={retry} />}
+    </div>
+  );
+}
+
+/** The skeleton of three place rows (U2), or the failure with "Try again" (F2, P-1). */
+function PlacesNotReady({ taskTitle, text, status, onRetry, retrying }: PlacePickerProps) {
+  const t = { ...defaultPlaceText, ...text };
+  const id = useId();
+  return (
+    <div
+      data-slot="place-picker"
+      aria-busy={status === "loading" || undefined}
+      className="flex flex-col gap-between-groups"
+    >
+      <p id={`${id}-title`} className="font-strong">
+        {t.placesFor(taskTitle)}
+      </p>
+      {status === "error" ? (
+        <ErrorState
+          title={t.loadFailed}
+          onRetry={onRetry}
+          retrying={retrying}
+          retryLabel={t.retry}
+          retryingLabel={t.retrying}
+        />
+      ) : (
+        <>
+          <ul aria-hidden="true" className="flex flex-col gap-inline">
+            {[1, 2, 3].map((row) => (
+              <li key={row} className="flex min-h-touch items-center">
+                <Skeleton className="w-2/3 bg-list" />
+              </li>
+            ))}
+          </ul>
+          <span role="status" className="sr-only">
+            {t.loading}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ReadyPicker({
   taskTitle,
   places,
   selectedIds,

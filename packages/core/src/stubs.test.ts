@@ -10,7 +10,6 @@ import {
   listShoppingItems,
   setShoppingItemChecked,
 } from "./shopping";
-import { moveTask } from "./tasks";
 import type { Db } from "./types";
 
 const db = {} as Db;
@@ -25,7 +24,6 @@ const calls: Array<[string, () => Promise<unknown>]> = [
   ["deleteShoppingItem", () => deleteShoppingItem(db, "u", "i")],
   ["listShoppingItems", () => listShoppingItems(db, "u", "l")],
   ["setShoppingItemChecked", () => setShoppingItemChecked(db, "u", "i", true)],
-  ["moveTask", () => moveTask(db, "u", "t", { afterId: null, beforeId: null })],
 ];
 
 describe("service stubs", () => {
