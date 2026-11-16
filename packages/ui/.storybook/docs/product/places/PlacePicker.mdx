@@ -18,6 +18,7 @@ Puts a task or subtask in one or more places, such as "Łazienka" and "Przedpok�
 ## 2. When to use
 
 - In the popover that "Places…" in a row's "…" menu opens (decision G3). `TaskRow` renders it when it gets `places`.
+- In the popover of "Places…" in `QuickAdd`, for the task still being written (spec E02, #83): ticks change only the draft, New place creates the place and ticks it there, and nothing is saved on a task until Add. The panel is named "Places for the new task" (or "… subtask").
 
 ## 3. When not to use
 

@@ -38,6 +38,8 @@ Captures a task in one row, before it is forgotten: the title, the estimate besi
 | Add         | yes      | Primary `Button` at the end of the row; "Adding…" with a spinner while sending                                              |
 | Description | optional | Muted `TextAction` "Description" with an arrow under the row; opens the field in place (W4)                                 |
 | Cancel      | subtask  | Muted `TextAction` beside "Description"; Escape does the same                                                               |
+| Places      | optional | With `places`: muted `TextAction` "Places…" beside "Description", opening `PlacePicker` in a popover (spec E02, #83)        |
+| Chosen      | optional | The chosen places as `PlaceTag`s beside it; a chosen place deleted meanwhile shows "Deleted place" with Remove              |
 
 ## 5. Variants
 
@@ -67,6 +69,10 @@ Each state is a story with a play function that reaches it.
 | Pending                     | Spinner and "Adding…"; a second Enter sends nothing.                                         | Pending                     | spec E01               |
 | Add failed                  | The message above the form; what was typed stays.                                            | Add Failed                  | spec E01, rollback     |
 | No network                  | "Something went wrong. Try again."                                                           | Offline                     | spec E01, Edge cases   |
+| With places                 | Places ticked in "Places…" show beside it; Add sends them; the next task starts with none.   | With Places                 | #83 AC11, AC14         |
+| Places loading              | The picker shows a skeleton and no New place; Add still works without places.                | Places Loading              | #83 AC15               |
+| Places load failed          | The picker shows "Could not load your places." with "Try again".                             | Places Load Failed          | #83 AC15               |
+| Chosen place deleted        | "Deleted place" with Remove; Add asks to remove it first and sends nothing.                  | Deleted Place               | #83 AC18               |
 
 Loading and many items do not apply. Disabled does not exist: the form is always ready.
 
@@ -78,6 +84,7 @@ Loading and many items do not apply. Disabled does not exist: the form is always
 ## 7. Behaviour and accessibility
 
 - **Keyboard:** title → Amount → up to → Add → Description (→ description; Cancel for a subtask). Enter in any one-line field submits. Covered by the Playground test.
+- **Places:** "Places…" opens the picker; closing it (Escape) returns focus to "Places…". The picker's own forms and keys never submit or cancel the quick add. While a new place is being created, Add, Cancel and Escape wait for it, and ticks are ignored while the task is being added (#83 AC17).
 - **After an add:** the field clears and focus stays in it (spec E01). The form counts as added only after the server confirmed, so a refused add keeps what was typed (decision F2).
 - **Errors:** linked with `aria-describedby`; the form error is announced (`role="alert"`). A description with an error keeps Description open (decision F9).
 - **Estimate:** a `fieldset` with the legend "Estimate (optional)", so a screen reader hears the group before "Amount" and "up to". One amount is an exact price; both, a range; neither, no estimate (R18, R10).
@@ -110,7 +117,7 @@ Loading and many items do not apply. Disabled does not exist: the form is always
 
 <ArgTypes of={Stories} />
 
-`validate` applies the shared schema (`taskFields`, `parsePlnToGrosze`); `onSubmit` sends the typed text and the app converts amounts to grosze (P1).
+`validate` applies the shared schema (`taskFields`, `parsePlnToGrosze`); `onSubmit(values, placeIds)` sends the typed text and, apart from it, the chosen places' ids; the app converts amounts to grosze (P1). `places` (`DraftPlaces`) is the catalog: `onCreate` creates a place without adding any task to it and answers its id.
 
 ## 11. Code
 

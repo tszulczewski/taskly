@@ -35,7 +35,7 @@ import type { Place } from "../places/types";
 import { DragHandle } from "./drag-handle";
 import { EstimateRange } from "./estimate-range";
 import { Markers } from "./markers";
-import { QuickAdd } from "./quick-add";
+import { type DraftPlaces, QuickAdd } from "./quick-add";
 import { SortableGroup, rowMove, type MovePosition, type RowMove } from "./sortable";
 import { SubtaskProgress } from "./subtask-progress";
 import { TaskCheckbox } from "./task-checkbox";
@@ -43,7 +43,12 @@ import { TaskForm } from "./task-form";
 import { defaultTaskText, type TaskText } from "./text";
 import type { Marker, TaskField, TaskFieldErrors, TaskFormValues, TaskItem } from "./types";
 
-export type TaskChange = (id: string, values: TaskFormValues) => Promise<SubmitResult<TaskField>>;
+/** Adds a subtask under the task `id`, with the places chosen for it (spec E02, #83). */
+export type TaskChange = (
+  id: string,
+  values: TaskFormValues,
+  placeIds: string[],
+) => Promise<SubmitResult<TaskField>>;
 /**
  * Saves an edit. `opened` is the task as it was when the form opened, which is what the form was
  * prefilled with, so the app can send only what the user changed even if the task was refetched
@@ -67,9 +72,16 @@ export interface PlaceOptions extends PlacesState {
   onToggle: (taskId: string, placeId: string, assigned: boolean) => void;
   /** Creates a place, coloured by the app (D26), and adds the task to it. */
   onCreate: (taskId: string, values: NewPlaceValues) => Promise<SubmitResult<"name">>;
+  /** Creates a place for a subtask's quick add, which selects it; no task is added to it (#83). */
+  onCreateForDraft: DraftPlaces["onCreate"];
   onUpdate: (placeId: string, values: Partial<PlaceValues>) => Promise<SubmitResult<"name">>;
   onDelete: (placeId: string) => Promise<boolean>;
   text?: Partial<PlaceText>;
+}
+
+/** The catalog as a subtask's quick add uses it: nothing there touches a saved task. */
+function toDraftPlaces({ onToggle: _, onCreate: __, onCreateForDraft, ...rest }: PlaceOptions) {
+  return { ...rest, onCreate: onCreateForDraft } satisfies DraftPlaces;
 }
 
 export interface TaskRowProps {
@@ -580,8 +592,9 @@ export function TaskRow({
               {addingSubtask ? (
                 <QuickAdd
                   validate={validate}
-                  onSubmit={async (values) => {
-                    const result = await addSubtask(task.id, values);
+                  places={places && toDraftPlaces(places)}
+                  onSubmit={async (values, placeIds) => {
+                    const result = await addSubtask(task.id, values, placeIds);
                     // One subtask per opening; "Add subtask" takes focus for the next (decision F7).
                     if (result.ok) closeAddSubtask();
                     return result;

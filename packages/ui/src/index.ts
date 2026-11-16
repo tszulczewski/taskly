@@ -68,12 +68,18 @@ export type {
   TaskField,
   TaskFieldErrors,
   TaskFormValues,
+  TaskAdd,
   TaskItem,
   TaskSubmit,
 } from "./product/tasks/types";
 export { defaultTaskText, type TaskText } from "./product/tasks/text";
 export { EstimateRange, type EstimateRangeProps } from "./product/tasks/estimate-range";
-export { QuickAdd, type QuickAddProps } from "./product/tasks/quick-add";
+export {
+  QuickAdd,
+  type DraftPlaces,
+  type PlaceCreateResult,
+  type QuickAddProps,
+} from "./product/tasks/quick-add";
 export { TaskForm, type TaskFormProps } from "./product/tasks/task-form";
 export {
   TaskRow,

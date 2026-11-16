@@ -9,6 +9,7 @@ import {
   type Marker,
   type MovePosition,
   type Place,
+  type DraftPlaces,
   type PlaceOptions,
   type PlaceText,
   type NewPlaceValues,
@@ -166,6 +167,7 @@ export function TaskScreen({
   const add = async (
     parentId: string | null,
     values: TaskFormValues,
+    placeIds: string[],
   ): Promise<SubmitResult<TaskField>> => {
     nextId.current += 1;
     const tempId = `temp-${nextId.current}`;
@@ -175,7 +177,10 @@ export function TaskScreen({
       parent !== undefined &&
       (parent.subtasks ?? []).every((subtask) => subtask.pending) &&
       rollUp(parent).estimate !== null;
-    const pendingRow = { ...fromValues(tempId, values), pending: true };
+    // The places chosen in quick add, in the places' order (spec E02, #83).
+    const chosen = places.filter((place) => placeIds.includes(place.id));
+    const withPlaces = (id: string) => ({ ...fromValues(id, values), places: chosen });
+    const pendingRow = { ...withPlaces(tempId), pending: true };
     const append = (list: TaskItem[]) =>
       parentId === null
         ? [...list, pendingRow]
@@ -192,7 +197,7 @@ export function TaskScreen({
     const id = `new-${nextId.current}`;
     setTasks((list) =>
       mapTasks(list, (item) => {
-        if (item.id === tempId) return fromValues(id, values);
+        if (item.id === tempId) return withPlaces(id);
         if (startsSum && item.id === parentId) {
           return { ...item, notice: taskMessages.sumStarted(item.title) };
         }
@@ -297,6 +302,18 @@ export function TaskScreen({
       return { ...item, places: on ? [...rest, place] : rest };
     });
 
+  const createPlace = async (values: NewPlaceValues): Promise<Place | null> => {
+    if (!(await confirmed())) return null;
+    nextId.current += 1;
+    const place: Place = {
+      id: `place-${nextId.current}`,
+      name: values.name.trim(),
+      color: nextPlaceColor(places),
+    };
+    setPlaces((list) => [...list, place]);
+    return place;
+  };
+
   const placeOptions: PlaceOptions = {
     status: "ready",
     onRetry: () => undefined,
@@ -308,16 +325,15 @@ export function TaskScreen({
       if (place) void optimistic(taskId, assign(taskId, place, on), taskMessages.changeFailed);
     },
     onCreate: async (taskId, values: NewPlaceValues) => {
-      if (!(await confirmed())) return { ok: false, formError: placeMessages.createFailed };
-      nextId.current += 1;
-      const place: Place = {
-        id: `place-${nextId.current}`,
-        name: values.name.trim(),
-        color: nextPlaceColor(places),
-      };
-      setPlaces((list) => [...list, place]);
+      const place = await createPlace(values);
+      if (place === null) return { ok: false, formError: placeMessages.createFailed };
       setTasks(assign(taskId, place, true));
       return { ok: true };
+    },
+    onCreateForDraft: async (values) => {
+      const place = await createPlace(values);
+      if (place === null) return { ok: false, formError: placeMessages.createFailed };
+      return { ok: true, placeId: place.id };
     },
     onUpdate: async (placeId, values) => {
       if (!(await confirmed())) return { ok: false, formError: placeMessages.saveFailed };
@@ -349,6 +365,8 @@ export function TaskScreen({
     text: placeText,
   };
   const organized = initialPlaces !== undefined;
+  const { onToggle: _, onCreate: __, onCreateForDraft, ...catalog } = placeOptions;
+  const draftPlaces: DraftPlaces = { ...catalog, onCreate: onCreateForDraft };
 
   const retry = async () => {
     setRetrying(true);
@@ -381,7 +399,8 @@ export function TaskScreen({
       )}
       <QuickAdd
         validate={validateTask}
-        onSubmit={(values) => add(null, values)}
+        onSubmit={(values, placeIds) => add(null, values, placeIds)}
+        {...(organized ? { places: draftPlaces } : {})}
         autoFocus={autoFocus}
         text={text}
       />
@@ -392,7 +411,7 @@ export function TaskScreen({
         retrying={retrying}
         validate={validateTask}
         onEdit={edit}
-        onAddSubtask={(parentId, values) => add(parentId, values)}
+        onAddSubtask={(parentId, values, placeIds) => add(parentId, values, placeIds)}
         onDelete={remove}
         highlightId={highlightId}
         {...(organized ? { onMove: move, onToggleMarker: toggleMarker, places: placeOptions } : {})}
