@@ -13,9 +13,10 @@ import {
   type TaskEdit,
   type TaskField,
   TaskList,
+  toDraftPlaces,
   type TaskFormValues,
   type TaskItem,
-  type TaskSubmit,
+  type TaskAdd,
 } from "@taskly/ui";
 import { useLayoutEffect, useRef, useState } from "react";
 import { PLACE_LIMIT, placeNameError, type PlaceView, TASK_COMPLETED_MESSAGE } from "@taskly/core";
@@ -187,14 +188,17 @@ export function TaskListScreen({ listId }: { listId: string }) {
     setEstimateRefused(null);
   };
 
-  const add: TaskSubmit = async (values) => {
+  // A chosen place deleted meanwhile: the draft keeps everything, and the refetched places show
+  // which one is gone (spec E02, #83 AC18).
+  const add: TaskAdd = async (values, placeIds) => {
     startChange();
-    const input = toCreateInput(values);
+    const input = toCreateInput(values, null, placeIds);
     try {
       const task = await createTask.mutateAsync(input);
       setHighlightId(task.id);
       return { ok: true };
     } catch (error) {
+      if (isPlaceNotFound(error)) return { ok: false, formError: TASK_SCREEN_TEXT.placeGone };
       return submitError(error, values, TASK_SCREEN_TEXT.addFailed);
     }
   };
@@ -202,11 +206,12 @@ export function TaskListScreen({ listId }: { listId: string }) {
   const addSubtask = async (
     parentId: string,
     values: TaskFormValues,
+    placeIds: string[],
   ): Promise<SubmitResult<TaskField>> => {
     startChange();
     // The list as it is before the temporary subtask goes in: whether the parent had subtasks.
     const before = views;
-    const input = toCreateInput(values, parentId);
+    const input = toCreateInput(values, parentId, placeIds);
     try {
       const parent = await createTask.mutateAsync(input);
       const added = subtaskAdded(before, parent);
@@ -219,6 +224,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
         const text = TASK_SCREEN_TEXT.addToCompleted(input.title, titleOf(before, parentId));
         setNotice({ taskId: parentId, text });
       }
+      if (isPlaceNotFound(error)) return { ok: false, formError: TASK_SCREEN_TEXT.placeGone };
       if (!isNotFound(error)) return submitError(error, values, TASK_SCREEN_TEXT.addFailed);
       setGoneId(parentId);
       return { ok: false, formError: TASK_SCREEN_TEXT.deleted };
@@ -332,6 +338,15 @@ export function TaskListScreen({ listId }: { listId: string }) {
         return placeSubmitError(error, PLACE_TEXT.createFailed);
       }
     },
+    // A draft's new place: created and chosen in the form, on no task until Add (#83).
+    onCreateForDraft: async ({ name }) => {
+      try {
+        const place = await createPlace.mutateAsync(name);
+        return { ok: true, placeId: place.id };
+      } catch (error) {
+        return placeSubmitError(error, PLACE_TEXT.createFailed);
+      }
+    },
     onUpdate: async (placeId, values) => {
       try {
         await updatePlace.mutateAsync({ placeId, ...values });
@@ -375,7 +390,7 @@ export function TaskListScreen({ listId }: { listId: string }) {
         validate={validateEstimate}
         onAddEstimate={addEstimate}
       />
-      <QuickAdd validate={validateTaskForm} onSubmit={add} />
+      <QuickAdd validate={validateTaskForm} onSubmit={add} places={toDraftPlaces(placeOptions)} />
       {goneShown ? <Alert title={TASK_SCREEN_TEXT.deleted} /> : null}
       {refusedShown ? <Alert title={estimateRefused.text} /> : null}
       <div ref={listRef}>

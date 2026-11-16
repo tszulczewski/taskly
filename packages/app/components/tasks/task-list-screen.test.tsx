@@ -1831,6 +1831,185 @@ describe("TaskListScreen places (#19)", () => {
   });
 });
 
+describe("TaskListScreen places while adding (#83)", () => {
+  const salon: PlaceView = { id: crypto.randomUUID(), name: "Salon", color: 1 };
+  const kuchnia: PlaceView = { id: crypto.randomUUID(), name: "Kuchnia", color: 4 };
+  const jadalnia: PlaceView = { id: crypto.randomUUID(), name: "Jadalnia", color: 9 };
+  const rowOf = (title: string) =>
+    rows().find((row) => row.querySelector('[data-slot="task-title"]')?.textContent === title);
+  const tagsOf = (title: string) =>
+    Array.from(rowOf(title)?.querySelectorAll('[data-slot="place-tag"]') ?? []).map(
+      (tag) => tag.textContent,
+    );
+  const panel = () => within(screen.getByRole("dialog"));
+  const openDraftPicker = (scope = quickAdd()) =>
+    click(scope.getByRole("button", { name: "Places…" }));
+  const chosenIn = (scope = quickAdd()) =>
+    scope.queryByRole("list", { name: "Chosen places" })?.textContent ?? "";
+
+  beforeEach(() => {
+    serverPlaces = [salon, kuchnia];
+  });
+
+  it("adds a task with the places ticked, shows them on the pending row, then starts with none (AC11, AC14)", async () => {
+    const post = gate();
+    handlers.set(`POST ${TASKS_URL}`, () => post.promise);
+    await renderLoaded();
+
+    await openDraftPicker();
+    await click(panel().getByRole("checkbox", { name: "Kuchnia" }));
+    await click(panel().getByRole("checkbox", { name: "Salon" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    type(titleField(), "Lamp");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+
+    expect(sent("POST", TASKS_URL)).toEqual(
+      expect.objectContaining({ title: "Lamp", placeIds: [kuchnia.id, salon.id] }),
+    );
+    await waitFor(() => expect(tagsOf("Lamp")).toEqual(["Salon", "Kuchnia"]));
+    await act(async () => post.open(created(view("Lamp", { places: [salon, kuchnia] }))));
+    await waitFor(() => expect(chosenIn()).toBe(""));
+    expect(tagsOf("Lamp")).toEqual(["Salon", "Kuchnia"]);
+    expect(document.activeElement).toBe(titleField());
+  });
+
+  it("creates a place from the draft and saves it with the task, ticking no saved task (AC12)", async () => {
+    handlers.set("POST /api/places", () => {
+      serverPlaces = [...serverPlaces, jadalnia];
+      return ok(jadalnia);
+    });
+    handlers.set(`POST ${TASKS_URL}`, () => created(view("Table", { places: [jadalnia] })));
+    await renderLoaded();
+
+    await openDraftPicker();
+    type(panel().getByRole("textbox", { name: "New place" }), "Jadalnia");
+    await click(panel().getByRole("button", { name: "Create" }));
+    await waitFor(() => expect(chosenIn()).toBe("Jadalnia"));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    type(titleField(), "Table");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+
+    expect(sent("POST", "/api/places")).toEqual({ name: "Jadalnia" });
+    expect(sent("POST", TASKS_URL)).toEqual(
+      expect.objectContaining({ title: "Table", placeIds: [jadalnia.id] }),
+    );
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/places/"))).toBe(false);
+    await waitFor(() => expect(tagsOf("Table")).toEqual(["Jadalnia"]));
+  });
+
+  it("shows a refused new place under its name in the draft picker", async () => {
+    handlers.set("POST /api/places", () =>
+      fail(409, "conflict", "A place with this name already exists."),
+    );
+    await renderLoaded();
+
+    await openDraftPicker();
+    type(panel().getByRole("textbox", { name: "New place" }), "salon");
+    await click(panel().getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(panel().getByText("A place with this name already exists.")).toBeDefined(),
+    );
+    expect(chosenIn()).toBe("");
+  });
+
+  it("keeps the draft after 404 Place, refetches the places and shows the deleted one (AC14, AC18)", async () => {
+    let refused = true;
+    handlers.set(`POST ${TASKS_URL}`, () => {
+      if (!refused) return created(view("Lamp", { places: [salon] }));
+      serverPlaces = [salon];
+      return fail(404, "not_found", "Place not found");
+    });
+    await renderLoaded();
+
+    await openDraftPicker();
+    await click(panel().getByRole("checkbox", { name: "Salon" }));
+    await click(panel().getByRole("checkbox", { name: "Kuchnia" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    type(titleField(), "Lamp");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(quickAdd().getByRole("alert").textContent).toContain(
+        "A place you chose no longer exists. Check the places, then add again.",
+      ),
+    );
+    await waitFor(() => expect(calls("GET", "/api/places")).toHaveLength(2));
+    expect(titleField().value).toBe("Lamp");
+    expect(rowOf("Lamp")).toBeUndefined();
+    await waitFor(() => expect(chosenIn()).toContain("Deleted place"));
+
+    refused = false;
+    await click(quickAdd().getByRole("button", { name: "Remove the deleted place" }));
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+    expect(calls("POST", TASKS_URL)).toHaveLength(2);
+    expect(JSON.parse(String(calls("POST", TASKS_URL)[1]![1]!.body))).toEqual(
+      expect.objectContaining({ placeIds: [salon.id] }),
+    );
+    await waitFor(() => expect(tagsOf("Lamp")).toEqual(["Salon"]));
+  });
+
+  it("gives a subtask its own draft and says a place, not the task, is gone on 404 Place (AC13)", async () => {
+    serverTasks = [{ ...tile, places: [salon] }, seal];
+    let refused = true;
+    handlers.set(`POST ${TASKS_URL}`, (body) => {
+      if (refused) {
+        refused = false;
+        return fail(404, "not_found", "Place not found");
+      }
+      const { title } = body as { title: string };
+      const sub = { ...view(title), places: [kuchnia] };
+      return saved({ ...serverTasks[0]!, subtasks: [sub] });
+    });
+    const { cached } = await renderLoaded();
+
+    openMenu("Tile the wall");
+    await choose("Add subtask");
+    const subtaskForm = () =>
+      within(document.querySelectorAll<HTMLElement>('[data-slot="quick-add"]')[1]!);
+    await openDraftPicker(subtaskForm());
+    expect(screen.getByRole("dialog", { name: "Places for the new subtask" })).toBeDefined();
+    expect(panel().getByRole("checkbox", { name: "Salon" }).getAttribute("aria-checked")).toBe(
+      "false",
+    );
+    await click(panel().getByRole("checkbox", { name: "Kuchnia" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    type(subtaskForm().getByRole("textbox", { name: "New subtask" }), "Shelf");
+    await click(subtaskForm().getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(subtaskForm().getByRole("alert").textContent).toContain(
+        "A place you chose no longer exists.",
+      ),
+    );
+    expect(screen.queryByText("This task was deleted. The list has been refreshed.")).toBeNull();
+    await click(subtaskForm().getByRole("button", { name: "Add" }));
+    const bodies = calls("POST", TASKS_URL).map(([, init]) => JSON.parse(String(init!.body)));
+    expect(bodies.map((body) => [body.parentId, body.placeIds])).toEqual([
+      [tile.id, [kuchnia.id]],
+      [tile.id, [kuchnia.id]],
+    ]);
+    await waitFor(() => expect(tagsOf("Shelf")).toEqual(["Kuchnia"]));
+    // The parent keeps its own places; nothing was copied either way.
+    expect(cached()?.[0]?.places).toEqual([salon]);
+  });
+
+  it("still adds a task without places while the places fail to load (AC15)", async () => {
+    handlers.set("GET /api/places", () => fail(500, "internal_error", "Something went wrong"));
+    handlers.set(`POST ${TASKS_URL}`, () => created(view("Lamp")));
+    await renderLoaded();
+
+    await openDraftPicker();
+    await waitFor(() => expect(panel().getByText("Could not load your places.")).toBeDefined());
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    type(titleField(), "Lamp");
+    await click(quickAdd().getByRole("button", { name: "Add" }));
+
+    expect(sent("POST", TASKS_URL)).toEqual(expect.objectContaining({ placeIds: [] }));
+    await waitFor(() => expect(rowOf("Lamp")).toBeDefined());
+  });
+});
+
 describe("TaskListScreen future expenses", () => {
   const summary = () => document.querySelector<HTMLElement>('[data-slot="future-expenses"]');
   /** The total line as shown (NBSP kept), or null while there is none. */

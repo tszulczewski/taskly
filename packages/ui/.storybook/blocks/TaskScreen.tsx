@@ -3,13 +3,13 @@ import {
   FutureExpenses,
   QuickAdd,
   TaskList,
+  toDraftPlaces,
   type EstimateField,
   type EstimateValues,
   type ExpensesText,
   type Marker,
   type MovePosition,
   type Place,
-  type DraftPlaces,
   type PlaceOptions,
   type PlaceText,
   type NewPlaceValues,
@@ -365,8 +365,6 @@ export function TaskScreen({
     text: placeText,
   };
   const organized = initialPlaces !== undefined;
-  const { onToggle: _, onCreate: __, onCreateForDraft, ...catalog } = placeOptions;
-  const draftPlaces: DraftPlaces = { ...catalog, onCreate: onCreateForDraft };
 
   const retry = async () => {
     setRetrying(true);
@@ -400,7 +398,7 @@ export function TaskScreen({
       <QuickAdd
         validate={validateTask}
         onSubmit={(values, placeIds) => add(null, values, placeIds)}
-        {...(organized ? { places: draftPlaces } : {})}
+        {...(organized ? { places: toDraftPlaces(placeOptions) } : {})}
         autoFocus={autoFocus}
         text={text}
       />

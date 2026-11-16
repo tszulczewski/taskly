@@ -83,6 +83,7 @@ export {
 export { TaskForm, type TaskFormProps } from "./product/tasks/task-form";
 export {
   TaskRow,
+  toDraftPlaces,
   type PlaceOptions,
   type TaskChange,
   type TaskEdit,

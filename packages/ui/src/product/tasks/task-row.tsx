@@ -79,9 +79,14 @@ export interface PlaceOptions extends PlacesState {
   text?: Partial<PlaceText>;
 }
 
-/** The catalog as a subtask's quick add uses it: nothing there touches a saved task. */
-function toDraftPlaces({ onToggle: _, onCreate: __, onCreateForDraft, ...rest }: PlaceOptions) {
-  return { ...rest, onCreate: onCreateForDraft } satisfies DraftPlaces;
+/** The row's catalog as a quick add uses it (spec E02, #83): nothing there touches a saved task. */
+export function toDraftPlaces({
+  onToggle: _,
+  onCreate: __,
+  onCreateForDraft,
+  ...catalog
+}: PlaceOptions): DraftPlaces {
+  return { ...catalog, onCreate: onCreateForDraft };
 }
 
 export interface TaskRowProps {

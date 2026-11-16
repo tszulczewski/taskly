@@ -60,6 +60,8 @@ export const TASK_SCREEN_TEXT = {
   /** A subtask add refused because its task was completed meanwhile (spec E03, Q3). */
   addToCompleted: (title: string, taskTitle: string) =>
     `Could not add “${title}”. “${taskTitle}” is completed.`,
+  /** An add refused with 404 Place: a chosen place was deleted meanwhile (spec E02, #83). */
+  placeGone: "A place you chose no longer exists. Check the places, then add again.",
 } as const;
 
 type EstimateView = TaskView["estimate"];
@@ -168,17 +170,18 @@ export function validateTaskForm(values: TaskFormValues): TaskFieldErrors {
 }
 
 /**
- * What quick add sends (`createTaskInput`), or "Add subtask" with the parent's `parentId`. The
- * forms submit only text `validateTaskForm` accepted, so invalid text throws, which the form
+ * What quick add sends (`createTaskInput`), or "Add subtask" with the parent's `parentId`, with
+ * the places chosen in the form (spec E02, #83). The forms submit only text `validateTaskForm` accepted, so invalid text throws, which the form
  * shows as "Something went wrong".
  */
 export function toCreateInput(
   values: TaskFormValues,
   parentId: string | null = null,
+  placeIds: string[] = [],
 ): CreateTaskInput {
   const read = readValues(values);
   if (!read.ok) throw new Error("The task form was submitted with invalid values");
-  return { ...read.value, parentId };
+  return { ...read.value, parentId, placeIds };
 }
 
 const sameEstimate = (a: Estimate | null, b: Estimate | null) =>

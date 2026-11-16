@@ -6,6 +6,7 @@ import {
   deleteTaskResponseSchema,
   type Estimate,
   futureExpensesResponseSchema,
+  type PlaceView,
   type SubtaskView,
   taskListResponseSchema,
   type TaskView,
@@ -155,7 +156,8 @@ function withTemporary(tasks: TaskView[], parentId: string | null, temporary: Su
  * subtask at the end of its parent's subtasks), then replaced by the server's answer, or removed
  * if the add fails. `mutateAsync` resolves with the server's `TaskView`: the new task, or for a
  * subtask its parent with all its subtasks. Errors are `ApiError` (409: show `message`; 404 on a
- * subtask: the parent is gone) or the network error.
+ * subtask: the parent is gone; 404 Place: a chosen place is gone, which also refetches the places)
+ * or the network error. The temporary row shows the chosen places from the places cache (#83).
  */
 export function useCreateTask(listId: string) {
   const queryClient = useQueryClient();
@@ -179,7 +181,10 @@ export function useCreateTask(listId: string) {
         completed: false,
         important: false,
         urgent: false,
-        places: [],
+        // The chosen places, in the places' order, as the server will answer (#83).
+        places: (queryClient.getQueryData<PlaceView[]>(queryKeys.places()) ?? []).filter((place) =>
+          input.placeIds.includes(place.id),
+        ),
         // Unknown until the server answers; pending rows are never sent or completed.
         position: "",
       };
@@ -194,8 +199,11 @@ export function useCreateTask(listId: string) {
       writeTasks(queryClient, listId, (tasks) =>
         putTask(tasks, task, input.parentId ?? tempId, tempId),
       ),
-    // Only this add's own row goes: a snapshot would also drop other adds still in flight.
-    onError: (_error, _input, context) => {
+    // Only this add's own row goes: a snapshot would also drop other adds still in flight. A
+    // chosen place deleted meanwhile (404 Place): the refetch shows it gone in the draft.
+    onError: (error, _input, context) => {
+      if (isPlaceNotFound(error))
+        void queryClient.invalidateQueries({ queryKey: queryKeys.places() });
       queryClient.setQueryData<TaskView[]>(
         queryKeys.tasks(listId),
         (tasks) => tasks && context && withoutTask(tasks, context.tempId),
