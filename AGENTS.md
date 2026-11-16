@@ -24,7 +24,7 @@ Read `.ai/lessons.md` first, then what the task needs. Rules only one package ne
 | New feature | `.ai/specs/product-brief.md`, `.ai/specs/backlog.md`, `.ai/specs/_template.md`, `.ai/docs/engineering-standards.md` |
 | Refactor | `.ai/docs/engineering-standards.md`, `BACKWARD_COMPATIBILITY.md` |
 | Review | `CODE_REVIEW.md`, `BACKWARD_COMPATIBILITY.md`, `.ai/docs/engineering-standards.md` (§11) |
-| Security, auth, validation | `.ai/docs/engineering-standards.md` (§7), `packages/core/AGENTS.md` |
+| Security, auth, validation | `.ai/docs/engineering-standards.md` (§7), `packages/core/AGENTS.md`, `.ai/docs/security/threat-model.md` (update it when a route, role, integration or AI input changes) |
 | Money, estimates, totals | `.ai/docs/engineering-standards.md` (§6), `.ai/specs/product-brief.md` |
 | UI, screens, Storybook | `.ai/docs/design-system.md`, `packages/ui/AGENTS.md` |
 | Integration or browser tests | `test/AGENTS.md`, `test/helpers.ts` |
