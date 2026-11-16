@@ -37,3 +37,10 @@ On the merge result (3f431bd), in the main checkout:
 ## Lessons recorded (links into .ai/lessons.md)
 
 - 2026-11-16 — stacked PR merged into a squash-merged parent's branch.
+
+## Review fixes (om-auto-fix-pr, 2026-11-16)
+
+Owner's review on #75 (request changes):
+
+1. **SonarCloud: 3.4% duplication on new code (limit 3%).** Sonar's API listed 187 duplicated lines out of 5559, all in tests. The biggest blocks were the browser-suite frame copied into `places-browser`, `reorder-browser` and `markers-browser` (app, browser, pool, `signIn`, hooks). Fixed: `test/browser-suite.ts` (`useSignedInBrowserSuite`) now owns that frame, the three suites use it, and `test/AGENTS.md` points to it. That removes the 84 duplicated lines in the two new suites. Verified: typecheck, lint, format, check:agents, build, and the three suites in the browser (14/14).
+2. **`test:integration` could not run in the reviewer's environment** (no container runtime). No code change: it passed locally earlier in this run (289/289, Docker) and in CI's integration job.

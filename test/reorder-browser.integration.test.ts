@@ -1,23 +1,10 @@
-import { createTask, ensureDefaultList, moveTask, setTaskCompleted } from "@taskly/core/server";
+import { createTask, moveTask, setTaskCompleted } from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { and, eq, isNull, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  authRequest,
-  clientIps,
-  closeUserDb,
-  createBrowser,
-  createUser,
-  type RunningApp,
-  sessionCookie,
-  startApp,
-} from "./helpers";
+import { and, eq, isNull } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+import { useSignedInBrowserSuite } from "./browser-suite";
 
 const run = `reorderbrowser${Date.now()}`;
-const email = (slug: string) => `${run}-${slug}@example.test`;
-const password = "correct-horse-battery";
 
 // #17 (E02-S01) in the browser against the production build, sign-up closed: a keyboard move on
 // the handle kept after a reload, a subtask moved within its task, "Move up / Move down" with
@@ -25,22 +12,11 @@ const password = "correct-horse-battery";
 // by the server and put back with the row's message. AC7's long press and pointer drag are covered by
 // the design system's interaction stories and a manual check (run log).
 describe("reordering tasks in the browser (#17, sign-up closed)", () => {
-  let app: RunningApp;
-  const browser = createBrowser("taskly-reorder-browser");
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
-  const db = drizzle(pool, { schema });
-  const nextIp = clientIps(60);
-
-  async function signIn(slug: string) {
-    const user = await createUser({ name: `User ${slug}`, email: email(slug), password });
-    const res = await authRequest(app, "/sign-in/email", {
-      forwardedFor: nextIp(),
-      body: { email: email(slug), password },
-    });
-    const cookie = sessionCookie(res);
-    if (!cookie) throw new Error(`Sign-in over HTTP failed with ${res.status}`);
-    return { id: user.id, cookie, listId: await ensureDefaultList(db, user.id) };
-  }
+  const { app, browser, db, signIn } = useSignedInBrowserSuite({
+    run,
+    port: 3214,
+    session: "taskly-reorder-browser",
+  });
 
   type Ids = Record<string, string>;
 
@@ -60,8 +36,8 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     await add("B");
     await add("C");
     await before?.(user, ids);
-    browser.setSessionCookie(user.cookie, app.url);
-    browser.open(`${app.url}/`);
+    browser.setSessionCookie(user.cookie, app().url);
+    browser.open(`${app().url}/`);
     await browser.waitForHydrated('[role="checkbox"]');
     return { ...user, ids };
   }
@@ -112,31 +88,6 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     browser.clickRole("button", title);
     await browser.waitForAnimations();
   }
-
-  beforeAll(async () => {
-    app = await startApp(process.env.DATABASE_URL as string, {
-      port: 3214,
-      env: { ALLOW_SIGN_UP: "false" },
-    });
-  });
-
-  beforeEach(() => {
-    browser.open("about:blank");
-    browser.clearCookies();
-  });
-
-  afterAll(async () => {
-    try {
-      browser.close();
-    } catch {
-      // browser was never opened
-    }
-    await app?.stop();
-    // Lists and tasks go with their user.
-    await db.delete(schema.user).where(like(schema.user.email, `${run}-%`));
-    await pool.end();
-    await closeUserDb();
-  });
 
   // REORDER-001 (#17 AC1, AC2, AC7 by keyboard).
   it("moves a task with the keyboard on its handle and keeps the order after a reload", async () => {

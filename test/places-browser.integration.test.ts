@@ -1,23 +1,11 @@
-import { createPlace, createTask, ensureDefaultList, listPlaces } from "@taskly/core/server";
+import { createPlace, createTask, listPlaces } from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { asc, eq, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  authRequest,
-  clientIps,
-  closeUserDb,
-  createBrowser,
-  createUser,
-  type RunningApp,
-  sessionCookie,
-  startApp,
-} from "./helpers";
+import { asc, eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+import { useSignedInBrowserSuite } from "./browser-suite";
+import { createBrowser } from "./helpers";
 
 const run = `placesbrowser${Date.now()}`;
-const email = (slug: string) => `${run}-${slug}@example.test`;
-const password = "correct-horse-battery";
 const PREDEFINED = [
   "Salon",
   "Sypialnia",
@@ -35,22 +23,11 @@ const NAME_FIELD = '[data-slot="place-picker"] input[name="name"]';
 // recolour and delete seen on the rows, a subtask's own places, the limit of 20, and the places
 // failing to load while the list keeps working (P-1).
 describe("assigning tasks to places in the browser (#19, sign-up closed)", () => {
-  let app: RunningApp;
-  const browser = createBrowser("taskly-places-browser");
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
-  const db = drizzle(pool, { schema });
-  const nextIp = clientIps(60);
-
-  async function signIn(slug: string) {
-    const user = await createUser({ name: `User ${slug}`, email: email(slug), password });
-    const res = await authRequest(app, "/sign-in/email", {
-      forwardedFor: nextIp(),
-      body: { email: email(slug), password },
-    });
-    const cookie = sessionCookie(res);
-    if (!cookie) throw new Error(`Sign-in over HTTP failed with ${res.status}`);
-    return { id: user.id, cookie, listId: await ensureDefaultList(db, user.id) };
-  }
+  const { app, browser, db, signIn } = useSignedInBrowserSuite({
+    run,
+    port: 3213,
+    session: "taskly-places-browser",
+  });
 
   /** Tasks A (with subtask s1) and B; then `/` opened, signed in. */
   async function openPlanned(
@@ -62,8 +39,8 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     await createTask(db, user.id, user.listId, { title: "s1", parentId: a.id });
     await createTask(db, user.id, user.listId, { title: "B" });
     await before?.(user);
-    browser.setSessionCookie(user.cookie, app.url);
-    browser.open(`${app.url}/`);
+    browser.setSessionCookie(user.cookie, app().url);
+    browser.open(`${app().url}/`);
     await browser.waitForHydrated('[role="checkbox"]');
     return user;
   }
@@ -153,31 +130,6 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     return byTitle;
   };
 
-  beforeAll(async () => {
-    app = await startApp(process.env.DATABASE_URL as string, {
-      port: 3213,
-      env: { ALLOW_SIGN_UP: "false" },
-    });
-  });
-
-  beforeEach(() => {
-    browser.open("about:blank");
-    browser.clearCookies();
-  });
-
-  afterAll(async () => {
-    try {
-      browser.close();
-    } catch {
-      // browser was never opened
-    }
-    await app?.stop();
-    // Places, lists and tasks go with their user.
-    await db.delete(schema.user).where(like(schema.user.email, `${run}-%`));
-    await pool.end();
-    await closeUserDb();
-  });
-
   // PLACES-001 (#19 AC1–AC4, S-2 in the browser: Jadalnia is the ninth, colour 9).
   it("shows the eight places on first use, ticks one and a new place, unticks one, and keeps them after a reload", async () => {
     const user = await openPlanned("assign");
@@ -262,8 +214,8 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
 
     const peer = createBrowser("taskly-places-stale-peer");
     try {
-      peer.setSessionCookie(user.cookie, app.url);
-      peer.open(`${app.url}/`);
+      peer.setSessionCookie(user.cookie, app().url);
+      peer.open(`${app().url}/`);
       await peer.waitForHydrated('[role="checkbox"]');
       peer.clickRole("button", "More actions for “A”");
       peer.clickRole("menuitem", "Places…");
@@ -325,10 +277,10 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
   it("shows the places' load failure with Try again in the picker, while the list keeps working", async () => {
     const user = await signIn("failed");
     await createTask(db, user.id, user.listId, { title: "B" });
-    browser.setSessionCookie(user.cookie, app.url);
+    browser.setSessionCookie(user.cookie, app().url);
     browser.abortRequests("**/api/places");
     try {
-      browser.open(`${app.url}/`);
+      browser.open(`${app().url}/`);
       await browser.waitForHydrated('[role="checkbox"]');
       await openPlaces("B");
       await waitForPickerText("Could not load your places.");
