@@ -6,7 +6,7 @@
 | Category | REORDER |
 | Priority | High |
 | Type | UI |
-| Source requirement | #17 AC3; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — acceptance M-1, UI/UX Pending changes (s04.24) |
+| Source requirement | #17 AC3; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — acceptance M-1, UI/UX Pending changes (s04.24) |
 | Prerequisites | As REORDER-001; after the page loads, C is moved between A and B through the core service (another tab) |
 | Status | draft (AI-written, awaiting human review) |
 

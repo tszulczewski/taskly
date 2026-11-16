@@ -6,7 +6,7 @@
 | Category | REORDER |
 | Priority | High |
 | Type | UI |
-| Source requirement | #17 AC4, AC6; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX Reorder (s04.23) |
+| Source requirement | #17 AC4, AC6; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX Reorder (s04.23) |
 | Prerequisites | As REORDER-001 |
 | Status | draft (AI-written, awaiting human review) |
 
