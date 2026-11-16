@@ -1,0 +1,47 @@
+flowchart LR
+  subgraph internet [Untrusted: internet]
+    Owner[Owner: browser or PWA]
+    Other[Another signed-in user]
+    Anon[Anonymous visitor]
+    Evil[Third-party website]
+  end
+  subgraph host [Trusted: VPS, public edge]
+    Apache(Apache reverse proxy, TLS)
+  end
+  subgraph app [Trusted: Next.js process on 127.0.0.1:3000, npm dependencies T-11]
+    Auth(Better Auth handler /api/auth)
+    Api(Pages and API routes, SSE planned)
+    Core(core services, requireRole)
+    AIEst(AI estimator, planned)
+  end
+  subgraph data [Trusted: data on the VPS]
+    DB[(PostgreSQL: users, sessions, lists, members, tasks)]
+    Logs[(journald logs)]
+  end
+  subgraph ops [Trusted: operator]
+    Op[Operator]
+    CLI(auth:set-password CLI)
+  end
+  subgraph ext [Semi-trusted: provider]
+    Claude[Anthropic API, planned]
+  end
+  Owner -->|"credentials, session cookie, task data (T-03, T-06, T-07)"| Apache
+  Other -->|"own session, foreign list and task ids (T-01, T-02, T-12, T-13)"| Apache
+  Anon -->|"sign-in and sign-up attempts (T-03, T-04)"| Apache
+  Evil -.->|"cross-site requests riding the cookie (T-05)"| Apache
+  Apache -->|"credentials, X-Forwarded-For (T-03)"| Auth
+  Apache -->|"API calls, page renders, SSE (T-01, T-05, T-09)"| Api
+  Auth -->|"users, password hashes, sessions"| DB
+  Api -->|"user id, path ids, Zod-parsed body (T-01, T-02)"| Core
+  Core -->|"queries scoped by list membership (T-01, T-02, T-16)"| DB
+  Api -->|"unhandled errors (T-08)"| Logs
+  Core -->|"one task's title and description (T-14, T-15)"| AIEst
+  AIEst -->|"prompt, API key (T-14)"| Claude
+  Claude -->|"estimate JSON, untrusted (T-15)"| AIEst
+  AIEst -->|"Zod-validated estimate (T-15)"| Core
+  Op -->|"SSH tunnel, production env file (T-10)"| CLI
+  CLI -->|"new password hash, session revocation"| DB
+  classDef boundary stroke-dasharray: 5 5
+  classDef planned stroke-dasharray: 2 2,fill:#eeeeee,color:#333333
+  class internet,host,app,data,ops,ext boundary
+  class AIEst,Claude planned
