@@ -271,6 +271,31 @@ export function createBrowser(session: string) {
     }
   }
 
+  /** The finite animations still running (endless ones, like a spinner, never end). */
+  const runningAnimations = () =>
+    evaluate<string[]>(
+      `document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => (a.animationName ?? a.transitionProperty) + " on " + a.effect?.target?.getAttribute("data-slot"))`,
+    );
+
+  /**
+   * Focuses the field, waits until nothing animates, then types. agent-browser 0.43 puts every
+   * character at the start of a field whose container is still animating open (a description or
+   * subtask form just shown), so "Grey 30" lands as "03 yerG"; 0.39.1 typed it in order.
+   */
+  function typeAt(selector: string, text: string, { replace }: { replace: boolean }) {
+    act(selector, "focus", selector);
+    const deadline = Date.now() + BROWSER_WAIT_MS;
+    while (runningAnimations().length > 0) {
+      if (Date.now() > deadline)
+        throw new Error(
+          `Timed out after ${BROWSER_WAIT_MS} ms waiting for animations to finish before typing into ${selector} (running: ${runningAnimations().join(", ")})`,
+        );
+      Atomics.wait(pause, 0, 0, 50);
+    }
+    if (replace) run("press", "Control+a");
+    run("keyboard", "type", text);
+  }
+
   const pathname = () => new URL(run("get", "url")).pathname;
   const hasText = (text: string) =>
     evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(text)})`);
@@ -285,17 +310,13 @@ export function createBrowser(session: string) {
     evaluate,
     /** Polls `check` until it returns true; `what` describes the awaited state in the timeout error. */
     waitFor,
-    /** Focuses the field and types with real key events (setting `value` by script misleads React). */
-    typeInto: (selector: string, text: string) => {
-      act(selector, "focus", selector);
-      run("keyboard", "type", text);
-    },
+    /**
+     * Focuses the field and types through the browser's input events, one `input` per character
+     * (setting `value` by script misleads React).
+     */
+    typeInto: (selector: string, text: string) => typeAt(selector, text, { replace: false }),
     /** Like `typeInto`, but first selects the field's text so the typing replaces it. */
-    retypeInto: (selector: string, text: string) => {
-      act(selector, "focus", selector);
-      run("press", "Control+a");
-      run("keyboard", "type", text);
-    },
+    retypeInto: (selector: string, text: string) => typeAt(selector, text, { replace: true }),
     /** Focuses the element matching a CSS selector, e.g. a drag handle before keyboard moves. */
     focus: (selector: string) => run("focus", selector),
     /** Presses one key (or chord) on the focused element with a real key event. */
@@ -348,17 +369,12 @@ export function createBrowser(session: string) {
      * Waits until no finite animation is running (endless ones, like a spinner, never end). A row
      * that is opening is still clipped, so a click on its content lands on the row's button.
      */
-    waitForAnimations: (timeoutMs?: number) => {
-      const running = () =>
-        evaluate<string[]>(
-          `document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => (a.animationName ?? a.transitionProperty) + " on " + a.effect?.target?.getAttribute("data-slot"))`,
-        );
-      return waitFor(
-        () => running().length === 0,
-        () => `animations to finish (running: ${running().join(", ")})`,
+    waitForAnimations: (timeoutMs?: number) =>
+      waitFor(
+        () => runningAnimations().length === 0,
+        () => `animations to finish (running: ${runningAnimations().join(", ")})`,
         timeoutMs,
-      );
-    },
+      ),
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>
       waitFor(
