@@ -18,9 +18,18 @@ Drive PR #88 (npm dependency update) to merge-ready with `om-auto-fix-pr`: merge
 6. In the app, a temporary probe typed into the description while it opened. Raw `focus` + `keyboard type` scrambled 5 of 10 runs. The fixed `typeInto` was correct in 12 of 12. The probe was deleted.
 7. Fix: `typeInto`/`retypeInto` (shared `typeAt` in `test/helpers.ts`) focus the field, wait until no finite animation runs, then type. `waitForAnimations` reuses the same `runningAnimations` reading. Corrected the `typeInto` comment ("real key events" was wrong).
 
+8. CI on b965831: the five typing tests passed. Two `places-browser` tests (from #86, first CI run with 0.43) failed:
+   - **PLACES-002:** `focus [data-slot="place-picker"] input[name="name"]` failed at once with "Element not found: …". `act` only retried "No element found", 0.43's wording for `find`.
+   - **Stale-peer test:** the peer's "Edit Kuchnia" click went through but no edit form opened, so it retried "Teal" for 15 s. The popover has no animation (K2), but Radix re-places it when its size changes. The click came a few ms after "Edit places" switched the view.
+9. Fix:
+   - `NOT_ACTIONABLE` matches "Element not found" too.
+   - New `waitForSteady(selector)` in `test/helpers.ts`: the element's box is the same on two polls.
+   - `places-browser`: `openPlaces` waits for a steady picker. A new `editPlace` helper clicks "Edit places", waits for "Back to choosing" and a steady picker, then clicks the place's Edit. The peer tab uses the same helper.
+
 ## Files changed
 
-- `test/helpers.ts` — `typeAt` (focus, wait for animations, type) behind `typeInto`/`retypeInto`; shared `runningAnimations`.
+- `test/helpers.ts` — `typeAt` (focus, wait for animations, type) behind `typeInto`/`retypeInto`; shared `runningAnimations`; "Element not found" retried; `waitForSteady`.
+- `test/places-browser.integration.test.ts` — steady picker before clicks; `editPlace` helper.
 - `.ai/lessons.md` — 2026-11-17 lesson.
 - `.ai/runs/2026-11-17-pr-88-integration-ci.md` — this log.
 
@@ -29,7 +38,11 @@ Drive PR #88 (npm dependency update) to merge-ready with `om-auto-fix-pr`: merge
 Node 24, WSL2, after merging `main`:
 
 - `npm run format:check` 0 · `lint` 0 · `check:agents` 0 · `test:env-scripts` 0 · `typecheck` 0 · `npm test` 0 (84 files, 1274 tests, 100% coverage) · `build` 0 · `audit` 0 (4 moderate in dev tooling, as recorded in the dependency-update log).
-- `npm run test:integration` (Chrome for Testing 157, `TMPDIR=/tmp/ab88`): before the fix 24 files / 303 tests passed (local runs never showed the race). With the fix: see the PR's run comment for the final result.
+- `npm run test:integration` (Chrome for Testing 157, `TMPDIR=/tmp/ab88`):
+  - Before the fix: 24 files / 303 tests passed (local runs never showed the race).
+  - With the typing fix: 24 / 303 passed.
+  - With the places fix: `places-browser` passed 3 runs in a row (10/10 each), then the full suite passed 24 / 303.
+- CI: run 44035286297 (b965831) failed only `places-browser`, as described in step 8. The CI result on the final head is reported on the PR.
 
 ## Problems / open questions
 

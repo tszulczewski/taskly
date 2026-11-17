@@ -22,7 +22,10 @@ const PREDEFINED = [
   "Strych",
   "Biuro",
 ];
-const NAME_FIELD = '[data-slot="place-picker"] input[name="name"]';
+const PICKER = '[data-slot="place-picker"]';
+const NAME_FIELD = `${PICKER} input[name="name"]`;
+
+type Browser = ReturnType<typeof createBrowser>;
 
 // #19 (E02-S03) in the browser against the production build, sign-up closed: the eight places on
 // first use, ticking and unticking (also a new place), the duplicate-name message, rename,
@@ -99,6 +102,15 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
       () => browser.count('[data-slot="place-picker"]') === 1,
       () => "the place picker to open",
     );
+    await browser.waitForSteady(PICKER);
+  }
+
+  /** In the open picker: "Edit places", then the place's "Edit" once the new view is placed. */
+  async function editPlace(on: Browser, name: string) {
+    on.clickRole("button", "Edit places");
+    await on.waitForText("Back to choosing");
+    await on.waitForSteady(PICKER);
+    on.clickRole("button", `Edit ${name}`);
   }
 
   async function closePlaces() {
@@ -194,8 +206,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     browser.clickRole("button", "Create");
     await waitForPickerText("A place with this name already exists.");
 
-    browser.clickRole("button", "Edit places");
-    browser.clickRole("button", "Edit Kuchnia");
+    await editPlace(browser, "Kuchnia");
     browser.retypeInto(NAME_FIELD, "Aneks");
     browser.clickRole("radio", "Teal");
     browser.clickRole("button", "Save");
@@ -216,8 +227,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
   it("preserves a newer colour when another tab saves a stale name-only edit", async () => {
     const user = await openPlanned("stale-edit");
     await openPlaces("A");
-    browser.clickRole("button", "Edit places");
-    browser.clickRole("button", "Edit Kuchnia");
+    await editPlace(browser, "Kuchnia");
 
     const peer = createBrowser("taskly-places-stale-peer");
     try {
@@ -227,8 +237,8 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
       peer.clickRole("button", "More actions for “A”");
       peer.clickRole("menuitem", "Places…");
       await peer.waitForText("Edit places");
-      peer.clickRole("button", "Edit places");
-      peer.clickRole("button", "Edit Kuchnia");
+      await peer.waitForSteady(PICKER);
+      await editPlace(peer, "Kuchnia");
       peer.clickRole("radio", "Teal");
       peer.clickRole("button", "Save");
       await expect

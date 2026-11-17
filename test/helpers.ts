@@ -194,7 +194,7 @@ const BROWSER_WAIT_MS = 15_000;
  * so an action sent right after a state change can beat React's render.
  */
 const NOT_ACTIONABLE =
-  /No element found|but none match name|so the click would not reach it|so the input would land on that element/;
+  /No element found|Element not found|but none match name|so the click would not reach it|so the input would land on that element/;
 const pause = new Int32Array(new SharedArrayBuffer(4));
 
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
@@ -375,6 +375,29 @@ export function createBrowser(session: string) {
         () => `animations to finish (running: ${runningAnimations().join(", ")})`,
         timeoutMs,
       ),
+    /**
+     * Waits until the element matching the CSS selector is on the page and its box stays the same
+     * between two polls. Radix places a popover after it renders and again when its size changes
+     * (a new view), without an animation, so a click sent a few ms later can miss its target.
+     */
+    waitForSteady: async (selector: string, timeoutMs?: number) => {
+      const box = () =>
+        evaluate<string | null>(`(() => {
+          const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
+          return r ? [r.x, r.y, r.width, r.height].join() : null;
+        })()`);
+      let last: string | null = null;
+      await waitFor(
+        () => {
+          const now = box();
+          const steady = now !== null && now === last;
+          last = now;
+          return steady;
+        },
+        () => `${selector} to stop moving (box: ${box()})`,
+        timeoutMs,
+      );
+    },
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>
       waitFor(
