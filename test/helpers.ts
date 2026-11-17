@@ -188,6 +188,15 @@ export type BrowserRequest = { url: string; method: string };
 /** How long the `waitFor*` browser helpers poll before failing. */
 const BROWSER_WAIT_MS = 15_000;
 
+/**
+ * agent-browser's refusals that mean nothing was clicked or focused: the target is not rendered
+ * yet, or not reachable yet (off-screen, hidden, disabled, covered). Its commands take a few ms,
+ * so an action sent right after a state change can beat React's render.
+ */
+const NOT_ACTIONABLE =
+  /No element found|Element not found|but none match name|so the click would not reach it|so the input would land on that element/;
+const pause = new Int32Array(new SharedArrayBuffer(4));
+
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
 export function createBrowser(session: string) {
   const bin = resolve(root, "node_modules/.bin/agent-browser");
@@ -196,6 +205,35 @@ export function createBrowser(session: string) {
       encoding: "utf8",
       timeout: 60_000,
     }).trim();
+
+  /**
+   * Runs an action on the element matching `selector` (null for a `find` locator), retrying it
+   * while agent-browser refuses it as not actionable yet.
+   */
+  function act(selector: string | null, ...args: string[]) {
+    const deadline = Date.now() + BROWSER_WAIT_MS;
+    for (;;) {
+      try {
+        return run(...args);
+      } catch (error) {
+        if (Date.now() > deadline || !NOT_ACTIONABLE.test(String(error))) throw error;
+        // For a CSS selector, agent-browser scrolls only a target that is wholly off-screen, then
+        // refuses one whose click point (its centre) is not on screen: a button showing 3px above
+        // the viewport's bottom edge is refused on every try. (`find` scrolls such a target.)
+        if (selector && String(error).includes("outside the viewport")) {
+          try {
+            evaluate(
+              `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: "center" }) ?? null`,
+            );
+          } catch {
+            // The page is navigating; the next try reports on the new one.
+          }
+        }
+        // The helpers are synchronous, so sleep without yielding to the event loop.
+        Atomics.wait(pause, 0, 0, 100);
+      }
+    }
+  }
 
   /** Runs a JavaScript expression in the page and returns its (JSON-serializable) value. */
   function evaluate<T>(expression: string): T {
@@ -233,6 +271,31 @@ export function createBrowser(session: string) {
     }
   }
 
+  /** The finite animations still running (endless ones, like a spinner, never end). */
+  const runningAnimations = () =>
+    evaluate<string[]>(
+      `document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => (a.animationName ?? a.transitionProperty) + " on " + a.effect?.target?.getAttribute("data-slot"))`,
+    );
+
+  /**
+   * Focuses the field, waits until nothing animates, then types. agent-browser 0.43 puts every
+   * character at the start of a field whose container is still animating open (a description or
+   * subtask form just shown), so "Grey 30" lands as "03 yerG"; 0.39.1 typed it in order.
+   */
+  function typeAt(selector: string, text: string, { replace }: { replace: boolean }) {
+    act(selector, "focus", selector);
+    const deadline = Date.now() + BROWSER_WAIT_MS;
+    while (runningAnimations().length > 0) {
+      if (Date.now() > deadline)
+        throw new Error(
+          `Timed out after ${BROWSER_WAIT_MS} ms waiting for animations to finish before typing into ${selector} (running: ${runningAnimations().join(", ")})`,
+        );
+      Atomics.wait(pause, 0, 0, 50);
+    }
+    if (replace) run("press", "Control+a");
+    run("keyboard", "type", text);
+  }
+
   const pathname = () => new URL(run("get", "url")).pathname;
   const hasText = (text: string) =>
     evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(text)})`);
@@ -247,26 +310,22 @@ export function createBrowser(session: string) {
     evaluate,
     /** Polls `check` until it returns true; `what` describes the awaited state in the timeout error. */
     waitFor,
-    /** Focuses the field and types with real key events (setting `value` by script misleads React). */
-    typeInto: (selector: string, text: string) => {
-      run("focus", selector);
-      run("keyboard", "type", text);
-    },
+    /**
+     * Focuses the field and types through the browser's input events, one `input` per character
+     * (setting `value` by script misleads React).
+     */
+    typeInto: (selector: string, text: string) => typeAt(selector, text, { replace: false }),
     /** Like `typeInto`, but first selects the field's text so the typing replaces it. */
-    retypeInto: (selector: string, text: string) => {
-      run("focus", selector);
-      run("press", "Control+a");
-      run("keyboard", "type", text);
-    },
+    retypeInto: (selector: string, text: string) => typeAt(selector, text, { replace: true }),
     /** Focuses the element matching a CSS selector, e.g. a drag handle before keyboard moves. */
     focus: (selector: string) => run("focus", selector),
     /** Presses one key (or chord) on the focused element with a real key event. */
     press: (key: string) => run("press", key),
     /** Clicks the element matching a CSS selector, e.g. a button scoped to one of two forms. */
-    click: (selector: string) => run("click", selector),
+    click: (selector: string) => act(selector, "click", selector),
     /** Clicks the element with this ARIA role and exact accessible name. */
     clickRole: (role: string, name: string) =>
-      run("find", "role", role, "click", "--name", name, "--exact"),
+      act(null, "find", "role", role, "click", "--name", name, "--exact"),
     /** Texts of the `role="alert"` elements on the page. */
     alerts: () =>
       evaluate<string[]>(
@@ -310,14 +369,32 @@ export function createBrowser(session: string) {
      * Waits until no finite animation is running (endless ones, like a spinner, never end). A row
      * that is opening is still clipped, so a click on its content lands on the row's button.
      */
-    waitForAnimations: (timeoutMs?: number) => {
-      const running = () =>
-        evaluate<string[]>(
-          `document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => (a.animationName ?? a.transitionProperty) + " on " + a.effect?.target?.getAttribute("data-slot"))`,
-        );
-      return waitFor(
-        () => running().length === 0,
-        () => `animations to finish (running: ${running().join(", ")})`,
+    waitForAnimations: (timeoutMs?: number) =>
+      waitFor(
+        () => runningAnimations().length === 0,
+        () => `animations to finish (running: ${runningAnimations().join(", ")})`,
+        timeoutMs,
+      ),
+    /**
+     * Waits until the element matching the CSS selector is on the page and its box stays the same
+     * between two polls. Radix places a popover after it renders and again when its size changes
+     * (a new view), without an animation, so a click sent a few ms later can miss its target.
+     */
+    waitForSteady: async (selector: string, timeoutMs?: number) => {
+      const box = () =>
+        evaluate<string | null>(`(() => {
+          const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
+          return r ? [r.x, r.y, r.width, r.height].join() : null;
+        })()`);
+      let last: string | null = null;
+      await waitFor(
+        () => {
+          const now = box();
+          const steady = now !== null && now === last;
+          last = now;
+          return steady;
+        },
+        () => `${selector} to stop moving (box: ${box()})`,
         timeoutMs,
       );
     },

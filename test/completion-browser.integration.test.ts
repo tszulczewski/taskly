@@ -98,7 +98,14 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
       () => browser.count('[role="alertdialog"]') === 0,
       () => "the question to close",
     );
-  const toggle = (title: string) => browser.clickRole("checkbox", `Complete “${title}”`);
+  /**
+   * Clicks a row's checkbox once the rows stop moving: completion moves rows, and a click on a
+   * moving row can miss it (agent-browser 0.43 sends the click within a few ms of the last step).
+   */
+  async function toggle(title: string) {
+    await browser.waitForAnimations();
+    browser.clickRole("checkbox", `Complete “${title}”`);
+  }
   /**
    * Opens a task's row to show its subtasks, unless it is open (it stays open when it moves). It
    * waits for the rows to stop moving first (a click on a moving row can miss) and for the row to
@@ -162,18 +169,18 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     await expand("A");
     await expectSubtasks("A", ["s1", "s2", "s3"]);
 
-    toggle("s1");
+    await toggle("s1");
     await expectSubtasks("A", ["s2", "s3", "s1✓"]);
     await waitForPuts(1);
 
-    toggle("A");
+    await toggle("A");
     await browser.waitForText("Complete “A” and its 2 open subtasks?");
     browser.clickRole("button", "Cancel");
     await dialogClosed();
     expect(order()).toEqual(["A", "B", "C"]);
     expect(puts()).toBe(1);
 
-    toggle("A");
+    await toggle("A");
     await browser.waitForText("Complete “A” and its 2 open subtasks?");
     browser.clickRole("button", "Complete task");
     await expectOrder(["B", "C", "A✓"]);
@@ -184,13 +191,12 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
 
     // Saving can finish before the closing dialog and moving row stop intercepting clicks.
     await dialogClosed();
-    await browser.waitForAnimations();
-    toggle("A");
+    await toggle("A");
     await waitForPuts(3);
     await expectOrder(["A", "B", "C"]);
     await expand("A");
     await expectSubtasks("A", ["s1✓", "s2✓", "s3✓"]);
-    toggle("s3");
+    await toggle("s3");
     await expectSubtasks("A", ["s3", "s1✓", "s2✓"]);
     await waitForPuts(4);
     await expect
@@ -200,7 +206,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
 
   it("reopens a subtask of a completed task first; the task stays completed (Q2-1)", async () => {
     const { listId } = await openPlanned("q2");
-    toggle("A");
+    await toggle("A");
     await browser.waitForText("Complete “A” and its 3 open subtasks?");
     browser.clickRole("button", "Complete task");
     await expectOrder(["B", "C", "A✓"]);
@@ -208,7 +214,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     await expand("A");
     await expectSubtasks("A", ["s1✓", "s2✓", "s3✓"]);
 
-    toggle("s2");
+    await toggle("s2");
 
     await expectSubtasks("A", ["s2", "s1✓", "s3✓"]);
     expect(order()).toEqual(["B", "C", "A✓"]);
@@ -222,7 +228,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     const { listId } = await openPlanned("refused");
     browser.abortRequests("**/completion");
     try {
-      toggle("B");
+      await toggle("B");
       await browser.waitFor(
         () =>
           shown().find((task) => task.title === "B")?.error ===
@@ -236,7 +242,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
     expect((await stored(listId)).B).toBe("todo");
 
     // The next change clears the message.
-    toggle("C");
+    await toggle("C");
     await expectOrder(["A", "B", "C✓"]);
     expect(shown().find((task) => task.title === "B")?.error).toBe("");
   });
@@ -251,7 +257,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
       const { rows } = await holder.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
       const holderPid = rows[0]!.pid;
 
-      toggle("C");
+      await toggle("C");
       await expectOrder(["A", "B", "C✓"]);
       await waitForPuts(1);
       await expect
@@ -264,7 +270,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
         })
         .toBe(1);
 
-      toggle("C");
+      await toggle("C");
       await expectOrder(["C", "A", "B"]);
       // One list queue: the reopen waits for the first answer.
       await new Promise((resolve) => setTimeout(resolve, 500));
