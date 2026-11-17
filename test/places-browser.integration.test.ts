@@ -1,6 +1,12 @@
-import { createPlace, createTask, listPlaces } from "@taskly/core/server";
+import {
+  createPlace,
+  createTask,
+  deletePlace,
+  futureExpensesService,
+  listPlaces,
+} from "@taskly/core/server";
 import { schema } from "@taskly/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { useSignedInBrowserSuite } from "./browser-suite";
 import { createBrowser } from "./helpers";
@@ -21,7 +27,8 @@ const NAME_FIELD = '[data-slot="place-picker"] input[name="name"]';
 // #19 (E02-S03) in the browser against the production build, sign-up closed: the eight places on
 // first use, ticking and unticking (also a new place), the duplicate-name message, rename,
 // recolour and delete seen on the rows, a subtask's own places, the limit of 20, and the places
-// failing to load while the list keeps working (P-1).
+// failing to load while the list keeps working (P-1). Then #83 (E02-S04): places chosen and
+// created in the quick add of a task and of a subtask, a refused add and its retry.
 describe("assigning tasks to places in the browser (#19, sign-up closed)", () => {
   const { app, browser, db, signIn } = useSignedInBrowserSuite({
     run,
@@ -297,5 +304,194 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     );
     browser.clickRole("checkbox", "Biuro");
     await expectTags({ B: ["Biuro"] });
+  });
+
+  // Places while adding (#83, E02-S04): the top quick add and a subtask's.
+  const TOP = '[data-slot="task-list-screen"] > [data-slot="quick-add"]';
+  const SUB = '[data-slot="task-row"] [data-slot="quick-add"]';
+  /** The chosen places' text in a quick add ("" when none). */
+  const chosenIn = (form: string) =>
+    browser.evaluate<string>(
+      `document.querySelector('${form} [aria-label="Chosen places"]')?.textContent ?? ""`,
+    );
+  async function openDraftPlaces(form: string) {
+    await browser.waitForAnimations();
+    browser.click(`${form} button[aria-haspopup="dialog"]`);
+    await browser.waitFor(
+      () => browser.count('[data-slot="place-picker"]') === 1,
+      () => "the draft place picker to open",
+    );
+  }
+  async function closeDraftPlaces(form: string) {
+    browser.press("Escape");
+    await browser.waitFor(
+      () => browser.count('[data-slot="place-picker"]') === 0,
+      () => "the draft place picker to close",
+    );
+    // Closing gives focus back to "Places…" (AC18).
+    expect(
+      browser.evaluate<boolean>(
+        `document.activeElement === document.querySelector('${form} button[aria-haspopup="dialog"]')`,
+      ),
+    ).toBe(true);
+  }
+  const formAlert = (form: string) =>
+    browser.evaluate<string>(`document.querySelector('${form} [role="alert"]')?.textContent ?? ""`);
+
+  // PLACES-006 (#83 AC11, AC12, AC14, AC17).
+  it("adds a task with two places and a new one from quick add, keeps them after a reload, and starts the next task with none", async () => {
+    const user = await openPlanned("draft");
+
+    await openDraftPlaces(TOP);
+    browser.clickRole("checkbox", "Kuchnia");
+    browser.clickRole("checkbox", "Salon");
+    browser.typeInto(NAME_FIELD, "Jadalnia");
+    browser.clickRole("button", "Create");
+    await browser.waitFor(
+      () => chosenIn(TOP).includes("Jadalnia"),
+      () => `Jadalnia chosen (shown: ${chosenIn(TOP)})`,
+    );
+    await closeDraftPlaces(TOP);
+    browser.typeInto(`${TOP} input[name="title"]`, "Lamp");
+    browser.click(`${TOP} button[type="submit"]`);
+
+    await expectTags({ Lamp: ["Salon", "Kuchnia", "Jadalnia"], A: [], B: [] });
+    await browser.waitFor(
+      () => chosenIn(TOP) === "",
+      () => "the choice cleared",
+    );
+    expect(
+      browser.evaluate<boolean>(
+        `document.activeElement === document.querySelector('${TOP} input[name="title"]')`,
+      ),
+    ).toBe(true);
+    await expect
+      .poll(() => storedTicks(user.listId))
+      .toEqual({ Lamp: ["Jadalnia", "Kuchnia", "Salon"] });
+
+    // Cancelling a subtask draft after creating a place adds nothing but keeps the place (AC17).
+    await expand("B");
+    browser.clickRole("button", "Add subtask");
+    await openDraftPlaces(SUB);
+    browser.typeInto(NAME_FIELD, "Spiżarnia");
+    browser.clickRole("button", "Create");
+    await browser.waitFor(
+      () => chosenIn(SUB).includes("Spiżarnia"),
+      () => `Spiżarnia chosen (shown: ${chosenIn(SUB)})`,
+    );
+    await closeDraftPlaces(SUB);
+    browser.click(`${SUB} input[name="title"]`);
+    browser.press("Escape");
+    await browser.waitFor(
+      () => browser.count(SUB) === 0,
+      () => "the subtask form to close",
+    );
+
+    browser.reload();
+    await browser.waitForHydrated('[role="checkbox"]');
+    await expectTags({ Lamp: ["Salon", "Kuchnia", "Jadalnia"], A: [], B: [] });
+    expect(await storedTicks(user.listId)).toEqual({ Lamp: ["Jadalnia", "Kuchnia", "Salon"] });
+    expect((await storedPlaces(user.id)).map((place) => place.name)).toContain("Spiżarnia");
+  });
+
+  // PLACES-007 (#83 AC11, AC13).
+  it("adds a subtask with its own place, copying nothing from or to its task", async () => {
+    const user = await openPlanned("draft-sub", async ({ id: userId, listId }) => {
+      const salon = (await listPlaces(db, userId)).find((place) => place.name === "Salon")!;
+      const [a] = await db
+        .select({ id: schema.tasks.id })
+        .from(schema.tasks)
+        .where(and(eq(schema.tasks.listId, listId), eq(schema.tasks.title, "A")));
+      await db.insert(schema.taskPlaces).values({ taskId: a!.id, placeId: salon.id });
+    });
+
+    await expand("A");
+    browser.clickRole("button", "Add subtask");
+    await openDraftPlaces(SUB);
+    expect(
+      browser.evaluate<string | null>(
+        `document.querySelector('[data-slot="place-picker"] [role="checkbox"][aria-checked="true"]')?.id ?? null`,
+      ),
+    ).toBeNull();
+    browser.clickRole("checkbox", "Biuro");
+    await closeDraftPlaces(SUB);
+    browser.typeInto(`${SUB} input[name="title"]`, "s2");
+    browser.click(`${SUB} button[type="submit"]`);
+
+    await expectTags({ A: ["Salon"], s1: [], s2: ["Biuro"] });
+    await expect.poll(() => storedTicks(user.listId)).toEqual({ A: ["Salon"], s2: ["Biuro"] });
+    browser.reload();
+    await browser.waitForHydrated('[role="checkbox"]');
+    await expand("A");
+    await expectTags({ A: ["Salon"], s1: [], s2: ["Biuro"] });
+  });
+
+  // PLACES-008 (#83 AC14, AC16, AC18).
+  it("refuses an add whose chosen place was deleted meanwhile, keeps the draft, and adds one task after the correction", async () => {
+    const user = await openPlanned("draft-gone");
+    const garage = (await listPlaces(db, user.id)).find((place) => place.name === "Garaż")!;
+
+    await openDraftPlaces(TOP);
+    browser.clickRole("checkbox", "Salon");
+    browser.clickRole("checkbox", "Garaż");
+    await closeDraftPlaces(TOP);
+    browser.typeInto(`${TOP} input[name="title"]`, "Shelf");
+    browser.typeInto(`${TOP} input[name="amount"]`, "500");
+    // Another tab deletes Garaż before Add.
+    await deletePlace(db, user.id, garage.id);
+    browser.click(`${TOP} button[type="submit"]`);
+
+    await browser.waitFor(
+      () => formAlert(TOP).includes("A place you chose no longer exists."),
+      () => `the refusal (shown: ${formAlert(TOP)})`,
+    );
+    await browser.waitFor(
+      () => chosenIn(TOP).includes("Deleted place"),
+      () => `the deleted place shown (shown: ${chosenIn(TOP)})`,
+    );
+    expect(
+      browser.evaluate<string>(`document.querySelector('${TOP} input[name="title"]').value`),
+    ).toBe("Shelf");
+    expect(await storedTicks(user.listId)).toEqual({});
+
+    browser.clickRole("button", "Remove the deleted place");
+    browser.click(`${TOP} button[type="submit"]`);
+    await expectTags({ Shelf: ["Salon"] });
+    await expect
+      .poll(
+        async () =>
+          (
+            await db
+              .select()
+              .from(schema.tasks)
+              .where(and(eq(schema.tasks.listId, user.listId), eq(schema.tasks.title, "Shelf")))
+          ).length,
+      )
+      .toBe(1);
+    expect((await futureExpensesService(db, user.id, user.listId)).total).toEqual({
+      minGrosze: 50_000,
+      maxGrosze: 50_000,
+    });
+  });
+
+  // PLACES-009 (#83 AC15).
+  it("shows the places failing to load in the quick add picker and still adds a task without places", async () => {
+    const user = await signIn("draft-failed");
+    browser.setSessionCookie(user.cookie, app().url);
+    browser.abortRequests("**/api/places");
+    try {
+      browser.open(`${app().url}/`);
+      await browser.waitForHydrated(`${TOP} input[name="title"]`);
+      await openDraftPlaces(TOP);
+      await waitForPickerText("Could not load your places.");
+      expect(pickerText()).not.toContain("No places yet.");
+      expect(browser.count(NAME_FIELD)).toBe(0);
+      await closeDraftPlaces(TOP);
+      browser.typeInto(`${TOP} input[name="title"]`, "Lamp");
+      browser.click(`${TOP} button[type="submit"]`);
+      await expectTags({ Lamp: [] });
+    } finally {
+      browser.unroute("**/api/places");
+    }
   });
 });

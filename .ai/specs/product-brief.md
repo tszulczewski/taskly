@@ -133,7 +133,7 @@ The other references in the benchmark note were not compared with the owner's pr
 
 The owner requested choosing/adding places already while adding a task, rather than only after saving it, and subsequently authorized completing the documentation autonomously. This applies to both tasks and subtasks. The draft supports multiple existing places and creating a new catalog place; selection is optional, with no inheritance. Save commits the task and its assignments atomically. A failed save retains the draft; a successful save clears the selection for the next task. An explicitly created catalog place remains after cancelling the draft. These failure/cancel details are implementation defaults chosen for the authorized update, not additional interview observations.
 
-Delivery: E02-S04 #83 (split from E02-S03 #19 on 2026-11-16), AC11–AC18 and the Phase 2 follow-up in `2026-11-03-order-markers-and-spaces.md`; the base places implementation in PR #70 does not include this extension. This remains version 1 scope, not E04 Later.
+Delivery: E02-S04 #83 (split from E02-S03 #19 on 2026-11-16), AC11–AC18 and the Phase 2 follow-up in `implemented/2026-11-03-order-markers-and-spaces.md`; the base places implementation in PR #70 does not include this extension, PR #86 implements it. This remains version 1 scope, not E04 Later.
 
 ## Decisions
 

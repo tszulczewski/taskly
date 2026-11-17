@@ -275,6 +275,124 @@ describe("createTask", () => {
     expect(mockedRequireRole).not.toHaveBeenCalled();
   });
 
+  describe("with placeIds (spec E02, #83)", () => {
+    // Sent in another order than the lock takes them.
+    const placeIds = [ids.b1, ids.a2];
+    const lockPlaces = {
+      sql: 'select "id" from "places" where ("places"."id" in ($1, $2) and exists (select "user_id" from "list_members" where ("list_members"."list_id" = $3 and "list_members"."user_id" = "places"."user_id" and "list_members"."role" = $4))) order by "places"."id" asc for key share',
+      params: [ids.b1, ids.a2, listId, "owner"],
+    };
+    const insertPlaces = {
+      sql: 'insert into "task_places" ("task_id", "place_id", "created_at") values ($1, $2, default), ($3, $4, default)',
+      params: [taskId, ids.b1, taskId, ids.a2],
+    };
+    const row = [taskId, null, "Tiles", null, null, null, "todo", "a0", false, false];
+
+    it("locks the list owner's places after the list, saves them with the task and returns its view with them", async () => {
+      placeReplies = [
+        [
+          [taskId, ids.a2, "Salon", 1],
+          [taskId, ids.b1, "Kuchnia", 2],
+        ],
+      ];
+      const { db, log, placeLog } = fakeDb([[listId]], [[ids.a2], [ids.b1]], [], [row], [], [row]);
+      grantRole(log);
+
+      const view = await createTask(db, userId, listId, { title: "Tiles", placeIds });
+
+      expect(view.places).toEqual([
+        { id: ids.a2, name: "Salon", color: 1 },
+        { id: ids.b1, name: "Kuchnia", color: 2 },
+      ]);
+      expect(taskViewSchema.parse(view)).toEqual(view);
+      expect(log).toEqual([
+        "begin",
+        "requireRole write",
+        lockList,
+        lockPlaces,
+        lastTopLevel,
+        { sql: insertSql, params: [listId, null, "Tiles", null, "a0", null, null] },
+        insertPlaces,
+        viewQueryOf(taskId),
+        "commit",
+      ]);
+      expect(placeLog).toHaveLength(1);
+    });
+
+    it("locks the places after the parent for a subtask and returns the parent's view", async () => {
+      const { db, log } = fakeDb(
+        [[listId]],
+        [[null, "todo"]],
+        [[ids.a2], [ids.b1]],
+        [],
+        [[taskId, ids.a, "Tiles", null, null, null, "todo", "a0", false, false]],
+        [],
+        [
+          [ids.a, null, "Bathroom", null, null, null, "todo", "a0", false, false],
+          [taskId, ids.a, "Tiles", null, null, null, "todo", "a0", false, false],
+        ],
+      );
+      grantRole(log);
+
+      const view = await createTask(db, userId, listId, {
+        title: "Tiles",
+        parentId: ids.a,
+        placeIds,
+      });
+
+      expect(view.id).toBe(ids.a);
+      expect(log.slice(2, 4)).toEqual([
+        lockList,
+        {
+          sql: 'select "parent_id", "status" from "tasks" where ("tasks"."id" = $1 and "tasks"."list_id" = $2) for key share',
+          params: [ids.a, listId],
+        },
+      ]);
+      expect(log[4]).toEqual(lockPlaces);
+      expect(log.slice(6)).toEqual([
+        { sql: insertSql, params: [listId, ids.a, "Tiles", null, "a0", null, null] },
+        insertPlaces,
+        viewQueryOf(ids.a),
+        "commit",
+      ]);
+    });
+
+    it("answers 404 Place and writes nothing when a place is missing, deleted or not the list owner's (AC16)", async () => {
+      const { db, log } = fakeDb([[listId]], [[ids.a2]]);
+      grantRole(log);
+
+      const error: unknown = await createTask(db, userId, listId, {
+        title: "Tiles",
+        placeIds,
+      }).catch((e: unknown) => e);
+
+      expect(error).toEqual(new NotFoundError("Place"));
+      expect(log).toEqual(["begin", "requireRole write", lockList, lockPlaces, "rollback"]);
+    });
+
+    it("refuses a viewer before reading any place", async () => {
+      const { db, log } = fakeDb();
+      mockedRequireRole.mockRejectedValue(new ForbiddenError());
+
+      await expect(
+        createTask(db, userId, listId, { title: "Tiles", placeIds }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      expect(log).toEqual(["begin", "rollback"]);
+    });
+
+    it.each([
+      ["a malformed id", ["not-a-uuid"]],
+      ["the same place twice", [ids.a2, ids.a2]],
+      ["more than 20 places", Array.from({ length: 21 }, () => crypto.randomUUID())],
+    ])("rejects %s before opening a transaction", async (_case, sent) => {
+      const { db, log } = fakeDb();
+      await expect(
+        createTask(db, userId, listId, { title: "Tiles", placeIds: sent }),
+      ).rejects.toBeInstanceOf(ZodError);
+      expect(log).toEqual([]);
+    });
+  });
+
   describe("with a parentId", () => {
     const newId = "66666666-6666-4666-8666-666666666666";
     const lockParent = {

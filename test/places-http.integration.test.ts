@@ -210,6 +210,70 @@ describe("place routes over HTTP", () => {
     }
   });
 
+  it("creates a task and a subtask with their places in one POST, and keeps the old body working (#83 AC11)", async () => {
+    const all = await places(owner.cookie);
+    const [first, second] = all;
+    const tasksPath = `/lists/${owner.listId}/tasks`;
+    const task = taskViewSchema.parse(
+      await okData(
+        await api(tasksPath, {
+          method: "POST",
+          cookie: owner.cookie,
+          body: { title: "Lamp", placeIds: [second!.id, first!.id] },
+        }),
+      ),
+    );
+    expect(task.places).toEqual([first, second]);
+    const parent = taskViewSchema.parse(
+      await okData(
+        await api(tasksPath, {
+          method: "POST",
+          cookie: owner.cookie,
+          body: { title: "Bulb", parentId: task.id, placeIds: [second!.id] },
+        }),
+      ),
+    );
+    expect(parent.places).toEqual([first, second]);
+    expect(parent.subtasks.map((subtask) => subtask.places)).toEqual([[second]]);
+    // A client that does not know the field yet.
+    const plain = taskViewSchema.parse(
+      await okData(
+        await api(tasksPath, { method: "POST", cookie: owner.cookie, body: { title: "Plain" } }),
+      ),
+    );
+    expect(plain.places).toEqual([]);
+  });
+
+  it("refuses bad place ids, others' places, viewers and strangers, and writes no task (#83 AC16)", async () => {
+    const tasksPath = `/lists/${owner.listId}/tasks`;
+    const [own] = await places(owner.cookie);
+    const [strangers] = await places(stranger.cookie);
+    const count = async () =>
+      taskViewSchema.array().parse(await okData(await api(tasksPath, { cookie: owner.cookie })))
+        .length;
+    const before = await count();
+    const post = (cookie: string, placeIds: unknown) =>
+      api(tasksPath, { method: "POST", cookie, body: { title: "Refused", placeIds } });
+
+    const malformed = await failure(await post(owner.cookie, ["not-a-uuid"]), 400);
+    expect(malformed.fieldErrors).toEqual({ "placeIds.0": ["Invalid UUID"] });
+    const twice = await failure(await post(owner.cookie, [own!.id, own!.id]), 400);
+    expect(twice.fieldErrors).toEqual({ placeIds: ["Choose each place once."] });
+    const tooMany = Array.from({ length: 21 }, () => crypto.randomUUID());
+    await failure(await post(owner.cookie, tooMany), 400);
+    const foreign = await failure(await post(owner.cookie, [own!.id, strangers!.id]), 404);
+    expect(foreign.message).toBe("Place not found");
+    await failure(await post(owner.cookie, [UNKNOWN_ID]), 404);
+    await failure(await post(viewer.cookie, [own!.id]), 403);
+    await failure(await post(stranger.cookie, [strangers!.id]), 404);
+    await failure(
+      await api(tasksPath, { method: "POST", body: { title: "x", placeIds: [own!.id] } }),
+      401,
+    );
+
+    expect(await count()).toBe(before);
+  });
+
   it("answers 401 without a session and 403 for a write without the CSRF header", async () => {
     await failure(await api("/places"), 401);
     await failure(

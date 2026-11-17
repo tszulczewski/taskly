@@ -213,6 +213,7 @@ describe("validateTaskForm and toCreateInput", () => {
       description: null,
       estimate,
       parentId: null,
+      placeIds: [],
     });
   });
 
@@ -223,6 +224,7 @@ describe("validateTaskForm and toCreateInput", () => {
       description: null,
       estimate: { minGrosze: 30_000, maxGrosze: 30_000 },
       parentId,
+      placeIds: [],
     });
   });
 

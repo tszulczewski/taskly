@@ -262,7 +262,13 @@ describe("useUpdatePlace", () => {
     act(
       () =>
         void result.current.create
-          .mutateAsync({ title: "New", description: null, estimate: null, parentId: null })
+          .mutateAsync({
+            title: "New",
+            description: null,
+            estimate: null,
+            parentId: null,
+            placeIds: [],
+          })
           .catch(() => undefined),
     );
     await waitFor(() => expect(adds).toHaveLength(1));

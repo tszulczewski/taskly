@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompleteTaskDialog } from "./complete-task-dialog";
 import { DeleteTaskDialog } from "./delete-task-dialog";
 import { EstimateRange } from "./estimate-range";
-import { QuickAdd } from "./quick-add";
+import { type DraftPlaces, QuickAdd } from "./quick-add";
 import { SubtaskProgress } from "./subtask-progress";
 import { TaskForm } from "./task-form";
 import { TaskList, type TaskListProps } from "./task-list";
@@ -124,7 +124,7 @@ describe("QuickAdd", () => {
     expect(document.activeElement).toBe(field("New task"));
     fireEvent.change(field("New task"), { target: { value: "Buy curtain rods" } });
     await submitForm("Add");
-    expect(onSubmit).toHaveBeenCalledWith(values("Buy curtain rods"));
+    expect(onSubmit).toHaveBeenCalledWith(values("Buy curtain rods"), []);
     expect(field("New task").value).toBe("");
     expect(document.activeElement).toBe(field("New task"));
   });
@@ -143,12 +143,15 @@ describe("QuickAdd", () => {
     fireEvent.change(field(/^up to/), { target: { value: "2 500" } });
     fireEvent.change(field(description), { target: { value: "Grey, 60×60" } });
     await submitForm("Add");
-    expect(onSubmit).toHaveBeenCalledWith({
-      title: "Tile the floor",
-      amount: "2 000",
-      upTo: "2 500",
-      description: "Grey, 60×60",
-    });
+    expect(onSubmit).toHaveBeenCalledWith(
+      {
+        title: "Tile the floor",
+        amount: "2 000",
+        upTo: "2 500",
+        description: "Grey, 60×60",
+      },
+      [],
+    );
     // Ready for the next task: the description is closed again.
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(field("Amount").value).toBe("");
@@ -207,6 +210,236 @@ describe("QuickAdd", () => {
     render(<QuickAdd validate={noErrors} onSubmit={ok} />);
     fireEvent.keyDown(field("New task"), { key: "Escape" });
     expect(field("New task")).toBeTruthy();
+  });
+});
+
+describe("QuickAdd places (spec E02, #83)", () => {
+  const salon: Place = { id: "salon", name: "Salon", color: 1 };
+  const kuchnia: Place = { id: "kuchnia", name: "Kuchnia", color: 2 };
+  const draftPlaces = (overrides: Partial<DraftPlaces> = {}): DraftPlaces => ({
+    status: "ready",
+    onRetry: vi.fn(),
+    all: [salon, kuchnia],
+    atLimit: false,
+    validateName: () => undefined,
+    onCreate: vi.fn(async () => ({ ok: true as const, placeId: "jadalnia" })),
+    onUpdate: vi.fn(ok),
+    onDelete: vi.fn(async () => true),
+    ...overrides,
+  });
+  const openPicker = async () => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Places…" }));
+    });
+    return screen.getByRole("dialog", { name: "Places for the new task" });
+  };
+  const chosen = () =>
+    within(screen.getByRole("list", { name: "Chosen places" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+  const createInPicker = async (panel: HTMLElement, name: string) => {
+    fireEvent.change(within(panel).getByRole("textbox", { name: "New place" }), {
+      target: { value: name },
+    });
+    await act(async () => {
+      fireEvent.click(within(panel).getByRole("button", { name: "Create" }));
+    });
+  };
+
+  it("has no Places… without a catalog", () => {
+    render(<QuickAdd validate={noErrors} onSubmit={ok} />);
+    expect(screen.queryByRole("button", { name: "Places…" })).toBeNull();
+  });
+
+  it("adds the task with the places ticked, then starts the next one with none (AC11, AC14)", async () => {
+    const onSubmit = vi.fn(ok);
+    render(<QuickAdd validate={noErrors} onSubmit={onSubmit} places={draftPlaces()} />);
+    const panel = await openPicker();
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Kuchnia" }));
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    expect(chosen()).toEqual(["Salon", "Kuchnia"]);
+    fireEvent.change(field("New task"), { target: { value: "Lamp" } });
+    await submitForm("Add");
+    expect(onSubmit).toHaveBeenCalledWith(values("Lamp"), ["kuchnia", "salon"]);
+    expect(screen.queryByRole("list", { name: "Chosen places" })).toBeNull();
+    expect(document.activeElement).toBe(field("New task"));
+  });
+
+  it("keeps the text and the places after a refused add (AC14)", async () => {
+    const onSubmit = vi.fn(async () => ({ ok: false as const, formError: "Refused." }));
+    render(<QuickAdd validate={noErrors} onSubmit={onSubmit} places={draftPlaces()} />);
+    fireEvent.click(within(await openPicker()).getByRole("checkbox", { name: "Salon" }));
+    fireEvent.change(field("New task"), { target: { value: "Lamp" } });
+    await submitForm("Add");
+    expect(screen.getByRole("alert").textContent).toContain("Refused.");
+    expect(field("New task").value).toBe("Lamp");
+    expect(chosen()).toEqual(["Salon"]);
+  });
+
+  it("creates a place and chooses it, without adding a task (AC12)", async () => {
+    const places = draftPlaces();
+    const onSubmit = vi.fn(ok);
+    const { rerender } = render(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} places={places} />,
+    );
+    await createInPicker(await openPicker(), "Jadalnia");
+    expect(places.onCreate).toHaveBeenCalledWith({ name: "Jadalnia" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    // The app adds the new place to its catalog.
+    const jadalnia: Place = { id: "jadalnia", name: "Jadalnia", color: 9 };
+    rerender(
+      <QuickAdd
+        validate={noErrors}
+        onSubmit={onSubmit}
+        places={{ ...places, all: [salon, kuchnia, jadalnia] }}
+      />,
+    );
+    expect(chosen()).toEqual(["Jadalnia"]);
+    fireEvent.change(field("New task"), { target: { value: "Table" } });
+    await submitForm("Add");
+    expect(onSubmit).toHaveBeenCalledWith(values("Table"), ["jadalnia"]);
+  });
+
+  it("shows a refused new place in the picker and chooses nothing", async () => {
+    const places = draftPlaces({
+      onCreate: vi.fn(async () => ({
+        ok: false as const,
+        fieldErrors: { name: "A place with this name already exists." },
+      })),
+    });
+    render(<QuickAdd validate={noErrors} onSubmit={ok} places={places} />);
+    const panel = await openPicker();
+    await createInPicker(panel, "salon");
+    expect(within(panel).getByText("A place with this name already exists.")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Chosen places" })).toBeNull();
+  });
+
+  it("holds Add, Cancel, Escape and the ticks while a new place is being created (AC17)", async () => {
+    let finish!: (result: { ok: true; placeId: string }) => void;
+    const places = draftPlaces({
+      onCreate: vi.fn(() => new Promise<{ ok: true; placeId: string }>((r) => (finish = r))),
+    });
+    const onSubmit = vi.fn(ok);
+    const onCancel = vi.fn();
+    render(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} onCancel={onCancel} places={places} />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Places…" }));
+    });
+    const panel = screen.getByRole("dialog", { name: "Places for the new subtask" });
+    await createInPicker(panel, "Jadalnia");
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    fireEvent.change(field("New subtask"), { target: { value: "Table" } });
+    expect(screen.getByRole("button", { name: "Add" }).hasAttribute("disabled")).toBe(true);
+    await act(async () => {
+      fireEvent.submit(field("New subtask").form!);
+    });
+    fireEvent.keyDown(field("New subtask"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.queryByRole("list", { name: "Chosen places" })).toBeNull();
+    await act(async () => finish({ ok: true, placeId: "kuchnia" }));
+    expect(chosen()).toEqual(["Kuchnia"]);
+    await submitForm("Add");
+    expect(onSubmit).toHaveBeenCalledWith(values("Table"), ["kuchnia"]);
+  });
+
+  it("chooses nothing while the task is being added", async () => {
+    let finish!: (result: { ok: true }) => void;
+    const onSubmit = vi.fn(() => new Promise<{ ok: true }>((r) => (finish = r)));
+    render(<QuickAdd validate={noErrors} onSubmit={onSubmit} places={draftPlaces()} />);
+    const panel = await openPicker();
+    fireEvent.change(field("New task"), { target: { value: "Lamp" } });
+    await submitForm("Add");
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    expect(screen.queryByRole("list", { name: "Chosen places" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Places…" }).hasAttribute("disabled")).toBe(true);
+    await act(async () => finish({ ok: true }));
+  });
+
+  it("does not submit or cancel the quick add from inside the picker", async () => {
+    const onSubmit = vi.fn(ok);
+    const onCancel = vi.fn();
+    const places = draftPlaces();
+    render(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} onCancel={onCancel} places={places} />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Places…" }));
+    });
+    const panel = screen.getByRole("dialog", { name: "Places for the new subtask" });
+    fireEvent.change(field("New subtask"), { target: { value: "Table" } });
+    await createInPicker(panel, "Jadalnia");
+    fireEvent.keyDown(within(panel).getByRole("textbox", { name: "New place" }), {
+      key: "Escape",
+    });
+    expect(places.onCreate).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to Places… when the picker closes", async () => {
+    render(<QuickAdd validate={noErrors} onSubmit={ok} places={draftPlaces()} />);
+    const panel = await openPicker();
+    fireEvent.keyDown(panel, { key: "Escape" });
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Places…" })),
+    );
+  });
+
+  it("shows the catalog loading or failed in the picker, and still adds without places (AC15)", async () => {
+    const onSubmit = vi.fn(ok);
+    const places = draftPlaces({ status: "loading", all: [] });
+    const { rerender } = render(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} places={places} />,
+    );
+    let panel = await openPicker();
+    expect(within(panel).getByRole("status").textContent).toBe("Loading your places…");
+    expect(within(panel).queryByRole("textbox", { name: "New place" })).toBeNull();
+    rerender(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} places={{ ...places, status: "error" }} />,
+    );
+    panel = screen.getByRole("dialog", { name: "Places for the new task" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Try again" }));
+    expect(places.onRetry).toHaveBeenCalled();
+    expect(within(panel).queryByText("No places yet.")).toBeNull();
+    fireEvent.change(field("New task"), { target: { value: "Lamp" } });
+    await submitForm("Add");
+    expect(onSubmit).toHaveBeenCalledWith(values("Lamp"), []);
+  });
+
+  it("follows a rename and asks to remove a deleted place before adding (AC18)", async () => {
+    const onSubmit = vi.fn(ok);
+    const places = draftPlaces();
+    const { rerender } = render(
+      <QuickAdd validate={noErrors} onSubmit={onSubmit} places={places} />,
+    );
+    const panel = await openPicker();
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Salon" }));
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Kuchnia" }));
+    fireEvent.keyDown(panel, { key: "Escape" });
+    rerender(
+      <QuickAdd
+        validate={noErrors}
+        onSubmit={onSubmit}
+        places={{ ...places, all: [{ ...salon, name: "Hol" }] }}
+      />,
+    );
+    expect(chosen()).toEqual(["Hol", "Deleted placeRemove the deleted place"]);
+    fireEvent.change(field("New task"), { target: { value: "Lamp" } });
+    await submitForm("Add");
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "A place you chose was deleted. Remove it, then add again.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove the deleted place" }));
+    expect(chosen()).toEqual(["Hol"]);
+    await submitForm("Add");
+    expect(onSubmit).toHaveBeenCalledWith(values("Lamp"), ["salon"]);
   });
 });
 
@@ -556,7 +789,7 @@ describe("TaskList", () => {
     expect(document.activeElement).toBe(field("New subtask"));
     fireEvent.change(field("New subtask"), { target: { value: "Buy silicone" } });
     await submitForm("Add");
-    expect(onAddSubtask).toHaveBeenCalledWith("seal", values("Buy silicone"));
+    expect(onAddSubtask).toHaveBeenCalledWith("seal", values("Buy silicone"), []);
     expect(screen.queryByRole("textbox", { name: "New subtask" })).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add subtask" }));
   });
@@ -700,6 +933,7 @@ describe("TaskList ordering, markers and places", () => {
     validateName: () => undefined,
     onToggle: vi.fn(),
     onCreate: vi.fn(ok),
+    onCreateForDraft: vi.fn(async () => ({ ok: true as const, placeId: kitchen.id })),
     onUpdate: vi.fn(ok),
     onDelete: vi.fn(async () => true),
     ...overrides,
@@ -882,6 +1116,34 @@ describe("TaskList ordering, markers and places", () => {
         screen.getByRole("button", { name: "More actions for “Seal the bath”" }),
       ),
     );
+  });
+
+  it("gives a subtask's quick add its own places, none chosen at first, created without a task (AC12, AC13)", async () => {
+    const places = placeOptions();
+    const onAddSubtask = vi.fn(ok);
+    renderList({ tasks: [{ ...sealBath, places: [bathroom] }], places, onAddSubtask });
+    openMenu("Seal the bath");
+    await choose("Add subtask");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Places…" }));
+    });
+    const panel = screen.getByRole("dialog", { name: "Places for the new subtask" });
+    expect(
+      within(panel).getByRole("checkbox", { name: "Bathroom" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    fireEvent.change(within(panel).getByRole("textbox", { name: "New place" }), {
+      target: { value: "Hall" },
+    });
+    await act(async () => {
+      fireEvent.click(within(panel).getByRole("button", { name: "Create" }));
+    });
+    expect(places.onCreateForDraft).toHaveBeenCalledWith({ name: "Hall" });
+    expect(places.onCreate).not.toHaveBeenCalled();
+    fireEvent.keyDown(panel, { key: "Escape" });
+    fireEvent.change(field("New subtask"), { target: { value: "Buy silicone" } });
+    await submitForm("Add");
+    expect(onAddSubtask).toHaveBeenCalledWith("seal", values("Buy silicone"), ["kitchen"]);
+    expect(places.onToggle).not.toHaveBeenCalled();
   });
 
   it("names the places popover in the given language, for a task without places", async () => {

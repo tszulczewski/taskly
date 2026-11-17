@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_ESTIMATE_GROSZE } from "./money";
-import { placeViewSchema } from "./place-rules";
+import { PLACE_LIMIT, placeViewSchema } from "./place-rules";
 
 export const roleSchema = z.enum(["owner", "editor", "viewer"]);
 export type Role = z.infer<typeof roleSchema>;
@@ -68,15 +68,24 @@ export const taskFields = z.object({
   urgent: z.boolean(),
 });
 
+/** A request that names one place twice (spec E02, #83 AC16). */
+export const DUPLICATE_PLACE_MESSAGE = "Choose each place once.";
+
 /**
  * The list comes from the route param, never from the body. `parentId` makes it a subtask. New
- * tasks start unmarked: the markers are not taken here.
+ * tasks start unmarked: the markers are not taken here. `placeIds` are saved with the task, in the
+ * same transaction (spec E02, #83); a caller that leaves them out creates a task without places.
  */
 export const createTaskInput = z.object({
   title: taskFields.shape.title,
   description: taskFields.shape.description.default(null),
   estimate: taskFields.shape.estimate.default(null),
   parentId: z.uuid().nullable().default(null),
+  placeIds: z
+    .array(z.uuid())
+    .max(PLACE_LIMIT)
+    .refine((placeIds) => new Set(placeIds).size === placeIds.length, DUPLICATE_PLACE_MESSAGE)
+    .default([]),
 });
 export type CreateTaskInput = z.infer<typeof createTaskInput>;
 
