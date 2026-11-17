@@ -1,5 +1,17 @@
 import { schema } from "@taskly/db";
-import { and, asc, desc, DrizzleQueryError, eq, exists, isNull, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  DrizzleQueryError,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { requireRole } from "./access";
 import type { Action } from "./authorization";
@@ -238,8 +250,47 @@ export async function listTasks(db: Db, userId: string, listId: string): Promise
 }
 
 /**
- * Appends a task to the list, or a subtask to its parent's subtasks, and returns the `TaskView` of
- * the top-level task that holds it: the new task, or the parent with its new effective estimate.
+ * The places a task of `listId` may be given (Q3): those of an owner of the list. `EXISTS`, not a
+ * scalar subquery, since a list may have several owner rows (P4).
+ */
+function ownedByListOwner(tx: Tx, listId: string) {
+  return exists(
+    tx
+      .select({ userId: listMembers.userId })
+      .from(listMembers)
+      .where(
+        and(
+          eq(listMembers.listId, listId),
+          eq(listMembers.userId, places.userId),
+          eq(listMembers.role, "owner"),
+        ),
+      ),
+  );
+}
+
+/**
+ * Locks the places a new task is saved with, `FOR KEY SHARE` in UUID order (one order for every
+ * creator, so two creates never wait on each other in a cycle). A concurrent delete of one of
+ * them either committed first, and the place is not found, or waits for this transaction and then
+ * removes the new assignment with the place. Any place missing, deleted or not the list owner's →
+ * NotFoundError("Place"), and nothing is written (spec E02, #83 AC16).
+ */
+async function lockPlacesFor(tx: Tx, listId: string, placeIds: readonly string[]): Promise<void> {
+  if (placeIds.length === 0) return;
+  const found = await tx
+    .select({ id: places.id })
+    .from(places)
+    .where(and(inArray(places.id, [...placeIds]), ownedByListOwner(tx, listId)))
+    .orderBy(asc(places.id))
+    .for("key share");
+  if (found.length !== placeIds.length) throw new NotFoundError("Place");
+}
+
+/**
+ * Appends a task to the list, or a subtask to its parent's subtasks, with its places, and returns
+ * the `TaskView` of the top-level task that holds it: the new task, or the parent with its new
+ * effective estimate. Task and places are written in one transaction or not at all (#83). Lock
+ * order: membership → list → parent → places in UUID order → inserts.
  */
 export async function createTask(
   db: Db,
@@ -247,7 +298,7 @@ export async function createTask(
   listId: string,
   input: unknown,
 ): Promise<TaskView> {
-  const { title, description, estimate, parentId } = createTaskInput.parse(input);
+  const { title, description, estimate, parentId, placeIds } = createTaskInput.parse(input);
   return inTransaction(db, async (tx) => {
     await requireRole(tx, userId, listId, "write");
     // Serializes appends to this list, so concurrent creates never pick the same position. A
@@ -265,6 +316,7 @@ export async function createTask(
       if (parent.parentId !== null) throw new ConflictError("Subtasks cannot have subtasks");
       if (parent.status === "done") throw new ConflictError(TASK_COMPLETED_MESSAGE);
     }
+    await lockPlacesFor(tx, listId, placeIds);
     const [last] = await tx
       .select({ position: tasks.position })
       .from(tasks)
@@ -288,7 +340,11 @@ export async function createTask(
         position: positionBetween(last?.position ?? null, null),
       })
       .returning(viewColumns);
-    return parentId === null ? taskView(row!, [], noPlaces) : topLevelView(tx, parentId);
+    if (placeIds.length > 0) {
+      await tx.insert(taskPlaces).values(placeIds.map((placeId) => ({ taskId: row!.id, placeId })));
+    }
+    if (parentId !== null) return topLevelView(tx, parentId);
+    return placeIds.length === 0 ? taskView(row!, [], noPlaces) : topLevelView(tx, row!.id);
   });
 }
 
@@ -401,22 +457,10 @@ export async function setTaskPlace(
   if (!uuid.safeParse(placeId).success) throw new NotFoundError("Place");
   return inTransaction(db, async (tx) => {
     const task = await requireTaskRole(tx, userId, taskId, "write");
-    const ownedByListOwner = exists(
-      tx
-        .select({ userId: listMembers.userId })
-        .from(listMembers)
-        .where(
-          and(
-            eq(listMembers.listId, task.listId),
-            eq(listMembers.userId, places.userId),
-            eq(listMembers.role, "owner"),
-          ),
-        ),
-    );
     const [place] = await tx
       .select({ id: places.id })
       .from(places)
-      .where(and(eq(places.id, placeId), ownedByListOwner))
+      .where(and(eq(places.id, placeId), ownedByListOwner(tx, task.listId)))
       .for("key share");
     if (!place) throw new NotFoundError("Place");
     if (assigned) {

@@ -6,7 +6,7 @@
 | Category | MARKERS |
 | Priority | Medium |
 | Type | UI |
-| Source requirement | `.ai/specs/2026-11-03-order-markers-and-spaces.md` — UI/UX "Pending changes" › "Refused or failed" (markers: "Could not save “…”. It is back as it was."); Edge cases "A move request fails (network, 5xx)" applied to markers |
+| Source requirement | `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — UI/UX "Pending changes" › "Refused or failed" (markers: "Could not save “…”. It is back as it was."); Edge cases "A move request fails (network, 5xx)" applied to markers |
 | Prerequisites | A new signed-in owner; tasks A (with s1, s2) and B created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 

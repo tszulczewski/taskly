@@ -51,6 +51,7 @@ const organized = {
     validateName: placeNameRule(organizedPlaces),
     onToggle: fn(),
     onCreate: fn(answer({ ok: true })),
+    onCreateForDraft: fn(async () => ({ ok: true as const, placeId: organizedPlaces[0]!.id })),
     onUpdate: fn(answer({ ok: true })),
     onDelete: fn(async () => true),
   },
@@ -341,12 +342,11 @@ export const AddingSubtask: Story = {
     );
     await expect(canvas.getByLabelText("New subtask")).toHaveFocus();
     await userEvent.type(canvas.getByLabelText("New subtask"), "Buy sanitary silicone{Enter}");
-    await expect(args.onAddSubtask).toHaveBeenCalledWith(sealBath.id, {
-      title: "Buy sanitary silicone",
-      amount: "",
-      upTo: "",
-      description: "",
-    });
+    await expect(args.onAddSubtask).toHaveBeenCalledWith(
+      sealBath.id,
+      { title: "Buy sanitary silicone", amount: "", upTo: "", description: "" },
+      [],
+    );
   },
 };
 

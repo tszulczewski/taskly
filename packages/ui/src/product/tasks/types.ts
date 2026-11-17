@@ -9,6 +9,14 @@ export type TaskField = "title" | "amount" | "upTo" | "description";
 export type TaskFormValues = Record<TaskField, string>;
 export type TaskFieldErrors = FieldErrors<TaskField>;
 export type TaskSubmit = (values: TaskFormValues) => Promise<SubmitResult<TaskField>>;
+/**
+ * What quick add sends: the text as typed and, apart from it, the ids of the places chosen for the
+ * new task (spec E02, #83); empty when none were chosen.
+ */
+export type TaskAdd = (
+  values: TaskFormValues,
+  placeIds: string[],
+) => Promise<SubmitResult<TaskField>>;
 
 /** One task or subtask as the list shows it. Amounts arrive formatted (P1). */
 export interface TaskItem {

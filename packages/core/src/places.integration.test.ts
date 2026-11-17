@@ -5,9 +5,11 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import { ConflictError, ForbiddenError, NotFoundError } from "./errors";
+import { futureExpensesService } from "./futureExpensesService";
 import { createList } from "./lists";
 import { placeMessages, PREDEFINED_PLACES } from "./place-rules";
 import { createPlace, deletePlace, ensurePlaces, listPlaces, updatePlace } from "./places";
+import { taskViewSchema } from "./schemas";
 import { createTask, deleteTask, listTasks, setTaskPlace } from "./tasks";
 import type { Tx } from "./types";
 
@@ -526,6 +528,205 @@ describe.skipIf(!url)("places service (real PostgreSQL)", () => {
       }
       expect(deleted).toEqual({ value: null });
       expect(await namesOn(owner, listId, taskId)).toEqual([]);
+    });
+
+    describe("creating a task with places (#83)", () => {
+      const tasksOf = (listId: string) =>
+        db
+          .select({ id: schema.tasks.id })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.listId, listId));
+      const assignmentsOf = (listId: string) =>
+        db
+          .select({ taskId: schema.taskPlaces.taskId })
+          .from(schema.taskPlaces)
+          .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskPlaces.taskId))
+          .where(eq(schema.tasks.listId, listId));
+      const futureTotal = async (userId: string, listId: string) =>
+        (await futureExpensesService(db, userId, listId)).total;
+
+      it("saves a task and a subtask with several places, a new one included, in the places' order (AC11, AC12)", async () => {
+        const owner = await newUser();
+        const { listId, editor, taskId, byName } = await listOf(owner);
+        const jadalnia = await createPlace(db, owner, { name: "Jadalnia" });
+
+        const task = await createTask(db, editor, listId, {
+          title: "Lamp",
+          placeIds: [jadalnia.id, byName("Salon").id],
+        });
+        const parent = await createTask(db, owner, listId, {
+          title: "Paint",
+          parentId: taskId,
+          placeIds: [byName("Kuchnia").id],
+        });
+
+        expect(task.places.map((place) => place.name)).toEqual(["Salon", "Jadalnia"]);
+        expect(taskViewSchema.parse(task)).toEqual(task);
+        const added = parent.subtasks.find((subtask) => subtask.title === "Paint")!;
+        expect(added.places.map((place) => place.name)).toEqual(["Kuchnia"]);
+        expect(await namesOn(owner, listId, task.id)).toEqual(["Salon", "Jadalnia"]);
+        expect(await namesOn(owner, listId, added.id)).toEqual(["Kuchnia"]);
+      });
+
+      it("copies nothing to or from the parent and its other subtasks (AC13)", async () => {
+        const owner = await newUser();
+        const { listId, taskId, subtaskId, byName } = await listOf(owner);
+        await assign(owner, taskId, byName("Salon").id);
+
+        const parent = await createTask(db, owner, listId, { title: "Sand", parentId: taskId });
+        await createTask(db, owner, listId, {
+          title: "Varnish",
+          parentId: taskId,
+          placeIds: [byName("Biuro").id],
+        });
+
+        expect(parent.places.map((place) => place.name)).toEqual(["Salon"]);
+        const sand = parent.subtasks.find((subtask) => subtask.title === "Sand")!;
+        expect(await namesOn(owner, listId, sand.id)).toEqual([]);
+        expect(await namesOn(owner, listId, subtaskId)).toEqual([]);
+        expect(await namesOn(owner, listId, taskId)).toEqual(["Salon"]);
+      });
+
+      it("refuses a place that is not the list owner's, unknown or deleted with 404 and writes no task, assignment or cost (AC16)", async () => {
+        const owner = await newUser();
+        const { listId, editor, byName } = await listOf(owner);
+        const [editorsOwn] = await listPlaces(db, editor);
+        const deleted = byName("Strych");
+        await deletePlace(db, owner, deleted.id);
+        const before = { tasks: await tasksOf(listId), total: await futureTotal(owner, listId) };
+
+        for (const placeId of [editorsOwn!.id, unknownId, deleted.id]) {
+          await expect(
+            createTask(db, owner, listId, {
+              title: "Tiles",
+              estimate: { minGrosze: 100000, maxGrosze: 200000 },
+              placeIds: [byName("Salon").id, placeId],
+            }),
+          ).rejects.toEqual(placeNotFound);
+        }
+
+        expect(await tasksOf(listId)).toEqual(before.tasks);
+        expect(await assignmentsOf(listId)).toEqual([]);
+        expect(await futureTotal(owner, listId)).toEqual(before.total);
+      });
+
+      it("after a refused save, one corrected retry adds one task that counts once (AC14)", async () => {
+        const owner = await newUser();
+        const { listId, byName } = await listOf(owner);
+        const input = {
+          title: "Tiles",
+          estimate: { minGrosze: 100000, maxGrosze: 200000 },
+          placeIds: [byName("Salon").id, unknownId],
+        };
+        await expect(createTask(db, owner, listId, input)).rejects.toEqual(placeNotFound);
+
+        const task = await createTask(db, owner, listId, {
+          ...input,
+          placeIds: [byName("Salon").id],
+        });
+
+        const views = await listTasks(db, owner, listId);
+        expect(views.filter((view) => view.title === "Tiles").map((view) => view.id)).toEqual([
+          task.id,
+        ]);
+        expect(await futureTotal(owner, listId)).toEqual({ minGrosze: 100000, maxGrosze: 200000 });
+      });
+
+      it("accepts places of either owner of a list with two owner rows (P4)", async () => {
+        const owner = await newUser();
+        const second = await newUser();
+        const { listId, byName } = await listOf(owner);
+        await db.insert(schema.listMembers).values({ listId, userId: second, role: "owner" });
+        const [secondsSalon] = await listPlaces(db, second);
+
+        const task = await createTask(db, owner, listId, {
+          title: "Rod",
+          placeIds: [byName("Biuro").id, secondsSalon!.id],
+        });
+
+        expect(task.places.map((place) => place.name).sort()).toEqual(["Biuro", "Salon"]);
+      });
+
+      it("refuses a viewer with 403, a non-member with 404 and bad ids with 400, writing nothing", async () => {
+        const owner = await newUser();
+        const { listId, viewer, byName } = await listOf(owner);
+        const salon = byName("Salon").id;
+        const before = await tasksOf(listId);
+
+        await expect(
+          createTask(db, viewer, listId, { title: "x", placeIds: [salon] }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(
+          createTask(db, await newUser(), listId, { title: "x", placeIds: [salon] }),
+        ).rejects.toEqual(new NotFoundError("List"));
+        for (const placeIds of [
+          ["nope"],
+          [salon, salon],
+          Array.from({ length: 21 }, () => crypto.randomUUID()),
+        ]) {
+          await expect(
+            createTask(db, owner, listId, { title: "x", placeIds }),
+          ).rejects.toBeInstanceOf(ZodError);
+        }
+        expect(await tasksOf(listId)).toEqual(before);
+      });
+
+      it("answers 404 to a create that waited for a delete of one of its places, and writes nothing", async () => {
+        const owner = await newUser();
+        const { listId, byName } = await listOf(owner);
+        const garage = byName("Garaż");
+        const before = await tasksOf(listId);
+        const holder = holdInTransaction((tx) =>
+          tx.delete(schema.places).where(eq(schema.places.id, garage.id)),
+        );
+        let created: Settled<unknown> | undefined;
+        try {
+          const holderPid = await holder.pid;
+          const creating = settle(
+            createTask(firstDb, owner, listId, {
+              title: "Shelf",
+              placeIds: [byName("Salon").id, garage.id],
+            }),
+          );
+          await waitUntilBlockedBy(firstPid, holderPid);
+          holder.release();
+          created = await creating;
+        } finally {
+          holder.release();
+          await holder.done;
+        }
+        expect(created).toEqual({ error: placeNotFound });
+        expect(await tasksOf(listId)).toEqual(before);
+        expect(await assignmentsOf(listId)).toEqual([]);
+      });
+
+      it("makes a delete wait for a create holding its place, then removes the new assignment and keeps the task", async () => {
+        const owner = await newUser();
+        const { listId, byName } = await listOf(owner);
+        const garage = byName("Garaż");
+        const salon = byName("Salon");
+        let createdId: string | undefined;
+        const holder = holdInTransaction(async (tx) => {
+          const view = await createTask(tx as unknown as typeof db, owner, listId, {
+            title: "Shelf",
+            placeIds: [garage.id, salon.id],
+          });
+          createdId = view.id;
+        });
+        let deleted: Settled<unknown> | undefined;
+        try {
+          const holderPid = await holder.pid;
+          const deleting = settle(deletePlace(firstDb, owner, garage.id));
+          await waitUntilBlockedBy(firstPid, holderPid);
+          holder.release();
+          deleted = await deleting;
+        } finally {
+          holder.release();
+          await holder.done;
+        }
+        expect(deleted).toEqual({ value: null });
+        expect(await namesOn(owner, listId, createdId!)).toEqual(["Salon"]);
+      });
     });
   });
 });

@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | Medium |
 | Type | UI |
-| Source requirement | #19 AC9; D21; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — API Contracts "Nothing is copied to or from subtasks" |
+| Source requirement | #19 AC9; D21; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — API Contracts "Nothing is copied to or from subtasks" |
 | Prerequisites | A signed-in owner; task A with subtask s1, and B |
 | Status | draft (AI-written, awaiting human review) |
 

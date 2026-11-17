@@ -42,6 +42,15 @@ export interface TaskText extends TaskFieldsText, SortableText {
   important: string;
   urgent: string;
   places: string;
+  /** The draft picker's title in quick add, which has no task title yet (spec E02, #83). */
+  newTaskPlaces: string;
+  newSubtaskPlaces: string;
+  /** Names the list of places chosen in quick add. */
+  chosenPlaces: string;
+  /** A chosen place that was deleted meanwhile: shown in its stead until removed (AC18). */
+  deletedPlace: string;
+  removeDeletedPlace: string;
+  placeUnavailable: string;
   moveUp: string;
   moveDown: string;
   dragHandle: (title: string) => string;
@@ -100,6 +109,12 @@ export const defaultTaskText: TaskText = {
   important: "Important",
   urgent: "Urgent",
   places: "Places…",
+  newTaskPlaces: "Places for the new task",
+  newSubtaskPlaces: "Places for the new subtask",
+  chosenPlaces: "Chosen places",
+  deletedPlace: "Deleted place",
+  removeDeletedPlace: "Remove the deleted place",
+  placeUnavailable: "A place you chose was deleted. Remove it, then add again.",
   moveUp: "Move up",
   moveDown: "Move down",
   dragHandle: (title) => `Move “${title}”`,

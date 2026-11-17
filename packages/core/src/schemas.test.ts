@@ -170,14 +170,23 @@ describe("taskFields", () => {
   });
 });
 
+const placeA = "3f1c1e7e-8f5a-4c55-9a59-0f3cc5b4a2d1";
+const uuidOf = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+
 describe("createTaskInput", () => {
-  it("defaults description, estimate and parentId to null", () => {
+  it("defaults description, estimate and parentId to null, and placeIds to none", () => {
     expect(createTaskInput.parse({ title: "Paint" })).toStrictEqual({
       title: "Paint",
       description: null,
       estimate: null,
       parentId: null,
+      placeIds: [],
     });
+  });
+
+  it("keeps up to 20 distinct place ids in the order sent (spec E02, #83)", () => {
+    const placeIds = Array.from({ length: 20 }, () => crypto.randomUUID());
+    expect(createTaskInput.parse({ title: "Paint", placeIds }).placeIds).toEqual(placeIds);
   });
 
   it("trims, turns a blank description into null, and keeps an estimate", () => {
@@ -192,6 +201,7 @@ describe("createTaskInput", () => {
       description: null,
       estimate: { minGrosze: 100, maxGrosze: 100 },
       parentId: null,
+      placeIds: [],
     });
     expect(createTaskInput.parse({ title: "Paint", description: " Two coats " }).description).toBe(
       "Two coats",
@@ -219,6 +229,7 @@ describe("createTaskInput", () => {
       description: null,
       estimate: null,
       parentId: null,
+      placeIds: [],
     });
   });
 
@@ -242,6 +253,12 @@ describe("createTaskInput", () => {
     [
       { title: "x", parentId: 7 },
       [["parentId", "Invalid input: expected string, received number"]],
+    ],
+    [{ title: "x", placeIds: ["not-a-uuid"] }, [["placeIds.0", "Invalid UUID"]]],
+    [{ title: "x", placeIds: [placeA, placeA] }, [["placeIds", "Choose each place once."]]],
+    [
+      { title: "x", placeIds: Array.from({ length: 21 }, (_, i) => uuidOf(i)) },
+      [["placeIds", "Too big: expected array to have <=20 items"]],
     ],
   ])("rejects %j", (input, expected) => {
     expect(issues(createTaskInput.safeParse(input))).toEqual(expected);

@@ -55,6 +55,7 @@ const input: CreateTaskInput = {
   description: "Silicone",
   estimate: { minGrosze: 5_000, maxGrosze: 5_000 },
   parentId: null,
+  placeIds: [],
 };
 const sealed = view("Seal the bath", { description: "Silicone", estimate: input.estimate });
 
@@ -328,6 +329,7 @@ describe("useCreateTask for a subtask", () => {
     description: null,
     estimate: { minGrosze: 30_000, maxGrosze: 40_000 },
     parentId,
+    placeIds: [],
   });
   /** The server's answer: the parent with its subtasks and their sum. */
   const parentWith = (...subtasks: SubtaskView[]): TaskView => ({

@@ -203,6 +203,7 @@ export const Organized: Story = {
       validateName: placeNameRule(organizedPlaces),
       onToggle: fn(),
       onCreate: fn(answer({ ok: true })),
+      onCreateForDraft: fn(async () => ({ ok: true as const, placeId: organizedPlaces[0]!.id })),
       onUpdate: fn(answer({ ok: true })),
       onDelete: fn(async () => true),
     },

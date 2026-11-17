@@ -6,7 +6,7 @@
 | Category | PLACES |
 | Priority | High |
 | Type | UI |
-| Source requirement | #19 AC1–AC4; `.ai/specs/2026-11-03-order-markers-and-spaces.md` — Data Model "Initialization", UI/UX Places "Create", acceptance S-2 |
+| Source requirement | #19 AC1–AC4; `.ai/specs/implemented/2026-11-03-order-markers-and-spaces.md` — Data Model "Initialization", UI/UX Places "Create", acceptance S-2 |
 | Prerequisites | A new signed-in owner who never opened places; tasks A (with s1) and B created through the core service |
 | Status | draft (AI-written, awaiting human review) |
 
