@@ -42,9 +42,12 @@ Local, after `npm ci` in the worktree, on the final code:
 - `npm run test:integration`: the first run failed: 61 tests in the 11 browser files, all with Chrome "Socket path too long" under the cezar `TMPDIR` (lesson 2026-11-12; the 13 HTTP/DB files passed). The rerun with `TMPDIR=/tmp/t76` passed: 24 files, 303 tests, exit 0.
 - Regression check: the new and updated `api.test.ts` cases fail against the `origin/main` `api.ts` (3 failed) and pass with the fix.
 
+- PR #93 (`fix/issue-76-safe-api-error-log`, ready, `Closes #76`). The `om-auto-review-pr` comment review of `612e122` was APPROVED with no findings; it is the same run, so not independent. All CI checks on `612e122` passed (Build, Lint/format/typecheck, Unit, Integration, Design system, Dependency audit, SonarCloud). This run-log update is a later docs-only commit, so the new head needs its own review.
+
 ## Problems / open questions
 
 - The tracker descriptor lacks atomic claim operations; the claim used comment + label + assignee only.
+- Trade-off noted in the review: unexpected handler bugs are now logged without message or stack (only class, code, route), as #76 requires. A follow-up is worth it only if production debugging suffers.
 
 ## Lessons recorded (links into .ai/lessons.md)
 
