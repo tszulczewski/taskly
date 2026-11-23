@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-23
 - **Spec:** none (the issue asks for a short story first; the story is in the PR body for the owner's approval)
-- **Outcome:** success (PR opened; deployed-host checks left to the owner)
+- **Outcome:** success (PR #98 opened, `Refs #78`; deployed-host checks left to the owner)
 
 ## Goal
 
