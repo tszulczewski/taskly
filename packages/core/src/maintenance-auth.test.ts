@@ -69,8 +69,10 @@ describe("maintenance auth", () => {
 
   // Review M1 on #97: the instance has no rate limit, sign-up hook or lasting secret.
   it("closes sign-up and has nothing that serves requests", async () => {
-    const { getMaintenanceContext } = await load();
-    getMaintenanceContext();
+    const exported = await load();
+    // Only the context: no handler or api to mount or call.
+    expect(Object.keys(exported)).toEqual(["getMaintenanceContext"]);
+    exported.getMaintenanceContext();
     const config = configOf(0);
 
     expect(Object.keys(config).sort()).toEqual([
