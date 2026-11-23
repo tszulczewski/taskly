@@ -125,6 +125,12 @@ const eslintConfig = defineConfig([
           "parseHTMLUnsafe",
           "createContextualFragment",
         ].map((property) => ({ property, message: rawHtmlMessage })),
+        // Catches `document["write"]` and `const { write } = document`, which the selector misses.
+        ...["write", "writeln"].map((property) => ({
+          object: "document",
+          property,
+          message: rawHtmlMessage,
+        })),
       ],
       "no-restricted-syntax": ["error", documentWrite],
     },
