@@ -105,10 +105,31 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Raw HTML is an XSS sink the CSP cannot fully stop (threat T-07). The static theme script
-    // is the one allowed use.
+    // Raw HTML is an XSS sink the CSP cannot stop: it allows inline `<script>` and `javascript:`
+    // URLs (threat T-07). The static theme script is the one allowed use. `"*"` also checks the
+    // prop on custom components, which may pass it on to a DOM element.
     ignores: ["packages/app/components/shell/theme-script.tsx"],
-    rules: { "react/no-danger": "error" },
+    rules: { "react/no-danger": ["error", { customComponentNames: ["*"] }] },
+  },
+  {
+    // The DOM's raw-HTML sinks, for the same reason. Tests may use them to build fixtures.
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        ...["innerHTML", "outerHTML", "insertAdjacentHTML", "createContextualFragment"].map(
+          (property) => ({
+            property,
+            message: "Raw HTML is an XSS sink (threat T-07). Build nodes and set textContent.",
+          }),
+        ),
+        ...["write", "writeln"].map((property) => ({
+          object: "document",
+          property,
+          message: "Raw HTML is an XSS sink (threat T-07). Build nodes and set textContent.",
+        })),
+      ],
+    },
   },
   { settings: { next: { rootDir: "packages/app" } } },
   // Override default ignores of eslint-config-next.

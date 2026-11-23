@@ -5,11 +5,13 @@ export type SecurityHeader = { key: string; value: string };
  *
  * Inline `<script>` elements stay allowed: with `cacheComponents` the prerendered shell carries
  * Next's inline bootstrap and RSC payload scripts, written at build time, so no per-request nonce
- * can reach them, and the payload changes with every page, so no hash can list it. What the policy
- * blocks instead: inline event handlers (`script-src-attr 'none'`; markup inserted on the client
- * through `innerHTML` can run script only that way, since `<script>` inserted so never runs),
- * `eval` in production, scripts, requests, frames and plugins from other origins, `<base>`
- * hijacking, and framing. `next dev` needs `'unsafe-eval'` for React's error overlay.
+ * can reach them, and the payload changes with every page, so no hash can list it. The same
+ * `'unsafe-inline'` also allows `javascript:` URLs (CSP3 checks them against `script-src-elem`): an
+ * injected `<a href="javascript:…">` runs on click and an injected `<iframe src="javascript:…">`
+ * runs with no click, so markup from a raw-HTML sink can still run script (threat T-07). What the
+ * policy blocks: inline event handlers (`script-src-attr 'none'`, CSP3 browsers only), `eval` in
+ * production, scripts, requests, frames and plugins from other origins, `<base>` hijacking, and
+ * framing. `next dev` needs `'unsafe-eval'` for React's error overlay.
  */
 export function contentSecurityPolicy({ dev }: { dev: boolean }): string {
   const directives = [
