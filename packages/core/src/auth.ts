@@ -9,6 +9,10 @@ import { signUpBeforeHook } from "./sign-up-hook";
 export const SESSION_TTL_S = 30 * 24 * 60 * 60;
 export const SESSION_RENEW_AFTER_S = 24 * 60 * 60;
 
+// Better Auth's built-in rule for `/sign-in*` (3 per 10 s, about 18 a minute) overrides the global
+// limit; this stricter rule replaces it for password sign-in (T-03).
+const SIGN_IN_RATE_LIMIT = { window: 60, max: 5 };
+
 // Next bundles this module once for Route Handlers and once for pages, so each bundle builds its
 // own instance; the flag lives on globalThis to warn once per process.
 const SIGN_UP_WARNED = Symbol.for("taskly.auth.signUpWarned");
@@ -24,8 +28,13 @@ function createAuth() {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.BETTER_AUTH_URL],
-    // Built-in brute-force protection for sign-in/sign-up (in-memory; enough for a single process).
-    rateLimit: { enabled: true, window: 60, max: 30 },
+    // Per client IP and path, in memory (reset on restart; enough for a single process).
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 30,
+      customRules: { "/sign-in/email": SIGN_IN_RATE_LIMIT },
+    },
     advanced: {
       useSecureCookies: process.env.NODE_ENV === "production",
       // Behind Apache on loopback: without the forwarded client IP every request shares one rate-limit bucket.
