@@ -11,8 +11,10 @@ Operator procedures for the production deployment described in `packages/app/AGE
 
   ```ini
   [Definition]
-  failregex = ^<HOST> \S+ \S+ \[[^]]+\] "POST /api/auth/\S+ HTTP/[^"]+" (401|429)\s
+  failregex = ^<HOST> -[^"]*"POST /api/auth/\S+ HTTP/[^"]+" (?:401|429)\s
   ```
+
+  fail2ban cuts the `[timestamp]` out of each line before it applies `failregex`, so the regex must not mention it. Change the regex only together with a `fail2ban-regex` run on sample lines.
 
   `/etc/fail2ban/jail.d/taskly-auth.local`
 
@@ -27,7 +29,7 @@ Operator procedures for the production deployment described in `packages/app/AGE
   bantime = 1h
   ```
 
-  `sudo systemctl restart fail2ban`, then `sudo fail2ban-regex /var/log/apache2/access.log taskly-auth` (after one deliberate wrong sign-in, it must report one match) and `sudo fail2ban-client status taskly-auth`. Unban an address with `sudo fail2ban-client set taskly-auth unbanip <address>`.
+  `sudo systemctl restart fail2ban`, then `sudo fail2ban-regex /var/log/apache2/access.log taskly-auth` (after one deliberate wrong sign-in, it must report at least one match) and `sudo fail2ban-client status taskly-auth`. Unban an address with `sudo fail2ban-client set taskly-auth unbanip <address>`.
 - **Create the owner account** (public sign-up is off unless `ALLOW_SIGN_UP=true`; while it is on, the app logs a warning on the first auth request): set `ALLOW_SIGN_UP=true` in the systemd `EnvironmentFile` → `systemctl restart taskly` → sign up in the browser → remove the line (don't leave it empty: an empty value fails env validation) → restart again.
 - **Reset a password** (offline: sets the new password and signs out every session of that user, both or neither). From a dev checkout after `npm ci`:
   1. Put `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `ANTHROPIC_API_KEY` of the target deployment in a private env file **outside the repo** (e.g. `/private/taskly-reset.env`), `chmod 600`. Never paste its contents into logs or tracker messages.
