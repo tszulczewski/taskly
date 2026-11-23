@@ -32,7 +32,12 @@ function Shell({
   onSignOut?: () => Promise<boolean>;
 }) {
   return (
-    <AppShell theme={theme} onThemeChange={onThemeChange} onSignOut={onSignOut}>
+    <AppShell
+      theme={theme}
+      onThemeChange={onThemeChange}
+      onSignOut={onSignOut}
+      onSignOutOtherDevices={async () => true}
+    >
       <h1 className="text-heading font-strong">Bathroom</h1>
       <Surface>
         <EmptyState title="No tasks yet.">Add the first thing you need to do.</EmptyState>
@@ -74,6 +79,8 @@ export const SignOutFailedPhone: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Sign out" }));
+    const menu = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await menu.findByRole("menuitem", { name: "Sign out of this device" }));
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "Could not sign out. Try again.",
     );

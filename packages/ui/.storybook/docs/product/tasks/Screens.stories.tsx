@@ -45,6 +45,7 @@ const screen = (props: TaskScreenProps) =>
         theme={theme}
         onThemeChange={(next) => updateGlobals({ theme: next })}
         onSignOut={async () => true}
+        onSignOutOtherDevices={async () => true}
       >
         <TaskScreen {...props} />
       </AppShell>

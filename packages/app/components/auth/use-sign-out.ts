@@ -24,3 +24,17 @@ export function useSignOut() {
     return true;
   };
 }
+
+/**
+ * "Sign out of other devices" (#78, threat T-06): Better Auth's `revoke-other-sessions` deletes
+ * every other session of the signed-in user and keeps this one, so the cache and the page stay.
+ * Resolves false when the call failed; some other sessions may then still be valid.
+ */
+export async function signOutOtherDevices(): Promise<boolean> {
+  try {
+    await authCall("/api/auth/revoke-other-sessions");
+    return true;
+  } catch {
+    return false;
+  }
+}

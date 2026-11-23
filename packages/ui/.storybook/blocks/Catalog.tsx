@@ -85,7 +85,12 @@ function AppHeaderPreview() {
   // narrower on a phone, so the preview scrolls on its own instead of widening the docs page.
   return (
     <div role="group" aria-label="App shell preview" tabIndex={0} className="overflow-x-auto">
-      <AppHeader theme={theme} onThemeChange={setTheme} onSignOut={async () => true} />
+      <AppHeader
+        theme={theme}
+        onThemeChange={setTheme}
+        onSignOut={async () => true}
+        onSignOutOtherDevices={async () => true}
+      />
     </div>
   );
 }

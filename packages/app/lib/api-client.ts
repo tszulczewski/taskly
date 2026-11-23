@@ -81,6 +81,7 @@ export const AUTH_MESSAGES = {
   signUpClosed: "Sign-up is closed. Ask the owner of this Taskly.",
   rateLimitedNoWait: "Too many attempts. Wait a few seconds and try again.",
   signOutFailed: "Could not sign out. Try again.",
+  signOutOtherDevicesFailed: "Could not sign out other devices. Try again.",
   generic: "Something went wrong. Try again.",
 } as const;
 
@@ -144,6 +145,7 @@ async function postAuth(
 export function authCall(path: "/api/auth/sign-in/email", body: SignInInput): Promise<void>;
 export function authCall(path: "/api/auth/sign-up/email", body: SignUpInput): Promise<void>;
 export function authCall(path: "/api/auth/sign-out"): Promise<void>;
+export function authCall(path: "/api/auth/revoke-other-sessions"): Promise<void>;
 export async function authCall(path: string, body?: SignInInput | SignUpInput): Promise<void> {
   const deadline = new AbortController();
   const timer = setTimeout(() => deadline.abort(), AUTH_TIMEOUT_MS);

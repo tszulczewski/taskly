@@ -4,7 +4,10 @@ import type { ComponentProps } from "react";
 import { cn } from "../../lib/cn";
 import { overlayPlacement, overlaySurfaceClass } from "./overlay";
 
-/** A list of actions behind one "…" button, e.g. a task row's actions (R02.1, A01.3, P2). */
+/**
+ * A list of actions behind one button: a task row's "…" (R02.1, A01.3, P2) or the top bar's
+ * "Sign out" (#78).
+ */
 export function Menu(props: ComponentProps<typeof MenuPrimitive.Root>) {
   return <MenuPrimitive.Root {...props} />;
 }
