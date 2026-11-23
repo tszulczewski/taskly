@@ -52,3 +52,15 @@ Local, after `npm ci` in the worktree, on the final code:
 ## Lessons recorded (links into .ai/lessons.md)
 
 - Extended 2026-10-28 (`DrizzleQueryError` message holds SQL params): log caught errors only through `describeError`. `DrizzleQueryError` sets no `name`, and production minification renames classes, so match it with `instanceof`.
+
+## Review follow-up (2026-11-23, `om-auto-continue-pr` run 0571994a)
+
+The independent review of `bfeb3a2` (comment 7099379153) approved with 1 minor finding and 2 nits. All three are addressed in `8deb74d`:
+
+1. Minor: the `instanceof` check depended on `app`, `core` and `db` keeping the same `drizzle-orm` range. The check moved to `isDrizzleQueryError` in `packages/db/src/errors.ts` (exported from `@taskly/db`, `server-only`, with a test). `describeError` calls it, `drizzle-orm` is gone from `packages/app/package.json` and the lockfile, and `lib/log-error.ts` joins the server-module list in the `no-restricted-imports` ignores (`eslint.config.mjs`). `default-list.test.ts` now mocks `@taskly/db` partially, so the real helper stays in place. The app tests still build a real `DrizzleQueryError` from the hoisted `drizzle-orm` (as `test/` does). If `db` ever got its own copy, they would fail instead of passing silently.
+2. Nit: the `classOf` comment now says that other classes are best-effort and may log as one letter in production, and that the `code` identifies the failure.
+3. Nit: the lesson is scoped to `packages/app`. `core` and `db` cannot import from `app`, so they report a fixed generic message.
+
+Build check on the new code: the server chunk calls `(0,n.f)(e)?"DrizzleQueryError":…`. Module 90945 exports `f` as `e instanceof t.l`, where `t` is module 71783 (drizzle-orm's errors module, `l` = the `Failed query:` class, minified to `class e`). The node-postgres session throws `new i.l(…)` from the same module 71783, and the bundle defines that module once.
+
+Gate on `8deb74d`: `format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck` all exit 0. `npm test`: 86 files, 1293 tests, 100% statements (2185/2185), branches (1362/1362), functions (755/755), lines (1903/1903). `build` exit 0. `audit` exit 0 (the same 4 moderate dev-tool advisories). `test:integration` was run alone with `TMPDIR=/tmp/i0571`: 24 files, 303 tests, exit 0.
