@@ -7,7 +7,10 @@ const ensureDefaultList = vi.fn();
 const getDb = vi.fn(() => db);
 
 vi.mock("@taskly/core/server", () => ({ ensureDefaultList }));
-vi.mock("@taskly/db", () => ({ getDb }));
+vi.mock("@taskly/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@taskly/db")>()),
+  getDb,
+}));
 
 const { openDefaultList } = await import("./default-list");
 

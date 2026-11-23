@@ -1,5 +1,5 @@
 import "server-only";
-import { DrizzleQueryError } from "drizzle-orm";
+import { isDrizzleQueryError } from "@taskly/db";
 
 /**
  * Only identifier-like text is logged: a `code` or class name is data on the error object, and a
@@ -18,8 +18,10 @@ function codeOf(value: unknown): string | null {
 
 function classOf(error: Error): string {
   // The production server bundle is minified and renames library classes (`class e`), so the
-  // class this log line mostly reports is matched by identity, not by `constructor.name`.
-  if (error instanceof DrizzleQueryError) return "DrizzleQueryError";
+  // class this log line mostly reports is matched by identity, not by `constructor.name`. Any
+  // other class is best-effort: in production it may log as a one-letter name, and the `code`
+  // is what identifies the failure.
+  if (isDrizzleQueryError(error)) return "DrizzleQueryError";
   return safeIdentifier(error.constructor.name) ?? "Error";
 }
 
