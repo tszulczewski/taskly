@@ -1,6 +1,6 @@
 import "server-only";
 import { runWithTransaction } from "@better-auth/core/context";
-import { getAuth } from "./auth";
+import { getAuth, getMaintenanceAuth } from "./auth";
 import { NotFoundError } from "./errors";
 import { type SignUpInput, setPasswordInput, signUpInput } from "./schemas";
 
@@ -39,11 +39,12 @@ export async function createPasswordUser(input: SignUpInput) {
 /**
  * Replaces a user's password and signs out all their sessions, committing both or neither.
  * An offline maintenance step: stop the app first, so no in-flight sign-in that checked the old
- * password can create a session after the revocation. Never exposed as an endpoint.
+ * password can create a session after the revocation. Never exposed as an endpoint. Needs only
+ * `DATABASE_URL`, so the operator's env file carries no app secret.
  */
 export async function setPassword(email: string, newPassword: string) {
   const input = setPasswordInput.parse({ email, newPassword });
-  const ctx = await getAuth().$context;
+  const ctx = await getMaintenanceAuth().$context;
   const hash = await ctx.password.hash(input.newPassword);
   await runWithTransaction(ctx.adapter, async () => {
     const found = await ctx.internalAdapter.findUserByEmail(input.email);

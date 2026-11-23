@@ -3,7 +3,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { getAuth, getSessionUser } from "./auth";
+import { getAuth, getMaintenanceAuth, getSessionUser } from "./auth";
 import { NotFoundError } from "./errors";
 import { createPasswordUser, setPassword } from "./password-admin";
 
@@ -246,7 +246,7 @@ describe.skipIf(!url)("password admin (real PostgreSQL)", () => {
     ])("rolls back the password and sessions when $when", async ({ slug, inject }) => {
       const { user, cookies, before } = await userWithSessions(slug);
       const address = email(slug);
-      const internal = (await getAuth().$context).internalAdapter;
+      const internal = (await getMaintenanceAuth().$context).internalAdapter;
       const realDeleteUserSessions = internal.deleteUserSessions;
       const updatePassword = vi.spyOn(internal, "updatePassword");
       const deleteUserSessions = vi

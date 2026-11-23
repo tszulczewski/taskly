@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getDb } from "@taskly/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseEnv } from "../env";
+import { parseDatabaseEnv } from "../env";
 import { NotFoundError } from "../errors";
 import { SET_PASSWORD_NOT_FOUND, setPassword } from "../password-admin";
 import { setPasswordInput } from "../schemas";
@@ -30,11 +30,6 @@ vi.mock("./prompt-hidden", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./prompt-hidden")>()),
   readHidden: vi.fn(),
 }));
-// getEnv caches its first result; validate the current process.env on every call instead.
-vi.mock("../env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../env")>();
-  return { ...actual, getEnv: vi.fn(() => actual.parseEnv(process.env)) };
-});
 
 const PASSWORD = "correct-horse-battery";
 const ARGV = ["--env-file", "/private/taskly-reset.env", "owner@example.test"];
@@ -138,11 +133,11 @@ describe("runSetPassword", () => {
   });
 
   it("names invalid settings without their values, before prompting or initializing auth", async () => {
-    const secret = "too-short-secret-value";
+    const secret = "pool-dbpass-value";
     const f = fakeDeps({
       validateEnv: () => {
         f.calls.push("validateEnv");
-        parseEnv({ DATABASE_URL: "postgres://u:dbpass@h/db", BETTER_AUTH_SECRET: secret });
+        parseDatabaseEnv({ DATABASE_URL: "", DATABASE_POOL_MAX: secret });
       },
     });
 
@@ -154,10 +149,9 @@ describe("runSetPassword", () => {
       "stderr",
     ]);
     expect(f.err).toStrictEqual([
-      "Invalid configuration in the env file or environment: BETTER_AUTH_SECRET, BETTER_AUTH_URL, ANTHROPIC_API_KEY. Nothing was changed.",
+      "Invalid configuration in the env file or environment: DATABASE_URL, DATABASE_POOL_MAX. Nothing was changed.",
     ]);
     expect(f.printed()).not.toContain(secret);
-    expect(f.printed()).not.toContain("dbpass");
   });
 
   it("reports an unexpected configuration error generically", async () => {
@@ -311,19 +305,8 @@ describe("nodeDeps", () => {
     vi.restoreAllMocks();
   });
 
-  it("lets an exported DATABASE_URL win over the env file", async () => {
-    const file = join(dir, "reset.env");
-    writeFileSync(
-      file,
-      [
-        "DATABASE_URL=postgres://file@127.0.0.1:5432/taskly",
-        `BETTER_AUTH_SECRET=${"s".repeat(40)}`,
-        "BETTER_AUTH_URL=http://localhost:3000",
-        "ANTHROPIC_API_KEY=key-from-file",
-      ].join("\n"),
-      { mode: 0o600 },
-    );
-    vi.stubEnv("DATABASE_URL", "postgres://tunnel@127.0.0.1:5433/taskly");
+  /** Runs the reset with the real env loading and validation; returns DATABASE_URL at reset time. */
+  async function resetWith(file: string) {
     let urlAtReset: string | undefined;
     vi.mocked(setPassword).mockImplementation(async () => {
       urlAtReset = process.env.DATABASE_URL;
@@ -333,16 +316,38 @@ describe("nodeDeps", () => {
     } as unknown as ReturnType<typeof getDb>);
     const deps = { ...nodeDeps(), isInteractive: () => true, promptHidden: async () => PASSWORD };
     vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    const code = await runSetPassword(["--env-file", file, "owner@example.test"], deps);
+    return { code, urlAtReset };
+  }
 
-    expect(await runSetPassword(["--env-file", file, "owner@example.test"], deps)).toBe(EXIT_OK);
-    expect(urlAtReset).toBe("postgres://tunnel@127.0.0.1:5433/taskly");
-    expect(process.env.BETTER_AUTH_SECRET).toBe("s".repeat(40));
-    expect(process.env.ANTHROPIC_API_KEY).toBe("key-from-file");
+  // Regression (#80): the reset demanded BETTER_AUTH_SECRET, BETTER_AUTH_URL and ANTHROPIC_API_KEY,
+  // so the operator copied every production secret to the machine running it.
+  it("resets with an env file that holds only DATABASE_URL", async () => {
+    const file = join(dir, "reset.env");
+    writeFileSync(file, "DATABASE_URL=postgres://file@127.0.0.1:5433/taskly\n", { mode: 0o600 });
+
+    expect(await resetWith(file)).toStrictEqual({
+      code: EXIT_OK,
+      urlAtReset: "postgres://file@127.0.0.1:5433/taskly",
+    });
+    expect(process.env.BETTER_AUTH_SECRET).toBeUndefined();
+    expect(process.env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
-  it("fails validation before any auth or database call when the file is incomplete", async () => {
+  it("lets an exported DATABASE_URL win over the env file", async () => {
+    const file = join(dir, "reset.env");
+    writeFileSync(file, "DATABASE_URL=postgres://file@127.0.0.1:5432/taskly\n", { mode: 0o600 });
+    vi.stubEnv("DATABASE_URL", "postgres://tunnel@127.0.0.1:5433/taskly");
+
+    expect(await resetWith(file)).toStrictEqual({
+      code: EXIT_OK,
+      urlAtReset: "postgres://tunnel@127.0.0.1:5433/taskly",
+    });
+  });
+
+  it("fails validation before any auth or database call when DATABASE_URL is missing", async () => {
     const file = join(dir, "partial.env");
-    writeFileSync(file, "DATABASE_URL=postgres://file@127.0.0.1:5432/taskly\n");
+    writeFileSync(file, `BETTER_AUTH_SECRET=${"s".repeat(40)}\nDATABASE_POOL_MAX=2\n`);
     const deps = { ...nodeDeps(), isInteractive: () => true, promptHidden: vi.fn() };
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
 
@@ -350,7 +355,7 @@ describe("nodeDeps", () => {
       EXIT_FAILURE,
     );
     expect(stderr).toHaveBeenCalledWith(
-      "Invalid configuration in the env file or environment: BETTER_AUTH_SECRET, BETTER_AUTH_URL, ANTHROPIC_API_KEY. Nothing was changed.\n",
+      "Invalid configuration in the env file or environment: DATABASE_URL. Nothing was changed.\n",
     );
     expect(deps.promptHidden).not.toHaveBeenCalled();
     expect(setPassword).not.toHaveBeenCalled();
