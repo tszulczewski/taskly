@@ -61,3 +61,6 @@ debug-storybook.log
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
 /.ai/qa/test-env.lock/
+
+# local agent-tool state (launch key, runs, worktrees)
+/.ai/cezar/
