@@ -10,6 +10,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@taskly/core";
+import { DrizzleQueryError } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionUser = vi.fn();
@@ -57,7 +58,31 @@ describe("apiHandler", () => {
     })(new Request("http://x/api"), {});
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json())).not.toContain("leaked");
-    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls).toEqual([["Unhandled API error: GET /api: Error"]]);
+  });
+
+  it("logs an unmapped DB error without its query, params or cause (#76)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const marker = "Leaked title 9c2e";
+    const cause = Object.assign(new Error(`deadlock detected, row (${marker})`), {
+      code: "40P01",
+      detail: `Failing row contains (${marker}).`,
+    });
+    const req = new Request("http://x/api/tasks/t1?q=1", {
+      method: "PATCH",
+      headers: { "x-requested-with": "taskly" },
+    });
+    const res = await apiHandler(async () => {
+      throw new DrizzleQueryError('update "tasks" set "title" = $1', [marker, "u1"], cause);
+    })(req, {});
+    expect(res.status).toBe(500);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual(GENERIC_500);
+    expect(text).not.toContain(marker);
+    expect(spy.mock.calls).toEqual([
+      ["Unhandled API error: PATCH /api/tasks/t1: DrizzleQueryError (code 40P01)"],
+    ]);
+    expect(JSON.stringify(spy.mock.calls)).not.toContain(marker);
   });
 });
 
@@ -206,7 +231,7 @@ describe("apiHandler with a response schema", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("logs a thrown error as before and never checks it against the schema", async () => {
+  it("logs a thrown error's class only and never checks it against the schema", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const safeParse = vi.fn();
     const boom = new Error("boom");
@@ -218,7 +243,7 @@ describe("apiHandler with a response schema", () => {
     )(new Request("http://x/api"), {});
     expect(res.status).toBe(500);
     expect(safeParse).not.toHaveBeenCalled();
-    expect(spy.mock.calls).toEqual([["Unhandled API error", boom]]);
+    expect(spy.mock.calls).toEqual([["Unhandled API error: GET /api: Error"]]);
   });
 
   it("types the handler's result from the schema", () => {

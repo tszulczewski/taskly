@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,12 +41,17 @@ describe("openDefaultList", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it("returns null and logs only a fixed line when the list cannot be opened", async () => {
-    const error = new Error('Failed query: insert into "lists" … params: Secret title,u1');
+  it("returns null and logs only the error's class and code when the list cannot be opened", async () => {
+    const cause = Object.assign(new Error("connection terminated: Secret title"), {
+      code: "57P01",
+    });
+    const error = new DrizzleQueryError('insert into "lists"', ["Secret title", "u1"], cause);
     ensureDefaultList.mockRejectedValueOnce(error);
     expect(await openDefaultList("u1")).toBeNull();
-    expect(consoleError).toHaveBeenCalledOnce();
-    expect(consoleError).toHaveBeenCalledWith("Could not open the default task list");
+    expect(consoleError.mock.calls).toEqual([
+      ["Could not open the default task list: DrizzleQueryError (code 57P01)"],
+    ]);
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("Secret title");
   });
 
   it("returns null when the database client cannot be created", async () => {
@@ -54,7 +60,7 @@ describe("openDefaultList", () => {
     });
     expect(await openDefaultList("u1")).toBeNull();
     expect(ensureDefaultList).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith("Could not open the default task list");
+    expect(consoleError.mock.calls).toEqual([["Could not open the default task list: Error"]]);
   });
 
   it.each([
