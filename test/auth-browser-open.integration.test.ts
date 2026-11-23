@@ -2,7 +2,7 @@ import { schema } from "@taskly/db";
 import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   authRequest,
   clientIps,
@@ -72,6 +72,11 @@ describe("auth in the browser (sign-up open)", () => {
     browser.open("about:blank");
     browser.clearCookies();
     browser.clearHeaders();
+  });
+
+  // Every flow runs under the production CSP (threat T-07): a refused script or style is a bug.
+  afterEach(() => {
+    expect(browser.cspViolations()).toEqual([]);
   });
 
   afterAll(async () => {

@@ -104,6 +104,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Raw HTML is an XSS sink the CSP cannot fully stop (threat T-07). The static theme script
+    // is the one allowed use.
+    ignores: ["packages/app/components/shell/theme-script.tsx"],
+    rules: { "react/no-danger": "error" },
+  },
   { settings: { next: { rootDir: "packages/app" } } },
   // Override default ignores of eslint-config-next.
   globalIgnores([

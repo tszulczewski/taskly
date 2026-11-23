@@ -13,6 +13,7 @@ import {
   sessionCookie,
   startApp,
 } from "./helpers";
+import { securityHeaders } from "../packages/app/lib/security-headers";
 
 const databaseUrl = () => process.env.DATABASE_URL as string;
 const run = `app${Date.now()}`;
@@ -78,6 +79,34 @@ describe("running app (production build + test PostgreSQL)", () => {
     expect(browser.title()).toBe("Sign in · Taskly");
     expect(browser.url()).toBe(`${app.url}/sign-in`);
     expect(browser.snapshot()).toContain("heading");
+  });
+
+  it("sends the production CSP and the framing, sniffing and referrer headers (T-07)", async () => {
+    for (const path of ["/sign-in", "/", "/api/auth/ok"]) {
+      const res = await fetch(`${app.url}${path}`, { redirect: "manual" });
+      const headers = Object.fromEntries(
+        securityHeaders({ dev: false }).map(({ key }) => [key, res.headers.get(key)]),
+      );
+      expect(headers, path).toEqual(
+        Object.fromEntries(securityHeaders({ dev: false }).map(({ key, value }) => [key, value])),
+      );
+    }
+  });
+
+  // Also proves the recorder behind `cspViolations()`, which every browser suite checks.
+  it("refuses an inline event handler in injected markup, and reports it (T-07)", async () => {
+    browser.open(`${app.url}/sign-in`);
+    expect(browser.cspViolations()).toEqual([]);
+    browser.evaluate(
+      `(document.body.insertAdjacentHTML("beforeend", '<img src="/missing.png" onerror="window.__injected = true">'), true)`,
+    );
+    let seen: string[] = [];
+    await browser.waitFor(
+      () => (seen = browser.cspViolations()).length > 0,
+      () => "a CSP violation for the injected handler",
+    );
+    expect(seen).toEqual(["script-src-attr blocked inline on /sign-in"]);
+    expect(browser.evaluate<boolean>("window.__injected === undefined")).toBe(true);
   });
 
   it("mounts the auth API", async () => {

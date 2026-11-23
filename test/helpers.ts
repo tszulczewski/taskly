@@ -196,6 +196,7 @@ const BROWSER_WAIT_MS = 15_000;
 const NOT_ACTIONABLE =
   /No element found|Element not found|but none match name|so the click would not reach it|so the input would land on that element/;
 const pause = new Int32Array(new SharedArrayBuffer(4));
+const cspRecorder = resolve(import.meta.dirname, "record-csp-violations.js");
 
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
 export function createBrowser(session: string) {
@@ -204,6 +205,8 @@ export function createBrowser(session: string) {
     execFileSync(bin, ["--session", session, ...args], {
       encoding: "utf8",
       timeout: 60_000,
+      // Read when the session's browser starts; every page then records its CSP violations.
+      env: { ...process.env, AGENT_BROWSER_INIT_SCRIPTS: cspRecorder },
     }).trim();
 
   /**
@@ -425,6 +428,23 @@ export function createBrowser(session: string) {
       );
     },
     clearCookies: () => run("cookies", "clear"),
+    /**
+     * The Content-Security-Policy violations this tab has reported on the app's pages since the
+     * last call (`record-csp-violations.js`), and clears them. Fails when the recorder is missing,
+     * e.g. a browser left running from before, so a missing recorder never reads as "none".
+     */
+    cspViolations: () => {
+      const seen = evaluate<string[] | "no recorder">(`(() => {
+        if (!location.protocol.startsWith("http")) return [];
+        if (!window.__tasklyCspRecorder) return "no recorder";
+        const seen = JSON.parse(sessionStorage.getItem("taskly-csp-violations") || "[]");
+        sessionStorage.removeItem("taskly-csp-violations");
+        return seen;
+      })()`);
+      if (seen === "no recorder")
+        throw new Error(`No CSP recorder on ${run("get", "url")}; close the browser session.`);
+      return seen;
+    },
     /** The cookies the current page can see, HttpOnly ones included. */
     cookies: () => runJson<{ cookies: BrowserCookie[] }>("cookies", "get").cookies,
     /** Requests the page has made since the last `clearRequests`, whose URL matches `filter`. */

@@ -3,6 +3,7 @@
 Operator procedures for the production deployment described in `packages/app/AGENTS.md` (Build and deployment).
 
 - **Check the Apache vhost:** `ProxyAddHeaders` stays at its default `On`, so the client IP is appended to `X-Forwarded-For`.
+- **Security headers come from the app** (`Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`; threat T-07). Don't set them again in the Apache vhost: the browser enforces every CSP it receives, so a second one silently tightens or blocks what the app's policy allows. After a deploy, `curl -sI https://<host>/sign-in` shows each header once.
 - **Create the owner account** (public sign-up is off unless `ALLOW_SIGN_UP=true`; while it is on, the app logs a warning on the first auth request): set `ALLOW_SIGN_UP=true` in the systemd `EnvironmentFile` → `systemctl restart taskly` → sign up in the browser → remove the line (don't leave it empty: an empty value fails env validation) → restart again.
 - **Reset a password** (offline: sets the new password and signs out every session of that user, both or neither). From a dev checkout after `npm ci`:
   1. Put `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `ANTHROPIC_API_KEY` of the target deployment in a private env file **outside the repo** (e.g. `/private/taskly-reset.env`), `chmod 600`. Never paste its contents into logs or tracker messages.
