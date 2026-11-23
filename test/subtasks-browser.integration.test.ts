@@ -157,7 +157,8 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       return {
         title: title.textContent,
         estimate,
-        meta: meta ? [...meta.children].map((e) => e.textContent) : [],
+        // "Add places" (#90) is an action in the meta line, not something it says about the task.
+        meta: meta ? [...meta.children].filter((e) => e.tagName !== "BUTTON").map((e) => e.textContent) : [],
         notice: row.querySelector(':scope > div > [role="status"]').textContent,
         expanded: title.getAttribute("aria-expanded"),
         pending: title.closest("[data-pending]") !== null,
@@ -198,14 +199,14 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
   }
 
   /** Opens a row's "…" menu (a task's or a subtask's) and picks an item. */
-  function rowAction(title: string, item: "Add subtask" | "Edit" | "Delete") {
-    browser.clickRole("button", `More actions for “${title}”`);
+  async function rowAction(title: string, item: "Add subtask" | "Edit" | "Delete") {
+    await browser.openRowMenu(title);
     browser.clickRole("menuitem", item);
   }
 
   /** "…" → "Add subtask": waits for the row's "New subtask" form. */
   async function openSubtaskForm(taskTitle: string) {
-    rowAction(taskTitle, "Add subtask");
+    await rowAction(taskTitle, "Add subtask");
     await browser.waitFor(
       () => browser.count(subtaskField("title")) === 1,
       () => `the "New subtask" form of "${taskTitle}"`,
@@ -241,7 +242,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
 
   /** "…" → "Delete" on a row, confirms the named dialog; settled once the dialog has closed. */
   async function deleteRow(title: string, question: string) {
-    rowAction(title, "Delete");
+    await rowAction(title, "Delete");
     await browser.waitForText(question);
     browser.clickRole("button", "Delete task");
   }
@@ -587,7 +588,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
 
     // A subtask's menu has the task actions except "Add subtask" (one level only); it moves
     // among its task's subtasks (#17).
-    browser.clickRole("button", "More actions for “Sink”");
+    await browser.openRowMenu("Sink");
     await browser.waitFor(
       () => browser.count('[role="menuitem"]') > 0,
       () => "the subtask's menu",
@@ -620,7 +621,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     expect(await storedTask(user.listId, "Kitchen")).toEqual(own);
 
     // The task's own form: the read-only sum in place of the amount fields (R12).
-    rowAction("Kitchen", "Edit");
+    await rowAction("Kitchen", "Edit");
     await browser.waitForHydrated(`${editForm("Kitchen")} [name="title"]`);
     expect(browser.count(`${editForm("Kitchen")} input`)).toBe(1);
     expect(
@@ -700,7 +701,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     const own = await storedTask(user.listId, "Shelf");
     const form = editForm("Shelf");
 
-    rowAction("Shelf", "Edit");
+    await rowAction("Shelf", "Edit");
     await browser.waitForHydrated(`${form} [name="amount"]`);
     await createTask(db, user.id, user.listId, {
       title: "Brackets",

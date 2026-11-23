@@ -68,6 +68,9 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     return rows.sort((a, b) => (a.position < b.position ? -1 : 1)).map((row) => row.title);
   };
 
+  /** What dnd-kit's live region says about the keyboard move now. */
+  const announced = () =>
+    browser.evaluate<string>(`document.querySelector('[id^="DndLiveRegion"]')?.textContent ?? ""`);
   const handles = () => browser.count('button[aria-label^="Move “"]');
   const menuItems = () =>
     browser.evaluate<string[]>(
@@ -76,7 +79,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
 
   async function openMenu(title: string) {
     await browser.waitForAnimations();
-    browser.clickRole("button", `More actions for “${title}”`);
+    await browser.openRowMenu(title);
     await browser.waitFor(
       () => browser.count('[role="menu"]') === 1,
       () => `the menu of ${title} to open`,
@@ -98,7 +101,12 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     browser.press("Space");
     await browser.waitForAnimations();
     browser.press("ArrowDown");
-    await browser.waitForAnimations();
+    // When the page is taller than the window, dnd-kit first scrolls it smoothly and the row
+    // reaches B only when the scroll ends; its announcement says when, so drop after it.
+    await browser.waitFor(
+      () => announced().includes("“A” is now at “B”."),
+      () => `the move over B to be announced (announced: ${announced()})`,
+    );
     browser.press("Space");
 
     await expectShown("Tasks", ["B", "A", "C"]);

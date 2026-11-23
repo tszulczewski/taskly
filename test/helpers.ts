@@ -296,6 +296,30 @@ export function createBrowser(session: string) {
     run("keyboard", "type", text);
   }
 
+  /**
+   * Waits until the element matching the CSS selector is on the page and its box stays the same
+   * between two polls. Radix places a popover after it renders and again when its size changes
+   * (a new view), without an animation, so a click sent a few ms later can miss its target.
+   */
+  const waitForSteady = async (selector: string, timeoutMs?: number) => {
+    const box = () =>
+      evaluate<string | null>(`(() => {
+        const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
+        return r ? [r.x, r.y, r.width, r.height].join() : null;
+      })()`);
+    let last: string | null = null;
+    await waitFor(
+      () => {
+        const now = box();
+        const steady = now !== null && now === last;
+        last = now;
+        return steady;
+      },
+      () => `${selector} to stop moving (box: ${box()})`,
+      timeoutMs,
+    );
+  };
+
   const pathname = () => new URL(run("get", "url")).pathname;
   const hasText = (text: string) =>
     evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(text)})`);
@@ -375,28 +399,16 @@ export function createBrowser(session: string) {
         () => `animations to finish (running: ${runningAnimations().join(", ")})`,
         timeoutMs,
       ),
+    waitForSteady,
     /**
-     * Waits until the element matching the CSS selector is on the page and its box stays the same
-     * between two polls. Radix places a popover after it renders and again when its size changes
-     * (a new view), without an animation, so a click sent a few ms later can miss its target.
+     * Clicks a row's "…" once it stops moving. An add scrolls its new row into view smoothly (spec
+     * E01, After an add), and a list taller than the window scrolls, so a click sent while the
+     * page still moves can miss "…" and leave the menu closed.
      */
-    waitForSteady: async (selector: string, timeoutMs?: number) => {
-      const box = () =>
-        evaluate<string | null>(`(() => {
-          const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
-          return r ? [r.x, r.y, r.width, r.height].join() : null;
-        })()`);
-      let last: string | null = null;
-      await waitFor(
-        () => {
-          const now = box();
-          const steady = now !== null && now === last;
-          last = now;
-          return steady;
-        },
-        () => `${selector} to stop moving (box: ${box()})`,
-        timeoutMs,
-      );
+    openRowMenu: async (title: string) => {
+      const name = `More actions for “${title}”`;
+      await waitForSteady(`button[aria-label=${JSON.stringify(name)}]`);
+      act(null, "find", "role", "button", "click", "--name", name, "--exact");
     },
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>

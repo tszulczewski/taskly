@@ -1118,6 +1118,121 @@ describe("TaskList ordering, markers and places", () => {
     );
   });
 
+  describe("Add places in the meta line (#90)", () => {
+    const addPlaces = (title: string) =>
+      screen.getByRole("button", { name: `Add places to “${title}”` }) as HTMLButtonElement;
+    const meta = (title: string) => addPlaces(title).parentElement!;
+
+    /** Assigns places as the app does, so a tick shows on the row. */
+    function App({ initial, places }: { initial: TaskItem[]; places: PlaceOptions }) {
+      const [tasks, setTasks] = useState(initial);
+      const assign = (task: TaskItem, placeId: string, assigned: boolean): TaskItem => {
+        const own = task.places ?? [];
+        return {
+          ...task,
+          places: assigned
+            ? [...own, places.all.find((place) => place.id === placeId)!]
+            : own.filter((place) => place.id !== placeId),
+          subtasks: task.subtasks?.map((subtask) => assign(subtask, placeId, assigned)),
+        };
+      };
+      const onToggle = (taskId: string, placeId: string, assigned: boolean) => {
+        places.onToggle(taskId, placeId, assigned);
+        const visit = (task: TaskItem): TaskItem =>
+          task.id === taskId
+            ? assign(task, placeId, assigned)
+            : { ...task, subtasks: task.subtasks?.map(visit) };
+        setTasks((current) => current.map(visit));
+      };
+      return (
+        <TaskList
+          status="ready"
+          tasks={tasks}
+          validate={noErrors}
+          onRetry={vi.fn()}
+          onEdit={vi.fn(ok)}
+          onAddSubtask={vi.fn(ok)}
+          onDelete={vi.fn(async () => true)}
+          places={{ ...places, onToggle }}
+        />
+      );
+    }
+
+    it("shows Add places on a task and a subtask without places, and a ticked place before it", async () => {
+      const places = placeOptions();
+      render(<App initial={[paint]} places={places} />);
+      expect(meta("Paint the ceiling").textContent).toContain("Add places");
+      fireEvent.click(screen.getByRole("button", { name: "Paint the ceiling" }));
+      const button = addPlaces("Seal the bath");
+      expect(meta("Seal the bath").textContent).toBe("Add places");
+      expect(button.getAttribute("aria-haspopup")).toBe("dialog");
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+
+      await act(async () => {
+        fireEvent.click(button);
+      });
+      const panel = screen.getByRole("dialog", { name: "Places for “Seal the bath”" });
+      expect(button.getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(within(panel).getByRole("checkbox", { name: "Kitchen" }));
+      expect(places.onToggle).toHaveBeenCalledWith("seal", "kitchen", true);
+      expect(meta("Seal the bath").textContent).toBe("KitchenAdd places");
+      // The parent task keeps its own places (D21).
+      expect(meta("Paint the ceiling").textContent).not.toContain("Kitchen");
+    });
+
+    it("lists several places, then Add places; unticking one leaves the other (AC3 of #19)", async () => {
+      const places = placeOptions();
+      render(<App initial={[{ ...sealBath, places: [bathroom, kitchen] }]} places={places} />);
+      expect(meta("Seal the bath").textContent).toBe("BathroomKitchenAdd places");
+      await act(async () => {
+        fireEvent.click(addPlaces("Seal the bath"));
+      });
+      const panel = screen.getByRole("dialog", { name: "Places for “Seal the bath”" });
+      fireEvent.click(within(panel).getByRole("checkbox", { name: "Bathroom" }));
+      expect(places.onToggle).toHaveBeenCalledWith("seal", "bathroom", false);
+      expect(meta("Seal the bath").textContent).toBe("KitchenAdd places");
+    });
+
+    it("returns focus to Add places, not to …, when the picker closes", async () => {
+      renderList({ tasks: [sealBath], places: placeOptions() });
+      const button = addPlaces("Seal the bath");
+      await act(async () => {
+        fireEvent.click(button);
+      });
+      const panel = screen.getByRole("dialog", { name: "Places for “Seal the bath”" });
+      fireEvent.keyDown(panel, { key: "Escape" });
+      await vi.waitFor(() => expect(document.activeElement).toBe(button));
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("is there only with a catalog, kept on completed tasks and turned off while pending", () => {
+      renderList({ tasks: [sealBath] });
+      expect(screen.queryByRole("button", { name: /^Add places/ })).toBeNull();
+      cleanup();
+      renderList({
+        tasks: [
+          { ...sealBath, completed: true },
+          { ...rods, pending: true },
+        ],
+        places: placeOptions(),
+      });
+      expect(addPlaces("Seal the bath").disabled).toBe(false);
+      expect(addPlaces("Hang the curtain rods").disabled).toBe(true);
+      expect(meta("Hang the curtain rods").textContent).toBe("Saving…Add places");
+    });
+
+    it("reads its name in the given language", () => {
+      renderList({
+        tasks: [sealBath],
+        places: placeOptions(),
+        text: { addPlaces: "Dodaj miejsca", addPlacesTo: (title) => `Dodaj miejsca do „${title}”` },
+      });
+      expect(
+        screen.getByRole("button", { name: "Dodaj miejsca do „Seal the bath”" }).textContent,
+      ).toBe("Dodaj miejsca");
+    });
+  });
+
   it("gives a subtask's quick add its own places, none chosen at first, created without a task (AC12, AC13)", async () => {
     const places = placeOptions();
     const onAddSubtask = vi.fn(ok);

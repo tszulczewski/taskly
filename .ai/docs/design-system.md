@@ -62,7 +62,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Subtask progress | `SubtaskProgress` | The meta line of a task with subtasks, with completion. | A list without completion (“3 subtasks”); a bar or a percentage. |
 | Complete task dialog | `CompleteTaskDialog` | Checking a task with at least one open subtask; TaskList opens it. | A task without open subtasks, a subtask, reopening: act at once. |
 | Place tag | `PlaceTag` | The meta line of a row; next to a place in the picker. | Choosing places (PlacePicker); markers; filtering (not in version 1). |
-| Place picker | `PlacePicker` | The popover that “Places…” in a row's menu opens. | Showing places (PlaceTag); markers; a separate page to manage places. |
+| Place picker | `PlacePicker` | The popover that “Places…” in a row's menu or “Add places” in its meta line opens. | Showing places (PlaceTag); markers; a separate page to manage places. |
 | Place color picker | `PlaceColorPicker` | Editing a place's colour; any of the ten, also one in use (D26). | Creating a place (the app picks the colour); any colour outside the ten. |
 | Future expenses | `FutureExpenses` | Once, under the list's name, above quick add. | Tiles with several numbers; spent or budget (version 2); one task's estimate. |
 | Unestimated tasks | `UnestimatedTasks` | Under the future expenses total; FutureExpenses renders it. | Changing an existing estimate (Edit); a task with subtasks itself; a separate summary page. |
