@@ -52,12 +52,13 @@ const { calls, ctx, runWithTransaction } = vi.hoisted(() => {
   });
   return { calls, ctx, runWithTransaction };
 });
-const { getAuth, getMaintenanceAuth } = vi.hoisted(() => ({
+const { getAuth, getMaintenanceContext } = vi.hoisted(() => ({
   getAuth: vi.fn(),
-  getMaintenanceAuth: vi.fn(),
+  getMaintenanceContext: vi.fn(),
 }));
 
-vi.mock("./auth", () => ({ getAuth, getMaintenanceAuth }));
+vi.mock("./auth", () => ({ getAuth }));
+vi.mock("./maintenance-auth", () => ({ getMaintenanceContext }));
 vi.mock("@better-auth/core/context", () => ({ runWithTransaction }));
 
 const valid = { name: "  Ada Lovelace ", email: "Ada@Example.TEST", password: "correct-horse" };
@@ -66,7 +67,7 @@ function resetMocks() {
   calls.length = 0;
   vi.clearAllMocks();
   getAuth.mockReturnValue({ $context: Promise.resolve(ctx) });
-  getMaintenanceAuth.mockReturnValue({ $context: Promise.resolve(ctx) });
+  getMaintenanceContext.mockReturnValue(Promise.resolve(ctx));
 }
 
 describe("createPasswordUser", () => {
@@ -127,7 +128,7 @@ describe("setPassword", () => {
   it("uses the maintenance instance, which needs only the database", async () => {
     await setPassword("ada@example.test", "new-correct-horse");
 
-    expect(getMaintenanceAuth).toHaveBeenCalledOnce();
+    expect(getMaintenanceContext).toHaveBeenCalledOnce();
     expect(getAuth).not.toHaveBeenCalled();
   });
 

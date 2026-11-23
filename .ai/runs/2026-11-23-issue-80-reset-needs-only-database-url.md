@@ -51,3 +51,15 @@ All run from the worktree on 2026-11-23, after `npm run format`:
 ## Lessons recorded (links into .ai/lessons.md)
 
 - 2026-11-23 — Better Auth maintenance instance needs a secret; spy on the instance the code uses.
+
+## Review round 1 (PR #97, review at head 1349679, CHANGES REQUESTED)
+
+Run by `om-auto-continue-pr` on 2026-11-23. Findings and what changed:
+
+1. **M1** `getMaintenanceAuth` was re-exported from `@taskly/core/server` with sign-up on. Moved to `core/src/maintenance-auth.ts`, which the `server` barrel does not export (and the package `exports` map has no path to it). It exports only `getMaintenanceContext()` (the instance's `$context`), never the instance, so no `handler`/`api` exists to serve its endpoints; `emailAndPassword.disableSignUp: true` as well. Checked in Better Auth 1.7.25 that `disabledPaths` is enforced only in the HTTP router (`dist/api/index.mjs:169`), not on `api.*` calls, so withholding the instance is the effective narrowing. `barrels.test` asserts the server entry has neither `getMaintenanceContext` nor `sharedAuthOptions`.
+2. **M2** Both instances now spread `sharedAuthOptions()` (`core/src/auth-options.ts`: the drizzle adapter with transactions and the password rules; its doc comment lists which future options must go there). `maintenance-auth.test` "uses every shared option exactly as the app does" compares each shared key between the app and maintenance configs (only `disableSignUp` differs) and requires every other app key to be in an explicit app-only list. Mutation check: adding `password: { hash }` inline to the app's `emailAndPassword` fails that test. The maintenance tests moved from `auth.test.ts` (now identical to `main`) to `maintenance-auth.test.ts`.
+3. **N1** Threat model §3 "Manual, operator" row: "reset runbook keeps secrets on the VPS" → "the reset env file holds only the tunnel `DATABASE_URL` and is deleted after use". One cell; #95's edits to the neighbouring rows are untouched.
+4. **N2** `set-password.test` "names invalid settings without their values": a valid `DATABASE_URL` with password `dbpass` plus an invalid `DATABASE_POOL_MAX`; asserts the error names only `DATABASE_POOL_MAX` and that neither value is printed.
+5. **B1** (CI Integration, reorder-browser flake) not touched here, as instructed; noted on the PR.
+
+Files: `packages/core/src/auth.ts`, `auth-options.ts` (new), `maintenance-auth.ts` (new), `maintenance-auth.test.ts` (new), `auth.test.ts`, `barrels.test.ts`, `password-admin.ts`, `password-admin.test.ts`, `password-admin.integration.test.ts`, `cli/set-password.test.ts`, `.ai/docs/security/threat-model.md`, `.ai/lessons.md` (lesson line corrected), this log.

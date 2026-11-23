@@ -1,7 +1,8 @@
 import "server-only";
 import { runWithTransaction } from "@better-auth/core/context";
-import { getAuth, getMaintenanceAuth } from "./auth";
+import { getAuth } from "./auth";
 import { NotFoundError } from "./errors";
+import { getMaintenanceContext } from "./maintenance-auth";
 import { type SignUpInput, setPasswordInput, signUpInput } from "./schemas";
 
 /** `NotFoundError.resource` values of `setPassword`, so callers can tell the two apart. */
@@ -44,7 +45,7 @@ export async function createPasswordUser(input: SignUpInput) {
  */
 export async function setPassword(email: string, newPassword: string) {
   const input = setPasswordInput.parse({ email, newPassword });
-  const ctx = await getMaintenanceAuth().$context;
+  const ctx = await getMaintenanceContext();
   const hash = await ctx.password.hash(input.newPassword);
   await runWithTransaction(ctx.adapter, async () => {
     const found = await ctx.internalAdapter.findUserByEmail(input.email);

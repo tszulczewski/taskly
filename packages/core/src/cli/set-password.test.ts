@@ -133,11 +133,11 @@ describe("runSetPassword", () => {
   });
 
   it("names invalid settings without their values, before prompting or initializing auth", async () => {
-    const secret = "pool-dbpass-value";
+    const secret = "pool-secret-value";
     const f = fakeDeps({
       validateEnv: () => {
         f.calls.push("validateEnv");
-        parseDatabaseEnv({ DATABASE_URL: "", DATABASE_POOL_MAX: secret });
+        parseDatabaseEnv({ DATABASE_URL: "postgres://u:dbpass@h/db", DATABASE_POOL_MAX: secret });
       },
     });
 
@@ -149,9 +149,10 @@ describe("runSetPassword", () => {
       "stderr",
     ]);
     expect(f.err).toStrictEqual([
-      "Invalid configuration in the env file or environment: DATABASE_URL, DATABASE_POOL_MAX. Nothing was changed.",
+      "Invalid configuration in the env file or environment: DATABASE_POOL_MAX. Nothing was changed.",
     ]);
     expect(f.printed()).not.toContain(secret);
+    expect(f.printed()).not.toContain("dbpass");
   });
 
   it("reports an unexpected configuration error generically", async () => {

@@ -121,59 +121,6 @@ describe("auth", () => {
     expect(config.advanced.useSecureCookies).toBe(true);
   });
 
-  describe("maintenance instance", () => {
-    // Regression (#80): the password reset must start with DATABASE_URL alone.
-    it("is created once, lazily, without reading any app setting", async () => {
-      for (const key of Object.keys(env)) vi.stubEnv(key, undefined);
-      const { getMaintenanceAuth } = await load();
-      expect(betterAuth).not.toHaveBeenCalled();
-
-      const first = getMaintenanceAuth();
-      expect(getMaintenanceAuth()).toBe(first);
-      expect(betterAuth).toHaveBeenCalledTimes(1);
-    });
-
-    it("shares the database and password settings, and nothing that serves requests", async () => {
-      const { getAuth, getMaintenanceAuth } = await load();
-      getAuth();
-      getMaintenanceAuth();
-      const app = betterAuth.mock.calls[0]?.[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const config = betterAuth.mock.calls[1]?.[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-      expect(Object.keys(config).sort()).toEqual([
-        "database",
-        "emailAndPassword",
-        "logger",
-        "secret",
-      ]);
-      expect(config.database).toBe(app.database);
-      expect(drizzleAdapter).toHaveBeenNthCalledWith(2, "db", {
-        provider: "pg",
-        schema: {},
-        transaction: true,
-      });
-      expect(config.emailAndPassword).toEqual({
-        enabled: true,
-        minPasswordLength: 10,
-        maxPasswordLength: 128,
-      });
-      expect(config.logger).toEqual({ disabled: true });
-    });
-
-    it("gets a fresh random secret, never the deployment's", async () => {
-      const first = await load();
-      first.getMaintenanceAuth();
-      const second = await load();
-      second.getMaintenanceAuth();
-      const [a, b] = betterAuth.mock.calls.map(([config]) => (config as { secret: string }).secret);
-
-      expect(a).toMatch(/^[A-Za-z0-9+/]{43}=$/);
-      expect(b).toMatch(/^[A-Za-z0-9+/]{43}=$/);
-      expect(a).not.toBe(b);
-      expect(a).not.toBe(env.BETTER_AUTH_SECRET);
-    });
-  });
-
   it("exposes Next.js route handlers", async () => {
     const { authRouteHandlers } = await load();
     expect(authRouteHandlers()).toEqual({ GET: "get", POST: "post" });
