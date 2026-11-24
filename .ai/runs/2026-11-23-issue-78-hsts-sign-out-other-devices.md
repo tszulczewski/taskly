@@ -53,3 +53,22 @@ All from the worktree, on the final tree:
 
 - 2026-11-23: Better Auth 1.7.25 already serves the session-revocation endpoints; `revoke-other-sessions` is not atomic (index only).
 - 2026-11-23: a Radix DropdownMenu trigger opens on pointerdown/keydown, so `Button loading` does not stop it (index only).
+
+## Resume 2026-11-24: review findings (CHANGES REQUESTED on 1f10a60)
+
+Review: PR #98 comment 7119865370. Run by cezar task 89e494d0 via `om-auto-continue-pr`.
+
+- Finding 1 (red Integration job): a row-menu flake in `future-expenses-browser`, not this diff. Re-run 45273068439 on 1f10a60 went green, every job included. Not fixed here (another task owns the row-menu flakes).
+- Finding 2 (401 showed "Try again"): `useSignOutOtherDevices` (was `signOutOtherDevices`) treats a 401 as "this session already ended". It clears the Query cache and goes to `/sign-in`, as `QueryProvider` does for any 401 (sign-in spec, Edge cases, "Session expired while the tasks screen is open"). `AppHeader`'s `onSignOutOtherDevices` now resolves `"done" | "failed" | "sessionEnded"`. `sessionEnded` keeps the button busy until the page changes, as after `onSignOut`. Added unit tests (app and ui) and a browser integration test: another device signs this one out first, then "Sign out of other devices" lands on `/sign-in` with no alert.
+- Finding 3 (success notice vs `design-system.md` "Success → nothing"): kept the rule and removed the notice and its `signedOutOtherDevices` text. The design-system rule is unchanged. Success shows nothing: the menu closes and the button is ready again. The browser tests now wait for the server-side effect (`expect.poll` on the other session's 401), then for the ready button.
+- Nits: the Polish story strings are now "Wyloguj się na tym urządzeniu" / "Wyloguj się na innych urządzeniach", and the odd notice string is gone with the notice. The runbook HSTS step 1 says the certbot vhost is `…-le-ssl.conf` and that `certbot --hsts` may already have added the header (don't add a second one). The cookie test does `expect(header).toBeDefined()` before parsing.
+- Lesson: the 401 handler covers only TanStack queries and mutations, so an `authCall` for a signed-in action needs its own 401 branch. "Success → nothing" also holds when the effect is on another device.
+
+### Verification (final tree)
+
+- `npm run format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`: exit 0.
+- `npm test`: 84 files, 1284 tests; 100% statements (2193), branches (1351), functions (758), lines (1910).
+- `npm run build`: exit 0. `npm run audit`: exit 0 (the same 4 moderate dev-tool advisories as before).
+- `npm run check:tokens`: exit 0. `test:storybook`: 120 files, 944 tests. `build-storybook`: exit 0.
+- `TMPDIR=/tmp AGENT_BROWSER_SOCKET_DIR=/tmp/ab89 npm run test:integration` (alone, after the sibling task's run freed the ports): 25 files, 310 tests passed, exit 0, 297 s.
+- Not done: a manual check of the running app. The 401 path and the "nothing shown on success" path are covered by the new browser integration tests against the production build.
