@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from "@taskly/core";
 import { getSessionUser } from "@taskly/core/server";
+import { describeError } from "./log-error";
 
 type Handler<Ctx, T> = (req: Request, ctx: Ctx) => Promise<T>;
 
@@ -30,13 +31,13 @@ function checkOutput<T>(schema: ResponseSchema<T>, data: unknown): T {
 }
 
 function logFailure(req: Request, error: unknown): void {
+  const route = `${req.method} ${new URL(req.url).pathname}`;
   // The output's ZodError would hold row values (titles, descriptions), so it is never logged.
   if (error instanceof OutputContractError) {
-    console.error(
-      `Response failed its output contract: ${req.method} ${new URL(req.url).pathname}`,
-    );
+    console.error(`Response failed its output contract: ${route}`);
   } else {
-    console.error("Unhandled API error", error);
+    // Never the error itself: a DrizzleQueryError's message holds the SQL params.
+    console.error(`Unhandled API error: ${route}: ${describeError(error)}`);
   }
 }
 
