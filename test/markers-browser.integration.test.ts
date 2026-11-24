@@ -67,9 +67,7 @@ describe("marking tasks important and urgent in the browser (#18, sign-up closed
 
   /** "…" → "Important" or "Urgent" on a row; the menu closes after the choice. */
   async function toggle(title: string, marker: Marker) {
-    await browser.waitForAnimations();
-    browser.clickRole("button", `More actions for “${title}”`);
-    browser.clickRole("menuitemcheckbox", marker);
+    await browser.rowAction(title, marker, "menuitemcheckbox");
     await browser.waitFor(
       () => browser.count('[role="menu"]') === 0,
       () => "the menu to close",
