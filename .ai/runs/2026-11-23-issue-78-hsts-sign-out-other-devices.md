@@ -72,3 +72,18 @@ Review: PR #98 comment 7119865370. Run by cezar task 89e494d0 via `om-auto-conti
 - `npm run check:tokens`: exit 0. `test:storybook`: 120 files, 944 tests. `build-storybook`: exit 0.
 - `TMPDIR=/tmp AGENT_BROWSER_SOCKET_DIR=/tmp/ab89 npm run test:integration` (alone, after the sibling task's run freed the ports): 25 files, 310 tests passed, exit 0, 297 s.
 - Not done: a manual check of the running app. The 401 path and the "nothing shown on success" path are covered by the new browser integration tests against the production build.
+
+## Resume 2026-11-24: the re-review's optional nits (APPROVED on a64ae7e)
+
+Re-review: PR #98 comment 7120910352. Run by cezar task 5a09c248 via `om-auto-continue-pr`. No behaviour change.
+
+- Nit 1 (story wording): the PR-body story said "nothing is signed out" on failure. Better Auth's `revoke-other-sessions` deletes the other sessions one at a time without a transaction, so a timeout or a dropped connection can arrive after some or all of them have already ended. The story now says that some other devices may already be signed out, and it adds the 401 case (this device already signed out → cache cleared, `/sign-in`). The code comments (`use-sign-out.ts`, `app-header.tsx`) already said this correctly; the integration test "says so when the request fails, ends nothing" aborts the request before it reaches the server, so "ends nothing" is true there and stays.
+- Nit 2: new `SessionEnded` story in `AppShell.stories.tsx` with a play test (busy after "Sign out of other devices", no alert, a click opens no menu). `AppShell.mdx` §6 points the "This session already ended" row at it (was "(app)"), and §7 names the test.
+- First Storybook run failed: the play test clicked the busy button, and a busy `Button` has `pointer-events: none`. The story now focuses it and presses Enter (it stays focusable while busy), which is the input that could still open the menu.
+
+### Verification (this resume)
+
+- `npm run format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`, `check:tokens`: exit 0.
+- `npm test`: 84 files, 1284 tests, exit 0 (100% coverage thresholds hold; no unit-tested code changed).
+- `TMPDIR=/tmp npm run test:storybook`: 120 files, 946 tests (944 + `SessionEnded` in both themes), exit 0. `build-storybook`: exit 0.
+- Not run: `build`, `audit`, `test:integration`. Only Storybook stories, Storybook docs and this log changed; no app code, dependency or route.

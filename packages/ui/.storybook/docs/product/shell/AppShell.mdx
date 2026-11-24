@@ -51,7 +51,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 | Signing out                      | "Sign out" shows the spinner, `aria-busy`.                                     | Playground                    | spec             |
 | Sign-out failed                  | Alert under the bar; the button works again; nothing claims sign-out.          | Sign Out Failed               | spec, Edge cases |
 | Other devices signed out         | Nothing new (success → nothing); the button works again.                       | Sign Out Other Devices        | #78, T-06        |
-| This session already ended       | As after a sign-out: the spinner stays and the app goes to `/sign-in` (a 401). | (app)                         | spec, Edge cases |
+| This session already ended       | As after a sign-out: the spinner stays and the app goes to `/sign-in` (a 401). | Session Ended                 | spec, Edge cases |
 | Signing out other devices failed | Alert under the bar: "Could not sign out other devices. Try again."            | Sign Out Other Devices Failed | #78              |
 
 <Story of={Stories.SignOutFailed} />
@@ -63,7 +63,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 - Landmarks: `banner` (the bar) and `main`. The page heading is the `h1` inside `main`, not the app name: one per page, `text-heading font-strong`, naming what the page shows (the list's name), as in Product / Tasks / Screens.
 - Tab order: theme toggle → Sign out → page content. "Sign out" is a menu button (`aria-haspopup="menu"`): Enter, Space or a click opens it with focus on the first item; Escape closes it and returns focus. While a sign-out runs it shows the spinner and opens nothing.
 - Why a menu, not a second button: two text buttons and the theme icons do not fit one row at 320px (E10). Signing out everywhere is rare; this device stays one menu choice away.
-- The sign-out failures are announced (`role="alert"`). Signing out other devices says nothing when it works, as every success (design system, "If … then use …"): the menu closes and the button is ready again. Covered by the Sign Out Failed, Sign Out Other Devices and Sign Out Other Devices Failed tests.
+- The sign-out failures are announced (`role="alert"`). Signing out other devices says nothing when it works, as every success (design system, "If … then use …"): the menu closes and the button is ready again. Covered by the Sign Out Failed, Sign Out Other Devices and Sign Out Other Devices Failed tests. When this session already ended, the button stays busy and opens no menu until the app reaches `/sign-in` (Session Ended test).
 
 ## 8. Content
 

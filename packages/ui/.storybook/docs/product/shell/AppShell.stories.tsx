@@ -93,6 +93,23 @@ export const SignOutOtherDevicesFailed: Story = {
   },
 };
 
+export const SessionEnded: Story = {
+  args: { onSignOutOtherDevices: async () => "sessionEnded" as const },
+  render: (args) => <AppShell {...args}>{page}</AppShell>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const signOut = canvas.getByRole("button", { name: "Sign out" });
+    await choose(canvasElement, "Sign out of other devices");
+    // Busy until the app navigates to /sign-in (a 401), as after "Sign out of this device".
+    await expect(signOut).toHaveAttribute("aria-busy", "true");
+    await expect(canvas.queryByRole("alert")).toBeNull();
+    // A busy button takes no pointer events but stays focusable; Enter must open nothing either.
+    signOut.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("menu")).toBeNull();
+  },
+};
+
 export const Polish: Story = {
   args: {
     text: {
