@@ -301,8 +301,7 @@ describe("completing and reopening tasks in the browser (#20, sign-up closed)", 
         return li?.querySelector('[role="status"]')?.textContent ?? null;
       })()`);
 
-    browser.clickRole("button", "More actions for “B”");
-    browser.clickRole("menuitem", "Add subtask");
+    await browser.rowAction("B", "Add subtask");
     await browser.waitForHydrated(`${subtaskForm} [name="title"]`);
     await setTaskCompleted(db, user.id, b!.id, { completed: true });
     browser.typeInto(`${subtaskForm} [name="title"]`, "Screws");

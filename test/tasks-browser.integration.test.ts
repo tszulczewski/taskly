@@ -158,12 +158,6 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
   const focusedSlot = () =>
     browser.evaluate<string | null>(`document.activeElement?.getAttribute("data-slot") ?? null`);
 
-  /** Opens a row's "…" menu and picks an item. */
-  function rowAction(title: string, item: "Edit" | "Delete") {
-    browser.clickRole("button", `More actions for “${title}”`);
-    browser.clickRole("menuitem", item);
-  }
-
   beforeAll(async () => {
     app = await startApp(process.env.DATABASE_URL as string, {
       port: 3206,
@@ -395,7 +389,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     ]);
     expect((await storedTasks(user.listId)).map((t) => t.title)).toEqual(added);
 
-    rowAction("Fix the door", "Edit");
+    await browser.rowAction("Fix the door", "Edit");
     const editTitle = '[data-slot="task-form"] [name="title"]';
     await browser.waitForHydrated(editTitle);
     browser.retypeInto(editTitle, "Fix the front door");
@@ -406,7 +400,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
       () => `the renamed row (rows: ${JSON.stringify(rows())})`,
     );
 
-    rowAction("Clean up", "Delete");
+    await browser.rowAction("Clean up", "Delete");
     await browser.waitForText("Delete “Clean up”?");
     browser.clickRole("button", "Delete task");
     await browser.waitFor(
@@ -431,7 +425,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     await openTasks(user);
     expect(titles()).toEqual(["Fix the door", "Hang the shelf"]);
 
-    rowAction("Hang the shelf", "Edit");
+    await browser.rowAction("Hang the shelf", "Edit");
     await browser.waitForHydrated(EDIT_TITLE);
     await deleteTask(db, user.id, shelf.id);
     browser.retypeInto(EDIT_TITLE, "Hang the long shelf");
@@ -487,7 +481,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     await createTask(db, user.id, user.listId, { title: "Fix the door" });
     await openTasks(user);
 
-    rowAction("Fix the door", "Edit");
+    await browser.rowAction("Fix the door", "Edit");
     await browser.waitForHydrated(EDIT_TITLE);
     browser.abortRequests(TASK_API);
     try {
@@ -520,7 +514,7 @@ describe("tasks in the browser (#15, sign-up closed)", () => {
     await createTask(db, user.id, user.listId, { title: "Fix the door" });
     await openTasks(user);
 
-    rowAction("Fix the door", "Delete");
+    await browser.rowAction("Fix the door", "Delete");
     await browser.waitForText("Delete “Fix the door”?");
     browser.abortRequests(TASK_API);
     try {
