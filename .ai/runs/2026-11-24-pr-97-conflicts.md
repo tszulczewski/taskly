@@ -19,8 +19,9 @@ Resolve PR #97's merge conflicts against `main` and verify the branch is mergeab
 
 ## Verification (commands run and results)
 - `git diff --cached --check` — no whitespace errors before commit.
-- GitHub CI run [45400508888](https://github.com/tszulczewski/taskly/actions/runs/45400508888) on `289cc29063f570b9ddb71fe5f2780d80a175dce6` — passed all 6 workflow jobs; SonarCloud also passed.
-- GitHub reports the current PR head `289cc29063f570b9ddb71fe5f2780d80a175dce6` as `MERGEABLE`, merge state `CLEAN`; no conflicts remain.
+- GitHub CI run [45400508888](https://github.com/tszulczewski/taskly/actions/runs/45400508888) on `289cc29063f570b9ddb71fe5f2780d80a175dce6` — all 6 workflow jobs passed; SonarCloud passed.
+- On finalized head `554c709fb7b63f633ad87db0584213b9e6b650ea`, the first CI run [45401722245](https://github.com/tszulczewski/taskly/actions/runs/45401722245) had one failure: `reorder-browser` timed out waiting for the keyboard reorder announcement, while 304/305 integration tests passed. Retried the failed job; the retry passed and the run concluded successfully.
+- GitHub reports head `554c709fb7b63f633ad87db0584213b9e6b650ea` as `MERGEABLE`, merge state `CLEAN`; no conflicts remain.
 
 ## Problems / open questions
 - None. The PR is open and has not been merged.
