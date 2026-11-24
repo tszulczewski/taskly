@@ -74,6 +74,7 @@ const eslintConfig = defineConfig([
       "packages/app/lib/api.ts",
       "packages/app/lib/session.ts",
       "packages/app/lib/default-list.ts",
+      "packages/app/lib/log-error.ts",
       "packages/app/components/auth/auth-gates.tsx",
       "packages/app/app/**/route.ts",
     ],
