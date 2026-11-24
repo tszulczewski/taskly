@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { schema } from "@taskly/db";
 import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -25,6 +26,9 @@ const CLOCK_SLACK_MS = 5 * 60 * 1000;
 const HEADING = "My renovation";
 // The "page did not open" state, which also shows the heading.
 const PAGE_FAILED = "Could not open your tasks.";
+// The sign-in limit per client address (`SIGN_IN_RATE_LIMIT` in `core/src/auth.ts`, T-03).
+const SIGN_IN_MAX = 5;
+const SIGN_IN_WINDOW_S = 60;
 
 function expectAboutThirtyDaysAhead(date: Date) {
   expect(Math.abs(date.getTime() - (Date.now() + SESSION_TTL_MS))).toBeLessThan(CLOCK_SLACK_MS);
@@ -59,10 +63,10 @@ describe("auth over HTTP (sign-up closed)", () => {
   const getSession = (cookie?: string) =>
     authRequest(app, "/get-session", { method: "GET", forwardedFor: nextIp(), cookie });
 
-  const wrongSignIn = (forwardedFor: string) =>
+  const wrongSignIn = (forwardedFor: string, slug = "nobody") =>
     authRequest(app, "/sign-in/email", {
       forwardedFor,
-      body: { email: email("nobody"), password: "wrong-password-123" },
+      body: { email: email(slug), password: "wrong-password-123" },
     });
 
   /** A client-side navigation's Flight request (`RSC: 1`), as the App Router sends it. */
@@ -79,7 +83,9 @@ describe("auth over HTTP (sign-up closed)", () => {
   }
 
   beforeAll(async () => {
-    app = await startApp(process.env.DATABASE_URL as string, { port: 3201 });
+    // Vitest sets TEST=true, which the server inherits; Better Auth then treats a request without
+    // a client address as 127.0.0.1 instead of production's shared bucket, and never warns.
+    app = await startApp(process.env.DATABASE_URL as string, { port: 3201, env: { TEST: "" } });
   });
 
   afterAll(async () => {
@@ -114,22 +120,62 @@ describe("auth over HTTP (sign-up closed)", () => {
     expect(sessionCookie(res)).toBeUndefined();
   });
 
-  it("answers the 4th rapid wrong sign-in from one client with 429 and X-Retry-After", async () => {
+  it("answers the 6th rapid wrong sign-in from one client with 429 and X-Retry-After", async () => {
     const ip = nextIp();
-    for (let i = 0; i < 3; i++) expect((await wrongSignIn(ip)).status).toBe(401);
+    for (let i = 0; i < SIGN_IN_MAX; i++) expect((await wrongSignIn(ip)).status).toBe(401);
     const limited = await wrongSignIn(ip);
     expect(limited.status).toBe(429);
     const retryAfter = Number(limited.headers.get("x-retry-after"));
     expect(Number.isInteger(retryAfter)).toBe(true);
-    expect(retryAfter).toBeGreaterThanOrEqual(1);
-    expect(retryAfter).toBeLessThanOrEqual(10);
+    // Above Better Auth's built-in 10 s window: the stricter sign-in rule applies, not the default.
+    expect(retryAfter).toBeGreaterThan(10);
+    expect(retryAfter).toBeLessThanOrEqual(SIGN_IN_WINDOW_S);
   });
 
   it("buckets by the address Apache appends, not by a forged prefix", async () => {
-    for (let i = 0; i < 3; i++)
+    for (let i = 0; i < SIGN_IN_MAX; i++)
       expect((await wrongSignIn("forged-1, 198.51.100.7")).status).toBe(401);
     expect((await wrongSignIn("forged-2, 198.51.100.7")).status).toBe(429);
     expect((await wrongSignIn("forged-1, 198.51.100.8")).status).toBe(401);
+  });
+
+  it(
+    "refuses even the right password while limited and accepts it after the window",
+    async () => {
+      await createUser({ name: "Limited", email: email("limited"), password });
+      const ip = nextIp();
+      const rightSignIn = () =>
+        authRequest(app, "/sign-in/email", {
+          forwardedFor: ip,
+          body: { email: email("limited"), password },
+        });
+      for (let i = 0; i < SIGN_IN_MAX; i++)
+        expect((await wrongSignIn(ip, "limited")).status).toBe(401);
+
+      const limited = await rightSignIn();
+      expect(limited.status).toBe(429);
+      expect(sessionCookie(limited)).toBeUndefined();
+
+      // X-Retry-After is rounded up, so after it the window has passed.
+      const retryAfter = Number(limited.headers.get("x-retry-after"));
+      expect(retryAfter).toBeGreaterThan(0);
+      await sleep(retryAfter * 1000);
+      const res = await rightSignIn();
+      expect(res.status).toBe(200);
+      expect(sessionCookie(res)).toBeDefined();
+    },
+    (SIGN_IN_WINDOW_S + 30) * 1000,
+  );
+
+  // The runbook's check that Apache forwards the client address greps the journal for this.
+  it("logs that all clients share one bucket when no client address is forwarded", async () => {
+    // What Next passes on when Apache appends nothing: only the trusted proxy's own address.
+    const res = await authRequest(app, "/get-session", {
+      method: "GET",
+      forwardedFor: "127.0.0.1",
+    });
+    expect(res.status).toBe(200);
+    expect(app.stderr()).toContain("Rate limiting could not determine a client IP");
   });
 
   it("sends a visitor without a session from / to /sign-in before the page content", async () => {

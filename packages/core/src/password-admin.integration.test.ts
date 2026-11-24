@@ -121,7 +121,7 @@ describe.skipIf(!url)("password admin (real PostgreSQL)", () => {
 
   describe("setPassword", () => {
     const newPassword = "new-staple-battery-horse";
-    // Sign-in allows 3 attempts per 10 s per client IP; give every request its own address.
+    // Sign-in allows 5 attempts per 60 s per client IP; give every request its own address.
     let nextIp = 100;
 
     const signIn = (address: string, secret: string) =>

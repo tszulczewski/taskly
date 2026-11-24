@@ -46,7 +46,12 @@ describe("auth", () => {
     expect(betterAuth).toHaveBeenCalledTimes(1);
     const config = betterAuth.mock.calls[0]?.[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(config.trustedOrigins).toEqual([env.BETTER_AUTH_URL]);
-    expect(config.rateLimit.enabled).toBe(true);
+    expect(config.rateLimit).toEqual({
+      enabled: true,
+      window: 60,
+      max: 30,
+      customRules: { "/sign-in/email": { window: 60, max: 5 } },
+    });
     expect(config.advanced.useSecureCookies).toBe(false);
   });
 
