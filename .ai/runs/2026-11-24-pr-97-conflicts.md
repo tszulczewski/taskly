@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-24
 - **Spec:** none
-- **Outcome:** partial
+- **Outcome:** success
 
 ## Goal
 Resolve PR #97's merge conflicts against `main` and verify the branch is mergeable.
@@ -18,12 +18,12 @@ Resolve PR #97's merge conflicts against `main` and verify the branch is mergeab
 - This run log.
 
 ## Verification (commands run and results)
-- `git diff --cached --check` — no whitespace errors.
-- `git diff --name-only --diff-filter=U` — no unresolved files.
-- GitHub CI on the original PR head `7090da5ea2d17c045401bac3e3dfc696bcd40350` passed all listed jobs; the merged tree has not been tested. The resolution is staged locally, not committed or pushed.
+- `git diff --cached --check` — no whitespace errors before commit.
+- GitHub CI run [45400508888](https://github.com/tszulczewski/taskly/actions/runs/45400508888) on `289cc29063f570b9ddb71fe5f2780d80a175dce6` — passed all 6 workflow jobs; SonarCloud also passed.
+- GitHub reports the current PR head `289cc29063f570b9ddb71fe5f2780d80a175dce6` as `MERGEABLE`, merge state `CLEAN`; no conflicts remain.
 
 ## Problems / open questions
-- Publishing the staged merge resolution requires user confirmation under the task's Guard instructions. CI must validate the new merged head after publication.
+- None. The PR is open and has not been merged.
 
 ## Lessons recorded (links into .ai/lessons.md)
 - None.
