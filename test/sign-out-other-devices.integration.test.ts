@@ -7,7 +7,6 @@ import { authRequest, clientIps, createUser, SESSION_COOKIE } from "./helpers";
 
 const run = `signoutothers${Date.now()}`;
 const HEADER = '[data-slot="app-header"]';
-const DONE = "Other devices are signed out. This one stays signed in.";
 const FAILED = "Could not sign out other devices. Try again.";
 
 // #78 (threat T-06) against the production build, sign-up closed: Better Auth's
@@ -42,7 +41,8 @@ describe("signing out of other devices (#78)", () => {
     });
     expect(res.status).toBe(200);
     const header = res.headers.getSetCookie().find((c) => c.startsWith(`${SESSION_COOKIE}=`));
-    const attributes = header!
+    expect(header).toBeDefined();
+    const attributes = (header ?? "")
       .split(";")
       .slice(1)
       .map((attribute) => attribute.trim().toLowerCase());
@@ -116,16 +116,23 @@ describe("signing out of other devices (#78)", () => {
     browser.clickRole("menuitem", "Sign out of other devices");
   }
 
+  /** Success shows nothing (design system), so wait for its effect, then for the ready button. */
+  async function waitUntilSignedOut(otherDevice: string) {
+    await expect.poll(() => placesStatus(otherDevice), { timeout: 15_000 }).toBe(401);
+    await browser.waitFor(
+      () => browser.buttonEnabled("Sign out"),
+      () => "the Sign out button to be ready again",
+    );
+  }
+
   it("signs out another device from the header and stays signed in here", async () => {
     const user = await openSignedIn("browser");
     const otherDevice = await newSession("browser");
 
     chooseOtherDevices();
-    await browser.waitForText(DONE);
+    await waitUntilSignedOut(otherDevice);
     expect(browser.alerts()).toEqual([]);
-    expect(browser.buttonEnabled("Sign out")).toBe(true);
     expect(browser.url()).toBe(`${app().url}/`);
-    expect(await placesStatus(otherDevice)).toBe(401);
     expect(await sessionTokens(user.id)).toEqual([tokenOf(user.cookie)]);
 
     const cookie = browser.cookies().find((c) => c.name === SESSION_COOKIE);
@@ -150,9 +157,22 @@ describe("signing out of other devices (#78)", () => {
     }
 
     chooseOtherDevices();
-    await browser.waitForText(DONE);
+    await waitUntilSignedOut(otherDevice);
     expect(browser.alerts()).toEqual([]);
-    expect(await placesStatus(otherDevice)).toBe(401);
     expect(await sessionTokens(user.id)).toEqual([tokenOf(user.cookie)]);
+  });
+
+  // The T-06 case: another device (say, the thief's) signed this one out first, so this request
+  // gets 401. Like any 401, the app goes to sign-in instead of offering a retry that cannot work.
+  it("goes to /sign-in when this session was already signed out from another device", async () => {
+    const user = await openSignedIn("browser-gone");
+    const otherDevice = await newSession("browser-gone");
+    expect((await revokeOthers(otherDevice)).status).toBe(200);
+
+    chooseOtherDevices();
+    await browser.waitForPath("/sign-in");
+    expect(browser.alerts()).toEqual([]);
+    expect(await placesStatus(otherDevice)).toBe(200);
+    expect(await sessionTokens(user.id)).toEqual([tokenOf(otherDevice)]);
   });
 });

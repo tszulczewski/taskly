@@ -36,7 +36,7 @@ function Shell({
       theme={theme}
       onThemeChange={onThemeChange}
       onSignOut={onSignOut}
-      onSignOutOtherDevices={async () => true}
+      onSignOutOtherDevices={async () => "done" as const}
     >
       <h1 className="text-heading font-strong">Bathroom</h1>
       <Surface>

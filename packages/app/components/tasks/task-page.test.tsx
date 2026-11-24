@@ -12,7 +12,7 @@ vi.mock("../../lib/session", () => ({ requireSessionUser }));
 vi.mock("../../lib/default-list", () => ({ openDefaultList }));
 vi.mock("../auth/use-sign-out", () => ({
   useSignOut: () => signOut,
-  signOutOtherDevices: vi.fn(),
+  useSignOutOtherDevices: () => vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 // The screen loads its tasks through TanStack Query; its own tests cover it.

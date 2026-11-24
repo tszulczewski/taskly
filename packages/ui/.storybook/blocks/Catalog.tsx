@@ -89,7 +89,7 @@ function AppHeaderPreview() {
         theme={theme}
         onThemeChange={setTheme}
         onSignOut={async () => true}
-        onSignOutOtherDevices={async () => true}
+        onSignOutOtherDevices={async () => "done" as const}
       />
     </div>
   );

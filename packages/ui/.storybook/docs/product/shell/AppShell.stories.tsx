@@ -11,7 +11,9 @@ const meta = {
     theme: "dark",
     onThemeChange: fn(),
     onSignOut: fn(async () => true) as AppShellProps["onSignOut"],
-    onSignOutOtherDevices: fn(async () => true) as AppShellProps["onSignOutOtherDevices"],
+    onSignOutOtherDevices: fn(
+      async () => "done" as const,
+    ) as AppShellProps["onSignOutOtherDevices"],
     children: null,
   },
   argTypes: {
@@ -65,22 +67,22 @@ export const SignOutFailed: Story = {
   },
 };
 
-export const SignedOutOtherDevices: Story = {
+export const SignOutOtherDevices: Story = {
   render: (args) => <AppShell {...args}>{page}</AppShell>,
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await choose(canvasElement, "Sign out of other devices");
     await expect(args.onSignOutOtherDevices).toHaveBeenCalledOnce();
     await expect(args.onSignOut).not.toHaveBeenCalled();
-    await expect(canvas.getByRole("status")).toHaveTextContent(
-      "Other devices are signed out. This one stays signed in.",
-    );
+    // Success → nothing: no message, and the button works again.
+    await expect(canvas.queryByRole("alert")).toBeNull();
+    await expect(canvas.queryByRole("status")).toBeNull();
     await expect(canvas.getByRole("button", { name: "Sign out" })).not.toHaveAttribute("aria-busy");
   },
 };
 
 export const SignOutOtherDevicesFailed: Story = {
-  args: { onSignOutOtherDevices: async () => false },
+  args: { onSignOutOtherDevices: async () => "failed" as const },
   render: (args) => <AppShell {...args}>{page}</AppShell>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -95,10 +97,9 @@ export const Polish: Story = {
   args: {
     text: {
       signOut: "Wyloguj się",
-      signOutThisDevice: "Wyloguj na tym urządzeniu",
-      signOutOtherDevices: "Wyloguj na innych urządzeniach",
+      signOutThisDevice: "Wyloguj się na tym urządzeniu",
+      signOutOtherDevices: "Wyloguj się na innych urządzeniach",
       signOutFailed: "Nie udało się wylogować. Spróbuj ponownie.",
-      signedOutOtherDevices: "Inne urządzenia są wylogowane. To zostaje zalogowane.",
       signOutOtherDevicesFailed: "Nie udało się wylogować innych urządzeń. Spróbuj ponownie.",
       label: "Motyw",
       dark: "Ciemny",

@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Activity } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { SignOutOtherDevicesResult } from "./app-header";
 import { AppShell } from "./app-shell";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -21,9 +22,14 @@ describe("ThemeToggle", () => {
 });
 
 type Action = () => Promise<boolean>;
+type OtherDevices = () => Promise<SignOutOtherDevicesResult>;
 
 /** The shell on a page that Cache Components hide on navigation (React Activity). */
-const shell = (onSignOut: Action, visible = true, onSignOutOtherDevices: Action = vi.fn()) => (
+const shell = (
+  onSignOut: Action,
+  visible = true,
+  onSignOutOtherDevices: OtherDevices = vi.fn(),
+) => (
   <Activity mode={visible ? "visible" : "hidden"}>
     <AppShell
       theme="dark"
@@ -36,7 +42,7 @@ const shell = (onSignOut: Action, visible = true, onSignOutOtherDevices: Action 
   </Activity>
 );
 
-const renderShell = (onSignOut: Action, onSignOutOtherDevices?: Action) =>
+const renderShell = (onSignOut: Action, onSignOutOtherDevices?: OtherDevices) =>
   render(shell(onSignOut, true, onSignOutOtherDevices));
 
 const trigger = () => screen.getByRole("button", { name: "Sign out" });
@@ -111,51 +117,69 @@ describe("AppShell", () => {
     expect(screen.getByRole("alert")).toBeTruthy();
   });
 
-  it("says when other devices are signed out and stays ready", async () => {
+  it("says nothing when other devices are signed out, and stays ready", async () => {
     const onSignOut = vi.fn();
-    const onSignOutOtherDevices = vi.fn(async () => true);
+    const onSignOutOtherDevices = vi.fn(async () => "done" as const);
     renderShell(onSignOut, onSignOutOtherDevices);
-    expect(screen.getByRole("status").textContent).toBe("");
     await signOutOtherDevices();
     expect(onSignOutOtherDevices).toHaveBeenCalledOnce();
     expect(onSignOut).not.toHaveBeenCalled();
-    expect(screen.getByRole("status").textContent).toBe(
-      "Other devices are signed out. This one stays signed in.",
-    );
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(trigger().getAttribute("aria-busy")).toBeNull();
+    openMenu();
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it.each([
+    ["resolves failed", () => Promise.resolve("failed" as const)],
+    ["rejects", () => Promise.reject(new Error("offline"))],
+  ])(
+    "says when signing out other devices %s, and a retry drops the message",
+    async (_, fail: OtherDevices) => {
+      const onSignOutOtherDevices = vi
+        .fn<OtherDevices>()
+        .mockImplementationOnce(fail)
+        .mockResolvedValueOnce("done");
+      renderShell(vi.fn(), onSignOutOtherDevices);
+      await signOutOtherDevices();
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not sign out other devices. Try again.",
+      );
+      expect(trigger().getAttribute("aria-busy")).toBeNull();
+      await signOutOtherDevices();
+      expect(onSignOutOtherDevices).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
+
+  it("stays busy when this session already ended, until its page is hidden", async () => {
+    const onSignOut = vi.fn();
+    const onSignOutOtherDevices = vi.fn(async () => "sessionEnded" as const);
+    const { rerender } = renderShell(onSignOut, onSignOutOtherDevices);
+    await signOutOtherDevices();
+    expect(trigger().getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("alert")).toBeNull();
+    openMenu();
+    expect(screen.queryByRole("menu")).toBeNull();
+    rerender(shell(onSignOut, false, onSignOutOtherDevices));
+    rerender(shell(onSignOut, true, onSignOutOtherDevices));
     expect(trigger().getAttribute("aria-busy")).toBeNull();
   });
 
-  it("says when signing out other devices failed, and a retry replaces the message", async () => {
-    const onSignOutOtherDevices = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValueOnce(true);
-    renderShell(vi.fn(), onSignOutOtherDevices);
-    await signOutOtherDevices();
-    expect(screen.getByRole("alert").textContent).toContain(
-      "Could not sign out other devices. Try again.",
-    );
-    expect(screen.getByRole("status").textContent).toBe("");
-    expect(trigger().getAttribute("aria-busy")).toBeNull();
-    await signOutOtherDevices();
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("status").textContent).toContain("Other devices are signed out.");
-  });
-
-  it("is busy while other devices are signed out, then drops the message when its page is hidden", async () => {
-    let finish: (ok: boolean) => void = () => {};
+  it("is busy while other devices are signed out, and drops an old failure when its page is hidden", async () => {
+    let finish: (result: SignOutOtherDevicesResult) => void = () => {};
     const onSignOutOtherDevices = vi.fn(
-      () => new Promise<boolean>((resolve) => (finish = resolve)),
+      () => new Promise<SignOutOtherDevicesResult>((resolve) => (finish = resolve)),
     );
     const onSignOut = vi.fn();
     const { rerender } = renderShell(onSignOut, onSignOutOtherDevices);
     await signOutOtherDevices();
     expect(trigger().getAttribute("aria-busy")).toBe("true");
-    await act(async () => finish(true));
-    expect(screen.getByRole("status").textContent).not.toBe("");
+    await act(async () => finish("failed"));
+    expect(screen.getByRole("alert")).toBeTruthy();
     rerender(shell(onSignOut, false, onSignOutOtherDevices));
     rerender(shell(onSignOut, true, onSignOutOtherDevices));
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

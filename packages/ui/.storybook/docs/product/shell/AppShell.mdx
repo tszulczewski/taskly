@@ -33,7 +33,6 @@ Frames every signed-in page with a quiet top bar and one centred column, so the 
 | Theme toggle   | yes      | `ThemeToggle`                                                                                 |
 | Sign out       | yes      | Ghost `Button` opening a `Menu`: "Sign out of this device", "Sign out of other devices" (#78) |
 | Sign-out error | optional | `Alert` under the bar: "Could not sign out. Try again." (decision E7)                         |
-| Done notice    | optional | Text on `color-surface-raised` under the bar (`role="status"`) after other devices sign out   |
 | Column         | yes      | `<main>`, at most `layout-content-max-width` 980px, page gutter, `space-page-top` (P01)       |
 
 No bottom navigation on phones in version 1: it would have one item, because version 1 has one screen (P07; owner decision E1).
@@ -46,28 +45,29 @@ None. `AppHeader` is exported on its own for pages that need only the bar.
 
 No hover, focus or pressed look of its own, so no state matrix here: those states belong to the parts it is built from, and their matrices show them: [Button](?path=/story/primitives-button--states), [Theme toggle](?path=/story/product-app-shell-theme-toggle--states) (decision M1).
 
-| State                            | What the user sees                                                                               | Story                         | Source           |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------- | ---------------- |
-| Signed in                        | Bar and column.                                                                                  | Playground                    | spec AppHeader   |
-| Signing out                      | "Sign out" shows the spinner, `aria-busy`.                                                       | Playground                    | spec             |
-| Sign-out failed                  | Alert under the bar; the button works again; nothing claims sign-out.                            | Sign Out Failed               | spec, Edge cases |
-| Other devices signed out         | "Other devices are signed out. This one stays signed in." under the bar; the button works again. | Signed Out Other Devices      | #78, T-06        |
-| Signing out other devices failed | Alert under the bar: "Could not sign out other devices. Try again."                              | Sign Out Other Devices Failed | #78              |
+| State                            | What the user sees                                                             | Story                         | Source           |
+| -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------- | ---------------- |
+| Signed in                        | Bar and column.                                                                | Playground                    | spec AppHeader   |
+| Signing out                      | "Sign out" shows the spinner, `aria-busy`.                                     | Playground                    | spec             |
+| Sign-out failed                  | Alert under the bar; the button works again; nothing claims sign-out.          | Sign Out Failed               | spec, Edge cases |
+| Other devices signed out         | Nothing new (success → nothing); the button works again.                       | Sign Out Other Devices        | #78, T-06        |
+| This session already ended       | As after a sign-out: the spinner stays and the app goes to `/sign-in` (a 401). | (app)                         | spec, Edge cases |
+| Signing out other devices failed | Alert under the bar: "Could not sign out other devices. Try again."            | Sign Out Other Devices Failed | #78              |
 
 <Story of={Stories.SignOutFailed} />
 
-<Story of={Stories.SignedOutOtherDevices} />
+<Story of={Stories.SignOutOtherDevicesFailed} />
 
 ## 7. Behaviour and accessibility
 
 - Landmarks: `banner` (the bar) and `main`. The page heading is the `h1` inside `main`, not the app name: one per page, `text-heading font-strong`, naming what the page shows (the list's name), as in Product / Tasks / Screens.
 - Tab order: theme toggle → Sign out → page content. "Sign out" is a menu button (`aria-haspopup="menu"`): Enter, Space or a click opens it with focus on the first item; Escape closes it and returns focus. While a sign-out runs it shows the spinner and opens nothing.
 - Why a menu, not a second button: two text buttons and the theme icons do not fit one row at 320px (E10). Signing out everywhere is rare; this device stays one menu choice away.
-- The sign-out failures are announced (`role="alert"`), the done notice politely (`role="status"`, present before its text). Covered by the Sign Out Failed, Signed Out Other Devices and Sign Out Other Devices Failed tests.
+- The sign-out failures are announced (`role="alert"`). Signing out other devices says nothing when it works, as every success (design system, "If … then use …"): the menu closes and the button is ready again. Covered by the Sign Out Failed, Sign Out Other Devices and Sign Out Other Devices Failed tests.
 
 ## 8. Content
 
-"Sign out" / "Wyloguj się"; items "Sign out of this device" / "Wyloguj na tym urządzeniu" and "Sign out of other devices" / "Wyloguj na innych urządzeniach"; failure: "Could not sign out. Try again." (spec); done: "Other devices are signed out. This one stays signed in."; failure: "Could not sign out other devices. Try again."
+"Sign out" / "Wyloguj się"; items "Sign out of this device" / "Wyloguj się na tym urządzeniu" and "Sign out of other devices" / "Wyloguj się na innych urządzeniach"; failure: "Could not sign out. Try again." (spec); failure: "Could not sign out other devices. Try again." / "Nie udało się wylogować innych urządzeń. Spróbuj ponownie."
 
 <Story of={Stories.Polish} />
 
@@ -83,7 +83,7 @@ No hover, focus or pressed look of its own, so no state matrix here: those state
 
 <ArgTypes of={Stories} />
 
-`onSignOut` resolves `true` when the server confirmed; the app then clears the Query cache and goes to `/sign-in` (spec). `onSignOutOtherDevices` resolves `true` when the server ended every other session of the user; the page stays and the header shows the done notice (#78, threat T-06).
+`onSignOut` resolves `true` when the server confirmed; the app then clears the Query cache and goes to `/sign-in` (spec). `onSignOutOtherDevices` resolves `"done"` when the server ended every other session of the user (the page stays and nothing is shown), `"failed"` for the Alert, or `"sessionEnded"` when this session was already gone: the app clears the cache and goes to `/sign-in`, so the button stays busy as after `onSignOut` (#78, threat T-06; sign-in spec, Edge cases).
 
 ## 11. Code
 

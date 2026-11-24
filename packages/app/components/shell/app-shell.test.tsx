@@ -117,36 +117,52 @@ describe("AppShell (app) sign out of other devices", () => {
     expect(client.getQueryData(["tasks"])).toEqual(["Plaster the wall"]);
     expect(router.replace).not.toHaveBeenCalled();
     expect(router.refresh).not.toHaveBeenCalled();
-    expect(screen.getByRole("status").textContent).toBe(
-      "Other devices are signed out. This one stays signed in.",
-    );
+    // Design system: success → nothing.
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBeNull();
   });
 
   it.each([
     ["the network fails", () => fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"))],
     [
-      "the session is gone",
-      () =>
-        fetchMock.mockResolvedValueOnce(
-          new Response('{"code":"UNAUTHORIZED","message":"Unauthorized"}', { status: 401 }),
-        ),
+      "it is rate limited",
+      () => fetchMock.mockResolvedValueOnce(new Response(null, { status: 429 })),
     ],
-  ])("says so when %s, and a retry completes", async (_, fail) => {
+  ])("says so when %s, keeps the page, and a retry completes", async (_, fail) => {
     fail();
+    const clear = vi.spyOn(client, "clear");
     render(shell());
     await signOutOtherDevices();
     expect(screen.getByRole("alert").textContent).toBe(
       "Could not sign out other devices. Try again.",
     );
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(clear).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
 
     fetchMock.mockResolvedValueOnce(new Response('{"status":true}', { status: 200 }));
     await signOutOtherDevices();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("status").textContent).toContain("Other devices are signed out.");
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("clears the cache and goes to /sign-in when this session is already gone (401)", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('{"code":"UNAUTHORIZED","message":"Unauthorized"}', { status: 401 }),
+    );
+    const clear = vi.spyOn(client, "clear");
+    render(shell());
+    await signOutOtherDevices();
+    expect(clear).toHaveBeenCalledOnce();
+    expect(client.getQueryData(["tasks"])).toBeUndefined();
+    expect(router.replace).toHaveBeenCalledWith("/sign-in");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(clear.mock.invocationCallOrder[0]).toBeLessThan(
+      router.replace.mock.invocationCallOrder[0]!,
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign out" }).getAttribute("aria-busy")).toBe("true");
   });
 });
 

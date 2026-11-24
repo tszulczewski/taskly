@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../../components/ui/menu";
@@ -12,7 +12,6 @@ export interface AppHeaderText extends ThemeToggleText {
   signOutThisDevice: string;
   signOutOtherDevices: string;
   signOutFailed: string;
-  signedOutOtherDevices: string;
   signOutOtherDevicesFailed: string;
 }
 
@@ -22,11 +21,17 @@ const defaultText: Omit<AppHeaderText, keyof ThemeToggleText> = {
   signOutThisDevice: "Sign out of this device",
   signOutOtherDevices: "Sign out of other devices",
   signOutFailed: "Could not sign out. Try again.",
-  signedOutOtherDevices: "Other devices are signed out. This one stays signed in.",
   signOutOtherDevicesFailed: "Could not sign out other devices. Try again.",
 };
 
-type Outcome = "signOutFailed" | "signedOutOtherDevices" | "signOutOtherDevicesFailed";
+type Failure = "signOutFailed" | "signOutOtherDevicesFailed";
+
+/**
+ * How "Sign out of other devices" ended: `done` (the other sessions are gone, this one stays),
+ * `failed` (some may still be valid), or `sessionEnded` (this session was already gone, so the app
+ * goes to `/sign-in` as after a sign-out).
+ */
+export type SignOutOtherDevicesResult = "done" | "failed" | "sessionEnded";
 
 export interface AppHeaderProps {
   theme: Theme;
@@ -37,10 +42,11 @@ export interface AppHeaderProps {
    */
   onSignOut: () => Promise<boolean>;
   /**
-   * Ends every other session of this user and keeps this one; resolves true when the server
-   * confirmed. The page stays, so the header says it is done (threat T-06).
+   * Ends every other session of this user and keeps this one (threat T-06). On `done` the page
+   * stays and nothing is said (design system: success → nothing); on `sessionEnded` the button stays
+   * busy until the page changes, as after `onSignOut`.
    */
-  onSignOutOtherDevices: () => Promise<boolean>;
+  onSignOutOtherDevices: () => Promise<SignOutOtherDevicesResult>;
   text?: Partial<AppHeaderText>;
 }
 
@@ -59,7 +65,7 @@ export function AppHeader({
   const t = { ...defaultText, ...text };
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
 
   // With Cache Components the page is hidden (React Activity), not unmounted, after sign-out, and
   // this same header comes back after the next sign-in. Hiding is the page change that ends the
@@ -68,27 +74,23 @@ export function AppHeader({
     () => () => {
       setPending(false);
       setOpen(false);
-      setOutcome(null);
+      setFailure(null);
     },
     [],
   );
 
-  const run = async (action: () => Promise<boolean>, onDone: Outcome | null, onFail: Outcome) => {
+  const run = async (action: () => Promise<SignOutOtherDevicesResult>, onFail: Failure) => {
     setPending(true);
-    setOutcome(null);
-    const ok = await action().catch(() => false);
-    if (!ok) {
-      setOutcome(onFail);
-      setPending(false);
-    } else if (onDone) {
-      setOutcome(onDone);
-      setPending(false);
-    }
+    setFailure(null);
+    const result = await action().catch(() => "failed" as const);
+    // Leaving for /sign-in: busy until the page changes.
+    if (result === "sessionEnded") return;
+    setPending(false);
+    if (result === "failed") setFailure(onFail);
   };
 
-  const notice = (content: ReactNode) => (
-    <div className="mx-auto max-w-content px-page-gutter pt-group">{content}</div>
-  );
+  const signOutThisDevice = async (): Promise<SignOutOtherDevicesResult> =>
+    (await onSignOut()) ? "sessionEnded" : "failed";
 
   return (
     <header data-slot="app-header" className="bg-page">
@@ -105,14 +107,10 @@ export function AppHeader({
                 </Button>
               </MenuTrigger>
               <MenuContent>
-                <MenuItem onSelect={() => run(onSignOut, null, "signOutFailed")}>
+                <MenuItem onSelect={() => run(signOutThisDevice, "signOutFailed")}>
                   {t.signOutThisDevice}
                 </MenuItem>
-                <MenuItem
-                  onSelect={() =>
-                    run(onSignOutOtherDevices, "signedOutOtherDevices", "signOutOtherDevicesFailed")
-                  }
-                >
+                <MenuItem onSelect={() => run(onSignOutOtherDevices, "signOutOtherDevicesFailed")}>
                   {t.signOutOtherDevices}
                 </MenuItem>
               </MenuContent>
@@ -120,13 +118,11 @@ export function AppHeader({
           </div>
         </div>
       </div>
-      {/* Rendered before its text arrives, so screen readers announce the change. */}
-      <div role="status">
-        {outcome === "signedOutOtherDevices"
-          ? notice(<p className="rounded-surface bg-raised p-inset">{t[outcome]}</p>)
-          : null}
-      </div>
-      {outcome && outcome !== "signedOutOtherDevices" ? notice(<Alert title={t[outcome]} />) : null}
+      {failure ? (
+        <div className="mx-auto max-w-content px-page-gutter pt-group">
+          <Alert title={t[failure]} />
+        </div>
+      ) : null}
     </header>
   );
 }

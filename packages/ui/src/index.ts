@@ -61,7 +61,12 @@ export {
   type ThemeToggleProps,
   type ThemeToggleText,
 } from "./product/shell/theme-toggle";
-export { AppHeader, type AppHeaderProps, type AppHeaderText } from "./product/shell/app-header";
+export {
+  AppHeader,
+  type AppHeaderProps,
+  type AppHeaderText,
+  type SignOutOtherDevicesResult,
+} from "./product/shell/app-header";
 export { AppShell, type AppShellProps } from "./product/shell/app-shell";
 export type {
   Marker,
