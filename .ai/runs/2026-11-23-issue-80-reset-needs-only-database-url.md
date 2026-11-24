@@ -63,3 +63,12 @@ Run by `om-auto-continue-pr` on 2026-11-23. Findings and what changed:
 5. **B1** (CI Integration, reorder-browser flake) not touched here, as instructed; noted on the PR.
 
 Files: `packages/core/src/auth.ts`, `auth-options.ts` (new), `maintenance-auth.ts` (new), `maintenance-auth.test.ts` (new), `auth.test.ts`, `barrels.test.ts`, `password-admin.ts`, `password-admin.test.ts`, `password-admin.integration.test.ts`, `cli/set-password.test.ts`, `.ai/docs/security/threat-model.md`, `.ai/lessons.md` (lesson line corrected), this log.
+
+## Review round 2 (PR #97, re-review at head 285a85f, APPROVED with one minor)
+
+Run by `om-auto-continue-pr` (cezar run b108ef43) on 2026-11-24, for **m1** only: the drift guard compared top-level keys, and `session` and `advanced` sat on the app-only list as whole objects. So a nested storage option added to the app (`session.modelName`, `session.storeSessionInDatabase`, `advanced.database`) kept the test green.
+
+- `maintenance-auth.test.ts`: the app-only list now names `session` and `advanced` key by key (`advanced.ipAddress`, `advanced.useSecureCookies`, `session.expiresIn`, `session.updateAge`). Any other key in those objects fails the guard until it is moved into `sharedAuthOptions()` or listed. `rateLimit` stays whole: it holds no user/account/session storage, and #95 adds `rateLimit.customRules`.
+- No production code change: nothing needed to move into `sharedAuthOptions()`, because the app sets none of those nested options today.
+- Mutation check (each reverted): `session.modelName: "sessions"`, `advanced.database: { generateId: false }`, `session.storeSessionInDatabase: true` and a top-level `databaseHooks: {}` added inline in `auth.ts` → "uses every shared option exactly as the app does" fails for each; the reverted file passes (5/5).
+- Lesson line for 2026-11-23 extended with the nested-key rule.

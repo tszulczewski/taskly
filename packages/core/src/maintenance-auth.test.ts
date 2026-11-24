@@ -23,15 +23,23 @@ const env = {
 // App options that the offline reset must not have: they serve requests or need app secrets.
 // A new app option goes either into sharedAuthOptions (auth-options.ts) or into this list.
 const APP_ONLY = [
-  "advanced",
+  "advanced.ipAddress",
+  "advanced.useSecureCookies",
   "baseURL",
   "hooks",
   "plugins",
   "rateLimit",
   "secret",
-  "session",
+  "session.expiresIn",
+  "session.updateAge",
   "trustedOrigins",
 ];
+
+// These objects also hold storage options (advanced.database, session.modelName/fields,
+// session.storeSessionInDatabase), so the guard lists their keys one by one (review m1 on #97).
+const LISTED_BY_KEY = new Set(["advanced", "session"]);
+const optionPaths = (config: Config, key: string) =>
+  LISTED_BY_KEY.has(key) ? Object.keys(config[key]).map((sub) => `${key}.${sub}`) : [key];
 
 async function load() {
   vi.resetModules();
@@ -100,7 +108,9 @@ describe("maintenance auth", () => {
       expect(withoutSignUp(app[key]), key).toEqual(shared[key as keyof typeof shared]);
     }
     expect(betterAuth).toHaveBeenCalledTimes(2);
-    const appOnly = Object.keys(app).filter((key) => !(key in shared));
+    const appOnly = Object.keys(app)
+      .filter((key) => !(key in shared))
+      .flatMap((key) => optionPaths(app, key));
     expect(appOnly.sort()).toEqual(APP_ONLY);
   });
 
