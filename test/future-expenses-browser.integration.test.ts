@@ -89,10 +89,6 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     );
   }
 
-  function rowAction(title: string, item: "Edit" | "Delete") {
-    browser.clickRole("button", `More actions for “${title}”`);
-    browser.clickRole("menuitem", item);
-  }
   const toggle = (title: string) => browser.clickRole("checkbox", `Complete “${title}”`);
 
   beforeAll(async () => {
@@ -145,13 +141,13 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     await addTask("Hooks", "300");
     await expectTotal(shown("1 800-3 000 zł"));
 
-    rowAction("Paint", "Edit");
+    await browser.rowAction("Paint", "Edit");
     await browser.waitForHydrated(`${EDIT_FORM} [name="upTo"]`);
     browser.retypeInto(`${EDIT_FORM} [name="upTo"]`, "900");
     browser.clickRole("button", "Save");
     await expectTotal(shown("1 800-3 200 zł"));
 
-    rowAction("Hooks", "Delete");
+    await browser.rowAction("Hooks", "Delete");
     await browser.waitForText("Delete “Hooks”?");
     browser.clickRole("button", "Delete task");
     await expectTotal(shown("1 500-2 900 zł"));

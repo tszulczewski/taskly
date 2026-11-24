@@ -74,12 +74,20 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
       `[...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)`,
     );
 
-  async function openMenu(title: string) {
-    await browser.waitForAnimations();
-    browser.clickRole("button", `More actions for “${title}”`);
+  /**
+   * What dnd-kit last read out in each group. `sortableKeyboardCoordinates` ignores an arrow key
+   * until the drag has measured the rows, a render or more after Space (#99); the first "is now
+   * at" (over the row itself) is announced once it has, so wait for it before the arrow key.
+   */
+  const announcements = () =>
+    browser.evaluate<string[]>(
+      `[...document.querySelectorAll('[id^="DndLiveRegion-"]')].map((region) => region.textContent)`,
+    );
+  async function expectAnnounced(text: string) {
     await browser.waitFor(
-      () => browser.count('[role="menu"]') === 1,
-      () => `the menu of ${title} to open`,
+      () => announcements().includes(text),
+      () =>
+        `the announcement ${JSON.stringify(text)} (read out: ${JSON.stringify(announcements())})`,
     );
   }
 
@@ -96,9 +104,9 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
 
     browser.focus('button[aria-label="Move “A”"]');
     browser.press("Space");
-    await browser.waitForAnimations();
+    await expectAnnounced("“A” is now at “A”.");
     browser.press("ArrowDown");
-    await browser.waitForAnimations();
+    await expectAnnounced("“A” is now at “B”.");
     browser.press("Space");
 
     await expectShown("Tasks", ["B", "A", "C"]);
@@ -110,9 +118,9 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     // A click elsewhere during a keyboard move cancels it: no row is left lifted over the menus.
     browser.focus('button[aria-label="Move “C”"]');
     browser.press("Space");
-    await browser.waitForAnimations();
+    await expectAnnounced("“C” is now at “C”.");
     browser.press("ArrowUp");
-    await browser.waitForAnimations();
+    await expectAnnounced("“C” is now at “A”.");
     browser.click("h1");
     await browser.waitFor(
       () => browser.count("[data-dragging]") === 0,
@@ -128,14 +136,12 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     await expand("A");
     await expectShown("Subtasks of “A”", ["s1", "s2"]);
 
-    await openMenu("s2");
-    browser.clickRole("menuitem", "Move up");
+    await browser.rowAction("s2", "Move up");
     await expectShown("Subtasks of “A”", ["s2", "s1"]);
     await expect.poll(() => stored(user.listId, user.ids.A!)).toEqual(["s2", "s1"]);
     expect(await stored(user.listId)).toEqual(["A", "B", "C"]);
 
-    await openMenu("C");
-    browser.clickRole("menuitem", "Move up");
+    await browser.rowAction("C", "Move up");
     await expectShown("Tasks", ["A", "C", "B"]);
     await browser.waitFor(
       () =>
@@ -161,7 +167,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     expect(handles()).toBe(2);
     expect(browser.count('button[aria-label="Move “B”"]')).toBe(0);
 
-    await openMenu("B");
+    await browser.openRowMenu("B");
     expect(menuItems().filter((item) => item.startsWith("Move"))).toEqual([]);
   });
 
@@ -172,8 +178,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     // Another tab moves C between A and B; this page still shows A, B, C.
     await moveTask(db, user.id, user.ids.C!, { afterId: user.ids.A!, beforeId: user.ids.B! });
 
-    await openMenu("A");
-    browser.clickRole("menuitem", "Move down");
+    await browser.rowAction("A", "Move down");
 
     await browser.waitFor(
       () => browser.alerts().includes("Could not move “A”. It is back where it was."),
