@@ -13,15 +13,24 @@ passed on re-run: REORDER-001's keyboard move moved nothing, and two row-menu ac
 
 ## Finding
 
-1. **Keyboard move.** dnd-kit's `sortableKeyboardCoordinates` returns without moving while the
-   drag has no `collisionRect` (the active row's rect, measured a render or more after Space). An
-   arrow key pressed in that window is dropped. `waitForAnimations` does not cover it: nothing
-   animates. The first `onDragOver` announcement ("“A” is now at “A”.", over the row itself) is made
-   only once collisions were computed from those rects, so it marks the moment arrows work.
+1. **Keyboard move (inferred, never reproduced).** The cause is read from dnd-kit's code, not
+   observed: `sortableKeyboardCoordinates` returns without moving while the drag has no
+   `collisionRect` (the active row's rect, measured a render or more after Space), so an arrow key
+   pressed in that window would be dropped. It never reproduced locally in 50+ attempts, plain and
+   with the renderer CPU throttled ×4 and ×12; Space → ArrowDown → Space with no waits at all still
+   moved the row every time. So if REORDER-001 fails again, do not write it off as this cause
+   "already fixed": look at the failure message first. `waitForAnimations` does not cover that
+   window either way: nothing animates. The first `onDragOver` announcement ("“A” is now at “A”.",
+   over the row itself) is made only once collisions were computed from those rects, so it marks
+   the moment arrows work.
 2. **Row menu.** The "…" menu is a non-modal Radix menu: it closes as soon as focus leaves it.
-   - `subtasks-browser` AC4: `addSubtask` returned right after the submit click. The next "…"
-     click opened the menu, then the add's answer closed the form and moved focus to "Add subtask"
-     (decision F7), which closed the menu before the item click.
+   - `subtasks-browser` AC4 (proven): `addSubtask` returned right after the submit click. The next
+     "…" click opened the menu, then the add's answer closed the form and moved focus to "Add
+     subtask" (decision F7), which closed the menu before the item click. This was reproduced
+     deterministically by holding the subtask insert with a `FOR NO KEY UPDATE` lock on the list
+     row: the menu was open (`menus=1`) while the add waited, and after the answer `menus=0` with
+     focus on "Add subtask". With the same lock, `browser.rowAction` waited out the save and the
+     edit form appeared.
    - `future-expenses-browser`: the trigger was clicked straight after an add, with no wait at
      all. agent-browser's "covered by `<li.border-t.border-divider>`" refusal in that run means
      the button was no longer under the point it had measured: the screen was still changing (the
@@ -48,3 +57,7 @@ passed on re-run: REORDER-001's keyboard move moved nothing, and two row-menu ac
 - In a keyboard drag, wait for dnd-kit's live-region text (`[id^="DndLiveRegion-"]`) after each
   key, never for animations or a fixed time.
 - A box that is steady across two polls is the only check that catches smooth scrolling.
+- To reproduce a race with the server's timing, hold the server's answer (e.g. a
+  `FOR NO KEY UPDATE` row lock on the row the write needs, released from a timer). Throttling the
+  browser CPU does not reproduce it: agent-browser's `press` returns only after the renderer has
+  handled the key, so a slower renderer just makes each step wait longer.

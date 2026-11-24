@@ -47,10 +47,12 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     browser.evaluate<string[]>(
       `[...document.querySelectorAll(${JSON.stringify(`ul[aria-label="${list}"] > li`)})].map((li) => li.querySelector('[data-slot="task-title"]').textContent)`,
     );
+  /** The timeout message also names the alerts and dnd-kit's last words, so a refused move shows. */
   async function expectShown(list: string, titles: string[]) {
     await browser.waitFor(
       () => JSON.stringify(shown(list)) === JSON.stringify(titles),
-      () => `${list}: ${JSON.stringify(titles)} (shown: ${JSON.stringify(shown(list))})`,
+      () =>
+        `${list}: ${JSON.stringify(titles)} (shown: ${JSON.stringify(shown(list))}; alerts: ${JSON.stringify(browser.alerts())}; read out: ${JSON.stringify(announcements())})`,
     );
   }
 
@@ -75,9 +77,10 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     );
 
   /**
-   * What dnd-kit last read out in each group. `sortableKeyboardCoordinates` ignores an arrow key
-   * until the drag has measured the rows, a render or more after Space (#99); the first "is now
-   * at" (over the row itself) is announced once it has, so wait for it before the arrow key.
+   * What dnd-kit last read out in each group. Read from its code, never reproduced (#99):
+   * `sortableKeyboardCoordinates` ignores an arrow key until the drag has measured the rows, a
+   * render or more after Space; the first "is now at" (over the row itself) is announced once it
+   * has, so wait for it before the arrow key.
    */
   const announcements = () =>
     browser.evaluate<string[]>(

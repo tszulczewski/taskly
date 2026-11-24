@@ -90,3 +90,22 @@ below the `high` level), `test:integration` ✅ (23 files passed, 1 skipped; 298
 - 2026-11-24 — row menus only through `browser.rowAction` / `openRowMenu`; add helpers return after
   the answer; keyboard drags wait for dnd-kit's announcements
   (`lessons/2026-11-24-browser-tests-row-menu-and-keyboard-move.md`).
+
+## Correction (2026-11-24, after the independent review)
+
+Appended after the review of head `2ca9300` (PR #100); the text above is left as written.
+
+- **Skipped tests in the gate.** The `test:integration` line above credits the 5 skipped tests
+  to "the env-gated `describe.skipIf(!url)` core suites". That is wrong: the core suites ran. The
+  1 file / 5 tests skipped are `packages/db/src/migrations.integration.test.ts`, which is
+  Testcontainers-only and skips itself under `TEST_DATABASE_URL`. With Testcontainers, CI and the
+  reviewer ran 24 files / 303 tests, 0 skipped.
+- **REORDER-001 cause.** "What was wrong" and the lesson stated it as fact. It is inferred from
+  dnd-kit's code (`sortableKeyboardCoordinates` ignores keys before `collisionRect` is measured)
+  and never reproduced locally in 50+ attempts, also with the renderer CPU throttled. The AC4
+  mechanism, by contrast, was proven deterministically by holding the subtask insert with a row
+  lock. The lesson, its index line, the PR body and the comment in
+  `test/reorder-browser.integration.test.ts` now say so.
+- **Review follow-ups.** `test/AGENTS.md` now points new suites to `browser.openRowMenu` /
+  `browser.rowAction`; reorder's `expectShown` timeout message now includes the page's alerts and
+  dnd-kit's live-region text. Verification for this change is in the PR's resume summary.
