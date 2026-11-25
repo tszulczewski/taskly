@@ -273,6 +273,47 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     await expectTags({ A: ["Strych"], s1: ["Łazienka"], B: [] });
   });
 
+  // #90: "Add places" at the end of the meta line, on a task and on a subtask.
+  it("adds places from a row's Add places, on a task and a subtask, and gives focus back to it", async () => {
+    const user = await openPlanned("row-button");
+    const addPlaces = (title: string) => `button[aria-label="Add places to “${title}”"]`;
+    /** The parts of a row's meta line after its title and estimate, in order. */
+    const metaOf = (title: string) =>
+      browser.evaluate<string[]>(
+        `[...document.querySelector('${addPlaces(title)}').parentElement.children].map((part) => part.textContent)`,
+      );
+    async function pickFromRow(title: string, place: string) {
+      await browser.waitForAnimations();
+      browser.clickRole("button", `Add places to “${title}”`);
+      await browser.waitFor(
+        () => browser.count(PICKER) === 1,
+        () => "the place picker to open",
+      );
+      await browser.waitForSteady(PICKER);
+      browser.clickRole("checkbox", place);
+      browser.press("Escape");
+      await browser.waitFor(
+        () => browser.count(PICKER) === 0,
+        () => "the place picker to close",
+      );
+      expect(
+        browser.evaluate<boolean>(
+          `document.activeElement === document.querySelector('${addPlaces(title)}')`,
+        ),
+      ).toBe(true);
+    }
+
+    expect(metaOf("B")).toEqual(["Add places"]);
+    await pickFromRow("B", "Kuchnia");
+    await expectTags({ A: [], B: ["Kuchnia"] });
+    expect(metaOf("B")).toEqual(["Kuchnia", "Add places"]);
+
+    await expand("A");
+    await pickFromRow("s1", "Łazienka");
+    await expectTags({ A: [], s1: ["Łazienka"], B: ["Kuchnia"] });
+    await expect.poll(() => storedTicks(user.listId)).toEqual({ B: ["Kuchnia"], s1: ["Łazienka"] });
+  });
+
   // PLACES-004 (#19 AC10).
   it("shows the limit instead of New place at 20 places", async () => {
     await openPlanned("limit", async ({ id: userId }) => {

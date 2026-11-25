@@ -42,6 +42,10 @@ export interface TaskText extends TaskFieldsText, SortableText {
   important: string;
   urgent: string;
   places: string;
+  /** Ends a row's meta line and opens the place picker, like "Places…" (#90). */
+  addPlaces: string;
+  /** Its accessible name, which tells rows apart. */
+  addPlacesTo: (title: string) => string;
   /** The draft picker's title in quick add, which has no task title yet (spec E02, #83). */
   newTaskPlaces: string;
   newSubtaskPlaces: string;
@@ -109,6 +113,8 @@ export const defaultTaskText: TaskText = {
   important: "Important",
   urgent: "Urgent",
   places: "Places…",
+  addPlaces: "Add places",
+  addPlacesTo: (title) => `Add places to “${title}”`,
   newTaskPlaces: "Places for the new task",
   newSubtaskPlaces: "Places for the new subtask",
   chosenPlaces: "Chosen places",

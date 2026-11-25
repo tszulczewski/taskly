@@ -157,7 +157,8 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
       return {
         title: title.textContent,
         estimate,
-        meta: meta ? [...meta.children].map((e) => e.textContent) : [],
+        // "Add places" (#90) is an action in the meta line, not something it says about the task.
+        meta: meta ? [...meta.children].filter((e) => e.tagName !== "BUTTON").map((e) => e.textContent) : [],
         notice: row.querySelector(':scope > div > [role="status"]').textContent,
         expanded: title.getAttribute("aria-expanded"),
         pending: title.closest("[data-pending]") !== null,

@@ -394,6 +394,8 @@ export const polishTaskText: Partial<TaskText> = {
   important: "Ważne",
   urgent: "Pilne",
   places: "Miejsca…",
+  addPlaces: "Dodaj miejsca",
+  addPlacesTo: (title) => `Dodaj miejsca do „${title}”`,
   moveUp: "Przesuń w górę",
   moveDown: "Przesuń w dół",
   dragHandle: (title) => `Przesuń „${title}”`,

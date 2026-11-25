@@ -10,7 +10,13 @@ import {
 import { withDocFrame } from "../../../blocks/DocFrame";
 import { answer } from "../../../blocks/fake-api";
 import { DoDont, Narrow, Stack, StateRow } from "../../../blocks/Primitives";
-import { organizedPlaces, placeNameRule } from "../../../blocks/place-data";
+import {
+  bedroom,
+  hall,
+  longPlace,
+  organizedPlaces,
+  placeNameRule,
+} from "../../../blocks/place-data";
 import {
   curtainRods,
   organizedTasks,
@@ -283,6 +289,67 @@ export const PlacesPopover: Story = {
       name: `Places for “${organizedTasks[2]!.title}”`,
     });
     await expect(within(panel).getByRole("checkbox", { name: "Sypialnia" })).toBeChecked();
+  },
+};
+
+/** #90: a row without places ends its meta line with "Add places", which opens the picker beside it. */
+export const AddPlaces: Story = {
+  args: { task: sealBath, ...organized },
+  render: (args) => <InSortableList {...args} />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const button = within(canvasElement).getByRole("button", {
+      name: `Add places to “${sealBath.title}”`,
+    });
+    await expect(button).toHaveTextContent("Add places");
+    await userEvent.click(button);
+    const panel = await body.findByRole("dialog", { name: `Places for “${sealBath.title}”` });
+    await userEvent.click(within(panel).getByRole("checkbox", { name: "Kuchnia" }));
+    await expect(organized.places.onToggle).toHaveBeenCalledWith(sealBath.id, "kitchen", true);
+    await userEvent.keyboard("{Escape}");
+    await expect(button).toHaveFocus();
+  },
+};
+
+/** #90: a subtask has its own places (D21), so its row gets "Add places" too. */
+export const AddPlacesSubtask: Story = {
+  args: { task: organizedTasks[1]!.subtasks![2]!, ...organized, ...subtaskArgs },
+};
+
+/** #90: several places (D09): the tags, then "Add places". */
+export const AddPlacesAfterSeveral: Story = {
+  args: { task: organizedTasks[3]!, ...organized },
+  render: (args) => <InSortableList {...args} />,
+  play: async ({ canvasElement }) => {
+    const button = within(canvasElement).getByRole("button", {
+      name: `Add places to “${organizedTasks[3]!.title}”`,
+    });
+    await expect(Array.from(button.parentElement!.children, (part) => part.textContent)).toEqual([
+      "Kuchnia",
+      "Przedpokój",
+      "Sypialnia",
+      "Salon",
+      "Add places",
+      "Urgent",
+    ]);
+  },
+};
+
+/** #90: long place names wrap on a phone; "Add places" keeps a whole touch target. */
+export const AddPlacesNarrow320: Story = {
+  globals: { viewport: { value: "phone320", isRotated: false } },
+  args: {
+    task: { ...organizedTasks[3]!, places: [longPlace, hall, bedroom], important: true },
+    ...organized,
+  },
+  render: (args) => (
+    <Narrow>
+      <InSortableList {...args} />
+    </Narrow>
+  ),
+  play: async ({ canvasElement }) => {
+    const button = within(canvasElement).getByRole("button", { name: /^Add places to/ });
+    await expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
   },
 };
 

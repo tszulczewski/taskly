@@ -111,7 +111,7 @@ export interface TaskRowProps {
   onMove?: (id: string, position: MovePosition) => void;
   /** Sets or clears a marker (E02-S02); turns on "Important" and "Urgent" in the menu. */
   onToggleMarker?: (id: string, marker: Marker, on: boolean) => void;
-  /** Turns on "Places…" in the menu (E02-S03). */
+  /** Turns on "Places…" in the menu (E02-S03) and "Add places" in the meta line (#90). */
   places?: PlaceOptions;
   /** The checkbox was ticked or cleared (E03-S01); the list asks first when subtasks are open. */
   onToggleComplete?: (task: TaskItem, completed: boolean) => void;
@@ -185,8 +185,11 @@ export function TaskRow({
   const editing = editingFrom !== null;
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
+  // What opened the place picker, which sits beside it and takes focus back when it closes (#90).
+  const [placesFrom, setPlacesFrom] = useState<"menu" | "row">("menu");
   const lineRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const addPlacesRef = useRef<HTMLButtonElement>(null);
   const addSubtaskRef = useRef<HTMLButtonElement>(null);
   // An action that moves focus itself (a form, the dialog) stops the menu returning it to "…".
   const menuMovedFocus = useRef(false);
@@ -243,6 +246,11 @@ export function TaskRow({
     menuMovedFocus.current = true;
     action();
   };
+  const openPlaces = (from: "menu" | "row") => {
+    setPlacesFrom(from);
+    setPlacesOpen(true);
+  };
+  const placesOpener = placesFrom === "menu" ? menuTriggerRef : addPlacesRef;
 
   // The list's corners are rounded; a row's tone (hover, open, editing) follows them on the first
   // and last task, and on the last subtask of the last task. Clipping the list instead would cut a
@@ -281,7 +289,8 @@ export function TaskRow({
     unestimatedSubtasks > 0 ||
     task.important ||
     task.urgent ||
-    (task.places?.length ?? 0) > 0;
+    (task.places?.length ?? 0) > 0 ||
+    places !== undefined;
 
   const titleClass = cn(
     "min-w-0 flex-1 text-left font-strong break-words",
@@ -298,16 +307,14 @@ export function TaskRow({
       {/* The tooltip reads the label of its direct child, so MenuTrigger carries it too (N4). */}
       <Tooltip>
         <MenuTrigger asChild aria-label={t.moreActions(task.title)}>
-          <PopoverAnchor asChild>
-            <Button
-              ref={menuTriggerRef}
-              variant="ghost"
-              size="icon"
-              aria-label={t.moreActions(task.title)}
-            >
-              <Ellipsis />
-            </Button>
-          </PopoverAnchor>
+          <Button
+            ref={menuTriggerRef}
+            variant="ghost"
+            size="icon"
+            aria-label={t.moreActions(task.title)}
+          >
+            <Ellipsis />
+          </Button>
         </MenuTrigger>
       </Tooltip>
       <MenuContent
@@ -339,7 +346,7 @@ export function TaskRow({
         {places ? (
           <MenuItem
             disabled={task.pending}
-            onSelect={() => runMenuAction(() => setPlacesOpen(true))}
+            onSelect={() => runMenuAction(() => openPlaces("menu"))}
           >
             {t.places}
           </MenuItem>
@@ -505,6 +512,21 @@ export function TaskRow({
                   {task.places?.map((place) => (
                     <PlaceTag key={place.id} place={place} />
                   ))}
+                  {places ? (
+                    // Above the title's target, which covers the whole text block (K1).
+                    <TextAction
+                      ref={addPlacesRef}
+                      tone="muted"
+                      disabled={task.pending}
+                      aria-label={t.addPlacesTo(task.title)}
+                      aria-haspopup="dialog"
+                      aria-expanded={placesOpen && placesFrom === "row"}
+                      onClick={() => openPlaces("row")}
+                      className="relative text-meta"
+                    >
+                      {t.addPlaces}
+                    </TextAction>
+                  ) : null}
                   <Markers
                     important={task.important}
                     urgent={task.urgent}
@@ -527,16 +549,18 @@ export function TaskRow({
                 </div>
               ) : null}
             </div>
-            {/* "…" anchors the places popover, which "Places…" in its menu opens (G3). */}
+            {/* The places popover sits beside what opened it: "Places…" in the menu of "…" (G3), or
+                "Add places" in the meta line (#90). */}
             <Popover open={placesOpen} onOpenChange={setPlacesOpen}>
+              <PopoverAnchor virtualRef={placesOpener} />
               {menu}
               {places ? (
                 <PopoverContent
-                  align="end"
+                  align={placesFrom === "menu" ? "end" : "start"}
                   aria-label={{ ...defaultPlaceText, ...places.text }.placesFor(task.title)}
                   onCloseAutoFocus={(event) => {
                     event.preventDefault();
-                    menuTriggerRef.current?.focus();
+                    placesOpener.current?.focus();
                   }}
                 >
                   <PlacePicker
