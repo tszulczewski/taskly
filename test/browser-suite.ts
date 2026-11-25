@@ -4,7 +4,7 @@ import { schema } from "@taskly/db";
 import { like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 import {
   authRequest,
   clientIps,
@@ -67,6 +67,11 @@ export function useSignedInBrowserSuite({ run, port, session }: BrowserSuiteOpti
   beforeEach(() => {
     browser.open("about:blank");
     browser.clearCookies();
+  });
+
+  // Every flow runs under the production CSP (threat T-07): a refused script or style is a bug.
+  afterEach(() => {
+    expect(browser.cspViolations()).toEqual([]);
   });
 
   afterAll(async () => {

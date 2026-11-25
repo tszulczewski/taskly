@@ -102,6 +102,7 @@ Add to `packages/core/src/http.ts` (server-side, no `next` import) and `packages
 - **Secrets:** only in env, validated at startup by a Zod `env` schema in `core`. `.env` is git-ignored; `.env.example` lists names only. Never log passwords, tokens, cookies or the API key. The Anthropic key is read only in server code.
 - **AI output is untrusted.** Always `JSON.parse` + Zod. Invalid output → error, nothing is stored. Bound `max_tokens`, set a timeout, rate-limit the estimate endpoint per user (cost control), and never put other users' data in the prompt.
 - **Auth error messages are generic** (no "email not registered").
+- **XSS and CSP:** text renders through React only; `dangerouslySetInnerHTML` is a lint error (`react/no-danger`) outside the static theme script. Every response carries the CSP and framing headers from `packages/app/lib/security-headers.ts` (no `eval`, no inline event handlers, nothing from other origins); a feature that needs more changes that policy on purpose. Every browser suite fails on a CSP violation, so run `npm run test:integration` after adding a script, style or origin.
 - **SSE** streams authenticate once per connection, verify list membership, and filter events to lists the user may read. Closing the connection unsubscribes (no listener leaks on a 1 GB VPS).
 - **Dependencies:** `npm audit` is part of the gate. Do not add a dependency for 20 lines of code. Pin major versions. Note that this project's Next.js has breaking changes: consult the bundled docs.
 
