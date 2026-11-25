@@ -1,8 +1,7 @@
 import "server-only";
-import { getDb, schema } from "@taskly/db";
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies, toNextJsHandler } from "better-auth/next-js";
+import { sharedAuthOptions } from "./auth-options";
 import { getEnv } from "./env";
 import { signUpBeforeHook } from "./sign-up-hook";
 
@@ -20,6 +19,9 @@ const globalForAuth = globalThis as unknown as Record<symbol, true | undefined>;
 
 function createAuth() {
   const env = getEnv();
+  // Options that change how passwords are hashed or where sessions live go into sharedAuthOptions,
+  // so the offline reset (maintenance-auth.ts) gets them too.
+  const shared = sharedAuthOptions();
   if (env.ALLOW_SIGN_UP && !globalForAuth[SIGN_UP_WARNED]) {
     globalForAuth[SIGN_UP_WARNED] = true;
     console.warn("ALLOW_SIGN_UP is on: anyone who can reach the app can create an account.");
@@ -40,14 +42,8 @@ function createAuth() {
       // Behind Apache on loopback: without the forwarded client IP every request shares one rate-limit bucket.
       ipAddress: { ipAddressHeaders: ["x-forwarded-for"], trustedProxies: ["127.0.0.1", "::1"] },
     },
-    // Transactions so password replacement and session revocation commit together (off by default).
-    database: drizzleAdapter(getDb(), { provider: "pg", schema, transaction: true }),
-    emailAndPassword: {
-      enabled: true,
-      disableSignUp: !env.ALLOW_SIGN_UP,
-      minPasswordLength: 10,
-      maxPasswordLength: 128,
-    },
+    ...shared,
+    emailAndPassword: { ...shared.emailAndPassword, disableSignUp: !env.ALLOW_SIGN_UP },
     session: { expiresIn: SESSION_TTL_S, updateAge: SESSION_RENEW_AFTER_S },
     hooks: { before: signUpBeforeHook },
     // Sessions are stored in PostgreSQL (session table). Google login comes after the MVP.

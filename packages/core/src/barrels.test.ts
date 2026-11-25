@@ -38,5 +38,8 @@ describe("entry points", () => {
     expect(server.createPasswordUser).toBeTypeOf("function");
     expect(server.setPassword).toBeTypeOf("function");
     expect(server.can).toBe(isomorphic.can);
+    // The reset's auth has no rate limit or sign-up hook, so request code must not reach it (#97 M1).
+    expect(server).not.toHaveProperty("getMaintenanceContext");
+    expect(server).not.toHaveProperty("sharedAuthOptions");
   });
 });
