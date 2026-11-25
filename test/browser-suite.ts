@@ -46,14 +46,20 @@ export function useSignedInBrowserSuite({ run, port, session }: BrowserSuiteOpti
     return running;
   };
 
-  async function signIn(slug: string): Promise<SignedInUser> {
-    const user = await createUser({ name: `User ${slug}`, email: email(slug), password });
+  /** Another session (another device) of a user `signIn` created; returns its cookie pair. */
+  async function newSession(slug: string): Promise<string> {
     const res = await authRequest(app(), "/sign-in/email", {
       forwardedFor: nextIp(),
       body: { email: email(slug), password },
     });
     const cookie = sessionCookie(res);
     if (!cookie) throw new Error(`Sign-in over HTTP failed with ${res.status}`);
+    return cookie;
+  }
+
+  async function signIn(slug: string): Promise<SignedInUser> {
+    const user = await createUser({ name: `User ${slug}`, email: email(slug), password });
+    const cookie = await newSession(slug);
     return { id: user.id, cookie, listId: await ensureDefaultList(db, user.id) };
   }
 
@@ -86,5 +92,5 @@ export function useSignedInBrowserSuite({ run, port, session }: BrowserSuiteOpti
     await closeUserDb();
   });
 
-  return { app, browser, pool, db, signIn };
+  return { app, browser, pool, db, signIn, newSession };
 }

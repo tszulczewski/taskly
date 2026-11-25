@@ -11,9 +11,16 @@ const meta = {
     theme: "dark",
     onThemeChange: fn(),
     onSignOut: fn(async () => true) as AppShellProps["onSignOut"],
+    onSignOutOtherDevices: fn(
+      async () => "done" as const,
+    ) as AppShellProps["onSignOutOtherDevices"],
     children: null,
   },
-  argTypes: { children: { control: false }, onSignOut: { control: false } },
+  argTypes: {
+    children: { control: false },
+    onSignOut: { control: false },
+    onSignOutOtherDevices: { control: false },
+  },
 } satisfies Meta<typeof AppShell>;
 
 export default meta;
@@ -28,12 +35,19 @@ const page = (
   </>
 );
 
+/** Opens the "Sign out" menu and picks an item; the menu renders in a portal, outside the canvas. */
+async function choose(canvasElement: HTMLElement, item: string) {
+  await userEvent.click(within(canvasElement).getByRole("button", { name: "Sign out" }));
+  const menu = within(canvasElement.ownerDocument.body);
+  await userEvent.click(await menu.findByRole("menuitem", { name: item }));
+}
+
 export const Playground: Story = {
   render: (args) => <AppShell {...args}>{page}</AppShell>,
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const signOut = canvas.getByRole("button", { name: "Sign out" });
-    await userEvent.click(signOut);
+    await choose(canvasElement, "Sign out of this device");
     await expect(args.onSignOut).toHaveBeenCalledOnce();
     // Busy until the app navigates to /sign-in.
     await expect(signOut).toHaveAttribute("aria-busy", "true");
@@ -45,7 +59,7 @@ export const SignOutFailed: Story = {
   render: (args) => <AppShell {...args}>{page}</AppShell>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Sign out" }));
+    await choose(canvasElement, "Sign out of this device");
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "Could not sign out. Try again.",
     );
@@ -53,11 +67,57 @@ export const SignOutFailed: Story = {
   },
 };
 
+export const SignOutOtherDevices: Story = {
+  render: (args) => <AppShell {...args}>{page}</AppShell>,
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await choose(canvasElement, "Sign out of other devices");
+    await expect(args.onSignOutOtherDevices).toHaveBeenCalledOnce();
+    await expect(args.onSignOut).not.toHaveBeenCalled();
+    // Success → nothing: no message, and the button works again.
+    await expect(canvas.queryByRole("alert")).toBeNull();
+    await expect(canvas.queryByRole("status")).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Sign out" })).not.toHaveAttribute("aria-busy");
+  },
+};
+
+export const SignOutOtherDevicesFailed: Story = {
+  args: { onSignOutOtherDevices: async () => "failed" as const },
+  render: (args) => <AppShell {...args}>{page}</AppShell>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await choose(canvasElement, "Sign out of other devices");
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "Could not sign out other devices. Try again.",
+    );
+  },
+};
+
+export const SessionEnded: Story = {
+  args: { onSignOutOtherDevices: async () => "sessionEnded" as const },
+  render: (args) => <AppShell {...args}>{page}</AppShell>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const signOut = canvas.getByRole("button", { name: "Sign out" });
+    await choose(canvasElement, "Sign out of other devices");
+    // Busy until the app navigates to /sign-in (a 401), as after "Sign out of this device".
+    await expect(signOut).toHaveAttribute("aria-busy", "true");
+    await expect(canvas.queryByRole("alert")).toBeNull();
+    // A busy button takes no pointer events but stays focusable; Enter must open nothing either.
+    signOut.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("menu")).toBeNull();
+  },
+};
+
 export const Polish: Story = {
   args: {
     text: {
       signOut: "Wyloguj się",
+      signOutThisDevice: "Wyloguj się na tym urządzeniu",
+      signOutOtherDevices: "Wyloguj się na innych urządzeniach",
       signOutFailed: "Nie udało się wylogować. Spróbuj ponownie.",
+      signOutOtherDevicesFailed: "Nie udało się wylogować innych urządzeń. Spróbuj ponownie.",
       label: "Motyw",
       dark: "Ciemny",
       light: "Jasny",
@@ -73,7 +133,7 @@ export const DoAndDont: Story = {
       <DoDont
         good={{
           node: <p className="font-strong">Taskly</p>,
-          why: "The bar holds the name, the theme switch and Sign out; nothing else competes with the list.",
+          why: "The bar holds the name, the theme switch and the Sign out menu; nothing else competes with the list.",
         }}
         bad={{
           node: (

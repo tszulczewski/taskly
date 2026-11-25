@@ -10,7 +10,10 @@ const router = vi.hoisted(() => ({ refresh: vi.fn(), replace: vi.fn() }));
 
 vi.mock("../../lib/session", () => ({ requireSessionUser }));
 vi.mock("../../lib/default-list", () => ({ openDefaultList }));
-vi.mock("../auth/use-sign-out", () => ({ useSignOut: () => signOut }));
+vi.mock("../auth/use-sign-out", () => ({
+  useSignOut: () => signOut,
+  useSignOutOtherDevices: () => vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 // The screen loads its tasks through TanStack Query; its own tests cover it.
 vi.mock("./task-list-screen", () => ({
@@ -93,8 +96,9 @@ describe("TaskPage", () => {
 
     it("still signs out", async () => {
       await renderFailed();
+      fireEvent.keyDown(screen.getByRole("button", { name: "Sign out" }), { key: "Enter" });
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Sign out of this device" }));
       });
       expect(signOut).toHaveBeenCalledOnce();
       expect(router.refresh).not.toHaveBeenCalled();

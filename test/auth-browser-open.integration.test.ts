@@ -53,6 +53,12 @@ describe("auth in the browser (sign-up open)", () => {
     browser.setSessionCookie(cookie, app.url);
   }
 
+  /** "Sign out" in the header opens a menu; this choice ends only this browser's session (#78). */
+  function signOutOfThisDevice() {
+    browser.clickRole("button", "Sign out");
+    browser.clickRole("menuitem", "Sign out of this device");
+  }
+
   async function fillSignIn(address: string, secret: string) {
     browser.open(`${app.url}/sign-in`);
     await browser.waitForHydrated('input[autocomplete="email"]');
@@ -107,7 +113,7 @@ describe("auth in the browser (sign-up open)", () => {
     expect(await sessionCount(email("signup"))).toBe(1);
     await browser.waitForHydrated(HEADER);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     expect(await sessionCount(email("signup"))).toBe(0);
 
@@ -137,7 +143,7 @@ describe("auth in the browser (sign-up open)", () => {
     await browser.waitForText(HEADING);
     await browser.waitForHydrated(HEADER);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     await browser.waitForHydrated('input[autocomplete="current-password"]');
     expect(browser.buttonEnabled("Sign in")).toBe(true);
@@ -150,7 +156,7 @@ describe("auth in the browser (sign-up open)", () => {
     expect(browser.buttonEnabled("Sign out")).toBe(true);
     expect(await sessionCount(email("roundtrip"))).toBe(1);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     await browser.waitForHydrated('a[href="/sign-up"]');
     expect(await sessionCount(email("roundtrip"))).toBe(0);
@@ -171,7 +177,7 @@ describe("auth in the browser (sign-up open)", () => {
 
     browser.abortRequests("**/api/auth/sign-out");
     try {
-      browser.clickRole("button", "Sign out");
+      signOutOfThisDevice();
       await browser.waitForText(SIGN_OUT_FAILED);
       expect(browser.alerts()).toContain(SIGN_OUT_FAILED);
       expect(browser.url()).toBe(`${app.url}/`);
@@ -181,7 +187,7 @@ describe("auth in the browser (sign-up open)", () => {
       browser.unroute("**/api/auth/sign-out");
     }
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     expect(await sessionCount(email("signout-fail"))).toBe(0);
     browser.open(`${app.url}/`);

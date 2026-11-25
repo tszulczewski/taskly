@@ -13,7 +13,7 @@ Every Taskly screen is for a signed-in owner, so sign-in comes before E01. Spec:
 3. Wrong credentials: "Email or password is incorrect." above the form (`role="alert"`); what they typed stays.
 4. Signed in: always the list at `/`, inside the app shell (name, theme switch, "Sign out").
 5. Sign-up is closed unless the server enables it: `/sign-up` then says "Sign-up is closed. Ask the owner of this Taskly." with a link to sign in. When open, the form asks for a name, an email and a password ("At least 10 characters") and signs the account in at once.
-6. "Sign out" in the header ends the session and returns to `/sign-in`; if it fails, the header says "Could not sign out. Try again."
+6. "Sign out" in the header opens a menu. "Sign out of this device" ends the session and returns to `/sign-in`; if it fails, the header says "Could not sign out. Try again." "Sign out of other devices" ends every other session and keeps this one (#78).
 
 ## Screens and stories
 
