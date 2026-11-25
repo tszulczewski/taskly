@@ -156,7 +156,7 @@ The "How we verify" column, grouped by method.
 | Integration tests (existing, keep green) | Cross-user 404 on every list and task route; viewer cannot write; foreign `parentId`; mutations without the CSRF header refused; stale cookie → 401; sign-up closed; sign-in rate limit → 429 | T-01, T-02, T-03, T-04, T-05, T-06 |
 | Integration tests (to add) | Role matrix for each new route; invitation expiry, reuse, wrong email, owner role, concurrent accept; SSE event isolation and close on removal; estimate rate limit; editor delete records the actor | T-02, T-12, T-13, T-14, T-16 |
 | Unit tests (existing, keep green) | `apiHandler` and `openDefaultList` never log DB params (`api.test.ts`, `default-list.test.ts`, `log-error.test.ts`) | T-08 |
-| Unit tests (to add) | `apiHandler` never logs DB params; AI output validation stores nothing on bad output | T-08, T-15 |
+| Unit tests (to add) | AI output validation stores nothing on bad output | T-15 |
 | SAST / build checks | No new `dangerouslySetInnerHTML` (`react/no-danger`) or DOM raw-HTML sink (`no-restricted-properties`, `no-restricted-syntax`; T-07 lists what they miss); no API key in `.next/static`; `npm audit` | T-07, T-11, T-14 |
 | DAST (no session, then user A's session against user B's ids) | Id swapping on `/api/lists/*` and `/api/tasks/*`; cross-origin POSTs to `/api/auth/*`; HTML markup in task text renders as text; response headers (CSP, HSTS, frame-ancestors); oversized body → 413 | T-01, T-05, T-06, T-07, T-09 |
 | Manual, operator | Apache sends XFF; app listens only on loopback; production `Set-Cookie` flags; sign-up refused after deploy; the reset env file holds only the tunnel `DATABASE_URL` and is deleted after use | T-03, T-04, T-06, T-10 |
