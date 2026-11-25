@@ -51,7 +51,7 @@ case "$*" in
 esac
 exit 0
 EOF
-  printf '#!/bin/sh\necho "npx $*" >> "$CALLS"\n' > "$R/bin/npx"
+  printf '#!/bin/sh\necho "npx TMPDIR=${TMPDIR:-} $*" >> "$CALLS"\n' > "$R/bin/npx"
   cat > "$R/bin/npm" <<'EOF'
 #!/bin/sh
 echo "npm $*" >> "$CALLS"
@@ -166,6 +166,7 @@ for SH in sh bash; do
   SERVER=$(cat "$SERVER_PID_FILE" 2>/dev/null); PIDS="$PIDS $SERVER"
   APP=$(cd "$R" && ROOT=$R && . .ai/scripts/test-env-lib.sh && json_get "$DESCRIPTOR" app.pid)
   check "up ($SH): full bootstrap succeeds" '[ "$status" = 0 ] && grep -q "^TEST_ENV_STATUS=running" "$R/out"'
+  check "up ($SH): Node tooling uses a short TMPDIR" 'grep -q "^npx TMPDIR=/tmp" "$CALLS"'
   check "up ($SH): app.pid is the node server" '[ -n "$SERVER" ] && [ "$APP" = "$SERVER" ]'
   check "up ($SH): the lock is free once bootstrap returns" 'lock_free "$R"'
   FAKE_PG_RUNNING=1 TEST_ENV_LOCK_WAIT_SECONDS=1 "$SH" "$R/.ai/scripts/test-env-up.sh" > "$R/out" 2> "$R/err"

@@ -95,9 +95,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
   }
 
   async function openPlaces(title: string) {
-    await browser.waitForAnimations();
-    browser.clickRole("button", `More actions for “${title}”`);
-    browser.clickRole("menuitem", "Places…");
+    await browser.rowAction(title, "Places…");
     await browser.waitFor(
       () => browser.count('[data-slot="place-picker"]') === 1,
       () => "the place picker to open",
@@ -234,8 +232,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
       peer.setSessionCookie(user.cookie, app().url);
       peer.open(`${app().url}/`);
       await peer.waitForHydrated('[role="checkbox"]');
-      peer.clickRole("button", "More actions for “A”");
-      peer.clickRole("menuitem", "Places…");
+      await peer.rowAction("A", "Places…");
       await peer.waitForText("Edit places");
       await peer.waitForSteady(PICKER);
       await editPlace(peer, "Kuchnia");

@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -31,8 +30,8 @@ type Session = {
 };
 
 /**
- * The reset command as the Runbook (`.ai/docs/runbook.md`) gives it, in `/bin/sh` with a clean environment: no app secret
- * of the test runner, only the temporary env file and the explicit `DATABASE_URL` override.
+ * The reset command as the Runbook (`.ai/docs/runbook.md`) gives it, in `/bin/sh` with a clean
+ * environment: no variable of the test runner, so the env file is the only configuration.
  * `tty` runs it inside a PTY made by util-linux `script`; otherwise stdin is a pipe.
  */
 function startReset(
@@ -47,7 +46,6 @@ function startReset(
     HOME: home,
     SHELL: "/bin/sh",
     TERM: "dumb",
-    DATABASE_URL: process.env.DATABASE_URL,
   };
   const child = tty
     ? spawn("script", ["-qec", command, "/dev/null"], { cwd: root, env })
@@ -125,18 +123,8 @@ describe("npm run auth:set-password (fresh shell, real PostgreSQL)", () => {
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), "taskly-reset-"));
     envFile = join(dir, "reset.env");
-    // The file's database is unreachable: the reset can only succeed through the exported override.
-    writeFileSync(
-      envFile,
-      [
-        "DATABASE_URL=postgres://nobody:nothing@127.0.0.1:1/not-this-database",
-        `BETTER_AUTH_SECRET=${randomBytes(32).toString("base64")}`,
-        "BETTER_AUTH_URL=http://127.0.0.1",
-        "ANTHROPIC_API_KEY=test-key-not-used",
-        "",
-      ].join("\n"),
-      { mode: 0o600 },
-    );
+    // Only what the runbook copies (#80): no BETTER_AUTH_SECRET, BETTER_AUTH_URL or ANTHROPIC_API_KEY.
+    writeFileSync(envFile, `DATABASE_URL=${process.env.DATABASE_URL}\n`, { mode: 0o600 });
     chmodSync(envFile, 0o600);
   });
 

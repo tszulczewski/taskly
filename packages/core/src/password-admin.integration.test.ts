@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getAuth, getSessionUser } from "./auth";
 import { NotFoundError } from "./errors";
+import { getMaintenanceContext } from "./maintenance-auth";
 import { createPasswordUser, setPassword } from "./password-admin";
 
 const url = process.env.DATABASE_URL;
@@ -121,7 +122,7 @@ describe.skipIf(!url)("password admin (real PostgreSQL)", () => {
 
   describe("setPassword", () => {
     const newPassword = "new-staple-battery-horse";
-    // Sign-in allows 3 attempts per 10 s per client IP; give every request its own address.
+    // Sign-in allows 5 attempts per 60 s per client IP; give every request its own address.
     let nextIp = 100;
 
     const signIn = (address: string, secret: string) =>
@@ -246,7 +247,7 @@ describe.skipIf(!url)("password admin (real PostgreSQL)", () => {
     ])("rolls back the password and sessions when $when", async ({ slug, inject }) => {
       const { user, cookies, before } = await userWithSessions(slug);
       const address = email(slug);
-      const internal = (await getAuth().$context).internalAdapter;
+      const internal = (await getMaintenanceContext()).internalAdapter;
       const realDeleteUserSessions = internal.deleteUserSessions;
       const updatePassword = vi.spyOn(internal, "updatePassword");
       const deleteUserSessions = vi

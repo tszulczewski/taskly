@@ -2,7 +2,7 @@ import { schema } from "@taskly/db";
 import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   authRequest,
   clientIps,
@@ -23,8 +23,8 @@ const SIGN_OUT_FAILED = "Could not sign out. Try again.";
 const HEADER = '[data-slot="app-header"]';
 
 // Without an `X-Forwarded-For` header all the browser's auth requests share the trusted-127.0.0.1
-// bucket, one per path, of 3 attempts per 10 s for `/sign-in*` and `/sign-up*`. From that bucket
-// this file submits the sign-up form once and the sign-in form twice. Sign-out tests get their
+// bucket, one per path: 5 attempts per 60 s for `/sign-in/email`, 3 per 10 s for `/sign-up*`. From
+// that bucket this file submits the sign-up form once and the sign-in form twice. Sign-out tests get their
 // session over HTTP with their own client address, and the same-tab round trip sends its own
 // address from the browser (`setForwardedFor`), so neither spends from the shared buckets.
 describe("auth in the browser (sign-up open)", () => {
@@ -78,6 +78,11 @@ describe("auth in the browser (sign-up open)", () => {
     browser.open("about:blank");
     browser.clearCookies();
     browser.clearHeaders();
+  });
+
+  // Every flow runs under the production CSP (threat T-07): a refused script or style is a bug.
+  afterEach(() => {
+    expect(browser.cspViolations()).toEqual([]);
   });
 
   afterAll(async () => {

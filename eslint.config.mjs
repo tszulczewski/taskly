@@ -2,6 +2,19 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+const rawHtmlMessage = "Raw HTML is an XSS sink (threat T-07). Build nodes and set textContent.";
+// `document.write` through `document`, `window.document` or `el.ownerDocument`. Other `write`
+// calls stay allowed: Node streams have one.
+const documentWrite = {
+  selector:
+    "MemberExpression[property.name=/^(write|writeln)$/]:matches([object.name='document'], [object.property.name=/^(document|ownerDocument)$/])",
+  message: rawHtmlMessage,
+};
+const fetchCall = {
+  selector: "CallExpression[callee.name='fetch']",
+  message: "Use apiCall from lib/api-client.ts.",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -74,6 +87,7 @@ const eslintConfig = defineConfig([
       "packages/app/lib/api.ts",
       "packages/app/lib/session.ts",
       "packages/app/lib/default-list.ts",
+      "packages/app/lib/log-error.ts",
       "packages/app/components/auth/auth-gates.tsx",
       "packages/app/app/**/route.ts",
     ],
@@ -92,17 +106,45 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Raw HTML is an XSS sink the CSP cannot stop: it allows inline `<script>` and `javascript:`
+    // URLs (threat T-07). The static theme script is the one allowed use. `"*"` also checks the
+    // prop on custom components, which may pass it on to a DOM element.
+    ignores: ["packages/app/components/shell/theme-script.tsx"],
+    rules: { "react/no-danger": ["error", { customComponentNames: ["*"] }] },
+  },
+  {
+    // The DOM's raw-HTML sinks, for the same reason. Tests may use them to build fixtures.
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        ...[
+          "innerHTML",
+          "outerHTML",
+          "insertAdjacentHTML",
+          "setHTMLUnsafe",
+          "parseHTMLUnsafe",
+          "createContextualFragment",
+        ].map((property) => ({ property, message: rawHtmlMessage })),
+        // Catches `document["write"]` and `const { write } = document`, which the selector misses.
+        ...["write", "writeln"].map((property) => ({
+          object: "document",
+          property,
+          message: rawHtmlMessage,
+        })),
+      ],
+      "no-restricted-syntax": ["error", documentWrite],
+    },
+  },
+  {
     files: ["packages/app/**/*.{ts,tsx}"],
     ignores: ["packages/app/lib/api-client.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "CallExpression[callee.name='fetch']",
-          message: "Use apiCall from lib/api-client.ts.",
-        },
-      ],
-    },
+    // These options replace the block above for app code, so they repeat documentWrite.
+    rules: { "no-restricted-syntax": ["error", fetchCall, documentWrite] },
+  },
+  {
+    files: ["packages/app/**/*.test.{ts,tsx}"],
+    rules: { "no-restricted-syntax": ["error", fetchCall] },
   },
   { settings: { next: { rootDir: "packages/app" } } },
   // Override default ignores of eslint-config-next.
