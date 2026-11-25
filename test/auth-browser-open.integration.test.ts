@@ -2,7 +2,7 @@ import { schema } from "@taskly/db";
 import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   authRequest,
   clientIps,
@@ -23,8 +23,8 @@ const SIGN_OUT_FAILED = "Could not sign out. Try again.";
 const HEADER = '[data-slot="app-header"]';
 
 // Without an `X-Forwarded-For` header all the browser's auth requests share the trusted-127.0.0.1
-// bucket, one per path, of 3 attempts per 10 s for `/sign-in*` and `/sign-up*`. From that bucket
-// this file submits the sign-up form once and the sign-in form twice. Sign-out tests get their
+// bucket, one per path: 5 attempts per 60 s for `/sign-in/email`, 3 per 10 s for `/sign-up*`. From
+// that bucket this file submits the sign-up form once and the sign-in form twice. Sign-out tests get their
 // session over HTTP with their own client address, and the same-tab round trip sends its own
 // address from the browser (`setForwardedFor`), so neither spends from the shared buckets.
 describe("auth in the browser (sign-up open)", () => {
@@ -53,6 +53,12 @@ describe("auth in the browser (sign-up open)", () => {
     browser.setSessionCookie(cookie, app.url);
   }
 
+  /** "Sign out" in the header opens a menu; this choice ends only this browser's session (#78). */
+  function signOutOfThisDevice() {
+    browser.clickRole("button", "Sign out");
+    browser.clickRole("menuitem", "Sign out of this device");
+  }
+
   async function fillSignIn(address: string, secret: string) {
     browser.open(`${app.url}/sign-in`);
     await browser.waitForHydrated('input[autocomplete="email"]');
@@ -72,6 +78,11 @@ describe("auth in the browser (sign-up open)", () => {
     browser.open("about:blank");
     browser.clearCookies();
     browser.clearHeaders();
+  });
+
+  // Every flow runs under the production CSP (threat T-07): a refused script or style is a bug.
+  afterEach(() => {
+    expect(browser.cspViolations()).toEqual([]);
   });
 
   afterAll(async () => {
@@ -102,7 +113,7 @@ describe("auth in the browser (sign-up open)", () => {
     expect(await sessionCount(email("signup"))).toBe(1);
     await browser.waitForHydrated(HEADER);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     expect(await sessionCount(email("signup"))).toBe(0);
 
@@ -132,7 +143,7 @@ describe("auth in the browser (sign-up open)", () => {
     await browser.waitForText(HEADING);
     await browser.waitForHydrated(HEADER);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     await browser.waitForHydrated('input[autocomplete="current-password"]');
     expect(browser.buttonEnabled("Sign in")).toBe(true);
@@ -145,7 +156,7 @@ describe("auth in the browser (sign-up open)", () => {
     expect(browser.buttonEnabled("Sign out")).toBe(true);
     expect(await sessionCount(email("roundtrip"))).toBe(1);
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     await browser.waitForHydrated('a[href="/sign-up"]');
     expect(await sessionCount(email("roundtrip"))).toBe(0);
@@ -166,7 +177,7 @@ describe("auth in the browser (sign-up open)", () => {
 
     browser.abortRequests("**/api/auth/sign-out");
     try {
-      browser.clickRole("button", "Sign out");
+      signOutOfThisDevice();
       await browser.waitForText(SIGN_OUT_FAILED);
       expect(browser.alerts()).toContain(SIGN_OUT_FAILED);
       expect(browser.url()).toBe(`${app.url}/`);
@@ -176,7 +187,7 @@ describe("auth in the browser (sign-up open)", () => {
       browser.unroute("**/api/auth/sign-out");
     }
 
-    browser.clickRole("button", "Sign out");
+    signOutOfThisDevice();
     await browser.waitForPath("/sign-in");
     expect(await sessionCount(email("signout-fail"))).toBe(0);
     browser.open(`${app.url}/`);

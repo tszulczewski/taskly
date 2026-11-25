@@ -52,17 +52,26 @@ const { calls, ctx, runWithTransaction } = vi.hoisted(() => {
   });
   return { calls, ctx, runWithTransaction };
 });
+const { getAuth, getMaintenanceContext } = vi.hoisted(() => ({
+  getAuth: vi.fn(),
+  getMaintenanceContext: vi.fn(),
+}));
 
-vi.mock("./auth", () => ({ getAuth: () => ({ $context: Promise.resolve(ctx) }) }));
+vi.mock("./auth", () => ({ getAuth }));
+vi.mock("./maintenance-auth", () => ({ getMaintenanceContext }));
 vi.mock("@better-auth/core/context", () => ({ runWithTransaction }));
 
 const valid = { name: "  Ada Lovelace ", email: "Ada@Example.TEST", password: "correct-horse" };
 
+function resetMocks() {
+  calls.length = 0;
+  vi.clearAllMocks();
+  getAuth.mockReturnValue({ $context: Promise.resolve(ctx) });
+  getMaintenanceContext.mockReturnValue(Promise.resolve(ctx));
+}
+
 describe("createPasswordUser", () => {
-  beforeEach(() => {
-    calls.length = 0;
-    vi.clearAllMocks();
-  });
+  beforeEach(resetMocks);
 
   it("hashes first, then creates the user and credential account in one transaction", async () => {
     const user = await createPasswordUser(valid);
@@ -113,9 +122,14 @@ describe("createPasswordUser", () => {
 });
 
 describe("setPassword", () => {
-  beforeEach(() => {
-    calls.length = 0;
-    vi.clearAllMocks();
+  beforeEach(resetMocks);
+
+  // Regression (#80): the app instance validates every app secret, so the reset needed them all.
+  it("uses the maintenance instance, which needs only the database", async () => {
+    await setPassword("ada@example.test", "new-correct-horse");
+
+    expect(getMaintenanceContext).toHaveBeenCalledOnce();
+    expect(getAuth).not.toHaveBeenCalled();
   });
 
   it("hashes first, then replaces the password and revokes sessions in one transaction", async () => {

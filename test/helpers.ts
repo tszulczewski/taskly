@@ -196,6 +196,7 @@ const BROWSER_WAIT_MS = 15_000;
 const NOT_ACTIONABLE =
   /No element found|Element not found|but none match name|so the click would not reach it|so the input would land on that element/;
 const pause = new Int32Array(new SharedArrayBuffer(4));
+const cspRecorder = resolve(import.meta.dirname, "record-csp-violations.js");
 
 /** Thin wrapper around the agent-browser CLI, used as the browser testing framework. */
 export function createBrowser(session: string) {
@@ -204,6 +205,8 @@ export function createBrowser(session: string) {
     execFileSync(bin, ["--session", session, ...args], {
       encoding: "utf8",
       timeout: 60_000,
+      // Read when the session's browser starts; every page then records its CSP violations.
+      env: { ...process.env, AGENT_BROWSER_INIT_SCRIPTS: cspRecorder },
     }).trim();
 
   /**
@@ -296,12 +299,14 @@ export function createBrowser(session: string) {
     run("keyboard", "type", text);
   }
 
-  /**
-   * Waits until the element matching the CSS selector is on the page and its box stays the same
-   * between two polls. Radix places a popover after it renders and again when its size changes
-   * (a new view), without an animation, so a click sent a few ms later can miss its target.
-   */
-  const waitForSteady = async (selector: string, timeoutMs?: number) => {
+  const waitForAnimations = (timeoutMs?: number) =>
+    waitFor(
+      () => runningAnimations().length === 0,
+      () => `animations to finish (running: ${runningAnimations().join(", ")})`,
+      timeoutMs,
+    );
+
+  async function waitForSteady(selector: string, timeoutMs?: number) {
     const box = () =>
       evaluate<string | null>(`(() => {
         const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
@@ -318,7 +323,38 @@ export function createBrowser(session: string) {
       () => `${selector} to stop moving (box: ${box()})`,
       timeoutMs,
     );
-  };
+  }
+
+  const count = (selector: string) =>
+    evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+
+  /**
+   * The row's "…" menu is not modal: it closes as soon as focus leaves it. So the click waits
+   * until no add or save is on its way (its answer closes a form and moves focus, e.g. to "Add
+   * subtask"), nothing animates (a row opening, its highlight) and the button stays put (the page
+   * scrolls to a row just added): a click at a moving button lands on the row beside it. Then it
+   * waits until the menu has focus and Radix has placed it, so the item click cannot miss.
+   */
+  async function openRowMenu(title: string) {
+    const trigger = `button[aria-label=${JSON.stringify(`More actions for “${title}”`)}]`;
+    await waitFor(
+      () => count("[data-pending]") === 0 && runningAnimations().length === 0,
+      () =>
+        `the screen to settle before opening the menu of “${title}” (pending rows: ${count("[data-pending]")}, running: ${runningAnimations().join(", ")})`,
+    );
+    await waitForSteady(trigger);
+    act(trigger, "click", trigger);
+    await waitFor(
+      () =>
+        evaluate<boolean>(`(() => {
+          const menu = document.activeElement?.closest('[role="menu"]');
+          return !!menu && menu.getAttribute("aria-labelledby") === document.querySelector(${JSON.stringify(trigger)})?.id;
+        })()`),
+      () => `the menu of “${title}” to open with focus`,
+    );
+    await waitForAnimations();
+    await waitForSteady('[role="menu"]');
+  }
 
   const pathname = () => new URL(run("get", "url")).pathname;
   const hasText = (text: string) =>
@@ -350,6 +386,20 @@ export function createBrowser(session: string) {
     /** Clicks the element with this ARIA role and exact accessible name. */
     clickRole: (role: string, name: string) =>
       act(null, "find", "role", role, "click", "--name", name, "--exact"),
+    /** Opens the "…" menu of the row titled `title` once the screen has settled; see `rowAction`. */
+    openRowMenu,
+    /**
+     * Opens the "…" menu of the row titled `title` and picks `item` (role `menuitemcheckbox` for a
+     * marker). Use it for every row menu: a bare trigger click races the screen (#99).
+     */
+    rowAction: async (
+      title: string,
+      item: string,
+      role: "menuitem" | "menuitemcheckbox" = "menuitem",
+    ) => {
+      await openRowMenu(title);
+      act(null, "find", "role", role, "click", "--name", item, "--exact");
+    },
     /** Texts of the `role="alert"` elements on the page. */
     alerts: () =>
       evaluate<string[]>(
@@ -372,8 +422,7 @@ export function createBrowser(session: string) {
         timeoutMs,
       ),
     /** Number of elements matching a CSS selector. */
-    count: (selector: string) =>
-      evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`),
+    count,
     /**
      * Waits until React has hydrated the element matching the CSS selector. Text typed into a
      * server-rendered input before that is wiped when React takes over the controlled field, and
@@ -393,23 +442,13 @@ export function createBrowser(session: string) {
      * Waits until no finite animation is running (endless ones, like a spinner, never end). A row
      * that is opening is still clipped, so a click on its content lands on the row's button.
      */
-    waitForAnimations: (timeoutMs?: number) =>
-      waitFor(
-        () => runningAnimations().length === 0,
-        () => `animations to finish (running: ${runningAnimations().join(", ")})`,
-        timeoutMs,
-      ),
-    waitForSteady,
+    waitForAnimations,
     /**
-     * Clicks a row's "…" once it stops moving. An add scrolls its new row into view smoothly (spec
-     * E01, After an add), and a list taller than the window scrolls, so a click sent while the
-     * page still moves can miss "…" and leave the menu closed.
+     * Waits until the element matching the CSS selector is on the page and its box stays the same
+     * between two polls. Radix places a popover after it renders and again when its size changes
+     * (a new view), without an animation, so a click sent a few ms later can miss its target.
      */
-    openRowMenu: async (title: string) => {
-      const name = `More actions for “${title}”`;
-      await waitForSteady(`button[aria-label=${JSON.stringify(name)}]`);
-      act(null, "find", "role", "button", "click", "--name", name, "--exact");
-    },
+    waitForSteady,
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>
       waitFor(
@@ -437,6 +476,23 @@ export function createBrowser(session: string) {
       );
     },
     clearCookies: () => run("cookies", "clear"),
+    /**
+     * The Content-Security-Policy violations this tab has reported on the app's pages since the
+     * last call (`record-csp-violations.js`), and clears them. Fails when the recorder is missing,
+     * e.g. a browser left running from before, so a missing recorder never reads as "none".
+     */
+    cspViolations: () => {
+      const seen = evaluate<string[] | "no recorder">(`(() => {
+        if (!location.protocol.startsWith("http")) return [];
+        if (!window.__tasklyCspRecorder) return "no recorder";
+        const seen = JSON.parse(sessionStorage.getItem("taskly-csp-violations") || "[]");
+        sessionStorage.removeItem("taskly-csp-violations");
+        return seen;
+      })()`);
+      if (seen === "no recorder")
+        throw new Error(`No CSP recorder on ${run("get", "url")}; close the browser session.`);
+      return seen;
+    },
     /** The cookies the current page can see, HttpOnly ones included. */
     cookies: () => runJson<{ cookies: BrowserCookie[] }>("cookies", "get").cookies,
     /** Requests the page has made since the last `clearRequests`, whose URL matches `filter`. */

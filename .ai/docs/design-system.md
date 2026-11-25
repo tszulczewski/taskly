@@ -39,7 +39,7 @@ Import everything from `@taskly/ui`. One line each; the Storybook page of each c
 | Skeleton | `Skeleton` | The first load of the task list or the future expenses line. | Waiting for a button (Button loading); a change already shown optimistically. |
 | Collapsible | `Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleIndicator` | Quick-add “Description”, a task row's details, “2 tasks and 1 subtask without an estimate”. | Details in a drawer or window; switching views; a rule the user needs to act. |
 | Confirm dialog | `ConfirmDialog` | Deleting (danger); completing a task with open subtasks (primary). | An action undone in one tap; details or a form; reporting a failure. |
-| Menu | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete. | The main action of a screen; one value of several (RadioGroup); navigation. |
+| Menu | `Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuSeparator` | The task row menu: Add subtask, Edit, Places…, markers, moves, Delete; the top bar's "Sign out" menu (this device, other devices). | The main action of a screen; one value of several (RadioGroup); navigation. |
 | Popover | `Popover, PopoverTrigger, PopoverContent, PopoverAnchor` | The place picker of a task row. | A list of actions (Menu); a whole form (in the row); a question before deleting. |
 | Tooltip | `Tooltip` | Every icon-only button: handle, “…”, plus. | A button with text; why something is disabled; anything the user needs to act. |
 | Empty state | `EmptyState` | No tasks yet; nothing to show in a region. | Loading (Skeleton); a failed load (ErrorState); one missing value (muted text). |

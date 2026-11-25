@@ -11,7 +11,10 @@
 #   2026-11-13 repair: retry the postgres publish on a fresh port (WSL2: Windows-reserved port ranges)
 #   2026-11-16 repair (#82): app.pid is node itself; under bash a backgrounded `cd && node` subshell was
 #     recorded instead and kept the lock for the environment's lifetime
+#   2026-11-25 repair: use /tmp for Node IPC sockets; cezar's long per-task TMPDIR exceeds Unix socket limits
 set -eu
+TMPDIR=/tmp
+export TMPDIR
 
 # ---------------------------------------------------------------------------
 # Project-specific facts (discovered once; tweak here, not in the logic below)

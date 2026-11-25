@@ -198,15 +198,9 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     );
   }
 
-  /** Opens a row's "…" menu (a task's or a subtask's) and picks an item. */
-  async function rowAction(title: string, item: "Add subtask" | "Edit" | "Delete") {
-    await browser.openRowMenu(title);
-    browser.clickRole("menuitem", item);
-  }
-
   /** "…" → "Add subtask": waits for the row's "New subtask" form. */
   async function openSubtaskForm(taskTitle: string) {
-    await rowAction(taskTitle, "Add subtask");
+    await browser.rowAction(taskTitle, "Add subtask");
     await browser.waitFor(
       () => browser.count(subtaskField("title")) === 1,
       () => `the "New subtask" form of "${taskTitle}"`,
@@ -233,16 +227,23 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     browser.click(`${SUBTASK_ADD} button[type="submit"]`);
   }
 
-  /** Adds a subtask through its task's menu; settled once the form has closed after the answer. */
+  const subtaskFormClosed = () => browser.count(SUBTASK_ADD) === 0;
+  /**
+   * Adds a subtask through its task's menu and waits for the server's answer: it closes the form
+   * and moves focus to "Add subtask", which would close a menu opened in the meantime (#99).
+   */
   async function addSubtask(taskTitle: string, subtask: NewTask) {
     await openSubtaskForm(taskTitle);
     await fillSubtask(subtask);
+    await browser.waitFor(
+      () => subtaskFormClosed() && browser.count("[data-pending]") === 0,
+      () => `the saved subtask "${subtask.title}" (alerts: ${JSON.stringify(browser.alerts())})`,
+    );
   }
-  const subtaskFormClosed = () => browser.count(SUBTASK_ADD) === 0;
 
   /** "…" → "Delete" on a row, confirms the named dialog; settled once the dialog has closed. */
   async function deleteRow(title: string, question: string) {
-    await rowAction(title, "Delete");
+    await browser.rowAction(title, "Delete");
     await browser.waitForText(question);
     browser.clickRole("button", "Delete task");
   }
@@ -589,10 +590,6 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     // A subtask's menu has the task actions except "Add subtask" (one level only); it moves
     // among its task's subtasks (#17).
     await browser.openRowMenu("Sink");
-    await browser.waitFor(
-      () => browser.count('[role="menuitem"]') > 0,
-      () => "the subtask's menu",
-    );
     expect(
       browser.evaluate<string[]>(
         `[...document.querySelectorAll('[role="menuitem"]')].map((e) => e.textContent.trim())`,
@@ -621,7 +618,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     expect(await storedTask(user.listId, "Kitchen")).toEqual(own);
 
     // The task's own form: the read-only sum in place of the amount fields (R12).
-    await rowAction("Kitchen", "Edit");
+    await browser.rowAction("Kitchen", "Edit");
     await browser.waitForHydrated(`${editForm("Kitchen")} [name="title"]`);
     expect(browser.count(`${editForm("Kitchen")} input`)).toBe(1);
     expect(
@@ -701,7 +698,7 @@ describe("subtasks and the roll-up in the browser (#16, sign-up closed)", () => 
     const own = await storedTask(user.listId, "Shelf");
     const form = editForm("Shelf");
 
-    await rowAction("Shelf", "Edit");
+    await browser.rowAction("Shelf", "Edit");
     await browser.waitForHydrated(`${form} [name="amount"]`);
     await createTask(db, user.id, user.listId, {
       title: "Brackets",

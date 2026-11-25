@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { securityHeaders } from "./lib/security-headers";
 
 const repoRoot = path.join(import.meta.dirname, "../..");
 
@@ -30,8 +31,13 @@ export default function config(phase: string): NextConfig {
   // lives at the repo root. Already-set variables win. Builds and the standalone server
   // get their environment from the caller (CI, systemd), never from a file.
   const devEnv = path.join(repoRoot, ".env");
-  if (phase === PHASE_DEVELOPMENT_SERVER && existsSync(devEnv)) {
+  const dev = phase === PHASE_DEVELOPMENT_SERVER;
+  if (dev && existsSync(devEnv)) {
     process.loadEnvFile(devEnv);
   }
-  return nextConfig;
+  return {
+    ...nextConfig,
+    // Every response, page and API alike (threat T-07).
+    headers: async () => [{ source: "/:path*", headers: securityHeaders({ dev }) }],
+  };
 }

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createBrowser, type RunningApp, startApp } from "./helpers";
 
 const CLOSED = "Sign-up is closed. Ask the owner of this Taskly.";
@@ -15,6 +15,11 @@ describe("auth in the browser (sign-up closed)", () => {
   beforeEach(() => {
     browser.open("about:blank");
     browser.clearCookies();
+  });
+
+  // Every flow runs under the production CSP (threat T-07): a refused script or style is a bug.
+  afterEach(() => {
+    expect(browser.cspViolations()).toEqual([]);
   });
 
   afterAll(async () => {
