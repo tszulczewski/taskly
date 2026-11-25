@@ -13,9 +13,18 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+// What maintenance commands that only open the database (`auth:set-password`) need, so their
+// env file holds no app secret.
+const databaseEnvSchema = envSchema.pick({ DATABASE_URL: true, DATABASE_POOL_MAX: true });
+
 /** Validates a raw env map. Throws a ZodError listing every invalid variable. */
 export function parseEnv(raw: Record<string, string | undefined>): Env {
   return envSchema.parse(raw);
+}
+
+/** Validates only the database variables. Throws a ZodError listing every invalid one. */
+export function parseDatabaseEnv(raw: Record<string, string | undefined>) {
+  return databaseEnvSchema.parse(raw);
 }
 
 let cached: Env | undefined;

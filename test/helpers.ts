@@ -299,6 +299,63 @@ export function createBrowser(session: string) {
     run("keyboard", "type", text);
   }
 
+  const waitForAnimations = (timeoutMs?: number) =>
+    waitFor(
+      () => runningAnimations().length === 0,
+      () => `animations to finish (running: ${runningAnimations().join(", ")})`,
+      timeoutMs,
+    );
+
+  async function waitForSteady(selector: string, timeoutMs?: number) {
+    const box = () =>
+      evaluate<string | null>(`(() => {
+        const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
+        return r ? [r.x, r.y, r.width, r.height].join() : null;
+      })()`);
+    let last: string | null = null;
+    await waitFor(
+      () => {
+        const now = box();
+        const steady = now !== null && now === last;
+        last = now;
+        return steady;
+      },
+      () => `${selector} to stop moving (box: ${box()})`,
+      timeoutMs,
+    );
+  }
+
+  const count = (selector: string) =>
+    evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+
+  /**
+   * The row's "…" menu is not modal: it closes as soon as focus leaves it. So the click waits
+   * until no add or save is on its way (its answer closes a form and moves focus, e.g. to "Add
+   * subtask"), nothing animates (a row opening, its highlight) and the button stays put (the page
+   * scrolls to a row just added): a click at a moving button lands on the row beside it. Then it
+   * waits until the menu has focus and Radix has placed it, so the item click cannot miss.
+   */
+  async function openRowMenu(title: string) {
+    const trigger = `button[aria-label=${JSON.stringify(`More actions for “${title}”`)}]`;
+    await waitFor(
+      () => count("[data-pending]") === 0 && runningAnimations().length === 0,
+      () =>
+        `the screen to settle before opening the menu of “${title}” (pending rows: ${count("[data-pending]")}, running: ${runningAnimations().join(", ")})`,
+    );
+    await waitForSteady(trigger);
+    act(trigger, "click", trigger);
+    await waitFor(
+      () =>
+        evaluate<boolean>(`(() => {
+          const menu = document.activeElement?.closest('[role="menu"]');
+          return !!menu && menu.getAttribute("aria-labelledby") === document.querySelector(${JSON.stringify(trigger)})?.id;
+        })()`),
+      () => `the menu of “${title}” to open with focus`,
+    );
+    await waitForAnimations();
+    await waitForSteady('[role="menu"]');
+  }
+
   const pathname = () => new URL(run("get", "url")).pathname;
   const hasText = (text: string) =>
     evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(text)})`);
@@ -329,6 +386,20 @@ export function createBrowser(session: string) {
     /** Clicks the element with this ARIA role and exact accessible name. */
     clickRole: (role: string, name: string) =>
       act(null, "find", "role", role, "click", "--name", name, "--exact"),
+    /** Opens the "…" menu of the row titled `title` once the screen has settled; see `rowAction`. */
+    openRowMenu,
+    /**
+     * Opens the "…" menu of the row titled `title` and picks `item` (role `menuitemcheckbox` for a
+     * marker). Use it for every row menu: a bare trigger click races the screen (#99).
+     */
+    rowAction: async (
+      title: string,
+      item: string,
+      role: "menuitem" | "menuitemcheckbox" = "menuitem",
+    ) => {
+      await openRowMenu(title);
+      act(null, "find", "role", role, "click", "--name", item, "--exact");
+    },
     /** Texts of the `role="alert"` elements on the page. */
     alerts: () =>
       evaluate<string[]>(
@@ -351,8 +422,7 @@ export function createBrowser(session: string) {
         timeoutMs,
       ),
     /** Number of elements matching a CSS selector. */
-    count: (selector: string) =>
-      evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`),
+    count,
     /**
      * Waits until React has hydrated the element matching the CSS selector. Text typed into a
      * server-rendered input before that is wiped when React takes over the controlled field, and
@@ -372,35 +442,13 @@ export function createBrowser(session: string) {
      * Waits until no finite animation is running (endless ones, like a spinner, never end). A row
      * that is opening is still clipped, so a click on its content lands on the row's button.
      */
-    waitForAnimations: (timeoutMs?: number) =>
-      waitFor(
-        () => runningAnimations().length === 0,
-        () => `animations to finish (running: ${runningAnimations().join(", ")})`,
-        timeoutMs,
-      ),
+    waitForAnimations,
     /**
      * Waits until the element matching the CSS selector is on the page and its box stays the same
      * between two polls. Radix places a popover after it renders and again when its size changes
      * (a new view), without an animation, so a click sent a few ms later can miss its target.
      */
-    waitForSteady: async (selector: string, timeoutMs?: number) => {
-      const box = () =>
-        evaluate<string | null>(`(() => {
-          const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
-          return r ? [r.x, r.y, r.width, r.height].join() : null;
-        })()`);
-      let last: string | null = null;
-      await waitFor(
-        () => {
-          const now = box();
-          const steady = now !== null && now === last;
-          last = now;
-          return steady;
-        },
-        () => `${selector} to stop moving (box: ${box()})`,
-        timeoutMs,
-      );
-    },
+    waitForSteady,
     /** Waits until the page's visible text contains `text`. */
     waitForText: (text: string, timeoutMs?: number) =>
       waitFor(

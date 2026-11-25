@@ -2,7 +2,7 @@ import "server-only";
 import { parseArgs } from "node:util";
 import { getDb } from "@taskly/db";
 import { ZodError } from "zod";
-import { getEnv } from "../env";
+import { parseDatabaseEnv } from "../env";
 import { NotFoundError } from "../errors";
 import { SET_PASSWORD_NOT_FOUND, setPassword } from "../password-admin";
 import { UnsupportedKeyError, readHidden } from "./prompt-hidden";
@@ -22,7 +22,7 @@ export const EXIT_USAGE = 2;
 export type SetPasswordDeps = {
   /** Adds the file's variables to the environment; variables already set keep their value. */
   loadEnvFile(path: string): void;
-  /** Throws when the environment is incomplete or invalid. */
+  /** Throws when a variable the reset uses is missing or invalid; others are not required. */
   validateEnv(): void;
   isInteractive(): boolean;
   promptHidden(question: string): Promise<string>;
@@ -132,7 +132,7 @@ function resetFailureMessage(error: unknown) {
 export function nodeDeps(): SetPasswordDeps {
   return {
     loadEnvFile: (path) => process.loadEnvFile(path),
-    validateEnv: () => void getEnv(),
+    validateEnv: () => void parseDatabaseEnv(process.env),
     isInteractive: () => process.stdin.isTTY === true,
     promptHidden: (question) => readHidden(process.stdin, process.stderr, question),
     setPassword,

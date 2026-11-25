@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { afterEach, vi } from "vitest";
-import { getEnv, parseEnv } from "./env";
+import { getEnv, parseDatabaseEnv, parseEnv } from "./env";
 
 const valid = {
   DATABASE_URL: "postgres://u:p@localhost:5432/db",
@@ -27,6 +27,21 @@ describe("parseEnv", () => {
   it("rejects a short auth secret and a missing database url", () => {
     expect(() => parseEnv({ ...valid, BETTER_AUTH_SECRET: "short" })).toThrow();
     expect(() => parseEnv({ ...valid, DATABASE_URL: undefined })).toThrow();
+  });
+});
+
+describe("parseDatabaseEnv", () => {
+  it("needs only DATABASE_URL and drops every other variable", () => {
+    expect(
+      parseDatabaseEnv({ ...valid, BETTER_AUTH_SECRET: undefined, ANTHROPIC_API_KEY: undefined }),
+    ).toStrictEqual({ DATABASE_URL: valid.DATABASE_URL, DATABASE_POOL_MAX: 5 });
+  });
+  it("validates the database variables like the full schema", () => {
+    expect(parseDatabaseEnv({ DATABASE_URL: "x", DATABASE_POOL_MAX: "2" }).DATABASE_POOL_MAX).toBe(
+      2,
+    );
+    expect(() => parseDatabaseEnv({})).toThrow();
+    expect(() => parseDatabaseEnv({ DATABASE_URL: "x", DATABASE_POOL_MAX: "0" })).toThrow();
   });
 });
 
