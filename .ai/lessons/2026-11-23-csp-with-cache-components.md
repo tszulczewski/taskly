@@ -4,6 +4,8 @@
 - **Trigger:** bug fix; corrected after two reviews (the first version said injected markup could run script only through an event handler, the second that CSP refuses an inserted `<script>`)
 - **Related:** #79, `.ai/runs/2026-11-23-csp-security-headers.md`, `packages/app/lib/security-headers.ts`, `test/record-csp-violations.js`, threat T-07
 
+> **Superseded in part (2026-11-26, #101):** the nonce findings below are wrong for Next 16.4. A nonce CSP works with Cache Components once no page is fully static: see `2026-11-26-nonce-csp-with-cache-components.md`. The Zod `jitless` and violation-recorder findings still hold.
+
 ## Context
 
 #79 asked for a CSP with `script-src 'self'` plus the hash of the theme script, or a nonce. The app runs with `cacheComponents` (and so partial prerendering), and every page except the API routes is prerendered (`◐` in the build output).

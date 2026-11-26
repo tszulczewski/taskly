@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "../components/query-provider";
+import { RequestTimeHole } from "../components/shell/request-time-hole";
 import { ThemeScript } from "../components/shell/theme-script";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <QueryProvider>{children}</QueryProvider>
+        <RequestTimeHole />
       </body>
     </html>
   );
