@@ -2,7 +2,7 @@
 
 ## Highlights
 
-<!-- TODO: Highlights -->
+Taskly’s first release helps you organize home renovations and plan what you still expect to spend. Break work into tasks and subtasks, group them by place, and flag work that is important or urgent. Enter exact amounts or ranges in PLN, see the total estimate for open work, and fill in missing estimates from the future-expenses panel.
 
 ## ✨ Features
 
