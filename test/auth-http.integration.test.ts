@@ -29,6 +29,8 @@ const PAGE_FAILED = "Could not open your tasks.";
 // The sign-in limit per client address (`SIGN_IN_RATE_LIMIT` in `core/src/auth.ts`, T-03).
 const SIGN_IN_MAX = 5;
 const SIGN_IN_WINDOW_S = 60;
+// A third-party page; not in `trustedOrigins` (only BETTER_AUTH_URL is).
+const EVIL_ORIGIN = "https://evil.example";
 
 function expectAboutThirtyDaysAhead(date: Date) {
   expect(Math.abs(date.getTime() - (Date.now() + SESSION_TTL_MS))).toBeLessThan(CLOCK_SLACK_MS);
@@ -45,6 +47,8 @@ describe("auth over HTTP (sign-up closed)", () => {
   const tokenOf = (cookie: string) => decodeURIComponent(cookie.split("=")[1]!).split(".")[0]!;
   const sessionRow = async (token: string) =>
     (await db.select().from(schema.session).where(eq(schema.session.token, token)))[0];
+  const sessionsOf = (userId: string) =>
+    db.select().from(schema.session).where(eq(schema.session.userId, userId));
   const setExpiresAt = (token: string, expiresAt: Date) =>
     db.update(schema.session).set({ expiresAt }).where(eq(schema.session.token, token));
 
@@ -83,9 +87,7 @@ describe("auth over HTTP (sign-up closed)", () => {
   }
 
   beforeAll(async () => {
-    // Vitest sets TEST=true, which the server inherits; Better Auth then treats a request without
-    // a client address as 127.0.0.1 instead of production's shared bucket, and never warns.
-    app = await startApp(process.env.DATABASE_URL as string, { port: 3201, env: { TEST: "" } });
+    app = await startApp(process.env.DATABASE_URL as string, { port: 3201 });
   });
 
   afterAll(async () => {
@@ -222,6 +224,45 @@ describe("auth over HTTP (sign-up closed)", () => {
     expect(res.status).toBe(200);
     expect(touchesSessionCookie(res)).toBe(true);
     expect(sessionCookie(res)).toBeUndefined();
+  });
+
+  // T-05's third CSRF layer: Better Auth refuses a state-changing request from an untrusted
+  // Origin. It runs only because `startApp` clears Vitest's TEST=true (#96).
+  it("refuses a valid sign-in from another origin with 403 and no session, and accepts its own", async () => {
+    const slug = "origin";
+    const { id } = await createUser({ name: "Origin", email: email(slug), password });
+    const body = { email: email(slug), password };
+
+    const foreign = await authRequest(app, "/sign-in/email", {
+      forwardedFor: nextIp(),
+      body,
+      origin: EVIL_ORIGIN,
+    });
+    expect(foreign.status).toBe(403);
+    expect(await foreign.json()).toMatchObject({ code: "INVALID_ORIGIN" });
+    expect(touchesSessionCookie(foreign)).toBe(false);
+    expect(await sessionsOf(id)).toHaveLength(0);
+
+    const own = await authRequest(app, "/sign-in/email", { forwardedFor: nextIp(), body });
+    expect(own.status).toBe(200);
+    const cookie = sessionCookie(own);
+    expect(cookie).toBeDefined();
+    expect((await getSession(cookie)).status).toBe(200);
+    expect(await sessionsOf(id)).toEqual([expect.objectContaining({ token: tokenOf(cookie!) })]);
+  });
+
+  it("refuses a sign-out from another origin with 403 and keeps the session", async () => {
+    const cookie = await signedInCookie("origin-out");
+    const res = await authRequest(app, "/sign-out", {
+      forwardedFor: nextIp(),
+      cookie,
+      origin: EVIL_ORIGIN,
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "INVALID_ORIGIN" });
+    expect(touchesSessionCookie(res)).toBe(false);
+    expect(await sessionRow(tokenOf(cookie))).toBeDefined();
+    expect(await (await getSession(cookie)).json()).toMatchObject({ session: expect.any(Object) });
   });
 
   it("renews a session due for renewal only in the API read, never in page renders", async () => {

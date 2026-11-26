@@ -72,8 +72,6 @@ describe("signing out of other devices (#78)", () => {
     expect(await sessionTokens(stranger.id)).toEqual([tokenOf(stranger.cookie)]);
   });
 
-  // No cross-origin case here: an app started by the test runner inherits Vitest's `TEST=true`,
-  // which makes Better Auth skip its origin check (T-05 covers that layer).
   it("refuses without a session and with a signed-out one, ending nothing", async () => {
     const owner = await signIn("refused");
     const other = await newSession("refused");

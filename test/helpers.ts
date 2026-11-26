@@ -22,7 +22,11 @@ export type RunningApp = {
 
 export type StartAppOptions = {
   port?: number;
-  /** Extra variables for the server, e.g. `{ ALLOW_SIGN_UP: "true" }`. Sign-up is off unless set. */
+  /**
+   * Extra variables for the server, e.g. `{ ALLOW_SIGN_UP: "true" }`. Sign-up is off unless set.
+   * `TEST` is cleared, so Better Auth runs its production checks; a suite that opts back in with
+   * `{ TEST: "true" }` must say why.
+   */
   env?: Record<string, string>;
 };
 
@@ -43,6 +47,9 @@ export async function startApp(
   const child: ChildProcess = spawn("node", [server], {
     env: {
       ...process.env,
+      // Vitest sets TEST=true. Better Auth's `isTest()` would then skip its origin check (T-05),
+      // its secret validation, and resolve a request without a client address as 127.0.0.1.
+      TEST: "",
       NODE_ENV: "production",
       HOSTNAME: "127.0.0.1",
       PORT: String(port),
@@ -148,15 +155,17 @@ export type AuthRequest = {
   body?: unknown;
   /** A `name=value` cookie pair, e.g. from `sessionCookie`. */
   cookie?: string;
+  /** The `Origin` header; the app's own (trusted) origin when omitted. */
+  origin?: string;
 };
 
-/** Calls a Better Auth endpoint (`path` below `/api/auth`) with the trusted Origin. */
+/** Calls a Better Auth endpoint (`path` below `/api/auth`), by default with the trusted Origin. */
 export function authRequest(
   app: RunningApp,
   path: string,
-  { forwardedFor, method = "POST", body = {}, cookie }: AuthRequest,
+  { forwardedFor, method = "POST", body = {}, cookie, origin = app.url }: AuthRequest,
 ) {
-  const headers: Record<string, string> = { origin: app.url, "x-forwarded-for": forwardedFor };
+  const headers: Record<string, string> = { origin, "x-forwarded-for": forwardedFor };
   if (cookie) headers.cookie = cookie;
   if (method === "GET") return fetch(`${app.url}/api/auth${path}`, { headers });
   headers["content-type"] = "application/json";
