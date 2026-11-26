@@ -76,12 +76,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
       `[...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)`,
     );
 
-  /**
-   * What dnd-kit last read out in each group. Read from its code, never reproduced (#99):
-   * `sortableKeyboardCoordinates` ignores an arrow key until the drag has measured the rows, a
-   * render or more after Space; the first "is now at" (over the row itself) is announced once it
-   * has, so wait for it before the arrow key.
-   */
+  /** What dnd-kit last read out in each group. */
   const announcements = () =>
     browser.evaluate<string[]>(
       `[...document.querySelectorAll('[id^="DndLiveRegion-"]')].map((region) => region.textContent)`,
@@ -92,6 +87,27 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
       () =>
         `the announcement ${JSON.stringify(text)} (read out: ${JSON.stringify(announcements())})`,
     );
+  }
+
+  /**
+   * Picks the row up with Space on its handle and waits until an arrow key moves it. dnd-kit's
+   * `KeyboardSensor` adds its keydown listener in a `setTimeout(0)` set while it handles Space, so a
+   * key sent before that timer runs is lost and the move never happens (#102); React can render
+   * and read out the first "is now at" before it. A zero timer set after Space runs after it (timers
+   * of equal delay run in order). `sortableKeyboardCoordinates` also ignores an arrow until the
+   * rows are measured, and the first "is now at" (over the row itself) comes after that (#99).
+   */
+  async function pickUp(title: string) {
+    browser.focus(`button[aria-label="Move “${title}”"]`);
+    browser.press("Space");
+    browser.evaluate(
+      `(() => { window.__keysHeard = false; setTimeout(() => { window.__keysHeard = true; }); return null; })()`,
+    );
+    await browser.waitFor(
+      () => browser.evaluate<boolean>("window.__keysHeard === true"),
+      () => `dnd-kit to listen for keys after picking up “${title}”`,
+    );
+    await expectAnnounced(`“${title}” is now at “${title}”.`);
   }
 
   async function expand(title: string) {
@@ -105,9 +121,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     const user = await openPlanned("keyboard");
     await expectShown("Tasks", ["A", "B", "C"]);
 
-    browser.focus('button[aria-label="Move “A”"]');
-    browser.press("Space");
-    await expectAnnounced("“A” is now at “A”.");
+    await pickUp("A");
     browser.press("ArrowDown");
     await expectAnnounced("“A” is now at “B”.");
     browser.press("Space");
@@ -119,9 +133,7 @@ describe("reordering tasks in the browser (#17, sign-up closed)", () => {
     await expectShown("Tasks", ["B", "A", "C"]);
 
     // A click elsewhere during a keyboard move cancels it: no row is left lifted over the menus.
-    browser.focus('button[aria-label="Move “C”"]');
-    browser.press("Space");
-    await expectAnnounced("“C” is now at “C”.");
+    await pickUp("C");
     browser.press("ArrowUp");
     await expectAnnounced("“C” is now at “A”.");
     browser.click("h1");

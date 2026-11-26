@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { schema } from "@taskly/db";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -13,7 +14,14 @@ import {
   sessionCookie,
   startApp,
 } from "./helpers";
+import {
+  contentSecurityPolicy,
+  SHELL_SCRIPT_HASHES,
+} from "../packages/app/lib/content-security-policy";
 import { securityHeaders } from "../packages/app/lib/security-headers";
+
+const sha256 = (script: string) =>
+  `'sha256-${createHash("sha256").update(script).digest("base64")}'`;
 
 const databaseUrl = () => process.env.DATABASE_URL as string;
 const run = `app${Date.now()}`;
@@ -82,15 +90,60 @@ describe("running app (production build + test PostgreSQL)", () => {
   });
 
   it("sends the production CSP and the framing, sniffing and referrer headers (T-07)", async () => {
-    for (const path of ["/sign-in", "/", "/api/auth/ok"]) {
+    const nonces = new Set<string>();
+    for (const path of ["/sign-in", "/", "/api/auth/ok", "/no-such-page"]) {
       const res = await fetch(`${app.url}${path}`, { redirect: "manual" });
       const headers = Object.fromEntries(
-        securityHeaders({ dev: false }).map(({ key }) => [key, res.headers.get(key)]),
+        securityHeaders().map(({ key }) => [key, res.headers.get(key)]),
       );
       expect(headers, path).toEqual(
-        Object.fromEntries(securityHeaders({ dev: false }).map(({ key, value }) => [key, value])),
+        Object.fromEntries(securityHeaders().map(({ key, value }) => [key, value])),
       );
+      const policy = res.headers.get("Content-Security-Policy") ?? "";
+      const nonce = policy.match(/'nonce-([^']+)'/)?.[1] ?? "";
+      expect(policy, path).toBe(contentSecurityPolicy({ dev: false, nonce }));
+      nonces.add(nonce);
     }
+    expect(nonces.size).toBe(4);
+  });
+
+  // Every inline script Next writes must carry the response's nonce or a shell hash, on a
+  // prerendered page and on the 404 page alike; one without either would be refused (#101).
+  it("allows every inline script on a page by its nonce or a shell hash (T-07, #101)", async () => {
+    for (const path of ["/sign-in", "/no-such-page"]) {
+      const res = await fetch(`${app.url}${path}`);
+      const nonce = res.headers.get("Content-Security-Policy")?.match(/'nonce-([^']+)'/)?.[1];
+      const inline = [...(await res.text()).matchAll(/<script(?![^>]*\ssrc=)([^>]*)>([^<]*)/g)].map(
+        ([, attributes = "", body = ""]) => ({ attributes, body }),
+      );
+      expect(inline.length, path).toBeGreaterThan(0);
+      const refused = inline.filter(
+        ({ attributes, body }) =>
+          !attributes.includes(` nonce="${nonce}"`) && !SHELL_SCRIPT_HASHES.includes(sha256(body)),
+      );
+      expect(
+        refused.map(({ body }) => body.slice(0, 40)),
+        path,
+      ).toEqual([]);
+    }
+  });
+
+  // Injected markup can no longer run script through an inline `<script>`, a `javascript:` link
+  // or a `javascript:` iframe: no `'unsafe-inline'` on `script-src` (#101).
+  it("refuses injected inline script and javascript: URLs, and reports them (T-07, #101)", async () => {
+    browser.open(`${app.url}/sign-in`);
+    expect(browser.cspViolations()).toEqual([]);
+    browser.evaluate(
+      `(document.body.append(document.createRange().createContextualFragment('<script>window.__injected = "script"<\\/script><a id="injected-link" href="javascript:window.__injected = \\'link\\'">x</a><iframe src="javascript:parent.__injected = \\'iframe\\'"></iframe>')), true)`,
+    );
+    browser.click("#injected-link");
+    let seen: string[] = [];
+    await browser.waitFor(
+      () => (seen = [...seen, ...browser.cspViolations()]).length >= 3,
+      () => `three CSP violations, saw ${JSON.stringify(seen)}`,
+    );
+    expect(seen).toEqual(Array(3).fill("script-src-elem blocked inline on /sign-in"));
+    expect(browser.evaluate<boolean>("window.__injected === undefined")).toBe(true);
   });
 
   // Also proves the recorder behind `cspViolations()`, which every browser suite checks.

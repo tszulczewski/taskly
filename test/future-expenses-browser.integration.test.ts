@@ -89,7 +89,14 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     );
   }
 
-  const toggle = (title: string) => browser.clickRole("checkbox", `Complete “${title}”`);
+  /**
+   * Clicks the row's checkbox once nothing moves: a row still opening (subtasks shown) or moving
+   * (completion reorders the rows) can be under the click point instead, and the click is lost (#102).
+   */
+  async function toggle(title: string) {
+    await browser.waitForAnimations();
+    browser.clickRole("checkbox", `Complete “${title}”`);
+  }
 
   beforeAll(async () => {
     app = await startApp(process.env.DATABASE_URL as string, {
@@ -152,11 +159,11 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     browser.clickRole("button", "Delete task");
     await expectTotal(shown("1 500-2 900 zł"));
 
-    toggle("Paint");
+    await toggle("Paint");
     await expectTotal(shown("1 000-2 000 zł"));
-    toggle("Tiles");
+    await toggle("Tiles");
     await expectTotal(NO_TOTAL);
-    toggle("Tiles");
+    await toggle("Tiles");
     await expectTotal(shown("1 000-2 000 zł"));
 
     // The only summary of version 1 (D18, D19): nothing spent or incurred.
@@ -192,9 +199,10 @@ describe("future expenses in the browser (#21, sign-up closed)", () => {
     await openTasks(user);
     await expectTotal(shown("1 300-1 400 zł"));
 
+    await browser.waitForAnimations();
     browser.clickRole("button", "Bathroom");
     await browser.waitForText("Grout");
-    toggle("Grout");
+    await toggle("Grout");
     await expect
       .poll(async () => {
         const [grout] = await db

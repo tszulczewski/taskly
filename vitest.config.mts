@@ -19,6 +19,7 @@ export default defineConfig({
         "packages/app/lib/**/*.{ts,tsx}",
         "packages/app/components/**/*.{ts,tsx}",
         "packages/app/app/**/route.ts",
+        "packages/app/proxy.ts",
       ],
       exclude: [
         "**/*.test.{ts,tsx}",
