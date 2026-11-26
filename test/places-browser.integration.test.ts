@@ -94,6 +94,24 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
     );
   }
 
+  /**
+   * Waits for focus on `selector` after a picker closed. Radix removes the popover first and moves
+   * focus in a later task, so a check made as soon as the picker is gone can still see `body`.
+   */
+  async function waitForFocusBack(selector: string) {
+    const focused = () =>
+      browser.evaluate<string>(
+        `document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.tagName ?? ""`,
+      );
+    await browser.waitFor(
+      () =>
+        browser.evaluate<boolean>(
+          `document.activeElement === document.querySelector('${selector}')`,
+        ),
+      () => `focus back on ${selector} (focused: ${focused()})`,
+    );
+  }
+
   async function openPlaces(title: string) {
     await browser.rowAction(title, "Places…");
     await browser.waitFor(
@@ -296,11 +314,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
         () => browser.count(PICKER) === 0,
         () => "the place picker to close",
       );
-      expect(
-        browser.evaluate<boolean>(
-          `document.activeElement === document.querySelector('${addPlaces(title)}')`,
-        ),
-      ).toBe(true);
+      await waitForFocusBack(addPlaces(title));
     }
 
     expect(metaOf("B")).toEqual(["Add places"]);
@@ -377,11 +391,7 @@ describe("assigning tasks to places in the browser (#19, sign-up closed)", () =>
       () => "the draft place picker to close",
     );
     // Closing gives focus back to "Places…" (AC18).
-    expect(
-      browser.evaluate<boolean>(
-        `document.activeElement === document.querySelector('${form} button[aria-haspopup="dialog"]')`,
-      ),
-    ).toBe(true);
+    await waitForFocusBack(`${form} button[aria-haspopup="dialog"]`);
   }
   const formAlert = (form: string) =>
     browser.evaluate<string>(`document.querySelector('${form} [role="alert"]')?.textContent ?? ""`);
