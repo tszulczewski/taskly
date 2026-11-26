@@ -37,7 +37,7 @@ export default function config(phase: string): NextConfig {
   }
   return {
     ...nextConfig,
-    // Every response, page and API alike (threat T-07).
-    headers: async () => [{ source: "/:path*", headers: securityHeaders({ dev }) }],
+    // Every response, page and API alike (threat T-07); `proxy.ts` adds the per-request CSP.
+    headers: async () => [{ source: "/:path*", headers: securityHeaders() }],
   };
 }
