@@ -27,7 +27,7 @@ Every app `startApp` launches ran with Vitest's inherited `TEST=true`, so Better
 - `npm run build`: passed.
 - `npm run format:check`, `lint`, `check:agents`, `test:env-scripts`, `typecheck`, `test`, `audit`: all passed.
 - `npm run test:integration`, run 1: failed. The `auth-http` app (port 3201) died during the 60 s rate-limit wait, so every later test there got ECONNREFUSED. `places-browser` also failed 4 tests with agent-browser viewport and covered-element refusals. Run alone, `auth-http` passed 14/14.
-- `places-browser` alone, 5 runs: without `TEST` 1 pass and 2 failures; with the old `TEST=true` 2 passes and 1 failure. The failure is the same test both ways ("adds places from a row's Add places …": focus is not back on "Add places" after Escape). So it is an existing flake from #92, not caused by this change.
+- `places-browser` alone, 7 runs: without `TEST` 1 pass and 2 failures; with the old `TEST=true` 3 passes and 1 failure. The failure is the same test both ways ("adds places from a row's Add places …": focus is not back on "Add places" after Escape). So it is an existing flake from #92, not caused by this change.
 - `npm run test:integration`, run 2: 25 files, 317/317 passed.
 
 ## Problems / open questions
