@@ -61,3 +61,16 @@ passed on re-run: REORDER-001's keyboard move moved nothing, and two row-menu ac
   `FOR NO KEY UPDATE` row lock on the row the write needs, released from a timer). Throttling the
   browser CPU does not reproduce it: agent-browser's `press` returns only after the renderer has
   handled the key, so a slower renderer just makes each step wait longer.
+
+## Update 2026-11-26 (#102): the keyboard move's real gap
+
+The wait for the first "is now at" (#99) was not enough: REORDER-001 failed again on `main` with
+`read out: ["“A” is now at “A”."]` after the ArrowDown. dnd-kit 6.3.1's `KeyboardSensor.attach()`
+runs `setTimeout(() => this.listeners.add("keydown", this.handleKeyDown))`, so the sensor hears no
+key until that timer runs. React's render, the measurement and the announcement do not wait for
+it, so on a busy CI renderer the arrow can arrive first and is dropped. Delaying only that timer
+(a `setTimeout` wrapper matching `handleKeyDown` in the callback's source, 1.5 s) failed the old
+test every time (here the unheard ArrowDown scrolled the page, so the drop Space was lost too) and
+the new one passed. `pickUp` now also sets a zero timer in the page after Space and waits for it:
+timers of equal delay run in the order they were set (HTML timer steps), so dnd-kit's has run by
+then. Rule: in a keyboard drag, after Space, wait for both a zero timer and the first "is now at".
