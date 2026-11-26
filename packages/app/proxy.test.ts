@@ -1,30 +1,37 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "./proxy";
 
 const nonceOf = (policy: string | null) => policy?.match(/'nonce-([^']+)'/)?.[1];
-// What `NextResponse.next({ request })` hands on to the render, as Next encodes it.
-const forwarded = (response: Response, name: string) =>
-  response.headers.get(`x-middleware-request-${name}`);
+// The request headers the proxy hands to `NextResponse.next`, which forwards them to the render.
+// Read from the call rather than from Next's internal encoding of them on the response.
+const forwarded = (name: string) => {
+  const [init] = vi.mocked(NextResponse.next).mock.lastCall ?? [];
+  return new Headers(init?.request?.headers).get(name);
+};
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("proxy", () => {
   it("sends the same nonce CSP to the render and to the browser", () => {
+    vi.spyOn(NextResponse, "next");
     const response = proxy(new NextRequest("http://localhost/sign-in"));
     const policy = response.headers.get("Content-Security-Policy");
 
     expect(policy).toMatch(/script-src 'self' 'nonce-[^']+'/);
     expect(policy).not.toMatch(/script-src[^;]*'unsafe-inline'/);
-    expect(forwarded(response, "content-security-policy")).toBe(policy);
+    expect(NextResponse.next).toHaveBeenCalledOnce();
+    expect(forwarded("content-security-policy")).toBe(policy);
   });
 
   it("keeps the request's own headers", () => {
-    const request = new NextRequest("http://localhost/", { headers: { cookie: "a=b" } });
+    vi.spyOn(NextResponse, "next");
+    proxy(new NextRequest("http://localhost/", { headers: { cookie: "a=b" } }));
 
-    expect(forwarded(proxy(request), "cookie")).toBe("a=b");
+    expect(forwarded("cookie")).toBe("a=b");
   });
 
   it("uses a fresh nonce for every request", () => {
